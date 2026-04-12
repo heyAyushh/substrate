@@ -45,10 +45,13 @@ function normalize(value: unknown): unknown {
       .filter(([, entry]) => entry !== undefined)
       .sort(([left], [right]) => left.localeCompare(right));
 
-    return entries.reduce<Record<string, unknown>>((normalized, [key, entry]) => {
-      normalized[key] = normalize(entry);
-      return normalized;
-    }, {});
+    return entries.reduce<Record<string, unknown>>(
+      (normalized, [key, entry]) => {
+        normalized[key] = normalize(entry);
+        return normalized;
+      },
+      {}
+    );
   }
 
   return value;

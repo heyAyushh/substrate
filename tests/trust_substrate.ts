@@ -95,7 +95,7 @@ describe("trust_substrate", () => {
         new anchor.BN(LEAF_COUNT),
         domain,
         previousReceipt,
-        payloadHash,
+        payloadHash
       )
       .accountsStrict({
         authority,
@@ -121,7 +121,7 @@ describe("trust_substrate", () => {
       .checkpointHistory(
         new anchor.BN(EPOCH_NUMBER),
         checkpointRoot,
-        new anchor.BN(LEAF_COUNT),
+        new anchor.BN(LEAF_COUNT)
       )
       .accountsStrict({
         authority,
@@ -154,10 +154,15 @@ describe("trust_substrate", () => {
     const identityAccount = await program.account.agentIdentity.fetch(identity);
     const taskAccount = await program.account.taskRecord.fetch(task);
     const receiptAccount = await program.account.receiptRecord.fetch(receipt);
-    const delegationAccount = await program.account.delegationRecord.fetch(delegation);
-    const checkpointAccount = await program.account.historyCheckpoint.fetch(checkpoint);
-    const reputationAccount =
-      await program.account.reputationAccumulator.fetch(reputation);
+    const delegationAccount = await program.account.delegationRecord.fetch(
+      delegation
+    );
+    const checkpointAccount = await program.account.historyCheckpoint.fetch(
+      checkpoint
+    );
+    const reputationAccount = await program.account.reputationAccumulator.fetch(
+      reputation
+    );
 
     strictEqual(identityAccount.authority.toBase58(), authority.toBase58());
     strictEqual(taskAccount.subtaskCount, SUBTASK_COUNT);
@@ -171,7 +176,7 @@ describe("trust_substrate", () => {
 
 function pda(
   program: Program<TrustSubstrate>,
-  seeds: Array<Buffer>,
+  seeds: Array<Buffer>
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }

@@ -2,10 +2,12 @@ import test from "node:test";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
 import {
   LocalDurableIndexer,
-  type LocalReceiptRecord
+  type LocalReceiptRecord,
 } from "../../packages/indexer/src/index.js";
 
-const createReceipt = (overrides: Partial<LocalReceiptRecord>): LocalReceiptRecord => ({
+const createReceipt = (
+  overrides: Partial<LocalReceiptRecord>
+): LocalReceiptRecord => ({
   receiptId: "receipt-1",
   slot: 1,
   taskId: "task-1",
@@ -13,7 +15,7 @@ const createReceipt = (overrides: Partial<LocalReceiptRecord>): LocalReceiptReco
   kind: "assignment",
   domain: "ops",
   payload: {},
-  ...overrides
+  ...overrides,
 });
 
 test("idempotent writes do not duplicate indexed state", () => {
@@ -40,8 +42,8 @@ test("backfill ordering reconstructs history by slot", () => {
       slot: 20,
       kind: "handoff",
       actorId: "agent-2",
-      payload: { toAgentId: "agent-3" }
-    })
+      payload: { toAgentId: "agent-3" },
+    }),
   ]);
 
   deepStrictEqual(
@@ -59,7 +61,7 @@ test("reconstructs the execution graph from task and agent history", () => {
       slot: 11,
       kind: "assignment",
       actorId: "agent-a",
-      domain: "coordination"
+      domain: "coordination",
     }),
     createReceipt({
       receiptId: "receipt-12",
@@ -67,15 +69,15 @@ test("reconstructs the execution graph from task and agent history", () => {
       kind: "handoff",
       actorId: "agent-a",
       domain: "coordination",
-      payload: { toAgentId: "agent-b" }
+      payload: { toAgentId: "agent-b" },
     }),
     createReceipt({
       receiptId: "receipt-13",
       slot: 13,
       kind: "completion",
       actorId: "agent-b",
-      domain: "coordination"
-    })
+      domain: "coordination",
+    }),
   ]);
 
   const graph = indexer.getExecutionGraph();
@@ -96,21 +98,21 @@ test("exposes a full handoff chain for a task", () => {
       slot: 21,
       kind: "handoff",
       actorId: "agent-a",
-      payload: { toAgentId: "agent-b" }
+      payload: { toAgentId: "agent-b" },
     }),
     createReceipt({
       receiptId: "receipt-22",
       slot: 22,
       kind: "handoff",
       actorId: "agent-b",
-      payload: { toAgentId: "agent-c" }
+      payload: { toAgentId: "agent-c" },
     }),
     createReceipt({
       receiptId: "receipt-23",
       slot: 23,
       kind: "completion",
-      actorId: "agent-c"
-    })
+      actorId: "agent-c",
+    }),
   ]);
 
   deepStrictEqual(indexer.getHandoffChain("task-1"), [
@@ -119,25 +121,29 @@ test("exposes a full handoff chain for a task", () => {
       slot: 21,
       fromAgentId: "agent-a",
       toAgentId: "agent-b",
-      taskId: "task-1"
+      taskId: "task-1",
     },
     {
       receiptId: "receipt-22",
       slot: 22,
       fromAgentId: "agent-b",
       toAgentId: "agent-c",
-      taskId: "task-1"
-    }
+      taskId: "task-1",
+    },
   ]);
 });
 
 test("rejects conflicting duplicate replays for the same receipt id and slot", () => {
   const indexer = new LocalDurableIndexer();
-  const firstReceipt = createReceipt({ receiptId: "receipt-99", slot: 99, payload: { attempt: 1 } });
+  const firstReceipt = createReceipt({
+    receiptId: "receipt-99",
+    slot: 99,
+    payload: { attempt: 1 },
+  });
   const conflictingReceipt = createReceipt({
     receiptId: "receipt-99",
     slot: 99,
-    payload: { attempt: 2 }
+    payload: { attempt: 2 },
   });
 
   indexer.ingest([firstReceipt]);
@@ -150,22 +156,27 @@ test("summarizes receipts by domain", () => {
   const indexer = new LocalDurableIndexer();
 
   indexer.ingest([
-    createReceipt({ receiptId: "receipt-41", slot: 41, domain: "ops", kind: "assignment" }),
+    createReceipt({
+      receiptId: "receipt-41",
+      slot: 41,
+      domain: "ops",
+      kind: "assignment",
+    }),
     createReceipt({
       receiptId: "receipt-42",
       slot: 42,
       domain: "ops",
       kind: "handoff",
       actorId: "agent-2",
-      payload: { toAgentId: "agent-3" }
+      payload: { toAgentId: "agent-3" },
     }),
     createReceipt({
       receiptId: "receipt-43",
       slot: 43,
       domain: "research",
       kind: "completion",
-      actorId: "agent-3"
-    })
+      actorId: "agent-3",
+    }),
   ]);
 
   deepStrictEqual(indexer.getDomainSummary("ops"), {
@@ -174,7 +185,7 @@ test("summarizes receipts by domain", () => {
     taskIds: ["task-1"],
     agentIds: ["agent-1", "agent-2"],
     handoffCount: 1,
-    latestSlot: 42
+    latestSlot: 42,
   });
 
   const allSummaries = indexer.getDomainSummaries();

@@ -11,8 +11,8 @@
     "test:verification": "node --test --experimental-strip-types tests/verification/mvp_local_verification.test.ts",
     "test:anchor": "anchor test",
     "test:surfpool": "./scripts/surfpool-e2e.sh",
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint:fix": "prettier \"**/*.{js,ts}\" -w",
+    "lint": "prettier \"**/*.{js,ts}\" --check"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1"

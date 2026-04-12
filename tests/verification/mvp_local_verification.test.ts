@@ -18,20 +18,20 @@ const REQUIRED_SECURITY_COVERAGE = [
   "replay-protection",
   "stale-proofs",
   "unauthorized-delegation",
-  "direct-reputation-score-writes"
+  "direct-reputation-score-writes",
 ];
 
 const REQUIRED_VERIFICATION_PIPELINE = [
   "local-package-tests",
   "anchor-build-and-test",
-  "surfpool-end-to-end"
+  "surfpool-end-to-end",
 ];
 
 const LOCAL_ONLY_RULES = Object.freeze({
   networkCalls: false,
   externalInstalls: false,
   workspaceDependencies: false,
-  executionEnvironment: "node:test"
+  executionEnvironment: "node:test",
 });
 
 /**
@@ -81,7 +81,7 @@ function createHappyPath(overrides = {}) {
     proofIsFresh: true,
     delegationWithinScope: true,
     writesDerivedReputationOnly: true,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -93,7 +93,10 @@ test("verification layer stays local-only", () => {
 });
 
 test("security acceptance criteria are fully covered", () => {
-  deepStrictEqual([...new Set(REQUIRED_SECURITY_COVERAGE)], REQUIRED_SECURITY_COVERAGE);
+  deepStrictEqual(
+    [...new Set(REQUIRED_SECURITY_COVERAGE)],
+    REQUIRED_SECURITY_COVERAGE
+  );
   strictEqual(REQUIRED_SECURITY_COVERAGE.length, 6);
   ok(REQUIRED_SECURITY_COVERAGE.includes("signer-checks"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("pda-validation"));
@@ -104,10 +107,11 @@ test("security acceptance criteria are fully covered", () => {
 });
 
 test("verification order ends with surfpool and excludes devnet as a required gate", () => {
-  deepStrictEqual(
-    REQUIRED_VERIFICATION_PIPELINE,
-    ["local-package-tests", "anchor-build-and-test", "surfpool-end-to-end"]
-  );
+  deepStrictEqual(REQUIRED_VERIFICATION_PIPELINE, [
+    "local-package-tests",
+    "anchor-build-and-test",
+    "surfpool-end-to-end",
+  ]);
   ok(!REQUIRED_VERIFICATION_PIPELINE.includes("devnet"));
 });
 
@@ -119,7 +123,7 @@ test("signer checks reject unsigned or mismatched authority actions", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        signerPresent: false
+        signerPresent: false,
       })
     ),
     ["signer-checks"]
@@ -128,7 +132,7 @@ test("signer checks reject unsigned or mismatched authority actions", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        signerMatchesAuthority: false
+        signerMatchesAuthority: false,
       })
     ),
     ["signer-checks"]
@@ -139,7 +143,7 @@ test("PDA validation expects canonical seeds and bumps", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        pdaSeedsMatch: false
+        pdaSeedsMatch: false,
       })
     ),
     ["pda-validation"]
@@ -150,7 +154,7 @@ test("replay protection rejects duplicate receipt submissions", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        replayNonceFresh: false
+        replayNonceFresh: false,
       })
     ),
     ["replay-protection"]
@@ -161,7 +165,7 @@ test("stale proofs are rejected", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        proofIsFresh: false
+        proofIsFresh: false,
       })
     ),
     ["stale-proofs"]
@@ -172,7 +176,7 @@ test("unauthorized delegation is rejected", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        delegationWithinScope: false
+        delegationWithinScope: false,
       })
     ),
     ["unauthorized-delegation"]
@@ -183,7 +187,7 @@ test("reputation cannot be written directly", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
-        writesDerivedReputationOnly: false
+        writesDerivedReputationOnly: false,
       })
     ),
     ["direct-reputation-score-writes"]
@@ -199,7 +203,7 @@ test("multiple violations are reported together", () => {
         replayNonceFresh: false,
         proofIsFresh: false,
         delegationWithinScope: false,
-        writesDerivedReputationOnly: false
+        writesDerivedReputationOnly: false,
       })
     ),
     [
@@ -208,7 +212,7 @@ test("multiple violations are reported together", () => {
       "replay-protection",
       "stale-proofs",
       "unauthorized-delegation",
-      "direct-reputation-score-writes"
+      "direct-reputation-score-writes",
     ]
   );
 });

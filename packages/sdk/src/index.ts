@@ -5,18 +5,12 @@ export {
   createDelegation,
   createIdentity,
   createReceipt,
-  createTask
+  createTask,
 } from "./client.js";
 
-export {
-  createMerkleTree,
-  MerkleTree,
-  verifyMerkleProof
-} from "./merkle.js";
+export { createMerkleTree, MerkleTree, verifyMerkleProof } from "./merkle.js";
 
-export {
-  deriveReputation
-} from "./reputation.js";
+export { deriveReputation } from "./reputation.js";
 
 export type {
   DelegationAssertionInput,
@@ -30,15 +24,13 @@ export type {
   ReceiptRecord,
   TaskCreateInput,
   TaskRecord,
-  TrustSubstrateProofInput
+  TrustSubstrateProofInput,
 } from "./client.js";
 
 export type {
   MerkleProof,
   MerkleProofStep,
-  MerkleVerificationInput
+  MerkleVerificationInput,
 } from "./merkle.js";
 
-export type {
-  ReputationProfile
-} from "./reputation.js";
+export type { ReputationProfile } from "./reputation.js";

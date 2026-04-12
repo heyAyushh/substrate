@@ -1,4 +1,9 @@
-export type ReceiptKind = "assignment" | "handoff" | "completion" | "dispute" | string;
+export type ReceiptKind =
+  | "assignment"
+  | "handoff"
+  | "completion"
+  | "dispute"
+  | string;
 
 export interface LocalReceiptRecord {
   receiptId: string;

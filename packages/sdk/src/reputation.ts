@@ -14,19 +14,23 @@ const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
   completion: 5,
   dispute: -4,
-  handoff: 2
+  handoff: 2,
 };
 
 const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
   "assignment",
   "handoff",
   "completion",
-  "dispute"
+  "dispute",
 ];
 
-export function deriveReputation(history: ReadonlyArray<ReceiptRecord>): ReputationProfile {
+export function deriveReputation(
+  history: ReadonlyArray<ReceiptRecord>
+): ReputationProfile {
   if (history.length === 0) {
-    throw new Error("Reputation derivation requires at least one verified receipt");
+    throw new Error(
+      "Reputation derivation requires at least one verified receipt"
+    );
   }
 
   const orderedHistory = [...history].sort(compareReceipts);
@@ -58,9 +62,9 @@ export function deriveReputation(history: ReadonlyArray<ReceiptRecord>): Reputat
         kind: receipt.kind,
         receiptId: receipt.receiptId,
         sequence: receipt.sequence,
-        taskId: receipt.taskId
+        taskId: receipt.taskId,
       }))
-    )
+    ),
   };
 }
 

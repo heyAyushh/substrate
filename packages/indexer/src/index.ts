@@ -1,6 +1,4 @@
-export {
-  LocalDurableIndexer
-} from "./local-durable-indexer.js";
+export { LocalDurableIndexer } from "./local-durable-indexer.js";
 
 export type {
   AgentHistoryView,
@@ -11,5 +9,5 @@ export type {
   IngestResult,
   LocalReceiptRecord,
   ReceiptKind,
-  TaskHistoryView
+  TaskHistoryView,
 } from "./types.js";

@@ -1,30 +1,30 @@
 import test from "node:test";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
-import { ReceiptLedger, TrustSubstrateClient, createMerkleTree, deriveReputation, verifyMerkleProof } from "../../packages/sdk/src/index.js";
+import { ReceiptLedger, TrustSubstrateClient, createMerkleTree, deriveReputation, verifyMerkleProof, } from "../../packages/sdk/src/index.js";
 test("creates deterministic identity objects", () => {
     const client = new TrustSubstrateClient();
     const identity = client.identity.create({
         authority: "Authority1111111111111111111111111111111111",
-        label: "automation-agent"
+        label: "automation-agent",
     });
     strictEqual(identity.authority, "Authority1111111111111111111111111111111111");
     strictEqual(identity.label, "automation-agent");
     ok(identity.identityId.length > 0);
     strictEqual(identity.identityId, client.identity.create({
         authority: "Authority1111111111111111111111111111111111",
-        label: "automation-agent"
+        label: "automation-agent",
     }).identityId);
 });
 test("creates canonical task objects", () => {
     const client = new TrustSubstrateClient();
     const identity = client.identity.create({
         authority: "Authority1111111111111111111111111111111111",
-        label: "task-owner"
+        label: "task-owner",
     });
     const task = client.task.create({
         identityId: identity.identityId,
         title: "Finalize receipts",
-        subtasks: ["collect-proof", "verify-proof"]
+        subtasks: ["collect-proof", "verify-proof"],
     });
     strictEqual(task.identityId, identity.identityId);
     strictEqual(task.title, "Finalize receipts");
@@ -35,18 +35,18 @@ test("rejects receipt replay attempts", () => {
     const client = new TrustSubstrateClient();
     const identity = client.identity.create({
         authority: "Authority1111111111111111111111111111111111",
-        label: "receipt-writer"
+        label: "receipt-writer",
     });
     const task = client.task.create({
         identityId: identity.identityId,
-        title: "Emit receipts"
+        title: "Emit receipts",
     });
     const receipt = client.receipt.create({
         actorId: identity.identityId,
         kind: "completion",
         taskId: task.taskId,
         payload: { domain: "ops", status: "done" },
-        sequence: 1
+        sequence: 1,
     });
     const ledger = new ReceiptLedger();
     ledger.append(receipt);
@@ -57,11 +57,11 @@ test("rejects delegation scope mismatches", () => {
     const delegation = client.delegation.create({
         delegatorId: "delegator",
         delegateId: "delegate",
-        allowedActions: ["assignment", "handoff"]
+        allowedActions: ["assignment", "handoff"],
     });
     throws(() => client.delegation.assertAllowed({
         delegation,
-        action: "completion"
+        action: "completion",
     }), /scope/i);
 });
 test("verifies merkle proofs deterministically", () => {
@@ -72,24 +72,24 @@ test("verifies merkle proofs deterministically", () => {
         leaf: leaves[1],
         proof,
         root: tree.root,
-        index: 1
+        index: 1,
     }));
     ok(!verifyMerkleProof({
         leaf: "receipt-z",
         proof,
         root: tree.root,
-        index: 1
+        index: 1,
     }));
 });
 test("derives deterministic reputation from verified history", () => {
     const client = new TrustSubstrateClient();
     const identity = client.identity.create({
         authority: "Authority1111111111111111111111111111111111",
-        label: "reputation-agent"
+        label: "reputation-agent",
     });
     const task = client.task.create({
         identityId: identity.identityId,
-        title: "Track history"
+        title: "Track history",
     });
     const history = [
         client.receipt.create({
@@ -97,15 +97,15 @@ test("derives deterministic reputation from verified history", () => {
             kind: "assignment",
             taskId: task.taskId,
             payload: { domain: "coordination" },
-            sequence: 1
+            sequence: 1,
         }),
         client.receipt.create({
             actorId: identity.identityId,
             kind: "completion",
             taskId: task.taskId,
             payload: { domain: "coordination" },
-            sequence: 2
-        })
+            sequence: 2,
+        }),
     ];
     const reputationA = deriveReputation(history);
     const reputationB = client.reputation.derive(history);

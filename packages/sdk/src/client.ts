@@ -1,4 +1,9 @@
-import { createMerkleTree, type MerkleProof, type MerkleTree, verifyMerkleProof } from "./merkle.js";
+import {
+  createMerkleTree,
+  type MerkleProof,
+  type MerkleTree,
+  verifyMerkleProof,
+} from "./merkle.js";
 import { deriveIdentifier, emptyRoot, hashCanonical } from "./canonical.js";
 import { deriveReputation, type ReputationProfile } from "./reputation.js";
 
@@ -100,7 +105,10 @@ export class ReceiptLedger {
   private readonly hashes = new Set<string>();
 
   append(receipt: ReceiptRecord): ReceiptRecord {
-    if (this.receiptsById.has(receipt.receiptId) || this.hashes.has(receipt.hash)) {
+    if (
+      this.receiptsById.has(receipt.receiptId) ||
+      this.hashes.has(receipt.hash)
+    ) {
       throw new Error("Receipt replay rejected");
     }
 
@@ -116,29 +124,35 @@ export class ReceiptLedger {
 
 export class TrustSubstrateClient {
   readonly identity = {
-    create: (input: IdentityCreateInput): IdentityRecord => createIdentity(input)
+    create: (input: IdentityCreateInput): IdentityRecord =>
+      createIdentity(input),
   };
 
   readonly task = {
-    create: (input: TaskCreateInput): TaskRecord => createTask(input)
+    create: (input: TaskCreateInput): TaskRecord => createTask(input),
   };
 
   readonly receipt = {
-    create: (input: ReceiptCreateInput): ReceiptRecord => createReceipt(input)
+    create: (input: ReceiptCreateInput): ReceiptRecord => createReceipt(input),
   };
 
   readonly delegation = {
-    create: (input: DelegationCreateInput): DelegationRecord => createDelegation(input),
-    assertAllowed: (input: DelegationAssertionInput): void => assertDelegationAllowed(input)
+    create: (input: DelegationCreateInput): DelegationRecord =>
+      createDelegation(input),
+    assertAllowed: (input: DelegationAssertionInput): void =>
+      assertDelegationAllowed(input),
   };
 
   readonly proof = {
-    createTree: (leaves: ReadonlyArray<string>): MerkleTree => createMerkleTree(leaves),
-    verify: (input: TrustSubstrateProofInput): boolean => verifyMerkleProof(input)
+    createTree: (leaves: ReadonlyArray<string>): MerkleTree =>
+      createMerkleTree(leaves),
+    verify: (input: TrustSubstrateProofInput): boolean =>
+      verifyMerkleProof(input),
   };
 
   readonly reputation = {
-    derive: (history: ReadonlyArray<ReceiptRecord>): ReputationProfile => deriveReputation(history)
+    derive: (history: ReadonlyArray<ReceiptRecord>): ReputationProfile =>
+      deriveReputation(history),
   };
 }
 
@@ -151,12 +165,12 @@ export function createIdentity(input: IdentityCreateInput): IdentityRecord {
       authority: input.authority,
       historyRoot,
       label: input.label,
-      policyRoot
+      policyRoot,
     }),
     authority: input.authority,
     label: input.label,
     policyRoot,
-    historyRoot
+    historyRoot,
   };
 }
 
@@ -166,20 +180,21 @@ export function createTask(input: TaskCreateInput): TaskRecord {
       description: input.description ?? "",
       identityId: input.identityId,
       subtasks: [...(input.subtasks ?? [])],
-      title: input.title
+      title: input.title,
     }),
     identityId: input.identityId,
     title: input.title,
     description: input.description,
-    subtasks: [...(input.subtasks ?? [])]
+    subtasks: [...(input.subtasks ?? [])],
   };
 }
 
 export function createReceipt(input: ReceiptCreateInput): ReceiptRecord {
   const payload = {
-    ...(input.payload ?? {})
+    ...(input.payload ?? {}),
   };
-  const domain = typeof payload.domain === "string" ? payload.domain : "general";
+  const domain =
+    typeof payload.domain === "string" ? payload.domain : "general";
   const hash = hashCanonical({
     actorId: input.actorId,
     domain,
@@ -187,7 +202,7 @@ export function createReceipt(input: ReceiptCreateInput): ReceiptRecord {
     payload,
     previousReceiptId: input.previousReceiptId ?? "",
     sequence: input.sequence,
-    taskId: input.taskId
+    taskId: input.taskId,
   });
 
   return {
@@ -199,15 +214,17 @@ export function createReceipt(input: ReceiptCreateInput): ReceiptRecord {
     payload,
     sequence: input.sequence,
     previousReceiptId: input.previousReceiptId,
-    domain
+    domain,
   };
 }
 
-export function createDelegation(input: DelegationCreateInput): DelegationRecord {
+export function createDelegation(
+  input: DelegationCreateInput
+): DelegationRecord {
   const scope: DelegationScope = {
     allowedActions: [...input.allowedActions],
     taskIds: input.taskIds ? [...input.taskIds] : undefined,
-    domains: input.domains ? [...input.domains] : undefined
+    domains: input.domains ? [...input.domains] : undefined,
   };
 
   return {
@@ -216,13 +233,13 @@ export function createDelegation(input: DelegationCreateInput): DelegationRecord
       delegatorId: input.delegatorId,
       expiresAtSlot: input.expiresAtSlot ?? null,
       revoked: input.revoked ?? false,
-      scope
+      scope,
     }),
     delegatorId: input.delegatorId,
     delegateId: input.delegateId,
     scope,
     expiresAtSlot: input.expiresAtSlot,
-    revoked: input.revoked ?? false
+    revoked: input.revoked ?? false,
   };
 }
 
@@ -233,7 +250,10 @@ export function assertDelegationAllowed(input: DelegationAssertionInput): void {
     throw new Error("Delegation scope rejected: delegation revoked");
   }
 
-  if (typeof delegation.expiresAtSlot === "number" && (input.currentSlot ?? 0) > delegation.expiresAtSlot) {
+  if (
+    typeof delegation.expiresAtSlot === "number" &&
+    (input.currentSlot ?? 0) > delegation.expiresAtSlot
+  ) {
     throw new Error("Delegation scope rejected: delegation expired");
   }
 
@@ -241,11 +261,19 @@ export function assertDelegationAllowed(input: DelegationAssertionInput): void {
     throw new Error("Delegation scope rejected: action not allowed");
   }
 
-  if (input.taskId !== undefined && delegation.scope.taskIds !== undefined && !delegation.scope.taskIds.includes(input.taskId)) {
+  if (
+    input.taskId !== undefined &&
+    delegation.scope.taskIds !== undefined &&
+    !delegation.scope.taskIds.includes(input.taskId)
+  ) {
     throw new Error("Delegation scope rejected: task not allowed");
   }
 
-  if (input.domain !== undefined && delegation.scope.domains !== undefined && !delegation.scope.domains.includes(input.domain)) {
+  if (
+    input.domain !== undefined &&
+    delegation.scope.domains !== undefined &&
+    !delegation.scope.domains.includes(input.domain)
+  ) {
     throw new Error("Delegation scope rejected: domain not allowed");
   }
 }

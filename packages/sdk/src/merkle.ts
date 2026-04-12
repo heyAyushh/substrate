@@ -41,7 +41,11 @@ export class MerkleTree {
     const steps: MerkleProofStep[] = [];
     let cursor = index;
 
-    for (let layerIndex = 0; layerIndex < this.layers.length - 1; layerIndex += 1) {
+    for (
+      let layerIndex = 0;
+      layerIndex < this.layers.length - 1;
+      layerIndex += 1
+    ) {
       const layer = this.layers[layerIndex];
       const isRightNode = cursor % 2 === 1;
       const siblingIndex = isRightNode ? cursor - 1 : cursor + 1;
@@ -49,7 +53,7 @@ export class MerkleTree {
 
       steps.push({
         hash: siblingHash,
-        position: isRightNode ? "left" : "right"
+        position: isRightNode ? "left" : "right",
       });
 
       cursor = Math.floor(cursor / 2);
@@ -57,7 +61,7 @@ export class MerkleTree {
 
     return {
       index,
-      steps
+      steps,
     };
   }
 }
@@ -72,15 +76,18 @@ export function verifyMerkleProof(input: MerkleVerificationInput): boolean {
   let cursor = expected;
 
   for (const step of input.proof.steps) {
-    cursor = step.position === "left"
-      ? hashNode(step.hash, cursor)
-      : hashNode(cursor, step.hash);
+    cursor =
+      step.position === "left"
+        ? hashNode(step.hash, cursor)
+        : hashNode(cursor, step.hash);
   }
 
   return cursor === input.root && input.proof.index === input.index;
 }
 
-function buildLayers(leaves: ReadonlyArray<string>): ReadonlyArray<ReadonlyArray<string>> {
+function buildLayers(
+  leaves: ReadonlyArray<string>
+): ReadonlyArray<ReadonlyArray<string>> {
   const layers: string[][] = [leaves.map(hashLeaf)];
   let current = layers[0];
 

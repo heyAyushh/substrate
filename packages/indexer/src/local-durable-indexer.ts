@@ -1,7 +1,4 @@
-import {
-  compareBySlotThenReceiptId,
-  stableStringify
-} from "./utils.js";
+import { compareBySlotThenReceiptId, stableStringify } from "./utils.js";
 import {
   type AgentHistoryView,
   type DomainSummary,
@@ -10,7 +7,7 @@ import {
   type IndexedReceipt,
   type IngestResult,
   type LocalReceiptRecord,
-  type TaskHistoryView
+  type TaskHistoryView,
 } from "./types.js";
 
 interface StoredReceipt {
@@ -21,14 +18,18 @@ interface StoredReceipt {
 const createDedupeKey = (receipt: LocalReceiptRecord): string =>
   `${receipt.receiptId}:${receipt.slot}`;
 
-const isHandoff = (receipt: LocalReceiptRecord): boolean => receipt.kind === "handoff";
+const isHandoff = (receipt: LocalReceiptRecord): boolean =>
+  receipt.kind === "handoff";
 
 const getHandoffTarget = (receipt: LocalReceiptRecord): string | undefined => {
   const target = receipt.payload.toAgentId;
   return typeof target === "string" && target.length > 0 ? target : undefined;
 };
 
-const cloneReceipt = (receipt: LocalReceiptRecord, sequence: number): IndexedReceipt => ({
+const cloneReceipt = (
+  receipt: LocalReceiptRecord,
+  sequence: number
+): IndexedReceipt => ({
   receiptId: receipt.receiptId,
   slot: receipt.slot,
   taskId: receipt.taskId,
@@ -37,10 +38,11 @@ const cloneReceipt = (receipt: LocalReceiptRecord, sequence: number): IndexedRec
   domain: receipt.domain,
   payload: { ...receipt.payload },
   sequence,
-  dedupeKey: createDedupeKey(receipt)
+  dedupeKey: createDedupeKey(receipt),
 });
 
-const dedupeStrings = (values: string[]): string[] => [...new Set(values)].sort();
+const dedupeStrings = (values: string[]): string[] =>
+  [...new Set(values)].sort();
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
@@ -58,7 +60,7 @@ export class LocalDurableIndexer {
         actorId: receipt.actorId,
         kind: receipt.kind,
         domain: receipt.domain,
-        payload: receipt.payload
+        payload: receipt.payload,
       });
       const existing = this.receiptsByKey.get(dedupeKey);
 
@@ -73,7 +75,7 @@ export class LocalDurableIndexer {
 
       this.receiptsByKey.set(dedupeKey, {
         receipt: cloneReceipt(receipt, this.receiptsByKey.size),
-        canonical
+        canonical,
       });
       accepted += 1;
     }
@@ -86,7 +88,9 @@ export class LocalDurableIndexer {
   }
 
   getAgentHistory(agentId: string): IndexedReceipt[] {
-    return this.sortedReceipts().filter((receipt) => receipt.actorId === agentId);
+    return this.sortedReceipts().filter(
+      (receipt) => receipt.actorId === agentId
+    );
   }
 
   getHandoffChain(taskId: string): HandoffStep[] {
@@ -95,7 +99,9 @@ export class LocalDurableIndexer {
       .map((receipt) => {
         const toAgentId = getHandoffTarget(receipt);
         if (!toAgentId) {
-          throw new Error(`handoff receipt ${receipt.receiptId} is missing toAgentId`);
+          throw new Error(
+            `handoff receipt ${receipt.receiptId} is missing toAgentId`
+          );
         }
 
         return {
@@ -103,13 +109,15 @@ export class LocalDurableIndexer {
           slot: receipt.slot,
           taskId: receipt.taskId,
           fromAgentId: receipt.actorId,
-          toAgentId
+          toAgentId,
         };
       });
   }
 
   getDomainSummary(domain: string): DomainSummary {
-    const summaries = this.getDomainSummaries().filter((summary) => summary.domain === domain);
+    const summaries = this.getDomainSummaries().filter(
+      (summary) => summary.domain === domain
+    );
     if (summaries.length === 0) {
       return {
         domain,
@@ -117,7 +125,7 @@ export class LocalDurableIndexer {
         taskIds: [],
         agentIds: [],
         handoffCount: 0,
-        latestSlot: 0
+        latestSlot: 0,
       };
     }
 
@@ -136,7 +144,7 @@ export class LocalDurableIndexer {
           taskIds: [receipt.taskId],
           agentIds: [receipt.actorId],
           handoffCount: isHandoff(receipt) ? 1 : 0,
-          latestSlot: receipt.slot
+          latestSlot: receipt.slot,
         });
         continue;
       }
@@ -158,7 +166,7 @@ export class LocalDurableIndexer {
       .map((summary) => ({
         ...summary,
         taskIds: summary.taskIds.sort(),
-        agentIds: summary.agentIds.sort()
+        agentIds: summary.agentIds.sort(),
       }))
       .sort((left, right) => left.domain.localeCompare(right.domain));
   }
@@ -175,7 +183,7 @@ export class LocalDurableIndexer {
         receipts: [],
         agents: [],
         agentIds: [],
-        domains: []
+        domains: [],
       };
       taskView.receipts.push(receipt);
       if (!taskView.agents.includes(receipt.actorId)) {
@@ -193,7 +201,7 @@ export class LocalDurableIndexer {
         agentId: receipt.actorId,
         receipts: [],
         taskIds: [],
-        domains: []
+        domains: [],
       };
       agentView.receipts.push(receipt);
       if (!agentView.taskIds.includes(receipt.taskId)) {
@@ -207,7 +215,9 @@ export class LocalDurableIndexer {
       if (isHandoff(receipt)) {
         const toAgentId = getHandoffTarget(receipt);
         if (!toAgentId) {
-          throw new Error(`handoff receipt ${receipt.receiptId} is missing toAgentId`);
+          throw new Error(
+            `handoff receipt ${receipt.receiptId} is missing toAgentId`
+          );
         }
 
         const handoffChain = handoffChainByTask.get(receipt.taskId) ?? [];
@@ -216,7 +226,7 @@ export class LocalDurableIndexer {
           slot: receipt.slot,
           taskId: receipt.taskId,
           fromAgentId: receipt.actorId,
-          toAgentId
+          toAgentId,
         });
         handoffChainByTask.set(receipt.taskId, handoffChain);
       }
@@ -231,7 +241,7 @@ export class LocalDurableIndexer {
             agents: dedupeStrings(task.agents),
             agentIds: task.agentIds.sort(),
             domains: task.domains.sort(),
-            receipts: [...task.receipts]
+            receipts: [...task.receipts],
           }))
           .sort((left, right) => left.taskId.localeCompare(right.taskId))
           .map((task) => [task.taskId, task])
@@ -242,19 +252,24 @@ export class LocalDurableIndexer {
             ...agent,
             taskIds: agent.taskIds.sort(),
             domains: agent.domains.sort(),
-            receipts: [...agent.receipts]
+            receipts: [...agent.receipts],
           }))
           .sort((left, right) => left.agentId.localeCompare(right.agentId))
           .map((agent) => [agent.agentId, agent])
       ),
       handoffChainByTask: Object.fromEntries(
         [...handoffChainByTask.entries()]
-          .sort(([leftTaskId], [rightTaskId]) => leftTaskId.localeCompare(rightTaskId))
-          .map(([taskId, chain]) => [taskId, [...chain].sort(compareBySlotThenReceiptId)])
+          .sort(([leftTaskId], [rightTaskId]) =>
+            leftTaskId.localeCompare(rightTaskId)
+          )
+          .map(([taskId, chain]) => [
+            taskId,
+            [...chain].sort(compareBySlotThenReceiptId),
+          ])
       ),
       domains: Object.fromEntries(
         this.getDomainSummaries().map((summary) => [summary.domain, summary])
-      )
+      ),
     };
   }
 
