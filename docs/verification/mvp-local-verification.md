@@ -9,12 +9,21 @@ It is intentionally self-contained: no network calls, no external installs, and 
 node --test --experimental-strip-types tests/verification/mvp_local_verification.test.ts
 ```
 
+## Verification Order
+
+Run the MVP gates in this order:
+
+1. Local package unit tests
+2. Anchor build and test
+3. Surfpool-backed end-to-end verification
+
 ## Local Verification Rules
 
 - Keep every check local and deterministic.
 - Use only Node and TypeScript built-ins inside the verification tests.
 - Treat the verification layer as the first source of truth for security acceptance criteria.
 - Do not add direct reputation score writes; reputation must stay derived from verified history.
+- Do not require devnet as a verification gate.
 
 ## MVP Security Acceptance Criteria
 
@@ -53,6 +62,7 @@ Each item below must be covered by an executable local test.
 ## MVP Local Pass Criteria
 
 - The executable test file passes locally.
+- The verification order is local package tests, Anchor build/test, then Surfpool E2E.
 - The checklist covers every security acceptance criterion listed above.
 - The verification layer remains self-contained and uses no external dependencies.
 - The repository can defer program implementation while keeping the acceptance contract explicit.

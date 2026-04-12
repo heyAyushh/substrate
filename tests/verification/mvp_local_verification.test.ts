@@ -21,6 +21,12 @@ const REQUIRED_SECURITY_COVERAGE = [
   "direct-reputation-score-writes"
 ];
 
+const REQUIRED_VERIFICATION_PIPELINE = [
+  "local-package-tests",
+  "anchor-build-and-test",
+  "surfpool-end-to-end"
+];
+
 const LOCAL_ONLY_RULES = Object.freeze({
   networkCalls: false,
   externalInstalls: false,
@@ -95,6 +101,14 @@ test("security acceptance criteria are fully covered", () => {
   ok(REQUIRED_SECURITY_COVERAGE.includes("stale-proofs"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("unauthorized-delegation"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("direct-reputation-score-writes"));
+});
+
+test("verification order ends with surfpool and excludes devnet as a required gate", () => {
+  deepStrictEqual(
+    REQUIRED_VERIFICATION_PIPELINE,
+    ["local-package-tests", "anchor-build-and-test", "surfpool-end-to-end"]
+  );
+  ok(!REQUIRED_VERIFICATION_PIPELINE.includes("devnet"));
 });
 
 test("a valid local attempt passes every security gate", () => {
