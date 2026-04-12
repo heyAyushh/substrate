@@ -1,0 +1,61 @@
+export type ReceiptKind = "assignment" | "handoff" | "completion" | "dispute" | string;
+
+export interface LocalReceiptRecord {
+  receiptId: string;
+  slot: number;
+  taskId: string;
+  actorId: string;
+  kind: ReceiptKind;
+  domain: string;
+  payload: Record<string, unknown>;
+}
+
+export interface IndexedReceipt extends LocalReceiptRecord {
+  sequence: number;
+  dedupeKey: string;
+}
+
+export interface HandoffStep {
+  receiptId: string;
+  slot: number;
+  taskId: string;
+  fromAgentId: string;
+  toAgentId: string;
+}
+
+export interface TaskHistoryView {
+  taskId: string;
+  receipts: IndexedReceipt[];
+  agents: string[];
+  agentIds: string[];
+  domains: string[];
+}
+
+export interface AgentHistoryView {
+  agentId: string;
+  receipts: IndexedReceipt[];
+  taskIds: string[];
+  domains: string[];
+}
+
+export interface DomainSummary {
+  domain: string;
+  receiptCount: number;
+  taskIds: string[];
+  agentIds: string[];
+  handoffCount: number;
+  latestSlot: number;
+}
+
+export interface ExecutionGraph {
+  receipts: IndexedReceipt[];
+  tasks: Record<string, TaskHistoryView>;
+  agents: Record<string, AgentHistoryView>;
+  handoffChainByTask: Record<string, HandoffStep[]>;
+  domains: Record<string, DomainSummary>;
+}
+
+export interface IngestResult {
+  accepted: number;
+  duplicates: number;
+}

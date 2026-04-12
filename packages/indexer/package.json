@@ -1,0 +1,12 @@
+{
+  "name": "@trust-substrate/indexer",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/packages/indexer/src/index.js",
+  "types": "dist/packages/indexer/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test dist/tests/indexer/*.test.js",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  }
+}
