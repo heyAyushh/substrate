@@ -65,4 +65,4 @@ Each item below must be covered by an executable local test.
 - The verification order is local package tests, Anchor build/test, then Surfpool E2E.
 - The checklist covers every security acceptance criterion listed above.
 - The verification layer remains self-contained and uses no external dependencies.
-- The repository can defer program implementation while keeping the acceptance contract explicit.
+- Program behavior stays tied to executable tests and the acceptance contract above.

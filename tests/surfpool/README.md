@@ -28,4 +28,4 @@ To point the harness at an existing local Surfpool instance, set `SURFPOOL_RPC_U
 
 The `tests/surfpool/surfpool_e2e.ts` file is a lightweight smoke contract for the Surfpool endpoint. The main harness still runs the Anchor suite from `tests/trust_substrate.ts`.
 
-If the Surfpool deploy path fails, the current blocker is the TPU client slot-leader lookup during Anchor deploy, which returns `Invalid slot range` against `ws://127.0.0.1:8900` on Surfpool 1.0.0. The harness reports that explicitly and exits non-zero.
+The Surfpool gate currently passes locally with the harness in `scripts/surfpool-e2e.sh`. If it fails, inspect the log path printed by the harness before changing code or test expectations.

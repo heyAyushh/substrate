@@ -68,7 +68,9 @@ Default local endpoint:
 - RPC: `http://127.0.0.1:8899`
 - Websocket: `ws://127.0.0.1:8900`
 
-The harness uses `tests/surfpool/txtx.yml` when that manifest is present. If the deploy path fails on this machine, the current known blocker is the Surfpool/Anchor TPU slot-leader lookup reported by the harness.
+The harness uses `tests/surfpool/txtx.yml` when that manifest is present. Without that manifest, it starts Surfpool against the default local endpoint contract and runs the Anchor suite with deployment skipped after the local build.
+
+The Surfpool gate currently passes locally. If it fails, inspect the log path printed by the harness before changing code.
 
 ## Expected local order
 
@@ -78,4 +80,3 @@ The harness uses `tests/surfpool/txtx.yml` when that manifest is present. If the
 4. `pnpm test:surfpool`
 
 The verification contract explicitly keeps devnet out of the required gate.
-
