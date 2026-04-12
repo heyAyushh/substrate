@@ -34,7 +34,11 @@ fn receipt_hash_changes_with_meaningful_fields() {
 
 #[test]
 fn delegation_rejects_actions_outside_scope() {
-    let delegation = Delegation::new(AGENT_A, AGENT_B, &[ReceiptKind::Assignment, ReceiptKind::Handoff]);
+    let delegation = Delegation::new(
+        AGENT_A,
+        AGENT_B,
+        &[ReceiptKind::Assignment, ReceiptKind::Handoff],
+    );
 
     assert!(delegation.allows(ReceiptKind::Assignment));
     assert!(!delegation.allows(ReceiptKind::Completion));
@@ -47,7 +51,9 @@ fn merkle_proofs_reject_forged_leaves() {
         hash_receipt(&receipt(RECEIPT_B, ReceiptKind::Completion, 2)),
     ];
     let tree = MerkleTree::new(leaves.clone());
-    let proof = tree.proof(1).expect("proof should exist for the second leaf");
+    let proof = tree
+        .proof(1)
+        .expect("proof should exist for the second leaf");
 
     assert!(verify_merkle_proof(leaves[1], &proof, tree.root(), 1));
     assert!(!verify_merkle_proof([7; 32], &proof, tree.root(), 1));
