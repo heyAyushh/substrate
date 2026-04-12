@@ -1,4 +1,4 @@
-use anchor_lang::solana_program::hash::hashv;
+use solana_sha256_hasher::hashv;
 
 const EMPTY_ROOT: [u8; 32] = [0; 32];
 const COMPLETION_WEIGHT: u64 = 1;
@@ -144,14 +144,14 @@ pub fn hash_receipt(receipt: &Receipt) -> [u8; 32] {
     let sequence = receipt.sequence.to_le_bytes();
     let previous = receipt.previous_receipt.unwrap_or(EMPTY_ROOT);
     hashv(&[
-        &receipt.receipt_id,
-        &receipt.task_id,
-        &receipt.actor_id,
-        &kind,
-        &sequence,
-        &receipt.domain,
-        &previous,
-        &receipt.payload_hash,
+        receipt.receipt_id.as_ref(),
+        receipt.task_id.as_ref(),
+        receipt.actor_id.as_ref(),
+        kind.as_ref(),
+        sequence.as_ref(),
+        receipt.domain.as_ref(),
+        previous.as_ref(),
+        receipt.payload_hash.as_ref(),
     ])
     .to_bytes()
 }
@@ -233,7 +233,7 @@ fn find_or_insert_domain(
 }
 
 fn hash_pair(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {
-    hashv(&[&left, &right]).to_bytes()
+    hashv(&[left.as_ref(), right.as_ref()]).to_bytes()
 }
 
 fn receipt_kind_code(kind: ReceiptKind) -> u8 {
