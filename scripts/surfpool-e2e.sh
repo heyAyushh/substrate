@@ -165,12 +165,12 @@ fi
 log "running Anchor tests against ${SURFPOOL_RPC_URL}"
 if ! anchor test \
   --skip-build \
+  --skip-deploy \
   --skip-lint \
   --skip-local-validator \
   --provider.cluster "${SURFPOOL_RPC_URL}" \
   --provider.wallet "${ANCHOR_WALLET_PATH}"; then
   log "real Anchor deploy/test against Surfpool is blocked here"
-  log "Anchor fails during deploy because the TPU client cannot obtain slot leaders from ws://127.0.0.1:8900 during Surfpool 1.0.0 startup"
-  log "Surfpool itself starts and deploys its runbook, but the exact program E2E in tests/trust_substrate.ts does not complete on this toolchain"
+  log "Surfpool starts and deploys its runbook, but the exact program E2E in tests/trust_substrate.ts did not complete"
   exit 1
 fi
