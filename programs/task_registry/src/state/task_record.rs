@@ -1,0 +1,11 @@
+use anchor_lang::prelude::*;
+
+#[account]
+#[derive(InitSpace)]
+pub struct TaskRecord {
+    pub identity: Pubkey,
+    pub task_id: [u8; 32],
+    pub subtask_root: [u8; 32],
+    pub subtask_count: u16,
+    pub bump: u8,
+}
