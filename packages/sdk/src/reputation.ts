@@ -14,6 +14,7 @@ const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
   completion: 5,
   dispute: -4,
+  dispute_resolved: 3,
   handoff: 2,
 };
 
@@ -22,6 +23,7 @@ const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
   "handoff",
   "completion",
   "dispute",
+  "dispute_resolved",
 ];
 
 export function deriveReputation(

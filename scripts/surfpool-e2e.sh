@@ -170,7 +170,7 @@ if ! anchor test \
   --skip-local-validator \
   --provider.cluster "${SURFPOOL_RPC_URL}" \
   --provider.wallet "${ANCHOR_WALLET_PATH}"; then
-  log "real Anchor deploy/test against Surfpool is blocked here"
-  log "Surfpool starts and deploys its runbook, but the exact program E2E in tests/trust_substrate.ts did not complete"
+  log "Anchor tests against Surfpool did not complete"
+  log "Surfpool started, but the protocol flow in tests/trust_substrate.ts failed"
   exit 1
 fi

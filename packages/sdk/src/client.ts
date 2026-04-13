@@ -7,7 +7,28 @@ import {
 import { deriveIdentifier, emptyRoot, hashCanonical } from "./canonical.js";
 import { deriveReputation, type ReputationProfile } from "./reputation.js";
 
-export type ReceiptKind = "assignment" | "handoff" | "completion" | "dispute";
+export type ReceiptKind =
+  | "assignment"
+  | "handoff"
+  | "completion"
+  | "dispute"
+  | "dispute_resolved";
+
+export const RECEIPT_KIND_CODES: Readonly<Record<ReceiptKind, number>> = {
+  assignment: 1,
+  handoff: 2,
+  completion: 3,
+  dispute: 4,
+  dispute_resolved: 5,
+};
+
+export const RECEIPT_SCOPE_BITS: Readonly<Record<ReceiptKind, number>> = {
+  assignment: 1 << 0,
+  handoff: 1 << 1,
+  completion: 1 << 2,
+  dispute: 1 << 3,
+  dispute_resolved: 1 << 4,
+};
 
 export interface IdentityCreateInput {
   readonly authority: string;

@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { compareBySlotThenReceiptId, stableStringify } from "./utils.js";
 import {
   type AgentHistoryView,
@@ -10,9 +11,16 @@ import {
   type TaskHistoryView,
 } from "./types.js";
 
+const SNAPSHOT_VERSION = 1 as const;
+
 interface StoredReceipt {
   receipt: IndexedReceipt;
   canonical: string;
+}
+
+export interface IndexerSnapshot {
+  readonly version: typeof SNAPSHOT_VERSION;
+  readonly receipts: ReadonlyArray<IndexedReceipt>;
 }
 
 const createDedupeKey = (receipt: LocalReceiptRecord): string =>
@@ -46,6 +54,47 @@ const dedupeStrings = (values: string[]): string[] =>
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
+
+  snapshot(): IndexerSnapshot {
+    return {
+      version: SNAPSHOT_VERSION,
+      receipts: this.sortedReceipts().map((receipt) => ({
+        ...receipt,
+        payload: { ...receipt.payload },
+      })),
+    };
+  }
+
+  saveSnapshot(path: string): void {
+    writeFileSync(path, JSON.stringify(this.snapshot()), "utf8");
+  }
+
+  static fromSnapshot(snapshot: IndexerSnapshot): LocalDurableIndexer {
+    if (snapshot.version !== SNAPSHOT_VERSION) {
+      throw new Error(`unsupported snapshot version ${snapshot.version}`);
+    }
+
+    const indexer = new LocalDurableIndexer();
+    for (const indexed of snapshot.receipts) {
+      const record: LocalReceiptRecord = {
+        receiptId: indexed.receiptId,
+        slot: indexed.slot,
+        taskId: indexed.taskId,
+        actorId: indexed.actorId,
+        kind: indexed.kind,
+        domain: indexed.domain,
+        payload: { ...indexed.payload },
+      };
+      indexer.ingest([record]);
+    }
+    return indexer;
+  }
+
+  static loadSnapshot(path: string): LocalDurableIndexer {
+    const raw = readFileSync(path, "utf8");
+    const parsed = JSON.parse(raw) as IndexerSnapshot;
+    return LocalDurableIndexer.fromSnapshot(parsed);
+  }
 
   ingest(receipts: readonly LocalReceiptRecord[]): IngestResult {
     let accepted = 0;

@@ -6,9 +6,19 @@ export {
   createIdentity,
   createReceipt,
   createTask,
+  RECEIPT_KIND_CODES,
+  RECEIPT_SCOPE_BITS,
 } from "./client.js";
 
 export { createMerkleTree, MerkleTree, verifyMerkleProof } from "./merkle.js";
+
+export {
+  EMPTY_ONCHAIN_ROOT,
+  hashInternalBytes,
+  hashLeafBytes,
+  OnchainMerkleTree,
+  verifyOnchainInclusion,
+} from "./onchain-merkle.js";
 
 export { deriveReputation } from "./reputation.js";
 
@@ -32,5 +42,7 @@ export type {
   MerkleProofStep,
   MerkleVerificationInput,
 } from "./merkle.js";
+
+export type { OnchainProof } from "./onchain-merkle.js";
 
 export type { ReputationProfile } from "./reputation.js";

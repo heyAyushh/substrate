@@ -5,9 +5,7 @@ use anchor_lang::prelude::*;
 
 pub use instructions::*;
 pub use state::*;
-pub use trust_substrate_core::{
-    DELEGATION_SEED, EMPTY_SCOPE_BITMAP, TrustSubstrateError,
-};
+pub use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED, EMPTY_SCOPE_BITMAP};
 
 declare_id!("HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49");
 
@@ -23,9 +21,7 @@ pub mod delegation_engine {
         create_delegation::handle_create_delegation(ctx, allowed_actions, expires_at_slot)
     }
 
-    pub fn revoke_delegation(
-        ctx: Context<RevokeDelegation>,
-    ) -> Result<()> {
+    pub fn revoke_delegation(ctx: Context<RevokeDelegation>) -> Result<()> {
         revoke_delegation::handle_revoke_delegation(ctx)
     }
 }

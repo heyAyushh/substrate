@@ -9,5 +9,5 @@ pub struct ReceiptCommitted {
     pub kind: u8,
     pub sequence: u64,
     pub domain: [u8; 32],
+    pub via_delegation: Pubkey,
 }
-

@@ -1,5 +1,7 @@
 export { LocalDurableIndexer } from "./local-durable-indexer.js";
 
+export type { IndexerSnapshot } from "./local-durable-indexer.js";
+
 export type {
   AgentHistoryView,
   DomainSummary,

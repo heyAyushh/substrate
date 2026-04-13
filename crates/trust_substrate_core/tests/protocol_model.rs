@@ -1,4 +1,4 @@
-use trust_substrate::model::{
+use trust_substrate_core::model::{
     derive_reputation, hash_receipt, verify_merkle_proof, Delegation, MerkleTree, Receipt,
     ReceiptKind, ReputationDomain,
 };
@@ -55,8 +55,8 @@ fn merkle_proofs_reject_forged_leaves() {
         .proof(1)
         .expect("proof should exist for the second leaf");
 
-    assert!(verify_merkle_proof(leaves[1], &proof, tree.root(), 1));
-    assert!(!verify_merkle_proof([7; 32], &proof, tree.root(), 1));
+    assert!(verify_merkle_proof(&leaves[1], &proof, tree.root(), 1));
+    assert!(!verify_merkle_proof(&[7u8; 32], &proof, tree.root(), 1));
 }
 
 #[test]

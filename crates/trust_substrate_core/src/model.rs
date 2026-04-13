@@ -1,12 +1,15 @@
+use crate::merkle::{hash_internal, hash_leaf};
 use solana_sha256_hasher::hashv;
 
 const EMPTY_ROOT: [u8; 32] = [0; 32];
 const COMPLETION_WEIGHT: u64 = 1;
 const DISPUTE_WEIGHT: u64 = 1;
+const DISPUTE_RESOLVED_WEIGHT: u64 = 1;
 const ASSIGNMENT_KIND_CODE: u8 = 1;
 const HANDOFF_KIND_CODE: u8 = 2;
 const COMPLETION_KIND_CODE: u8 = 3;
 const DISPUTE_KIND_CODE: u8 = 4;
+const DISPUTE_RESOLVED_KIND_CODE: u8 = 5;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReceiptKind {
@@ -14,6 +17,7 @@ pub enum ReceiptKind {
     Handoff,
     Completion,
     Dispute,
+    DisputeResolved,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -86,14 +90,15 @@ impl MerkleTree {
             };
         }
 
-        let mut levels = vec![leaves];
+        let hashed_leaves: Vec<[u8; 32]> = leaves.iter().map(|leaf| hash_leaf(leaf)).collect();
+        let mut levels = vec![hashed_leaves];
         while levels.last().expect("level exists").len() > 1 {
             let previous_level = levels.last().expect("level exists");
-            let mut next_level = Vec::with_capacity((previous_level.len() + 1) / 2);
+            let mut next_level = Vec::with_capacity(previous_level.len().div_ceil(2));
             for pair in previous_level.chunks(2) {
                 let left = pair[0];
                 let right = pair.get(1).copied().unwrap_or(left);
-                next_level.push(hash_pair(left, right));
+                next_level.push(hash_internal(&left, &right));
             }
             levels.push(next_level);
         }
@@ -157,12 +162,12 @@ pub fn hash_receipt(receipt: &Receipt) -> [u8; 32] {
 }
 
 pub fn verify_merkle_proof(
-    leaf: [u8; 32],
+    leaf_bytes: &[u8],
     proof: &[MerkleProofNode],
     root: [u8; 32],
     leaf_index: usize,
 ) -> bool {
-    let mut current_hash = leaf;
+    let mut current_hash = hash_leaf(leaf_bytes);
     let mut current_index = leaf_index;
 
     for node in proof {
@@ -172,9 +177,9 @@ pub fn verify_merkle_proof(
         }
 
         current_hash = if node.sibling_is_left {
-            hash_pair(node.sibling, current_hash)
+            hash_internal(&node.sibling, &current_hash)
         } else {
-            hash_pair(current_hash, node.sibling)
+            hash_internal(&current_hash, &node.sibling)
         };
         current_index /= 2;
     }
@@ -197,6 +202,10 @@ pub fn derive_reputation(history: &[Receipt]) -> ReputationVector {
             }
             ReceiptKind::Dispute => {
                 domain.disputed = domain.disputed.saturating_add(DISPUTE_WEIGHT);
+            }
+            ReceiptKind::DisputeResolved => {
+                let compensation = DISPUTE_RESOLVED_WEIGHT.min(domain.disputed);
+                domain.disputed = domain.disputed.saturating_sub(compensation);
             }
             ReceiptKind::Assignment | ReceiptKind::Handoff => {}
         }
@@ -232,15 +241,12 @@ fn find_or_insert_domain(
     domains.last_mut().expect("domain was just inserted")
 }
 
-fn hash_pair(left: [u8; 32], right: [u8; 32]) -> [u8; 32] {
-    hashv(&[left.as_ref(), right.as_ref()]).to_bytes()
-}
-
 fn receipt_kind_code(kind: ReceiptKind) -> u8 {
     match kind {
         ReceiptKind::Assignment => ASSIGNMENT_KIND_CODE,
         ReceiptKind::Handoff => HANDOFF_KIND_CODE,
         ReceiptKind::Completion => COMPLETION_KIND_CODE,
         ReceiptKind::Dispute => DISPUTE_KIND_CODE,
+        ReceiptKind::DisputeResolved => DISPUTE_RESOLVED_KIND_CODE,
     }
 }

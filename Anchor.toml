@@ -7,7 +7,12 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-trust_substrate = "FG9pVEZe1srVF1zTF2WgYpT5VSxxy7om9i9SJj9rGq3n"
+identity_registry = "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv"
+task_registry = "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4"
+receipt_emitter = "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp"
+delegation_engine = "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49"
+reputation_accumulator = "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv"
+proof_verifier = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi"
 
 [registry]
 url = "https://api.apr.dev"

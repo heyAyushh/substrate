@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
-use trust_substrate_core::{DELEGATION_SEED, TrustSubstrateError};
+use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED};
 
 use crate::state::DelegationRecord;
 

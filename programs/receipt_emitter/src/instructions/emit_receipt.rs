@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use task_registry::state::TaskRecord;
-use trust_substrate_core::{
-    ASSIGNMENT_KIND, DISPUTE_KIND, HANDOFF_KIND, COMPLETION_KIND, RECEIPT_SEED,
-    TrustSubstrateError,
-};
+use trust_substrate_core::{is_valid_receipt_kind, TrustSubstrateError, RECEIPT_SEED};
 
 use crate::events::ReceiptCommitted;
 use crate::state::ReceiptRecord;
@@ -19,10 +16,7 @@ pub fn handle_emit_receipt(
     payload_hash: [u8; 32],
 ) -> Result<()> {
     require!(
-        matches!(
-            kind,
-            ASSIGNMENT_KIND | HANDOFF_KIND | COMPLETION_KIND | DISPUTE_KIND
-        ),
+        is_valid_receipt_kind(kind),
         TrustSubstrateError::InvalidReceiptKind
     );
 
@@ -36,6 +30,7 @@ pub fn handle_emit_receipt(
     receipt.domain = domain;
     receipt.previous_receipt = previous_receipt;
     receipt.payload_hash = payload_hash;
+    receipt.via_delegation = Pubkey::default();
     receipt.bump = ctx.bumps.receipt;
 
     emit!(ReceiptCommitted {
@@ -46,6 +41,7 @@ pub fn handle_emit_receipt(
         kind,
         sequence,
         domain,
+        via_delegation: receipt.via_delegation,
     });
 
     Ok(())

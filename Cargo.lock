@@ -459,6 +459,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "delegation_engine"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "identity_registry",
+ "trust_substrate_core",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -555,6 +564,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6d621efb26863f0e9924c6ac577e8275e5e6b77455db64ffa6c65c904e9e132c"
 dependencies = [
  "unicode-segmentation",
+]
+
+[[package]]
+name = "identity_registry"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "trust_substrate_core",
 ]
 
 [[package]]
@@ -682,6 +699,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "proof_verifier"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "trust_substrate_core",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -695,6 +720,17 @@ name = "rand_core"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+
+[[package]]
+name = "receipt_emitter"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "delegation_engine",
+ "identity_registry",
+ "task_registry",
+ "trust_substrate_core",
+]
 
 [[package]]
 name = "redox_syscall"
@@ -733,6 +769,14 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+
+[[package]]
+name = "reputation_accumulator"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "trust_substrate_core",
+]
 
 [[package]]
 name = "rustc_version"
@@ -1335,6 +1379,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "task_registry"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "identity_registry",
+ "trust_substrate_core",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1450,7 +1503,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d99f8c9a7727884afe522e9bd5edbfc91a3312b36a77b5fb8926e4c31a41801"
 
 [[package]]
-name = "trust_substrate"
+name = "trust_substrate_core"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

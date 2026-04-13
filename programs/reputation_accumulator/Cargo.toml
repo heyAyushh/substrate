@@ -1,0 +1,21 @@
+[package]
+name = "reputation_accumulator"
+version = "0.1.0"
+description = "Trust Substrate reputation accumulator program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "reputation_accumulator"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "trust_substrate_core/idl-build"]
+
+[dependencies]
+anchor-lang = "0.32.1"
+trust_substrate_core = { path = "../../crates/trust_substrate_core" }

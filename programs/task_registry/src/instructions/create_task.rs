@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 
 use crate::state::TaskRecord;
-use trust_substrate_core::TrustSubstrateError;
+use trust_substrate_core::{TrustSubstrateError, TASK_STATUS_PENDING};
 
 #[derive(Accounts)]
 #[instruction(task_id: [u8; 32])]
@@ -38,6 +38,10 @@ pub fn handler(
     task.task_id = task_id;
     task.subtask_root = subtask_root;
     task.subtask_count = subtask_count;
+    task.status = TASK_STATUS_PENDING;
+    task.completed_count = 0;
+    task.disputed_count = 0;
+    task.resolved_count = 0;
     task.bump = ctx.bumps.task;
 
     Ok(())

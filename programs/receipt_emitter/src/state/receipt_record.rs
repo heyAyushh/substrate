@@ -12,6 +12,6 @@ pub struct ReceiptRecord {
     pub domain: [u8; 32],
     pub previous_receipt: [u8; 32],
     pub payload_hash: [u8; 32],
+    pub via_delegation: Pubkey,
     pub bump: u8,
 }
-

@@ -3,6 +3,7 @@ export type ReceiptKind =
   | "handoff"
   | "completion"
   | "dispute"
+  | "dispute_resolved"
   | string;
 
 export interface LocalReceiptRecord {

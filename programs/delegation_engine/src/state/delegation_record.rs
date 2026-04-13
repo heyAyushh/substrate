@@ -10,4 +10,3 @@ pub struct DelegationRecord {
     pub revoked: bool,
     pub bump: u8,
 }
-
