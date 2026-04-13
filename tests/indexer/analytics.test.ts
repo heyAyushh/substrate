@@ -126,6 +126,44 @@ test("attestedOnly leaderboard filters unattested agents", () => {
   strictEqual(board[0].attestations, 1);
 });
 
+test("getAttestations returns attestations targeting an agent", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "r1",
+      slot: 1,
+      taskId: "t1",
+      actorId: "attester-a",
+      kind: "attestation",
+      payload: {
+        target: "agent-a",
+        kind: "review",
+        evidenceUri: "ipfs://review",
+        evidenceHash: "hash-a",
+      },
+    }),
+    receipt({
+      receiptId: "r2",
+      slot: 2,
+      taskId: "t2",
+      actorId: "attester-b",
+      kind: "attestation",
+      payload: {
+        target: "agent-b",
+        kind: "review",
+        evidenceHash: "hash-b",
+      },
+    }),
+  ]);
+
+  const attestations = indexer.getAttestations("agent-a");
+
+  strictEqual(attestations.length, 1);
+  strictEqual(attestations[0].targetId, "agent-a");
+  strictEqual(attestations[0].attesterId, "attester-a");
+  strictEqual(attestations[0].evidenceUri, "ipfs://review");
+});
+
 test("getToolQualityStats computes per-tool success rate", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([

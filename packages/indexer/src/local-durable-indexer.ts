@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { compareBySlotThenReceiptId, stableStringify } from "./utils.js";
 import {
   type AgentHistoryView,
+  type AgentAttestation,
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
@@ -511,6 +512,29 @@ export class LocalDurableIndexer {
         stat.attempts === 0 ? 0 : stat.completions / stat.attempts;
     }
     return results.sort((left, right) => left.tool.localeCompare(right.tool));
+  }
+
+  getAttestations(agentId: string): AgentAttestation[] {
+    return this.sortedReceipts()
+      .filter((receipt) => receipt.kind === ATTESTATION_KIND)
+      .map((receipt) => ({
+        receipt,
+        targetId: asString(receipt.payload.target),
+      }))
+      .filter(
+        (entry): entry is { receipt: IndexedReceipt; targetId: string } =>
+          entry.targetId === agentId
+      )
+      .map(({ receipt, targetId }) => ({
+        receiptId: receipt.receiptId,
+        slot: receipt.slot,
+        taskId: receipt.taskId,
+        targetId,
+        attesterId: receipt.actorId,
+        attestationKind: asString(receipt.payload.kind),
+        evidenceUri: asString(receipt.payload.evidenceUri),
+        evidenceHash: asString(receipt.payload.evidenceHash),
+      }));
   }
 
   getAgentTraceBundle(taskId: string): AgentTraceExportBundle {

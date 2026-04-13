@@ -94,6 +94,17 @@ export interface LeaderboardQuery {
   currentSlot?: number;
 }
 
+export interface AgentAttestation {
+  receiptId: string;
+  slot: number;
+  taskId: string;
+  targetId: string;
+  attesterId: string;
+  attestationKind?: string;
+  evidenceUri?: string;
+  evidenceHash?: string;
+}
+
 export interface ToolQualityStat {
   tool: string;
   attempts: number;

@@ -4,6 +4,7 @@ export type { IndexerSnapshot } from "./local-durable-indexer.js";
 
 export type {
   AgentHistoryView,
+  AgentAttestation,
   AgentProfile,
   AgentTraceExportBundle,
   AgentTraceExportEdit,
