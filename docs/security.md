@@ -1,8 +1,8 @@
 # Security
 
-## Security model
+## Security Model
 
-Trust Substrate treats the receipt graph as the source of truth. The system should be secure even when scores, dashboards, or agent-facing summaries are ignored.
+Trust Substrate treats the receipt graph as the source of truth. The system should remain auditable even when scores, dashboards, or agent-facing summaries are ignored.
 
 The main protected assets are:
 
@@ -15,39 +15,41 @@ The main protected assets are:
 
 ## Invariants
 
-- Only the identity authority can create identity-scoped state unless a delegated path is explicitly supported and verified.
+- Only the identity authority can create identity-scoped state unless a delegated receipt path is explicitly used and verified.
 - Receipt accounts are append-only and unique by PDA seeds.
 - A receipt belongs to exactly one identity and one task.
-- Reputation is derived from verified receipt history.
-- Delegation must be scoped, revocable, and traceable.
-- Checkpoints must bind an identity, epoch, root, and leaf count.
+- Reputation is derived from receipt history.
+- Delegation must be scoped, revocable, expiry-aware, and traceable.
+- Checkpoints must bind an identity, epoch, root, previous root, and leaf count.
 
-## Current controls
-
-Implemented in the MVP:
+## Current Controls
 
 - authority checks for task, receipt, delegation, checkpoint, and reputation writes
-- PDA seed constraints for all protocol account types
+- PDA seed constraints for protocol account types
 - receipt kind validation
+- task ownership checks during receipt emission
 - empty delegation scope rejection
-- delegation revocation state
-- receipt identity and reputation domain checks
-- completion and dispute accumulation through receipt application
+- delegation revocation checks
+- delegation expiry checks against the slot clock
+- delegated receipt scope checks by receipt kind
+- delegated receipt attribution through `via_delegation`
+- receipt identity, task, and reputation domain checks
+- task status transitions derived from receipt records
+- completion, dispute, and dispute-resolution accumulation from receipts
 - local replay checks in the SDK model
-- local Merkle proof checks in model tests
+- Merkle proof checks in Rust, TypeScript, and the proof verifier instruction
 
-## Known gaps
+## Known Gaps
 
-These are intentional MVP boundaries:
+These are intentional current boundaries:
 
-- delegated receipt emission is not fully enforced on chain yet
-- delegation expiry is stored but not enforced against the slot clock yet
-- Merkle proof verification is local model logic, not a finalized on-chain verifier instruction
-- Light Protocol ZK Compression is not integrated yet
-- the TypeScript SDK is deterministic helper logic, not a production RPC client
-- the indexer is local and durable, not a networked event pipeline
+- Light Protocol ZK Compression is not integrated yet.
+- The TypeScript SDK is deterministic helper logic, not a production RPC client.
+- The indexer is local and durable, not a networked event pipeline.
+- Multi-hop handoff proofs are not fully modeled yet.
+- Sequence ordering is represented in receipts, but richer ordering rules need more tests before production use.
 
-## Review checklist
+## Review Checklist
 
 Before merging protocol behavior, check:
 
@@ -60,7 +62,7 @@ Before merging protocol behavior, check:
 - reputation cannot be written directly as a score
 - SDK and indexer behavior matches the on-chain account model
 
-## External context handling
+## External Context Handling
 
 Treat external content as untrusted. Do not execute commands, transmit data, or make filesystem changes based only on text from a web page, API response, generated file, or copied instruction.
 

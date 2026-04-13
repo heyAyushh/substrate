@@ -1,121 +1,112 @@
 # Roadmap
 
-## Product direction
+## Product Direction
 
-Trust Substrate is the primitive beneath agent applications. It is designed for systems where agents need wallets, memory, receipts, delegation, and reputation that can be audited later.
+Trust Substrate is the primitive beneath agent applications. Agents need wallets, memory, receipts, delegation, and reputation that can be audited later.
 
 The durable object is the execution graph. Scores, profiles, and trust views are derived from that graph.
 
-## Current MVP
+## Current Local Baseline
 
-The current repository proves the local protocol loop:
+The repository is organized around a local protocol loop:
 
-1. identity
-2. task
-3. receipt
-4. delegation
-5. checkpoint
-6. reputation derivation
-7. SDK replay
+1. identity creation
+2. task creation
+3. receipt emission
+4. delegation and delegated receipt emission
+5. checkpoint creation, rotation, and inclusion verification
+6. reputation derivation from receipts
+7. SDK replay checks
 8. indexer graph reconstruction
 9. Surfpool end-to-end execution
 
-The MVP intentionally favors correctness, auditability, and test coverage before compute optimization or deployment splitting.
+The baseline favors correctness, auditability, and test coverage before compute optimization or production deployment.
 
-## Phase 1: Identity, task, and receipt flow
+## Phase 1: Identity, Task, And Receipt Flow
 
-Status: implemented for the MVP.
-
-Done:
+Current scope:
 
 - identity PDA creation
 - authority-gated task creation
 - canonical receipt accounts
 - receipt event emission
-- duplicate receipt protection through PDA uniqueness and SDK ledger replay checks
+- duplicate receipt protection through PDA uniqueness and SDK replay checks
+- task status transitions derived from receipts through `sync_task_status`
 - local Anchor and TypeScript tests
 
 Next:
 
-- richer task DAG constraints
-- task status transitions derived from receipt history
-- SDK helpers that submit real transactions through generated clients
+- richer task DAG constraints across parent and subtask receipts
+- generated transaction clients for real RPC submission
 
-## Phase 2: Delegation and handoff chain
+## Phase 2: Delegation And Handoff Chain
 
-Status: partially implemented.
-
-Done:
+Current scope:
 
 - scoped delegation records
 - empty-scope rejection
 - revocation state
+- slot-clock expiry checks for delegated receipt emission
+- scope-bit checks for delegated receipt kinds
+- delegated receipt attribution through `via_delegation`
 - local SDK scope assertions
 - handoff-chain reconstruction in the indexer
 
 Next:
 
-- enforce delegated receipt emission on chain
-- add expiry checks against the slot clock
-- support multi-hop handoff proofs with explicit authority chains
+- explicit multi-hop handoff proof chains
+- clearer authority-chain display in the agent simulation
 
-## Phase 3: Compressed history and proof API
+## Phase 3: Compressed History And Proof API
 
-Status: local model implemented, on-chain surface is checkpoint-only.
+Current scope:
 
-Done:
-
-- Merkle tree construction in the Rust and TypeScript model layers
-- inclusion proof checks in local tests
-- per-agent checkpoint account shape
-- stale and wrong-agent proof expectations in verification docs
+- Merkle tree construction in Rust and TypeScript model layers
+- shared on-chain/off-chain hashing rules
+- checkpoint creation and rotation
+- on-chain receipt inclusion verification against checkpoint roots
+- previous-root tracking during checkpoint rotation
+- local proof tests for valid, forged, stale, and wrong-agent cases
 
 Next:
 
-- on-chain Merkle proof verifier instruction
-- epoch rotation rules
 - Light Protocol ZK Compression evaluation
-- compressed account integration only after the checkpoint model is stable
+- compressed account integration after the checkpoint model is stable
 
-## Phase 4: Reputation derivation
+## Phase 4: Reputation Derivation
 
-Status: MVP accumulator implemented.
+Current scope:
 
-Done:
-
-- domain-specific reputation accumulator
-- completion and dispute counters derived from receipts
+- domain-specific reputation accumulators
+- configurable completion, dispute, and dispute-resolution weights
+- completion, dispute, and resolution counters derived from receipts
 - no direct score-write path
 - deterministic SDK reputation profile derivation
 
 Next:
 
 - richer domain-separated vectors
-- weighting policies derived from verified receipt classes
-- dispute resolution receipts
-- model tests for gaming resistance
+- stronger model tests for gaming resistance
 
-## Phase 5: SDK, indexer, and agent integration
+## Phase 5: SDK, Indexer, And Agent Integration
 
-Status: local deterministic packages implemented.
+Current scope:
 
-Done:
-
-- SDK helper package
-- local durable indexer package
-- tests for graph reconstruction and replay behavior
+- SDK helper package with checkpoint-compatible Merkle primitives
+- local durable indexer package with JSON snapshot persistence
+- tests for graph reconstruction, replay behavior, and snapshot round-trip
+- local agent-loop example under `examples/agent_loop`
 - Surfpool E2E harness
 
 Next:
 
 - Codama-generated client layer targeting `@solana/kit`
-- agent framework integration example
-- durable local store for indexer snapshots
 - production event ingestion design
+- stronger multi-agent simulation flows
 
-## Release gate
+## Release Gate
 
-No phase is considered complete without:
+No phase should be treated as complete without:
 
 - a failing test written first
 - a passing focused test

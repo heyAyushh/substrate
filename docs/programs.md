@@ -1,16 +1,25 @@
 # Trust Substrate Program Interface
 
-## Program overview
+## Program Overview
 
-The Anchor program is defined in `programs/trust_substrate/src/lib.rs`. The declared program id is:
+The workspace exposes deployable Anchor programs in `programs/*`:
 
-`FG9pVEZe1srVF1zTF2WgYpT5VSxxy7om9i9SJj9rGq3n`
+| Program | Local Program Id |
+| --- | --- |
+| `identity_registry` | `7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv` |
+| `task_registry` | `5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4` |
+| `receipt_emitter` | `FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp` |
+| `delegation_engine` | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
+| `proof_verifier` | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
+| `reputation_accumulator` | `8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv` |
 
-The program currently exposes one no-op initializer and six protocol instructions.
+Shared seeds, constants, errors, and Merkle helpers are defined in `crates/trust_substrate_core`.
 
 ## Accounts
 
 ### `AgentIdentity`
+
+Program: `identity_registry`
 
 Fields:
 
@@ -28,12 +37,18 @@ PDA seed:
 
 ### `TaskRecord`
 
+Program: `task_registry`
+
 Fields:
 
 - `identity: Pubkey`
 - `task_id: [u8; 32]`
 - `subtask_root: [u8; 32]`
 - `subtask_count: u16`
+- `status: u8`
+- `completed_count: u32`
+- `disputed_count: u32`
+- `resolved_count: u32`
 - `bump: u8`
 
 PDA seed:
@@ -43,6 +58,8 @@ PDA seed:
 - `task_id`
 
 ### `ReceiptRecord`
+
+Program: `receipt_emitter`
 
 Fields:
 
@@ -55,6 +72,7 @@ Fields:
 - `domain: [u8; 32]`
 - `previous_receipt: [u8; 32]`
 - `payload_hash: [u8; 32]`
+- `via_delegation: Pubkey`
 - `bump: u8`
 
 PDA seed:
@@ -65,6 +83,8 @@ PDA seed:
 - `receipt_id`
 
 ### `DelegationRecord`
+
+Program: `delegation_engine`
 
 Fields:
 
@@ -83,11 +103,14 @@ PDA seed:
 
 ### `HistoryCheckpoint`
 
+Program: `proof_verifier`
+
 Fields:
 
 - `identity: Pubkey`
 - `epoch: u64`
 - `root: [u8; 32]`
+- `previous_root: [u8; 32]`
 - `leaf_count: u64`
 - `bump: u8`
 
@@ -99,12 +122,18 @@ PDA seed:
 
 ### `ReputationAccumulator`
 
+Program: `reputation_accumulator`
+
 Fields:
 
 - `identity: Pubkey`
 - `domain: [u8; 32]`
 - `completed: u64`
 - `disputed: u64`
+- `resolved: u64`
+- `completion_weight: u64`
+- `dispute_weight: u64`
+- `dispute_resolved_weight: u64`
 - `bump: u8`
 
 PDA seed:
@@ -115,221 +144,211 @@ PDA seed:
 
 ## Instructions
 
-### `initialize`
-
-Signature:
-
-- `initialize(ctx: Context<Initialize>) -> Result<()>`
-
-Behavior:
-
-- currently a no-op aside from a log message
-- does not create state
-
-### `create_identity`
+### `identity_registry.create_identity`
 
 Signature:
 
 - `create_identity(ctx, agent_id, policy_root, history_root)`
 
-Accounts:
-
-- `identity` PDA, init
-- `authority` signer
-- `system_program`
-
 Behavior:
 
-- stores the authority pubkey on the identity
-- stores the agent id, policy root, and history root
-- records the PDA bump
+- initializes the identity PDA
+- stores authority, agent id, policy root, history root, and bump
 
-### `create_task`
+### `task_registry.create_task`
 
 Signature:
 
 - `create_task(ctx, task_id, subtask_root, subtask_count)`
 
-Accounts:
+Behavior:
 
-- `authority` signer
-- `identity`
-- `task` PDA, init
-- `system_program`
+- requires the signer to match `identity.authority`
+- initializes a task PDA under the identity
+- stores pending status and zeroed receipt-derived counters
+
+### `task_registry.sync_task_status`
+
+Signature:
+
+- `sync_task_status(ctx)`
 
 Behavior:
 
 - requires the signer to match `identity.authority`
-- stores the task id, subtask root, subtask count, and bump
+- requires the receipt identity and task to match the supplied accounts
+- updates task status and counters from assignment, handoff, completion, dispute, and dispute-resolved receipts
 
-### `emit_receipt`
+### `receipt_emitter.emit_receipt`
 
 Signature:
 
 - `emit_receipt(ctx, receipt_id, kind, sequence, domain, previous_receipt, payload_hash)`
 
-Accounts:
+Behavior:
 
-- `authority` signer
-- `identity`
-- `task`
-- `receipt` PDA, init
-- `system_program`
+- validates `kind`
+- requires the signer to match `identity.authority`
+- requires the task to belong to the identity
+- stores the authority as `actor`
+- stores the default pubkey in `via_delegation`
+- emits `ReceiptCommitted`
+
+### `receipt_emitter.emit_delegated_receipt`
+
+Signature:
+
+- `emit_delegated_receipt(ctx, receipt_id, kind, sequence, domain, previous_receipt, payload_hash)`
 
 Behavior:
 
-- validates `kind` against the canonical receipt vocabulary
-- requires the signer to match `identity.authority`
-- stores the receipt fields and bump
-- emits a `ReceiptCommitted` event
+- validates `kind`
+- requires the delegate signer to match the delegation PDA
+- rejects revoked delegations
+- rejects expired delegations when `expires_at_slot` is non-zero
+- requires the delegation scope bit to allow the receipt kind
+- stores the delegate as `actor`
+- stores the delegation account in `via_delegation`
+- emits `ReceiptCommitted`
 
-Event fields:
-
-- `identity`
-- `task`
-- `receipt_id`
-- `actor`
-- `kind`
-- `sequence`
-- `domain`
-
-### `create_delegation`
+### `delegation_engine.create_delegation`
 
 Signature:
 
 - `create_delegation(ctx, allowed_actions, expires_at_slot)`
 
-Accounts:
-
-- `authority` signer
-- `identity`
-- `delegate`
-- `delegation` PDA, init
-- `system_program`
-
 Behavior:
 
-- requires at least one allowed action bit
+- rejects empty action scope
 - requires the signer to match `identity.authority`
-- stores the delegate pubkey, scope bitmap, expiry slot, revoked flag, and bump
+- stores delegate pubkey, scope bitmap, expiry slot, revocation state, and bump
 
-### `revoke_delegation`
+### `delegation_engine.revoke_delegation`
 
 Signature:
 
 - `revoke_delegation(ctx)`
 
-Accounts:
-
-- `authority` signer
-- `identity`
-- `delegation`
-
 Behavior:
 
 - requires the signer to match `identity.authority`
-- sets `revoked` to `true`
+- marks the delegation as revoked
 
-### `checkpoint_history`
+### `proof_verifier.checkpoint_history`
 
 Signature:
 
 - `checkpoint_history(ctx, epoch, root, leaf_count)`
 
-Accounts:
-
-- `authority` signer
-- `identity`
-- `checkpoint` PDA, init
-- `system_program`
-
 Behavior:
 
 - requires the signer to match `identity.authority`
-- stores the epoch root and leaf count
-- records the PDA bump
+- initializes a checkpoint PDA for the identity and epoch
+- stores the root, empty previous root, leaf count, and bump
 
-### `create_reputation_domain`
+### `proof_verifier.rotate_checkpoint`
 
 Signature:
 
-- `create_reputation_domain(ctx, domain)`
-
-Accounts:
-
-- `authority` signer
-- `identity`
-- `reputation` PDA, init
-- `system_program`
+- `rotate_checkpoint(ctx, new_epoch, new_root, new_leaf_count)`
 
 Behavior:
 
 - requires the signer to match `identity.authority`
-- initializes `completed` and `disputed` counters to zero
-- stores the PDA bump
+- requires the previous checkpoint to belong to the identity
+- requires `new_epoch` to equal the previous epoch plus one
+- requires the leaf count to stay the same or increase
+- stores the new root and previous checkpoint root
 
-### `apply_reputation_receipt`
+### `proof_verifier.verify_receipt_inclusion`
+
+Signature:
+
+- `verify_receipt_inclusion(ctx, leaf, leaf_index, siblings)`
+
+Behavior:
+
+- rejects leaf indexes outside the checkpoint leaf count
+- verifies the Merkle inclusion proof against the checkpoint root
+
+### `reputation_accumulator.create_reputation_domain`
+
+Signature:
+
+- `create_reputation_domain(ctx, domain, completion_weight, dispute_weight, dispute_resolved_weight)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- initializes domain counters to zero
+- uses default weights when a provided weight is zero
+
+### `reputation_accumulator.apply_reputation_receipt`
 
 Signature:
 
 - `apply_reputation_receipt(ctx)`
 
-Accounts:
-
-- `authority` signer
-- `identity`
-- `receipt`
-- `reputation`
-
 Behavior:
 
 - requires the signer to match `identity.authority`
-- requires the receipt identity to match the identity account
+- requires the receipt to belong to the identity
 - requires the reputation domain to match the receipt domain
-- increments `completed` for completion receipts
-- increments `disputed` for dispute receipts
-- leaves assignment and handoff receipts unchanged
+- applies completion, dispute, and dispute-resolution receipt effects
+- ignores receipt kinds that do not affect reputation
 
-## Constants
+## Receipt Kinds
 
-Defined in `programs/trust_substrate/src/constants.rs`:
+Defined in `crates/trust_substrate_core/src/constants.rs`:
 
-- `IDENTITY_SEED`
-- `TASK_SEED`
-- `RECEIPT_SEED`
-- `DELEGATION_SEED`
-- `CHECKPOINT_SEED`
-- `REPUTATION_SEED`
-- `EMPTY_SCOPE_BITMAP = 0`
 - `ASSIGNMENT_KIND = 1`
 - `HANDOFF_KIND = 2`
 - `COMPLETION_KIND = 3`
 - `DISPUTE_KIND = 4`
-- `COMPLETION_CREDIT = 1`
-- `DISPUTE_CREDIT = 1`
+- `DISPUTE_RESOLVED_KIND = 5`
+
+## Delegation Scope Bits
+
+Defined in `crates/trust_substrate_core/src/constants.rs`:
+
+- `ASSIGNMENT_SCOPE_BIT`
+- `HANDOFF_SCOPE_BIT`
+- `COMPLETION_SCOPE_BIT`
+- `DISPUTE_SCOPE_BIT`
+- `DISPUTE_RESOLVED_SCOPE_BIT`
+
+## Task Statuses
+
+Defined in `crates/trust_substrate_core/src/constants.rs`:
+
+- `TASK_STATUS_PENDING`
+- `TASK_STATUS_ACTIVE`
+- `TASK_STATUS_COMPLETED`
+- `TASK_STATUS_DISPUTED`
+- `TASK_STATUS_RESOLVED`
 
 ## Errors
 
-Defined in `programs/trust_substrate/src/error.rs`:
+Defined in `crates/trust_substrate_core/src/error.rs`:
 
 - `InvalidAuthority`
 - `InvalidReceiptKind`
 - `EmptyDelegationScope`
 - `ReceiptIdentityMismatch`
 - `ReputationDomainMismatch`
+- `DelegationRevoked`
+- `DelegationExpired`
+- `DelegationScopeMismatch`
+- `DelegateMismatch`
+- `InvalidMerkleProof`
+- `ProofIndexOutOfRange`
+- `CheckpointIdentityMismatch`
+- `InvalidTaskStatusTransition`
+- `ReceiptTaskMismatch`
 
-## Current/future boundary
+## Future Work
 
-Current:
-
-- account creation and mutation logic described above
-- identity-gated writes for task, receipt, delegation, checkpoint, and reputation accounts
-- receipt event emission
-
-Future:
-
-- richer on-chain delegation enforcement during receipt emission
-- on-chain Merkle proof verification
-- compressed history accounts or proof verifier instructions
-- non-local program interfaces beyond the current instruction set
-
+- generated clients targeting `@solana/kit`
+- stronger multi-hop delegation proof chains
+- Light Protocol ZK Compression integration
+- production event ingestion

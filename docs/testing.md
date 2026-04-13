@@ -2,7 +2,7 @@
 
 ## Commands
 
-Run the full local suite:
+Run the full local package, Rust, and verification suite:
 
 ```bash
 pnpm test
@@ -14,7 +14,7 @@ Run package tests only:
 pnpm test:packages
 ```
 
-Run Rust program tests:
+Run Rust program and model tests:
 
 ```bash
 pnpm test:rust
@@ -38,20 +38,35 @@ Run the Surfpool end-to-end gate:
 pnpm test:surfpool
 ```
 
-## Anchor test flow
+## Anchor Test Flow
 
 `pnpm test:anchor` runs the Anchor test suite against the local validator flow used by the workspace.
 
-The main on-chain integration test is `tests/trust_substrate.ts`. It covers the local end-to-end path for:
+The main on-chain integration test is `tests/trust_substrate.ts`. It covers the local path for:
 
 - identity creation
 - task creation
-- receipt emission
-- delegation creation
-- history checkpointing
-- reputation application
+- direct receipt emission
+- task status sync from receipts
+- delegation creation and revocation
+- delegated receipt emission
+- history checkpoint creation and rotation
+- receipt inclusion proof verification
+- reputation domain creation and receipt application
 
-## Surfpool final E2E
+## Verification Tests
+
+`pnpm test:verification` runs every file under `tests/verification/*.test.ts`.
+
+The verification layer checks the local acceptance contract, including:
+
+- required local command order
+- Surfpool as the final gate
+- no required devnet gate
+- deployable protocol program declarations
+- feature-owned instruction module layout
+
+## Surfpool Final E2E
 
 Surfpool replaces devnet as the final end-to-end gate.
 
@@ -70,13 +85,12 @@ Default local endpoint:
 
 The harness uses `tests/surfpool/txtx.yml` when that manifest is present. Without that manifest, it starts Surfpool against the default local endpoint contract and runs the Anchor suite with deployment skipped after the local build.
 
-The Surfpool gate currently passes locally. If it fails, inspect the log path printed by the harness before changing code.
-
-## Expected local order
+## Expected Local Order
 
 1. `pnpm test:packages`
 2. `pnpm test:rust`
-3. `pnpm test:anchor`
-4. `pnpm test:surfpool`
+3. `pnpm test:verification`
+4. `pnpm test:anchor`
+5. `pnpm test:surfpool`
 
 The verification contract explicitly keeps devnet out of the required gate.

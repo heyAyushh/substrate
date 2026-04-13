@@ -2,40 +2,41 @@
 
 Agents need wallets, but they also need memory, receipts, delegation, and reputation.
 
-Trust Substrate is a local-first Solana infrastructure primitive for autonomous agents. The core idea is simple: do not store a score. Store an append-only execution graph, then derive reputation from verified history.
+Trust Substrate is a local-first Solana trust layer for autonomous agents. It stores an append-only execution graph and derives reputation from verified history instead of writing a mutable score.
 
-This repository contains the MVP implementation:
+## What Is Here
 
-- an Anchor program for identity, task, receipt, delegation, checkpoint, and reputation records
+This repository contains a local protocol baseline:
+
+- Anchor programs for identity, tasks, receipts, delegation, checkpoints, and reputation
+- a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
 - deterministic TypeScript SDK helpers
 - a local durable indexer that rebuilds execution graphs from receipts
-- Rust, TypeScript, Anchor, and Surfpool test coverage
-- local documentation for architecture, development, testing, security, and roadmap decisions
+- Anchor, Rust, TypeScript, verification, and Surfpool test paths
+- documentation for architecture, development, testing, security, and roadmap decisions
 
-## Current status
+This is not a production deployment. The current goal is a correct, auditable local loop that can be hardened before networked indexing, generated clients, compression integrations, or production deployment.
 
-This is an MVP, not a production deployment.
+## Protocol Programs
 
-The original product plan names six program surfaces: identity registry, task registry, receipt emitter, delegation engine, reputation accumulator, and proof verifier. The current implementation keeps those surfaces inside one Anchor program so the protocol can be tested end to end before splitting deployment boundaries.
+The workspace has these deployable Anchor programs:
 
-Implemented today:
+- `identity_registry`
+- `task_registry`
+- `receipt_emitter`
+- `delegation_engine`
+- `proof_verifier`
+- `reputation_accumulator`
 
-- PDA-based agent identity roots
-- canonical task records with subtask metadata
-- receipt accounts for assignment, handoff, completion, and dispute events
-- scoped delegation records with revocation state
-- per-agent history checkpoint accounts
-- reputation accumulators derived from receipt history
-- deterministic SDK and indexer models
-- local Surfpool end-to-end verification
+Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.
 
-Not implemented yet:
+## Not In Scope Yet
 
 - Light Protocol ZK Compression integration
 - remote event streaming or Geyser ingestion
 - production RPC client wrappers generated from Codama
-- separate deployed programs for every protocol surface
-- advanced on-chain Merkle proof verification
+- mainnet deployment hardening
+- full multi-hop delegation proof chains
 
 ## Documentation
 
@@ -48,15 +49,17 @@ Not implemented yet:
 - [MVP Local Verification](docs/verification/mvp-local-verification.md)
 - [Agent Instructions](AGENTS.md)
 
-## Repository layout
+## Repository Layout
 
 ```text
-programs/trust_substrate/     Anchor program
+crates/trust_substrate_core/  Shared protocol constants, errors, Merkle logic, and model tests
+programs/                    Anchor protocol programs
 packages/sdk/                 Deterministic local SDK helpers
 packages/indexer/             Local durable execution graph indexer
 tests/                        TypeScript, Anchor, Surfpool, and verification tests
 scripts/                      Local automation scripts
 docs/                         Project documentation
+examples/agent_loop/          Local multi-agent simulation example
 ```
 
 ## Toolchain
@@ -75,7 +78,7 @@ Repository pins:
 - `packageManager` `pnpm@10.33.0`
 - `Anchor.toml` `anchor_version = "0.32.1"`
 
-## Quick start
+## Quick Start
 
 Install dependencies:
 
@@ -101,11 +104,11 @@ Run the Surfpool end-to-end gate:
 pnpm test:surfpool
 ```
 
-The required final E2E environment is Surfpool, not devnet.
+Surfpool is the required final local E2E environment. Devnet is not the release gate for this project.
 
-## TDD workflow
+## TDD Workflow
 
-Every behavior starts as a failing test:
+Every protocol behavior starts as a failing test:
 
 1. Write the smallest test that describes the behavior.
 2. Run it and confirm it fails for the expected reason.
@@ -116,9 +119,9 @@ Every behavior starts as a failing test:
 
 Do not add protocol behavior that has no local test.
 
-## MVP flow
+## Local Flow
 
-The current local end-to-end path is:
+The current local path is:
 
 1. Create an agent identity PDA.
 2. Create a task PDA under that identity.
@@ -128,9 +131,9 @@ The current local end-to-end path is:
 6. Apply receipts to derived reputation state.
 7. Rebuild the execution graph through the local indexer.
 
-The key invariant is that receipts are the source of truth. Reputation is derived from that receipt graph.
+Receipts are the source of truth. Reputation is derived from that receipt graph.
 
-## Useful commands
+## Useful Commands
 
 ```bash
 pnpm test:packages
@@ -143,7 +146,7 @@ pnpm lint
 
 `anchor build` and `pnpm test:surfpool` may print upstream Anchor/Solana compiler warnings. Passing status is determined by command exit code.
 
-## Contributing rules
+## Contributing Rules
 
 - Use Conventional Commits.
 - Keep commits focused and reviewable.

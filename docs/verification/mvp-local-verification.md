@@ -6,16 +6,24 @@ It is intentionally self-contained: no network calls, no external installs, and 
 ## Run Command
 
 ```bash
-node --test --experimental-strip-types tests/verification/mvp_local_verification.test.ts
+pnpm test:verification
+```
+
+Equivalent direct command:
+
+```bash
+node --test --experimental-strip-types tests/verification/*.test.ts
 ```
 
 ## Verification Order
 
-Run the MVP gates in this order:
+Run the local gates in this order:
 
 1. Local package unit tests
-2. Anchor build and test
-3. Surfpool-backed end-to-end verification
+2. Rust program and model tests
+3. Verification contract tests
+4. Anchor build and test
+5. Surfpool-backed end-to-end verification
 
 ## Local Verification Rules
 
@@ -27,7 +35,7 @@ Run the MVP gates in this order:
 
 ## MVP Security Acceptance Criteria
 
-Each item below must be covered by an executable local test.
+Each item below must be covered by an executable local test before it is treated as shipped behavior.
 
 - Signer checks
   - Reject unsigned actions.
@@ -37,11 +45,11 @@ Each item below must be covered by an executable local test.
 - PDA validation expectations
   - Reject accounts derived from the wrong seeds.
   - Reject mismatched bumps.
-  - Reject any account layout that does not match the canonical identity, task, receipt, or delegation PDA pattern.
+  - Reject account layouts that do not match the canonical identity, task, receipt, delegation, checkpoint, or reputation PDA pattern.
 
 - Replay protection
   - Reject duplicate receipts.
-  - Reject reused nonces or sequence numbers.
+  - Reject reused receipt identifiers.
   - Reject repeated submission of the same meaningful step.
 
 - Stale proofs
@@ -61,8 +69,8 @@ Each item below must be covered by an executable local test.
 
 ## MVP Local Pass Criteria
 
-- The executable test file passes locally.
-- The verification order is local package tests, Anchor build/test, then Surfpool E2E.
+- `pnpm test:verification` passes locally.
+- The verification order is package tests, Rust tests, verification tests, Anchor build/test, then Surfpool E2E.
 - The checklist covers every security acceptance criterion listed above.
 - The verification layer remains self-contained and uses no external dependencies.
 - Program behavior stays tied to executable tests and the acceptance contract above.

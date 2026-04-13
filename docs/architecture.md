@@ -2,43 +2,47 @@
 
 ## Overview
 
-Trust Substrate is a local-first Solana program set for agent identity, task tracking, receipt history, delegation records, history checkpoints, and derived reputation. The on-chain program stores canonical state. The SDK provides deterministic local helpers. The indexer reconstructs execution history from ordered receipts.
+Trust Substrate is a local-first Solana protocol set for agent identity, task tracking, receipt history, delegation, checkpoint proofs, and derived reputation.
 
-The repository is organized around three layers:
+The durable object is the execution graph. Receipts describe meaningful steps. Checkpoints anchor history roots. Reputation is derived from verified receipt history.
 
-1. On-chain state in `programs/trust_substrate/src/*.rs`
-2. Local deterministic helpers in `packages/sdk/src`
-3. Local execution-graph reconstruction in `packages/indexer/src`
+## Layers
 
-## Current architecture
+1. Anchor programs in `programs/*`
+2. Shared Rust core in `crates/trust_substrate_core`
+3. Deterministic TypeScript helpers in `packages/sdk/src`
+4. Local execution-graph reconstruction in `packages/indexer/src`
+5. Local verification through Rust, TypeScript, Anchor, and Surfpool tests
 
-### On-chain program
+## On-Chain Programs
 
-The Anchor program defines six persistent account types:
+The workspace currently has these Anchor programs:
 
-- `AgentIdentity`
-- `TaskRecord`
-- `ReceiptRecord`
-- `DelegationRecord`
-- `HistoryCheckpoint`
-- `ReputationAccumulator`
+- `identity_registry`: creates PDA-based agent identities with authority, policy root, and history root
+- `task_registry`: creates task records and syncs task status from receipts
+- `receipt_emitter`: emits direct and delegated receipt records
+- `delegation_engine`: creates and revokes scoped delegate records
+- `proof_verifier`: creates, rotates, and verifies history checkpoints
+- `reputation_accumulator`: applies receipt facts to domain-specific reputation accumulators
 
-Each account is derived from a PDA with a fixed seed prefix:
+`crates/trust_substrate_core` keeps shared seeds, receipt kinds, task statuses, errors, Merkle helpers, and pure model tests out of the program crates.
 
-- `identity`
-- `task`
-- `receipt`
-- `delegation`
-- `checkpoint`
-- `reputation`
+## Account Roots
 
-The program uses the agent identity PDA as the root of trust for the other records. The authority signer must control the identity for identity-scoped writes.
+Each persistent account is derived from a fixed PDA seed:
 
-### Deterministic history model
+- `AgentIdentity`: `identity`
+- `TaskRecord`: `task`
+- `ReceiptRecord`: `receipt`
+- `DelegationRecord`: `delegation`
+- `HistoryCheckpoint`: `checkpoint`
+- `ReputationAccumulator`: `reputation`
 
-The protocol treats receipts as the append-only source of truth.
+The agent identity PDA is the root of trust for identity-scoped writes. Authority checks and account constraints keep tasks, receipts, checkpoints, and reputation records tied to the correct identity.
 
-On chain, a receipt captures:
+## Receipt History
+
+Receipts are append-only evidence. A receipt records:
 
 - identity
 - task
@@ -49,78 +53,74 @@ On chain, a receipt captures:
 - domain
 - previous receipt id
 - payload hash
+- optional delegation record
 
-The canonical receipt kinds are:
+Canonical receipt kinds are:
 
 - assignment
 - handoff
 - completion
 - dispute
+- dispute resolved
 
-The Rust `model.rs` module mirrors that history model for local tests. It provides:
+Direct receipts are signed by the identity authority. Delegated receipts are signed by the delegate and must pass delegation identity, revocation, expiry, and scope checks.
 
-- receipt hashing
-- delegation scope checks
-- Merkle tree construction and proof verification
-- reputation derivation from verified receipt history
+## Checkpoints And Proofs
 
-### Reputation model
+The proof verifier stores per-identity history checkpoints with:
 
-Reputation is a derived vector, not a manually written score. The current implementation records:
+- epoch
+- current root
+- previous root
+- leaf count
 
-- completed count
-- disputed count
+Checkpoint rotation requires the next epoch and a non-decreasing leaf count. Inclusion verification checks Merkle proofs against the checkpoint root using the shared core hashing rules.
 
-in the on-chain `ReputationAccumulator`, and computes richer derived profiles in the SDK and Rust model layer.
+This is the local checkpoint model. Light Protocol ZK Compression is future work, not part of the current local baseline.
 
-### Indexing
+## Reputation
 
-`packages/indexer/src/local-durable-indexer.ts` reconstructs local execution history from receipts. It deduplicates by `receiptId:slot`, sorts by slot, and builds:
+Reputation is derived from receipts. The on-chain accumulator stores domain-specific counters and weights:
+
+- completed
+- disputed
+- resolved
+- completion weight
+- dispute weight
+- dispute-resolved weight
+
+There is no direct score-write instruction. The SDK can derive richer local profiles from the verified graph.
+
+## Indexing
+
+`packages/indexer/src/local-durable-indexer.ts` reconstructs local execution history from receipts. It deduplicates receipts, sorts by slot, and builds:
 
 - task histories
 - agent histories
 - handoff chains
 - domain summaries
-- a full execution graph view
+- execution graph snapshots
 
-This indexer is local and deterministic. It is not a networked or event-streaming indexer yet.
+The indexer is local and deterministic. Remote event ingestion and Geyser-style pipelines are future work.
 
-### SDK
+## SDK
 
-`packages/sdk/src` is a deterministic TypeScript helper layer. It is not a chain RPC client. It provides:
+`packages/sdk/src` provides deterministic local helpers for:
 
-- canonical identity/task/receipt/delegation record creation
-- append-only receipt ledger replay protection
+- identity, task, receipt, and delegation records
+- append-only receipt ledger replay checks
 - Merkle tree creation and proof verification
 - delegation scope assertions
 - derived reputation profiles
 
-## Current boundaries
+It is not yet a production RPC client layer generated from Codama.
 
-Implemented today:
+## Local Flow
 
-- Anchor program accounts and instructions
-- local Rust model tests for hash/proof/reputation logic
-- local TypeScript SDK helpers
-- local durable indexer
-- full local integration test that walks identity -> task -> receipt -> delegation -> checkpoint -> reputation
-
-Not implemented yet:
-
-- a production RPC client layer that sends these SDK objects to the chain
-- a remote indexer or Geyser pipeline
-- compressed history storage beyond the checkpoint account
-- advanced on-chain enforcement of delegation during receipt emission
-- a separate proof-verifier instruction surface
-
-## Execution flow
-
-1. Create an agent identity PDA with `agent_id`, `policy_root`, and `history_root`.
-2. Create a task PDA under that identity with `task_id`, `subtask_root`, and `subtask_count`.
-3. Emit receipts for assignments, handoffs, completions, and disputes.
-4. Create a scoped delegation record for a delegate public key.
-5. Record a history checkpoint for an epoch.
-6. Create or update a domain reputation accumulator and apply receipts to it.
-
-The local TypeScript and Rust test suites use the same conceptual sequence, but they exercise it with deterministic local data rather than live network ingestion.
-
+1. Create an agent identity PDA.
+2. Create a task PDA under that identity.
+3. Emit receipts for assignments, handoffs, completions, disputes, and resolutions.
+4. Create scoped delegation records for handoff authority.
+5. Checkpoint receipt history roots and verify inclusion proofs.
+6. Apply receipts to domain reputation accumulators.
+7. Rebuild the execution graph with the local indexer.

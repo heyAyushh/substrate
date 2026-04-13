@@ -2,7 +2,7 @@
 
 These instructions apply to `/Users/ay/Documents/codes/substrate/trust_substrate`.
 
-## Working agreement
+## Working Agreement
 
 - Use test-driven development for protocol behavior.
 - Write the failing test first, run it, then implement the smallest passing change.
@@ -12,7 +12,7 @@ These instructions apply to `/Users/ay/Documents/codes/substrate/trust_substrate
 - Use subagents only with clear, disjoint file ownership.
 - Commit meaningful steps with Conventional Commit messages.
 
-## Current finishing criteria
+## Current Finishing Criteria
 
 A change is done only when:
 
@@ -23,7 +23,7 @@ A change is done only when:
 - generated caches, logs, build output, and local validator state are not committed
 - documentation reflects any changed behavior or workflow
 
-## Test commands
+## Test Commands
 
 Use the narrowest useful command first:
 
@@ -59,20 +59,22 @@ Use the existing stack:
 
 Do not introduce a new framework, build system, indexer backend, or crypto dependency unless it is needed for the requested behavior and has a test-backed reason.
 
-## Project boundaries
+## Project Boundaries
 
-The current MVP has one Anchor program with six protocol surfaces:
+The local protocol is split across deployable Anchor programs:
 
-- identity registry
-- task registry
-- receipt emitter
-- delegation engine
-- reputation accumulator
-- proof/checkpoint verifier surface
+- `identity_registry`
+- `task_registry`
+- `receipt_emitter`
+- `delegation_engine`
+- `proof_verifier`
+- `reputation_accumulator`
 
-Keep those boundaries visible in naming, tests, and documentation even while they live in one program.
+Shared constants, errors, Merkle proof logic, and pure model tests live in `crates/trust_substrate_core`.
 
-## Security rules
+Keep these boundaries visible in naming, tests, and documentation. Do not reintroduce the old bundled `trust_substrate` program as a deployable target.
+
+## Security Rules
 
 - Treat receipts as append-only execution evidence.
 - Do not add direct reputation score writes.
@@ -83,7 +85,7 @@ Keep those boundaries visible in naming, tests, and documentation even while the
 - Never operate on `.env`, credential files, or `.git` internals.
 - Never run destructive filesystem commands without an explicit dry run and user approval.
 
-## Documentation rules
+## Documentation Rules
 
 Update docs when behavior changes:
 
@@ -96,7 +98,7 @@ Update docs when behavior changes:
 
 Keep docs factual. Mark future work clearly instead of describing it as implemented.
 
-## Commit format
+## Commit Format
 
 Use Conventional Commits:
 
