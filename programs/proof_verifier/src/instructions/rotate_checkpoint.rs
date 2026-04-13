@@ -1,8 +1,10 @@
 use crate::{
-    identity_registry::state::AgentIdentity, state::HistoryCheckpoint, TrustSubstrateError,
-    CHECKPOINT_SEED,
+    identity_registry::state::AgentIdentity,
+    state::{HistoryCheckpoint, LatestCheckpoint},
+    TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
+use trust_substrate_core::LATEST_CHECKPOINT_SEED;
 
 pub fn handler(
     ctx: Context<RotateCheckpoint>,
@@ -13,26 +15,31 @@ pub fn handler(
     require_keys_eq!(
         ctx.accounts.identity.authority,
         ctx.accounts.authority.key(),
-        TrustSubstrateError::InvalidAuthority
+        TrustSubstrateError::CheckpointAuthorityMismatch
     );
     require_keys_eq!(
         ctx.accounts.previous_checkpoint.identity,
         ctx.accounts.identity.key(),
         TrustSubstrateError::CheckpointIdentityMismatch
     );
+    require_keys_eq!(
+        ctx.accounts.latest_checkpoint.checkpoint,
+        ctx.accounts.previous_checkpoint.key(),
+        TrustSubstrateError::StaleCheckpoint
+    );
+    let expected_epoch = ctx
+        .accounts
+        .previous_checkpoint
+        .epoch
+        .checked_add(1)
+        .ok_or(TrustSubstrateError::CheckpointEpochOverflow)?;
     require!(
-        new_epoch
-            == ctx
-                .accounts
-                .previous_checkpoint
-                .epoch
-                .checked_add(1)
-                .ok_or(TrustSubstrateError::InvalidTaskStatusTransition)?,
-        TrustSubstrateError::InvalidTaskStatusTransition
+        new_epoch == expected_epoch,
+        TrustSubstrateError::CheckpointEpochNotSequential
     );
     require!(
         new_leaf_count >= ctx.accounts.previous_checkpoint.leaf_count,
-        TrustSubstrateError::InvalidTaskStatusTransition
+        TrustSubstrateError::CheckpointLeafCountRegression
     );
 
     let checkpoint = &mut ctx.accounts.checkpoint;
@@ -42,6 +49,11 @@ pub fn handler(
     checkpoint.previous_root = ctx.accounts.previous_checkpoint.root;
     checkpoint.leaf_count = new_leaf_count;
     checkpoint.bump = ctx.bumps.checkpoint;
+
+    let latest_checkpoint = &mut ctx.accounts.latest_checkpoint;
+    latest_checkpoint.checkpoint = checkpoint.key();
+    latest_checkpoint.epoch = new_epoch;
+    latest_checkpoint.root = new_root;
 
     Ok(())
 }
@@ -69,5 +81,12 @@ pub struct RotateCheckpoint<'info> {
         bump
     )]
     pub checkpoint: Account<'info, HistoryCheckpoint>,
+    #[account(
+        mut,
+        seeds = [LATEST_CHECKPOINT_SEED, identity.key().as_ref()],
+        bump = latest_checkpoint.bump,
+        constraint = latest_checkpoint.identity == identity.key() @ TrustSubstrateError::CheckpointIdentityMismatch
+    )]
+    pub latest_checkpoint: Account<'info, LatestCheckpoint>,
     pub system_program: Program<'info, System>,
 }

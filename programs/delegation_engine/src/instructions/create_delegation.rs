@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
-use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED, EMPTY_SCOPE_BITMAP};
+use trust_substrate_core::{
+    TrustSubstrateError, DELEGATION_SEED, EMPTY_SCOPE_BITMAP, VALID_SCOPE_BITMAP,
+};
 
 use crate::state::DelegationRecord;
 
-pub fn handle_create_delegation(
+pub fn handler(
     ctx: Context<CreateDelegation>,
     allowed_actions: u8,
     expires_at_slot: u64,
@@ -12,6 +14,10 @@ pub fn handle_create_delegation(
     require!(
         allowed_actions != EMPTY_SCOPE_BITMAP,
         TrustSubstrateError::EmptyDelegationScope
+    );
+    require!(
+        allowed_actions & !VALID_SCOPE_BITMAP == 0,
+        TrustSubstrateError::InvalidDelegationScope
     );
 
     let delegation = &mut ctx.accounts.delegation;
@@ -29,7 +35,7 @@ pub fn handle_create_delegation(
 pub struct CreateDelegation<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::InvalidAuthority)]
+    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::DelegationAuthorityMismatch)]
     pub identity: Account<'info, AgentIdentity>,
     /// CHECK: The delegate is referenced by public key in the PDA and does not need account data.
     pub delegate: UncheckedAccount<'info>,

@@ -4,6 +4,9 @@ pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
+pub const LATEST_CHECKPOINT_SEED: &[u8] = b"latest_checkpoint";
+pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
+pub const REPUTATION_RECEIPT_APPLICATION_SEED: &[u8] = b"reputation_receipt_application";
 
 pub const EMPTY_SCOPE_BITMAP: u8 = 0;
 
@@ -18,6 +21,11 @@ pub const HANDOFF_SCOPE_BIT: u8 = 1 << 1;
 pub const COMPLETION_SCOPE_BIT: u8 = 1 << 2;
 pub const DISPUTE_SCOPE_BIT: u8 = 1 << 3;
 pub const DISPUTE_RESOLVED_SCOPE_BIT: u8 = 1 << 4;
+pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
+    | HANDOFF_SCOPE_BIT
+    | COMPLETION_SCOPE_BIT
+    | DISPUTE_SCOPE_BIT
+    | DISPUTE_RESOLVED_SCOPE_BIT;
 
 pub const DEFAULT_COMPLETION_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_WEIGHT: u64 = 1;

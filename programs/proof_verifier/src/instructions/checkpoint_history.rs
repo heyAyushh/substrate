@@ -1,9 +1,10 @@
 use crate::{
-    identity_registry::state::AgentIdentity, state::HistoryCheckpoint, TrustSubstrateError,
-    CHECKPOINT_SEED,
+    identity_registry::state::AgentIdentity,
+    state::{HistoryCheckpoint, LatestCheckpoint},
+    TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
-use trust_substrate_core::EMPTY_MERKLE_ROOT;
+use trust_substrate_core::{EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED};
 
 pub fn handler(
     ctx: Context<CheckpointHistory>,
@@ -14,7 +15,7 @@ pub fn handler(
     require_keys_eq!(
         ctx.accounts.identity.authority,
         ctx.accounts.authority.key(),
-        TrustSubstrateError::InvalidAuthority
+        TrustSubstrateError::CheckpointAuthorityMismatch
     );
 
     let checkpoint = &mut ctx.accounts.checkpoint;
@@ -24,6 +25,13 @@ pub fn handler(
     checkpoint.previous_root = EMPTY_MERKLE_ROOT;
     checkpoint.leaf_count = leaf_count;
     checkpoint.bump = ctx.bumps.checkpoint;
+
+    let latest_checkpoint = &mut ctx.accounts.latest_checkpoint;
+    latest_checkpoint.identity = ctx.accounts.identity.key();
+    latest_checkpoint.checkpoint = checkpoint.key();
+    latest_checkpoint.epoch = epoch;
+    latest_checkpoint.root = root;
+    latest_checkpoint.bump = ctx.bumps.latest_checkpoint;
 
     Ok(())
 }
@@ -42,5 +50,13 @@ pub struct CheckpointHistory<'info> {
         bump
     )]
     pub checkpoint: Account<'info, HistoryCheckpoint>,
+    #[account(
+        init,
+        payer = authority,
+        space = 8 + LatestCheckpoint::INIT_SPACE,
+        seeds = [LATEST_CHECKPOINT_SEED, identity.key().as_ref()],
+        bump
+    )]
+    pub latest_checkpoint: Account<'info, LatestCheckpoint>,
     pub system_program: Program<'info, System>,
 }

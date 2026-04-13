@@ -12,6 +12,24 @@ pub use trust_substrate_core::{
     HANDOFF_KIND,
 };
 
+pub mod __client_accounts_emit_delegated_receipt {
+    pub use crate::instructions::emit_delegated_receipt::__client_accounts_emit_delegated_receipt::*;
+}
+
+pub mod __client_accounts_emit_receipt {
+    pub use crate::instructions::emit_receipt::__client_accounts_emit_receipt::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emit_delegated_receipt {
+    pub use crate::instructions::emit_delegated_receipt::__cpi_client_accounts_emit_delegated_receipt::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emit_receipt {
+    pub use crate::instructions::emit_receipt::__cpi_client_accounts_emit_receipt::*;
+}
+
 declare_id!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
 
 #[program]
@@ -27,7 +45,7 @@ pub mod receipt_emitter {
         previous_receipt: [u8; 32],
         payload_hash: [u8; 32],
     ) -> Result<()> {
-        emit_receipt::handle_emit_receipt(
+        emit_receipt::handler(
             ctx,
             receipt_id,
             kind,
@@ -47,7 +65,7 @@ pub mod receipt_emitter {
         previous_receipt: [u8; 32],
         payload_hash: [u8; 32],
     ) -> Result<()> {
-        emit_delegated_receipt::handle_emit_delegated_receipt(
+        emit_delegated_receipt::handler(
             ctx,
             receipt_id,
             kind,

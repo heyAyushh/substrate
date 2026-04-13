@@ -9,7 +9,7 @@ use trust_substrate_core::{
 use crate::events::ReceiptCommitted;
 use crate::state::ReceiptRecord;
 
-pub fn handle_emit_delegated_receipt(
+pub fn handler(
     ctx: Context<EmitDelegatedReceipt>,
     receipt_id: [u8; 32],
     kind: u8,
@@ -27,7 +27,7 @@ pub fn handle_emit_delegated_receipt(
     require_keys_eq!(
         delegation.delegate,
         ctx.accounts.delegate.key(),
-        TrustSubstrateError::DelegateMismatch
+        TrustSubstrateError::DelegationDelegateMismatch
     );
     require!(!delegation.revoked, TrustSubstrateError::DelegationRevoked);
 
@@ -84,10 +84,10 @@ pub struct EmitDelegatedReceipt<'info> {
         ],
         seeds::program = delegation_engine::ID,
         bump = delegation.bump,
-        constraint = delegation.identity == identity.key() @ TrustSubstrateError::DelegateMismatch
+        constraint = delegation.identity == identity.key() @ TrustSubstrateError::DelegationIdentityMismatch
     )]
     pub delegation: Account<'info, DelegationRecord>,
-    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::ReceiptIdentityMismatch)]
+    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
     pub task: Account<'info, TaskRecord>,
     #[account(
         init,

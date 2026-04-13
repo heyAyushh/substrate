@@ -17,7 +17,7 @@ pub fn handler(
     require_keys_eq!(
         ctx.accounts.identity.authority,
         ctx.accounts.authority.key(),
-        TrustSubstrateError::InvalidAuthority
+        TrustSubstrateError::ReputationAuthorityMismatch
     );
 
     let reputation = &mut ctx.accounts.reputation;

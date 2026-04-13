@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use std::io::Write;
+use trust_substrate_core::TrustSubstrateError;
 
 const IDENTITY_REGISTRY_PROGRAM_ID: Pubkey =
     pubkey!("7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv");
@@ -27,7 +28,7 @@ impl AccountDeserialize for AgentIdentity {
         if bytes.len() < Self::DISCRIMINATOR.len()
             || &bytes[..Self::DISCRIMINATOR.len()] != Self::DISCRIMINATOR
         {
-            return Err(error!(ErrorCode::AccountDiscriminatorMismatch));
+            return err!(TrustSubstrateError::IdentityAccountTypeMismatch);
         }
 
         let mut data = &bytes[Self::DISCRIMINATOR.len()..];

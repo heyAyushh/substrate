@@ -4,7 +4,7 @@ use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED};
 
 use crate::state::DelegationRecord;
 
-pub fn handle_revoke_delegation(ctx: Context<RevokeDelegation>) -> Result<()> {
+pub fn handler(ctx: Context<RevokeDelegation>) -> Result<()> {
     ctx.accounts.delegation.revoked = true;
     Ok(())
 }
@@ -13,7 +13,7 @@ pub fn handle_revoke_delegation(ctx: Context<RevokeDelegation>) -> Result<()> {
 pub struct RevokeDelegation<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::InvalidAuthority)]
+    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::DelegationAuthorityMismatch)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(
         mut,

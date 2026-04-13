@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use std::io::Write;
+use trust_substrate_core::TrustSubstrateError;
 
 const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
 const RECEIPT_RECORD_DISCRIMINATOR: [u8; 8] = [51, 97, 207, 106, 28, 85, 70, 40];
@@ -32,7 +33,7 @@ impl AccountDeserialize for ReceiptRecord {
         if bytes.len() < Self::DISCRIMINATOR.len()
             || &bytes[..Self::DISCRIMINATOR.len()] != Self::DISCRIMINATOR
         {
-            return Err(error!(ErrorCode::AccountDiscriminatorMismatch));
+            return err!(TrustSubstrateError::ReceiptAccountTypeMismatch);
         }
 
         let mut data = &bytes[Self::DISCRIMINATOR.len()..];

@@ -6,7 +6,7 @@ use trust_substrate_core::{is_valid_receipt_kind, TrustSubstrateError, RECEIPT_S
 use crate::events::ReceiptCommitted;
 use crate::state::ReceiptRecord;
 
-pub fn handle_emit_receipt(
+pub fn handler(
     ctx: Context<EmitReceipt>,
     receipt_id: [u8; 32],
     kind: u8,
@@ -52,9 +52,9 @@ pub fn handle_emit_receipt(
 pub struct EmitReceipt<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::InvalidAuthority)]
+    #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::ReceiptAuthorityMismatch)]
     pub identity: Account<'info, AgentIdentity>,
-    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::ReceiptIdentityMismatch)]
+    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
     pub task: Account<'info, TaskRecord>,
     #[account(
         init,

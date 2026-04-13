@@ -1,6 +1,9 @@
-use crate::{state::HistoryCheckpoint, TrustSubstrateError, CHECKPOINT_SEED};
+use crate::{
+    state::{HistoryCheckpoint, LatestCheckpoint},
+    TrustSubstrateError, CHECKPOINT_SEED,
+};
 use anchor_lang::prelude::*;
-use trust_substrate_core::verify_inclusion;
+use trust_substrate_core::{verify_inclusion, LATEST_CHECKPOINT_SEED};
 
 pub fn handler(
     ctx: Context<VerifyReceiptInclusion>,
@@ -11,6 +14,11 @@ pub fn handler(
     require!(
         leaf_index < ctx.accounts.checkpoint.leaf_count,
         TrustSubstrateError::ProofIndexOutOfRange
+    );
+    require_keys_eq!(
+        ctx.accounts.latest_checkpoint.checkpoint,
+        ctx.accounts.checkpoint.key(),
+        TrustSubstrateError::StaleCheckpoint
     );
     require!(
         verify_inclusion(
@@ -37,4 +45,13 @@ pub struct VerifyReceiptInclusion<'info> {
         bump = checkpoint.bump
     )]
     pub checkpoint: Account<'info, HistoryCheckpoint>,
+    #[account(
+        seeds = [
+            LATEST_CHECKPOINT_SEED,
+            checkpoint.identity.as_ref()
+        ],
+        bump = latest_checkpoint.bump,
+        constraint = latest_checkpoint.identity == checkpoint.identity @ TrustSubstrateError::CheckpointIdentityMismatch
+    )]
+    pub latest_checkpoint: Account<'info, LatestCheckpoint>,
 }
