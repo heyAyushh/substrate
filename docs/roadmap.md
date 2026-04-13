@@ -16,9 +16,10 @@ The repository is organized around a local protocol loop:
 4. delegation and delegated receipt emission
 5. checkpoint creation, rotation, and inclusion verification
 6. reputation derivation from receipts
-7. SDK replay checks
-8. indexer graph reconstruction
-9. Surfpool end-to-end execution
+7. stake-backed dispute resolution
+8. SDK replay checks
+9. indexer graph reconstruction
+10. Surfpool end-to-end execution
 
 The baseline favors correctness, auditability, and test coverage before compute optimization or production deployment.
 
@@ -91,6 +92,23 @@ Next:
 
 - richer domain-separated vectors
 - stronger model tests for gaming resistance
+
+## Phase 4B: Stake-Backed Dispute Resolution
+
+Current scope:
+
+- identity-scoped stake accounts
+- owner-gated staking and cooldown unstaking
+- slash authority checks
+- slashing bound to `dispute_resolved` receipts from `receipt_emitter`
+- slash marker replay protection
+- local Anchor tests for success and rejection paths
+
+Next:
+
+- move slash policy from an authority key into a dedicated dispute-resolution program
+- bind slash amounts to structured verdict accounts instead of private receipt payloads
+- expose stake state through SDK and indexer helpers
 
 ## Phase 5: SDK, Indexer, And Agent Integration
 

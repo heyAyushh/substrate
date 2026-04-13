@@ -35,6 +35,9 @@ The main protected assets are:
 - delegated receipt attribution through `via_delegation`
 - receipt identity, task, and reputation domain checks
 - reputation identity ownership checks before accumulation
+- stake ownership and slash authority checks
+- stake PDA constraints on stake, unstake, and slash writes
+- slash markers keyed by stake and dispute-resolution receipt to reject replay
 - protocol-specific errors for authority, task, delegation, checkpoint, reputation, and mirror-account type failures
 - task status transitions derived from receipt records
 - completion, dispute, and dispute-resolution accumulation from receipts
@@ -52,6 +55,7 @@ These are intentional current boundaries:
 - The indexer is local and durable, not a networked event pipeline.
 - Multi-hop handoff proofs are not fully modeled yet.
 - Richer sequence ordering rules across tasks and domains need more tests before production use.
+- Slashing policy is authority-driven in v1. The program verifies receipt ownership, identity, kind, and replay markers, but it does not parse private dispute evidence or decide outcomes from payload text.
 
 ## Review Checklist
 
@@ -64,12 +68,14 @@ Before merging protocol behavior, check:
 - duplicate task and reputation receipt applications are rejected
 - stale checkpoints and wrong-agent proofs are rejected in local tests
 - delegation scope, revocation, and expiry expectations are tested
+- stake, unstake, and slash authority failures are tested
+- slashing binds to a `dispute_resolved` receipt and rejects replay
 - reputation cannot be written directly as a score
 - SDK and indexer behavior matches the on-chain account model
 
 ## Off-Chain Storage
 
-Execution transcripts, dispute evidence, attestation artefacts, and agent-trace bundles live off-chain. The on-chain `payload_hash` commits to the canonical blob. See `docs/off-chain-storage.md` for the on-chain vs off-chain split, blob backends, replay model, and the gaming-resistance defences (DA proofs, availability challenges, commit-reveal, authority-rotation decay, attestation filter, archive durability, stake-backed slashing).
+Execution transcripts, dispute evidence, attestation artefacts, and agent-trace bundles live off-chain. The on-chain `payload_hash` commits to the canonical blob. See `docs/off-chain-storage.md` for the on-chain vs off-chain split, blob backends, replay model, and the gaming-resistance defences (DA proofs, availability challenges, commit-reveal, authority-rotation history, attestation filter, archive durability, stake-backed slashing).
 
 ## External Context Handling
 

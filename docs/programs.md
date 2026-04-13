@@ -12,6 +12,7 @@ The workspace exposes deployable Anchor programs in `programs/*`:
 | `delegation_engine` | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
 | `proof_verifier` | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
 | `reputation_accumulator` | `8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv` |
+| `agent_stake` | `GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ` |
 
 Shared seeds, constants, errors, and Merkle helpers are defined in `crates/trust_substrate_core`.
 
@@ -191,6 +192,43 @@ PDA seed:
 - reputation pubkey
 - receipt pubkey
 
+### `StakeAccount`
+
+Program: `agent_stake`
+
+Fields:
+
+- `identity: Pubkey`
+- `owner: Pubkey`
+- `slash_authority: Pubkey`
+- `amount: u64`
+- `pending_unstake_amount: u64`
+- `unstake_unlocks_at: u64`
+- `slashed_total: u64`
+- `bump: u8`
+
+PDA seed:
+
+- `stake`
+- identity pubkey
+
+### `SlashMarker`
+
+Program: `agent_stake`
+
+Fields:
+
+- `stake: Pubkey`
+- `dispute_receipt: Pubkey`
+- `amount: u64`
+- `bump: u8`
+
+PDA seed:
+
+- `slash_marker`
+- stake pubkey
+- dispute receipt pubkey
+
 ## Instructions
 
 ### `identity_registry.create_identity`
@@ -354,6 +392,74 @@ Behavior:
 - applies completion, dispute, and dispute-resolution receipt effects
 - rejects receipt kinds that do not affect reputation
 
+### `agent_stake.initialize_stake`
+
+Signature:
+
+- `initialize_stake(ctx, slash_authority)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- initializes the identity-scoped stake PDA
+- stores the stake owner and configured slash authority
+
+### `agent_stake.stake`
+
+Signature:
+
+- `stake(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the stake owner
+- constrains the stake PDA by identity and bump
+- transfers lamports into escrow and increments available stake
+
+### `agent_stake.request_unstake`
+
+Signature:
+
+- `request_unstake(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the stake owner
+- constrains the stake PDA by identity and bump
+- records a pending unstake amount and unlock slot
+
+### `agent_stake.finalize_unstake`
+
+Signature:
+
+- `finalize_unstake(ctx)`
+
+Behavior:
+
+- requires the signer to match the stake owner
+- constrains the stake PDA by identity and bump
+- rejects empty or premature unstake requests
+- transfers the unlocked lamports back to the owner
+
+### `agent_stake.slash`
+
+Signature:
+
+- `slash(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the configured slash authority
+- constrains the stake PDA by identity and bump
+- requires a receipt account owned by `receipt_emitter`
+- requires the receipt identity to match the stake identity
+- requires `DISPUTE_RESOLVED_KIND`
+- initializes a slash marker keyed by stake and receipt to reject replay
+- transfers slashed lamports to the supplied treasury
+
 ## Receipt Kinds
 
 Defined in `crates/trust_substrate_core/src/constants.rs`:
@@ -363,6 +469,8 @@ Defined in `crates/trust_substrate_core/src/constants.rs`:
 - `COMPLETION_KIND = 3`
 - `DISPUTE_KIND = 4`
 - `DISPUTE_RESOLVED_KIND = 5`
+- `CHALLENGE_KIND = 6`
+- `CHALLENGE_RESPONSE_KIND = 7`
 
 ## Delegation Scope Bits
 
@@ -373,6 +481,8 @@ Defined in `crates/trust_substrate_core/src/constants.rs`:
 - `COMPLETION_SCOPE_BIT`
 - `DISPUTE_SCOPE_BIT`
 - `DISPUTE_RESOLVED_SCOPE_BIT`
+- `CHALLENGE_SCOPE_BIT`
+- `CHALLENGE_RESPONSE_SCOPE_BIT`
 - `VALID_SCOPE_BITMAP`
 
 ## Application And Freshness Seeds
@@ -429,6 +539,15 @@ Defined in `crates/trust_substrate_core/src/error.rs`:
 - `ReceiptAuthorityMismatch`
 - `CheckpointAuthorityMismatch`
 - `ReputationAuthorityMismatch`
+- `StakeAuthorityMismatch`
+- `StakeSlashAuthorityMismatch`
+- `StakeAmountOverflow`
+- `StakeAmountMustBePositive`
+- `StakeInsufficient`
+- `StakeCooldownNotElapsed`
+- `StakeReceiptIdentityMismatch`
+- `StakeReceiptKindMismatch`
+- `StakeSlashAlreadyApplied`
 
 ## Future Work
 

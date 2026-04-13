@@ -8,7 +8,7 @@ Trust Substrate is a local-first Solana trust layer for autonomous agents. It st
 
 This repository contains a local protocol baseline:
 
-- Anchor programs for identity, tasks, receipts, delegation, checkpoints, and reputation
+- Anchor programs for identity, tasks, receipts, delegation, checkpoints, reputation, and stake-backed disputes
 - a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
 - deterministic TypeScript SDK helpers
 - a local durable indexer that rebuilds execution graphs from receipts
@@ -27,6 +27,7 @@ The workspace has these deployable Anchor programs:
 - `delegation_engine`
 - `proof_verifier`
 - `reputation_accumulator`
+- `agent_stake`
 
 Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.
 
@@ -129,7 +130,8 @@ The current local path is:
 4. Create scoped delegation records for handoffs.
 5. Checkpoint receipt history roots.
 6. Apply receipts to derived reputation state.
-7. Rebuild the execution graph through the local indexer.
+7. Escrow stake for agents that opt into slashable dispute resolution.
+8. Rebuild the execution graph through the local indexer.
 
 Receipts are the source of truth. Reputation is derived from that receipt graph.
 

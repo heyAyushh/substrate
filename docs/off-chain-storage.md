@@ -6,7 +6,7 @@ Trust Substrate anchors the minimum set of facts needed to audit agent behaviour
 
 ## On-Chain Vs Off-Chain Split
 
-The six Anchor programs only anchor what must be globally ordered and tamper-evident:
+The Anchor programs only anchor what must be globally ordered and tamper-evident:
 
 - identity authority and policy root
 - task identity, title, status
@@ -14,6 +14,7 @@ The six Anchor programs only anchor what must be globally ordered and tamper-evi
 - delegation scope, revocation flag, expiry slot
 - history checkpoint: epoch, root, previous root, leaf count
 - reputation accumulator counters and weights
+- stake escrow, unstake cooldowns, and slashing replay markers
 
 Off-chain storage holds everything that is too large or too fluid for the chain:
 
@@ -78,7 +79,7 @@ Indexer snapshots and blobs must survive operator churn. The archive rotation sc
 
 ### Stake-backed dispute resolution (tasks #17, #18)
 
-An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity; a `dispute_resolved` receipt with `outcome = "agent_lost"` CPIs into `agent_stake::slash` against the losing party. Unstaking is cooldown-gated.
+An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity, cooldown-gates unstaking, and allows the configured slash authority to slash only against a real `dispute_resolved` receipt for the same identity. The on-chain program binds slashing to the receipt account and a replay marker; the policy decision still lives in the slash authority or future dispute-resolution program because v1 receipt payloads are hash commitments, not parsed verdict accounts.
 
 ## Threat Model Summary
 
@@ -90,7 +91,7 @@ An attacker who loses nothing when caught can grind the system. The `agent_stake
 | Reputation resold with identity         | Authority-rotation history              | #14  |
 | Sybil identity farming                  | Attestation filter                      | #15  |
 | Snapshot loss                           | Archive rotation                        | #16  |
-| Disputes without skin in the game       | Stake + slashing via CPI                | #17, #18 |
+| Disputes without skin in the game       | Stake + slashing bound to receipts      | #17, #18 |
 
 ## Review Checklist
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Trust Substrate is a local-first Solana protocol set for agent identity, task tracking, receipt history, delegation, checkpoint proofs, and derived reputation.
+Trust Substrate is a local-first Solana protocol set for agent identity, task tracking, receipt history, delegation, checkpoint proofs, derived reputation, and stake-backed dispute resolution.
 
 The durable object is the execution graph. Receipts describe meaningful steps. Checkpoints anchor history roots. Reputation is derived from verified receipt history.
 
@@ -24,6 +24,7 @@ The workspace currently has these Anchor programs:
 - `delegation_engine`: creates and revokes scoped delegate records
 - `proof_verifier`: creates, rotates, and verifies history checkpoints
 - `reputation_accumulator`: applies receipt facts to domain-specific reputation accumulators
+- `agent_stake`: escrows identity-scoped stake, cooldown-gates unstaking, and binds slashing to dispute-resolution receipts
 
 `crates/trust_substrate_core` keeps shared seeds, receipt kinds, task statuses, errors, Merkle helpers, and pure model tests out of the program crates.
 
@@ -37,8 +38,10 @@ Each persistent account is derived from a fixed PDA seed:
 - `DelegationRecord`: `delegation`
 - `HistoryCheckpoint`: `checkpoint`
 - `ReputationAccumulator`: `reputation`
+- `StakeAccount`: `stake`
+- `SlashMarker`: `slash_marker`
 
-The agent identity PDA is the root of trust for identity-scoped writes. Authority checks and account constraints keep tasks, receipts, checkpoints, and reputation records tied to the correct identity.
+The agent identity PDA is the root of trust for identity-scoped writes. Authority checks and account constraints keep tasks, receipts, checkpoints, reputation records, and stake accounts tied to the correct identity.
 
 ## Receipt History
 
@@ -62,6 +65,8 @@ Canonical receipt kinds are:
 - completion
 - dispute
 - dispute resolved
+- challenge
+- challenge response
 
 Direct receipts are signed by the identity authority. Delegated receipts are signed by the delegate and must pass delegation identity, revocation, expiry, and scope checks.
 
@@ -90,6 +95,10 @@ Reputation is derived from receipts. The on-chain accumulator stores domain-spec
 - dispute-resolved weight
 
 There is no direct score-write instruction. The SDK can derive richer local profiles from the verified graph.
+
+## Stake-Backed Disputes
+
+`agent_stake` keeps optional slashable SOL escrow under an agent identity. Stake owners can request unstake, but withdrawals are delayed by a cooldown slot. Slashing requires the configured slash authority, a receipt owned by `receipt_emitter`, a matching identity, `DISPUTE_RESOLVED_KIND`, and a slash marker PDA keyed by stake and receipt so the same dispute-resolution receipt cannot be reused.
 
 ## Indexing
 
