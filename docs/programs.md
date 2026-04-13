@@ -120,6 +120,23 @@ PDA seed:
 - identity pubkey
 - epoch as little-endian bytes
 
+### `LatestCheckpoint`
+
+Program: `proof_verifier`
+
+Fields:
+
+- `identity: Pubkey`
+- `checkpoint: Pubkey`
+- `epoch: u64`
+- `root: [u8; 32]`
+- `bump: u8`
+
+PDA seed:
+
+- `latest_checkpoint`
+- identity pubkey
+
 ### `ReputationAccumulator`
 
 Program: `reputation_accumulator`
@@ -141,6 +158,38 @@ PDA seed:
 - `reputation`
 - identity pubkey
 - `domain`
+
+### `AppliedTaskReceipt`
+
+Program: `task_registry`
+
+Fields:
+
+- `task: Pubkey`
+- `receipt: Pubkey`
+- `bump: u8`
+
+PDA seed:
+
+- `task_receipt_application`
+- task pubkey
+- receipt pubkey
+
+### `AppliedReputationReceipt`
+
+Program: `reputation_accumulator`
+
+Fields:
+
+- `reputation: Pubkey`
+- `receipt: Pubkey`
+- `bump: u8`
+
+PDA seed:
+
+- `reputation_receipt_application`
+- reputation pubkey
+- receipt pubkey
 
 ## Instructions
 
@@ -177,6 +226,7 @@ Behavior:
 
 - requires the signer to match `identity.authority`
 - requires the receipt identity and task to match the supplied accounts
+- initializes a task receipt application marker to reject duplicate application
 - updates task status and counters from assignment, handoff, completion, dispute, and dispute-resolved receipts
 
 ### `receipt_emitter.emit_receipt`
@@ -220,6 +270,7 @@ Signature:
 Behavior:
 
 - rejects empty action scope
+- rejects unsupported action bits
 - requires the signer to match `identity.authority`
 - stores delegate pubkey, scope bitmap, expiry slot, revocation state, and bump
 
@@ -244,6 +295,7 @@ Behavior:
 
 - requires the signer to match `identity.authority`
 - initializes a checkpoint PDA for the identity and epoch
+- initializes the latest checkpoint PDA for the identity
 - stores the root, empty previous root, leaf count, and bump
 
 ### `proof_verifier.rotate_checkpoint`
@@ -256,9 +308,11 @@ Behavior:
 
 - requires the signer to match `identity.authority`
 - requires the previous checkpoint to belong to the identity
+- requires the previous checkpoint to be the latest checkpoint
 - requires `new_epoch` to equal the previous epoch plus one
 - requires the leaf count to stay the same or increase
 - stores the new root and previous checkpoint root
+- updates the latest checkpoint pointer
 
 ### `proof_verifier.verify_receipt_inclusion`
 
@@ -269,6 +323,7 @@ Signature:
 Behavior:
 
 - rejects leaf indexes outside the checkpoint leaf count
+- rejects checkpoints that are no longer the latest checkpoint
 - verifies the Merkle inclusion proof against the checkpoint root
 
 ### `reputation_accumulator.create_reputation_domain`
@@ -293,9 +348,11 @@ Behavior:
 
 - requires the signer to match `identity.authority`
 - requires the receipt to belong to the identity
+- requires the reputation account to belong to the identity
 - requires the reputation domain to match the receipt domain
+- initializes a reputation receipt application marker to reject duplicate application
 - applies completion, dispute, and dispute-resolution receipt effects
-- ignores receipt kinds that do not affect reputation
+- rejects receipt kinds that do not affect reputation
 
 ## Receipt Kinds
 
@@ -316,6 +373,15 @@ Defined in `crates/trust_substrate_core/src/constants.rs`:
 - `COMPLETION_SCOPE_BIT`
 - `DISPUTE_SCOPE_BIT`
 - `DISPUTE_RESOLVED_SCOPE_BIT`
+- `VALID_SCOPE_BITMAP`
+
+## Application And Freshness Seeds
+
+Defined in `crates/trust_substrate_core/src/constants.rs`:
+
+- `LATEST_CHECKPOINT_SEED`
+- `TASK_RECEIPT_APPLICATION_SEED`
+- `REPUTATION_RECEIPT_APPLICATION_SEED`
 
 ## Task Statuses
 
@@ -331,20 +397,38 @@ Defined in `crates/trust_substrate_core/src/constants.rs`:
 
 Defined in `crates/trust_substrate_core/src/error.rs`:
 
-- `InvalidAuthority`
 - `InvalidReceiptKind`
 - `EmptyDelegationScope`
+- `InvalidDelegationScope`
 - `ReceiptIdentityMismatch`
+- `TaskIdentityMismatch`
 - `ReputationDomainMismatch`
+- `ReputationIdentityMismatch`
 - `DelegationRevoked`
 - `DelegationExpired`
 - `DelegationScopeMismatch`
-- `DelegateMismatch`
+- `DelegationDelegateMismatch`
+- `DelegationIdentityMismatch`
 - `InvalidMerkleProof`
 - `ProofIndexOutOfRange`
 - `CheckpointIdentityMismatch`
-- `InvalidTaskStatusTransition`
+- `CheckpointEpochOverflow`
+- `CheckpointEpochNotSequential`
+- `CheckpointLeafCountRegression`
+- `TaskDisputeRequiredForResolution`
+- `ReceiptKindNotSyncableToTask`
+- `ReceiptKindNotAppliedToReputation`
 - `ReceiptTaskMismatch`
+- `ReceiptAlreadyAppliedToTask`
+- `ReceiptAlreadyAppliedToReputation`
+- `StaleCheckpoint`
+- `IdentityAccountTypeMismatch`
+- `ReceiptAccountTypeMismatch`
+- `TaskAuthorityMismatch`
+- `DelegationAuthorityMismatch`
+- `ReceiptAuthorityMismatch`
+- `CheckpointAuthorityMismatch`
+- `ReputationAuthorityMismatch`
 
 ## Future Work
 

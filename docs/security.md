@@ -28,14 +28,18 @@ The main protected assets are:
 - PDA seed constraints for protocol account types
 - receipt kind validation
 - task ownership checks during receipt emission
-- empty delegation scope rejection
+- empty and unsupported delegation scope rejection
 - delegation revocation checks
 - delegation expiry checks against the slot clock
 - delegated receipt scope checks by receipt kind
 - delegated receipt attribution through `via_delegation`
 - receipt identity, task, and reputation domain checks
+- reputation identity ownership checks before accumulation
+- protocol-specific errors for authority, task, delegation, checkpoint, reputation, and mirror-account type failures
 - task status transitions derived from receipt records
 - completion, dispute, and dispute-resolution accumulation from receipts
+- task and reputation receipt application markers for downstream replay rejection
+- latest checkpoint pointer checks for on-chain proof freshness
 - local replay checks in the SDK model
 - Merkle proof checks in Rust, TypeScript, and the proof verifier instruction
 
@@ -47,7 +51,7 @@ These are intentional current boundaries:
 - The TypeScript SDK is deterministic helper logic, not a production RPC client.
 - The indexer is local and durable, not a networked event pipeline.
 - Multi-hop handoff proofs are not fully modeled yet.
-- Sequence ordering is represented in receipts, but richer ordering rules need more tests before production use.
+- Richer sequence ordering rules across tasks and domains need more tests before production use.
 
 ## Review Checklist
 
@@ -56,8 +60,9 @@ Before merging protocol behavior, check:
 - wrong authority cannot write identity-scoped state
 - PDA seeds and bumps are constrained
 - account identity fields match the provided accounts
-- duplicate receipts cannot be replayed
-- stale checkpoints and wrong-agent proofs are rejected in tests
+- duplicate receipt accounts cannot be replayed
+- duplicate task and reputation receipt applications are rejected
+- stale checkpoints and wrong-agent proofs are rejected in local tests
 - delegation scope, revocation, and expiry expectations are tested
 - reputation cannot be written directly as a score
 - SDK and indexer behavior matches the on-chain account model
