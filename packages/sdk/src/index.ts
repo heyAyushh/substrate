@@ -22,6 +22,19 @@ export {
 
 export { deriveReputation } from "./reputation.js";
 
+export {
+  canonicalExecutionRecord,
+  hashExecutionRecord,
+  hashStep,
+} from "./execution-record.js";
+
+export type {
+  ExecutionRecord,
+  ExecutionRecordHash,
+  ExecutionStep,
+  ExecutionStepKind,
+} from "./execution-record.js";
+
 export type {
   DelegationAssertionInput,
   DelegationCreateInput,
