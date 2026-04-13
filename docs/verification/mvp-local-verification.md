@@ -1,7 +1,7 @@
 # Trust Substrate MVP Local Verification
 
 This checklist defines the local verification contract for the Trust Substrate MVP.
-It is intentionally self-contained: no network calls, no external installs, and no reliance on workspace code outside the verification layer.
+It is intentionally local: no network calls or external installs. Some verification tests read workspace metadata and source files to confirm the protocol layout and shared error taxonomy stay consistent.
 
 ## Run Command
 
@@ -45,12 +45,13 @@ Each item below must be covered by an executable local test before it is treated
 - PDA validation expectations
   - Reject accounts derived from the wrong seeds.
   - Reject mismatched bumps.
-  - Reject account layouts that do not match the canonical identity, task, receipt, delegation, checkpoint, or reputation PDA pattern.
+  - Reject account layouts that do not match the canonical identity, task, receipt, delegation, checkpoint, reputation, stake, or slash-marker PDA pattern.
 
 - Replay protection
   - Reject duplicate receipts.
   - Reject reused receipt identifiers.
   - Reject repeated submission of the same meaningful step.
+  - Reject repeated slashing with the same dispute-resolution receipt.
 
 - Stale proofs
   - Reject proofs anchored to an outdated checkpoint root.
@@ -72,5 +73,5 @@ Each item below must be covered by an executable local test before it is treated
 - `pnpm test:verification` passes locally.
 - The verification order is package tests, Rust tests, verification tests, Anchor build/test, then Surfpool E2E.
 - The checklist covers every security acceptance criterion listed above.
-- The verification layer remains self-contained and uses no external dependencies.
+- The verification layer remains local-only and uses no external dependencies.
 - Program behavior stays tied to executable tests and the acceptance contract above.

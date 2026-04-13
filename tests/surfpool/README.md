@@ -26,6 +26,6 @@ What the harness does:
 
 To point the harness at an existing local Surfpool instance, set `SURFPOOL_RPC_URL` before running it.
 
-The `tests/surfpool/surfpool_e2e.ts` file is a lightweight smoke contract for the Surfpool endpoint. The main harness still runs the Anchor suite from `tests/trust_substrate.ts`.
+The `tests/surfpool/surfpool_e2e.ts` file is a lightweight smoke contract for the Surfpool endpoint. The main harness still runs the full Anchor suite from `tests/*.ts`.
 
 If the Surfpool gate fails, inspect the log path printed by the harness before changing code or test expectations.

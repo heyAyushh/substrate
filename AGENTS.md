@@ -69,6 +69,7 @@ The local protocol is split across deployable Anchor programs:
 - `delegation_engine`
 - `proof_verifier`
 - `reputation_accumulator`
+- `agent_stake`
 
 Shared constants, errors, Merkle proof logic, and pure model tests live in `crates/trust_substrate_core`.
 

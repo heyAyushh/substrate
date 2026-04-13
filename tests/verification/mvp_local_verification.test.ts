@@ -10,6 +10,7 @@ const { deepStrictEqual, ok, strictEqual } = require("node:assert/strict");
  * @property {boolean} proofIsFresh
  * @property {boolean} delegationWithinScope
  * @property {boolean} writesDerivedReputationOnly
+ * @property {boolean} stakeSlashReceiptFresh
  */
 
 const REQUIRED_SECURITY_COVERAGE = [
@@ -19,10 +20,13 @@ const REQUIRED_SECURITY_COVERAGE = [
   "stale-proofs",
   "unauthorized-delegation",
   "direct-reputation-score-writes",
+  "stake-slash-replay-protection",
 ];
 
 const REQUIRED_VERIFICATION_PIPELINE = [
   "local-package-tests",
+  "rust-program-and-model-tests",
+  "verification-contract-tests",
   "anchor-build-and-test",
   "surfpool-end-to-end",
 ];
@@ -30,7 +34,7 @@ const REQUIRED_VERIFICATION_PIPELINE = [
 const LOCAL_ONLY_RULES = Object.freeze({
   networkCalls: false,
   externalInstalls: false,
-  workspaceDependencies: false,
+  workspaceMetadataReads: true,
   executionEnvironment: "node:test",
 });
 
@@ -65,6 +69,10 @@ function evaluateSecurityAttempt(attempt) {
     failures.push("direct-reputation-score-writes");
   }
 
+  if (!attempt.stakeSlashReceiptFresh) {
+    failures.push("stake-slash-replay-protection");
+  }
+
   return failures;
 }
 
@@ -81,6 +89,7 @@ function createHappyPath(overrides = {}) {
     proofIsFresh: true,
     delegationWithinScope: true,
     writesDerivedReputationOnly: true,
+    stakeSlashReceiptFresh: true,
     ...overrides,
   };
 }
@@ -88,7 +97,7 @@ function createHappyPath(overrides = {}) {
 test("verification layer stays local-only", () => {
   strictEqual(LOCAL_ONLY_RULES.networkCalls, false);
   strictEqual(LOCAL_ONLY_RULES.externalInstalls, false);
-  strictEqual(LOCAL_ONLY_RULES.workspaceDependencies, false);
+  strictEqual(LOCAL_ONLY_RULES.workspaceMetadataReads, true);
   strictEqual(LOCAL_ONLY_RULES.executionEnvironment, "node:test");
 });
 
@@ -97,18 +106,21 @@ test("security acceptance criteria are fully covered", () => {
     [...new Set(REQUIRED_SECURITY_COVERAGE)],
     REQUIRED_SECURITY_COVERAGE
   );
-  strictEqual(REQUIRED_SECURITY_COVERAGE.length, 6);
+  strictEqual(REQUIRED_SECURITY_COVERAGE.length, 7);
   ok(REQUIRED_SECURITY_COVERAGE.includes("signer-checks"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("pda-validation"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("replay-protection"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("stale-proofs"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("unauthorized-delegation"));
   ok(REQUIRED_SECURITY_COVERAGE.includes("direct-reputation-score-writes"));
+  ok(REQUIRED_SECURITY_COVERAGE.includes("stake-slash-replay-protection"));
 });
 
 test("verification order ends with surfpool and excludes devnet as a required gate", () => {
   deepStrictEqual(REQUIRED_VERIFICATION_PIPELINE, [
     "local-package-tests",
+    "rust-program-and-model-tests",
+    "verification-contract-tests",
     "anchor-build-and-test",
     "surfpool-end-to-end",
   ]);
@@ -194,6 +206,17 @@ test("reputation cannot be written directly", () => {
   );
 });
 
+test("stake slashing cannot reuse a dispute resolution receipt", () => {
+  deepStrictEqual(
+    evaluateSecurityAttempt(
+      createHappyPath({
+        stakeSlashReceiptFresh: false,
+      })
+    ),
+    ["stake-slash-replay-protection"]
+  );
+});
+
 test("multiple violations are reported together", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
@@ -204,6 +227,7 @@ test("multiple violations are reported together", () => {
         proofIsFresh: false,
         delegationWithinScope: false,
         writesDerivedReputationOnly: false,
+        stakeSlashReceiptFresh: false,
       })
     ),
     [
@@ -213,6 +237,7 @@ test("multiple violations are reported together", () => {
       "stale-proofs",
       "unauthorized-delegation",
       "direct-reputation-score-writes",
+      "stake-slash-replay-protection",
     ]
   );
 });

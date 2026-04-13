@@ -171,6 +171,6 @@ if ! anchor test \
   --provider.cluster "${SURFPOOL_RPC_URL}" \
   --provider.wallet "${ANCHOR_WALLET_PATH}"; then
   log "Anchor tests against Surfpool did not complete"
-  log "Surfpool started, but the protocol flow in tests/trust_substrate.ts failed"
+  log "Surfpool started, but the Anchor suite under tests/*.ts failed"
   exit 1
 fi

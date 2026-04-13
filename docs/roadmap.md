@@ -103,12 +103,12 @@ Current scope:
 - slashing bound to `dispute_resolved` receipts from `receipt_emitter`
 - slash marker replay protection
 - local Anchor tests for success and rejection paths
+- stake state exposed through SDK and indexer helpers
 
 Next:
 
 - move slash policy from an authority key into a dedicated dispute-resolution program
 - bind slash amounts to structured verdict accounts instead of private receipt payloads
-- expose stake state through SDK and indexer helpers
 
 ## Phase 5: SDK, Indexer, And Agent Integration
 

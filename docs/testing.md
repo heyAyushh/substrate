@@ -40,9 +40,9 @@ pnpm test:surfpool
 
 ## Anchor Test Flow
 
-`pnpm test:anchor` runs the Anchor test suite against the local validator flow used by the workspace.
+`pnpm test:anchor` runs every Anchor test file under `tests/*.ts` against the local validator flow used by the workspace.
 
-The main on-chain integration test is `tests/trust_substrate.ts`. It covers the local path for:
+The main protocol flow is covered by the Anchor suite, including:
 
 - identity creation
 - task creation
@@ -53,6 +53,7 @@ The main on-chain integration test is `tests/trust_substrate.ts`. It covers the 
 - history checkpoint creation and rotation
 - receipt inclusion proof verification
 - reputation domain creation and receipt application
+- stake escrow, cooldown unstake, dispute-resolution slashing, and slash replay rejection
 
 ## Verification Tests
 
