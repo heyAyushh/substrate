@@ -1,3 +1,5 @@
+// [sdk] This module builds receipt payloads. On-chain behavior is governed by the receipt_emitter program.
+
 import { createReceipt, type ReceiptRecord } from "./client.js";
 
 export const CHALLENGE_MARKER = "trust-substrate.challenge";
@@ -77,7 +79,7 @@ export function createChallengeResponseReceipt(
   });
 }
 
-export function createUnansweredChallengeDispute(
+export function buildUnansweredChallengePayload(
   input: UnansweredChallengeDisputeInput
 ): ReceiptRecord {
   return createReceipt({
@@ -93,4 +95,13 @@ export function createUnansweredChallengeDispute(
       targetReceiptId: input.targetReceiptId,
     },
   });
+}
+
+/**
+ * @deprecated Use buildUnansweredChallengePayload. The production unanswered-challenge flow is governed by receipt_emitter.
+ */
+export function createUnansweredChallengeDispute(
+  input: UnansweredChallengeDisputeInput
+): ReceiptRecord {
+  return buildUnansweredChallengePayload(input);
 }

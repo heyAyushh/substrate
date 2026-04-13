@@ -1,6 +1,7 @@
 import test from "node:test";
 import { ok, rejects, strictEqual, throws } from "node:assert/strict";
 import {
+  buildUnansweredChallengePayload,
   createChallengeReceipt,
   createChallengeResponseReceipt,
   createCommitReceipt,
@@ -8,7 +9,6 @@ import {
   createReceiptFromExecution,
   createRevealReceipt,
   createStakeEvent,
-  createUnansweredChallengeDispute,
   createVerifiedReceiptFromExecution,
   DataAvailabilityError,
   deriveReputation,
@@ -110,7 +110,7 @@ test("E2E #2: unanswered challenge turns into a slash via dispute_resolved", () 
     targetReceiptId: completion.receiptId,
     deadlineSlot: 100,
   });
-  const dispute = createUnansweredChallengeDispute({
+  const dispute = buildUnansweredChallengePayload({
     actorId: reviewer.identityId,
     taskId: task.taskId,
     sequence: 3,

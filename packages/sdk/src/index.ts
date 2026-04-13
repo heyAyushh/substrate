@@ -63,6 +63,7 @@ export {
 export {
   CHALLENGE_MARKER,
   CHALLENGE_RESPONSE_MARKER,
+  buildUnansweredChallengePayload,
   createChallengeReceipt,
   createChallengeResponseReceipt,
   createUnansweredChallengeDispute,

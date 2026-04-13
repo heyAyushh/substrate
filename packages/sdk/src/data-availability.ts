@@ -1,3 +1,5 @@
+// [sdk] This module builds receipt payloads. On-chain behavior is governed by the receipt_emitter program.
+
 import { hashCanonical } from "./canonical.js";
 
 export interface BlobFetchResult {

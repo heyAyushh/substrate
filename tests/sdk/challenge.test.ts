@@ -1,6 +1,7 @@
 import test from "node:test";
 import { strictEqual } from "node:assert/strict";
 import {
+  buildUnansweredChallengePayload,
   createChallengeReceipt,
   createChallengeResponseReceipt,
   createUnansweredChallengeDispute,
@@ -42,18 +43,21 @@ test("challenge responses bind back to the challenge receipt", () => {
 });
 
 test("unanswered challenge disputes carry a dispute-equivalent penalty", () => {
-  const dispute = createUnansweredChallengeDispute({
+  const input = {
     actorId: "agent-reviewer",
     taskId: "task-1",
     sequence: 3,
     domain: "availability",
     challengeReceiptId: "challenge-1",
     targetReceiptId: "receipt-target",
-  });
+  };
+  const dispute = buildUnansweredChallengePayload(input);
+  const deprecatedShim = createUnansweredChallengeDispute(input);
 
   const reputation = deriveReputation([dispute]);
 
   strictEqual(dispute.kind, "dispute");
   strictEqual(dispute.payload.challengeReceiptId, "challenge-1");
+  strictEqual(deprecatedShim.hash, dispute.hash);
   strictEqual(reputation.overall, -4);
 });
