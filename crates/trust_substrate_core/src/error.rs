@@ -66,4 +66,22 @@ pub enum TrustSubstrateError {
     ReceiptAlreadyAppliedToReputation,
     #[msg("The checkpoint is no longer the latest checkpoint for this agent identity")]
     StaleCheckpoint,
+    #[msg("The signer cannot mutate this stake account")]
+    StakeAuthorityMismatch,
+    #[msg("The signer cannot slash this stake account")]
+    StakeSlashAuthorityMismatch,
+    #[msg("Stake amount cannot be added without overflowing")]
+    StakeAmountOverflow,
+    #[msg("Stake amount must be greater than zero")]
+    StakeAmountMustBePositive,
+    #[msg("The stake account does not have enough lamports available")]
+    StakeInsufficient,
+    #[msg("The unstake cooldown has not elapsed")]
+    StakeCooldownNotElapsed,
+    #[msg("The dispute receipt does not belong to this stake identity")]
+    StakeReceiptIdentityMismatch,
+    #[msg("Slashing requires a dispute_resolved receipt")]
+    StakeReceiptKindMismatch,
+    #[msg("This dispute receipt has already been used for slashing")]
+    StakeSlashAlreadyApplied,
 }

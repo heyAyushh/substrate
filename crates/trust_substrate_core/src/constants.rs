@@ -4,6 +4,8 @@ pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
+pub const STAKE_SEED: &[u8] = b"stake";
+pub const SLASH_MARKER_SEED: &[u8] = b"slash_marker";
 pub const LATEST_CHECKPOINT_SEED: &[u8] = b"latest_checkpoint";
 pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
 pub const REPUTATION_RECEIPT_APPLICATION_SEED: &[u8] = b"reputation_receipt_application";
@@ -45,6 +47,7 @@ pub const TASK_STATUS_ACTIVE: u8 = 1;
 pub const TASK_STATUS_COMPLETED: u8 = 2;
 pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
+pub const STAKE_COOLDOWN_SLOTS: u64 = 1;
 
 pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
     match kind {

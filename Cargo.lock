@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "agent_stake"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "identity_registry",
+ "receipt_emitter",
+ "trust_substrate_core",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
