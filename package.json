@@ -9,6 +9,7 @@
     "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer",
     "test:rust": "cargo test --workspace",
     "test:verification": "node --test --experimental-strip-types tests/verification/*.test.ts",
+    "test:audit": "node --test --experimental-strip-types tests/audit/*.test.ts",
     "test:anchor": "anchor test",
     "test:surfpool": "./scripts/surfpool-e2e.sh",
     "lint:fix": "prettier \"**/*.{js,ts}\" -w",

@@ -9,6 +9,7 @@ import { TaskRegistry } from "../target/types/task_registry";
 const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
+const RECEIPT_CHAIN_SEED = "receipt_chain";
 const STAKE_SEED = "stake";
 const SLASH_MARKER_SEED = "slash_marker";
 const COMPLETION_RECEIPT_KIND = 3;
@@ -52,6 +53,11 @@ describe("agent_stake", () => {
       identity.toBuffer(),
       task.toBuffer(),
       asBuffer(receiptId),
+    ]);
+    const [receiptChain] = pda(receiptProgram, [
+      seed(RECEIPT_CHAIN_SEED),
+      identity.toBuffer(),
+      task.toBuffer(),
     ]);
     const [stake] = pda(stakeProgram, [seed(STAKE_SEED), identity.toBuffer()]);
     const [slashMarker] = pda(stakeProgram, [
@@ -141,6 +147,7 @@ describe("agent_stake", () => {
         authority: owner,
         identity,
         task,
+        receiptChain,
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
@@ -369,6 +376,11 @@ describe("agent_stake", () => {
       task.toBuffer(),
       asBuffer(receiptId),
     ]);
+    const [receiptChain] = pda(receiptProgram, [
+      seed(RECEIPT_CHAIN_SEED),
+      identity.toBuffer(),
+      task.toBuffer(),
+    ]);
 
     await identityProgram.methods
       .createIdentity(
@@ -406,6 +418,7 @@ describe("agent_stake", () => {
         authority: owner,
         identity,
         task,
+        receiptChain,
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
       })

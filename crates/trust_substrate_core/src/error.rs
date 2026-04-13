@@ -54,6 +54,12 @@ pub enum TrustSubstrateError {
     DelegationAuthorityMismatch,
     #[msg("The signer cannot emit receipts for this agent identity")]
     ReceiptAuthorityMismatch,
+    #[msg("The signer cannot update this identity policy root")]
+    IdentityAuthorityMismatch,
+    #[msg("The receipt does not extend the task's latest receipt")]
+    ReceiptChainBroken,
+    #[msg("Receipt sequence must increase by exactly one")]
+    ReceiptSequenceNotMonotonic,
     #[msg("The signer cannot checkpoint history for this agent identity")]
     CheckpointAuthorityMismatch,
     #[msg("The signer cannot update reputation for this agent identity")]

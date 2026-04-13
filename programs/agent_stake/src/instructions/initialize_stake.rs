@@ -3,6 +3,7 @@ use identity_registry::state::AgentIdentity;
 use trust_substrate_core::{TrustSubstrateError, STAKE_SEED};
 
 use crate::state::StakeAccount;
+use crate::StakeInitialized;
 
 pub fn handler(ctx: Context<InitializeStake>, slash_authority: Pubkey) -> Result<()> {
     require_keys_eq!(
@@ -20,6 +21,13 @@ pub fn handler(ctx: Context<InitializeStake>, slash_authority: Pubkey) -> Result
     stake.unstake_unlocks_at = 0;
     stake.slashed_total = 0;
     stake.bump = ctx.bumps.stake;
+
+    emit!(StakeInitialized {
+        identity: stake.identity,
+        authority: stake.owner,
+        slash_authority,
+        slot: Clock::get()?.slot,
+    });
 
     Ok(())
 }

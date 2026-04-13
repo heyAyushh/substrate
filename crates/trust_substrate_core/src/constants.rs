@@ -1,6 +1,7 @@
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
+pub const RECEIPT_CHAIN_SEED: &[u8] = b"receipt_chain";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const REPUTATION_SEED: &[u8] = b"reputation";

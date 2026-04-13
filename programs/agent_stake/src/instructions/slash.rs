@@ -1,4 +1,5 @@
 use crate::state::{SlashMarker, StakeAccount};
+use crate::StakeSlashed;
 use anchor_lang::prelude::*;
 use receipt_emitter::state::ReceiptRecord;
 use trust_substrate_core::{
@@ -60,6 +61,14 @@ pub fn handler(ctx: Context<Slash>, amount: u64) -> Result<()> {
     marker.dispute_receipt = ctx.accounts.dispute_receipt.key();
     marker.amount = amount;
     marker.bump = ctx.bumps.slash_marker;
+
+    emit!(StakeSlashed {
+        identity: ctx.accounts.stake.identity,
+        authority: ctx.accounts.slash_authority.key(),
+        dispute_receipt: ctx.accounts.dispute_receipt.key(),
+        amount,
+        slot: Clock::get()?.slot,
+    });
 
     Ok(())
 }

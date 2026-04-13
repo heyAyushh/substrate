@@ -2,6 +2,7 @@ use anchor_lang::{prelude::*, system_program};
 use trust_substrate_core::{TrustSubstrateError, STAKE_SEED};
 
 use crate::state::StakeAccount;
+use crate::StakeDeposited;
 
 pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
     require!(amount > 0, TrustSubstrateError::StakeAmountMustBePositive);
@@ -27,7 +28,16 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
             },
         ),
         amount,
-    )
+    )?;
+
+    emit!(StakeDeposited {
+        identity: ctx.accounts.stake.identity,
+        authority: ctx.accounts.owner.key(),
+        amount,
+        slot: Clock::get()?.slot,
+    });
+
+    Ok(())
 }
 
 #[derive(Accounts)]

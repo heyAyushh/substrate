@@ -23,9 +23,8 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
 identity_registry = { path = "../identity_registry", features = ["cpi"] }
 task_registry = { path = "../task_registry", features = ["cpi"] }
 delegation_engine = { path = "../delegation_engine", features = ["cpi"] }
 trust_substrate_core = { path = "../../crates/trust_substrate_core" }
-

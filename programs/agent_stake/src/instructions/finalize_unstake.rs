@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use trust_substrate_core::{TrustSubstrateError, STAKE_SEED};
 
 use crate::state::StakeAccount;
+use crate::StakeUnstakeFinalized;
 
 pub fn handler(ctx: Context<FinalizeUnstake>) -> Result<()> {
     require_keys_eq!(
@@ -12,8 +13,9 @@ pub fn handler(ctx: Context<FinalizeUnstake>) -> Result<()> {
 
     let amount = ctx.accounts.stake.pending_unstake_amount;
     require!(amount > 0, TrustSubstrateError::StakeInsufficient);
+    let slot = Clock::get()?.slot;
     require!(
-        Clock::get()?.slot >= ctx.accounts.stake.unstake_unlocks_at,
+        slot >= ctx.accounts.stake.unstake_unlocks_at,
         TrustSubstrateError::StakeCooldownNotElapsed
     );
     require!(
@@ -41,6 +43,13 @@ pub fn handler(ctx: Context<FinalizeUnstake>) -> Result<()> {
         .lamports()
         .checked_add(amount)
         .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+
+    emit!(StakeUnstakeFinalized {
+        identity: ctx.accounts.stake.identity,
+        authority: ctx.accounts.owner.key(),
+        amount,
+        slot,
+    });
 
     Ok(())
 }

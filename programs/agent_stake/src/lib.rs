@@ -54,6 +54,49 @@ pub mod __cpi_client_accounts_stake {
 
 declare_id!("GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ");
 
+#[event]
+pub struct StakeInitialized {
+    pub identity: Pubkey,
+    pub authority: Pubkey,
+    pub slash_authority: Pubkey,
+    pub slot: u64,
+}
+
+#[event]
+pub struct StakeDeposited {
+    pub identity: Pubkey,
+    pub authority: Pubkey,
+    pub amount: u64,
+    pub slot: u64,
+}
+
+#[event]
+pub struct StakeUnstakeRequested {
+    pub identity: Pubkey,
+    pub authority: Pubkey,
+    pub amount: u64,
+    pub pending_unstake_amount: u64,
+    pub unlocks_at_slot: u64,
+    pub slot: u64,
+}
+
+#[event]
+pub struct StakeUnstakeFinalized {
+    pub identity: Pubkey,
+    pub authority: Pubkey,
+    pub amount: u64,
+    pub slot: u64,
+}
+
+#[event]
+pub struct StakeSlashed {
+    pub identity: Pubkey,
+    pub authority: Pubkey,
+    pub dispute_receipt: Pubkey,
+    pub amount: u64,
+    pub slot: u64,
+}
+
 #[program]
 pub mod agent_stake {
     use super::*;
