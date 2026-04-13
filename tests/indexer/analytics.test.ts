@@ -5,6 +5,8 @@ import {
   type LocalReceiptRecord,
 } from "../../packages/indexer/src/index.js";
 
+const STAKE_EVENT_MARKER = "trust-substrate.stake_event";
+
 const receipt = (
   overrides: Partial<LocalReceiptRecord> & {
     receiptId: string;
@@ -370,4 +372,146 @@ test("tracks unanswered availability challenges", () => {
   strictEqual(unanswered.length, 1);
   strictEqual(unanswered[0].challengeReceiptId, "challenge-1");
   strictEqual(unanswered[0].expired, true);
+});
+
+test("projects stake state from receipt payload events", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "stake-init",
+      slot: 1,
+      taskId: "task-stake",
+      actorId: "agent-builder",
+      kind: "assignment",
+      payload: {
+        stakeEvents: [
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-init",
+            kind: "initialized",
+            identityId: "agent-builder",
+            ownerId: "owner-wallet",
+            slashAuthorityId: "arbiter-wallet",
+          },
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-deposit",
+            kind: "deposited",
+            identityId: "agent-builder",
+            amountLamports: "1000000",
+          },
+        ],
+      },
+    }),
+    receipt({
+      receiptId: "stake-unstake-request",
+      slot: 2,
+      taskId: "task-stake",
+      actorId: "agent-builder",
+      kind: "handoff",
+      payload: {
+        stakeEvents: [
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-unstake-request",
+            kind: "unstake_requested",
+            identityId: "agent-builder",
+            amountLamports: "250000",
+            unlocksAtSlot: 50,
+          },
+        ],
+      },
+    }),
+    receipt({
+      receiptId: "stake-unstake-finalize",
+      slot: 51,
+      taskId: "task-stake",
+      actorId: "agent-builder",
+      kind: "completion",
+      payload: {
+        stakeEvents: [
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-unstake-finalize",
+            kind: "unstake_finalized",
+            identityId: "agent-builder",
+            amountLamports: "250000",
+          },
+        ],
+      },
+    }),
+    receipt({
+      receiptId: "stake-slash",
+      slot: 52,
+      taskId: "task-stake",
+      actorId: "arbiter-agent",
+      kind: "dispute_resolved",
+      payload: {
+        stakeEvents: [
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-slash",
+            kind: "slashed",
+            identityId: "agent-builder",
+            amountLamports: "100000",
+            disputeReceiptId: "stake-slash",
+          },
+        ],
+      },
+    }),
+  ]);
+
+  const state = indexer.getStakeState("agent-builder");
+
+  strictEqual(state.identityId, "agent-builder");
+  strictEqual(state.ownerId, "owner-wallet");
+  strictEqual(state.slashAuthorityId, "arbiter-wallet");
+  strictEqual(state.activeLamports, "650000");
+  strictEqual(state.pendingUnstakeLamports, "0");
+  strictEqual(state.slashedLamports, "100000");
+  deepStrictEqual(state.slashReceiptIds, ["stake-slash"]);
+});
+
+test("projects slashing from dispute resolution payloads", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "stake-deposit",
+      slot: 1,
+      taskId: "task-stake",
+      actorId: "agent-builder",
+      kind: "assignment",
+      payload: {
+        stakeEvents: [
+          {
+            type: STAKE_EVENT_MARKER,
+            eventId: "event-deposit",
+            kind: "deposited",
+            identityId: "agent-builder",
+            amountLamports: "500000",
+          },
+        ],
+      },
+    }),
+    receipt({
+      receiptId: "resolution",
+      slot: 2,
+      taskId: "task-stake",
+      actorId: "arbiter-agent",
+      kind: "dispute_resolved",
+      payload: {
+        resolution: {
+          outcome: "agent_lost",
+          slashedAgentId: "agent-builder",
+          slashAmountLamports: "125000",
+        },
+      },
+    }),
+  ]);
+
+  const state = indexer.getStakeState("agent-builder");
+
+  strictEqual(state.activeLamports, "375000");
+  strictEqual(state.slashedLamports, "125000");
+  deepStrictEqual(state.slashReceiptIds, ["resolution"]);
 });

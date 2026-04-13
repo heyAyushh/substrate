@@ -17,6 +17,7 @@ import {
   type LeaderboardEntry,
   type LeaderboardQuery,
   type LocalReceiptRecord,
+  type StakeStateView,
   type TaskHistoryView,
   type ToolQualityStat,
 } from "./types.js";
@@ -37,6 +38,7 @@ const CHALLENGE_RESPONSE_KIND = "challenge_response";
 const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
 const AUTHORITY_ROTATED_MARKER = "trust-substrate.authority_rotated";
+const STAKE_EVENT_MARKER = "trust-substrate.stake_event";
 
 const SNAPSHOT_VERSION = 1 as const;
 
@@ -106,6 +108,199 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+type StakeEventKind =
+  | "initialized"
+  | "deposited"
+  | "unstake_requested"
+  | "unstake_finalized"
+  | "slashed";
+
+interface ParsedStakeEvent {
+  readonly kind: StakeEventKind;
+  readonly identityId: string;
+  readonly ownerId?: string;
+  readonly slashAuthorityId?: string;
+  readonly amountLamports?: bigint;
+  readonly unlocksAtSlot?: number;
+  readonly disputeReceiptId?: string;
+}
+
+interface MutableStakeState {
+  identityId: string;
+  ownerId?: string;
+  slashAuthorityId?: string;
+  activeLamports: bigint;
+  pendingUnstakeLamports: bigint;
+  unstakeUnlocksAtSlot?: number;
+  slashedLamports: bigint;
+  slashReceiptIds: string[];
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isStakeEventKind = (value: unknown): value is StakeEventKind =>
+  value === "initialized" ||
+  value === "deposited" ||
+  value === "unstake_requested" ||
+  value === "unstake_finalized" ||
+  value === "slashed";
+
+const parsePositiveLamports = (value: unknown): bigint | undefined => {
+  if (typeof value === "bigint") {
+    return value > 0n ? value : undefined;
+  }
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? BigInt(value) : undefined;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value)) {
+    const parsed = BigInt(value);
+    return parsed > 0n ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const parseStakePayloadEvent = (
+  value: unknown
+): ParsedStakeEvent | undefined => {
+  if (!isObject(value) || value.type !== STAKE_EVENT_MARKER) {
+    return undefined;
+  }
+
+  const kind = value.kind;
+  const identityId = asString(value.identityId);
+  if (!isStakeEventKind(kind) || !identityId) {
+    return undefined;
+  }
+
+  return {
+    kind,
+    identityId,
+    ownerId: asString(value.ownerId),
+    slashAuthorityId: asString(value.slashAuthorityId),
+    amountLamports: parsePositiveLamports(value.amountLamports),
+    unlocksAtSlot: asNumber(value.unlocksAtSlot),
+    disputeReceiptId: asString(value.disputeReceiptId),
+  };
+};
+
+const parseStakeEvents = (receipt: IndexedReceipt): ParsedStakeEvent[] => {
+  const events: ParsedStakeEvent[] = [];
+  const payloadEvents = receipt.payload.stakeEvents;
+
+  if (Array.isArray(payloadEvents)) {
+    for (const payloadEvent of payloadEvents) {
+      const parsed = parseStakePayloadEvent(payloadEvent);
+      if (parsed) {
+        events.push(parsed);
+      }
+    }
+  }
+
+  if (
+    receipt.kind === "dispute_resolved" &&
+    isObject(receipt.payload.resolution)
+  ) {
+    const resolution = receipt.payload.resolution;
+    const identityId = asString(resolution.slashedAgentId);
+    const amountLamports = parsePositiveLamports(
+      resolution.slashAmountLamports ?? resolution.slashAmount
+    );
+    if (identityId && amountLamports !== undefined) {
+      events.push({
+        kind: "slashed",
+        identityId,
+        amountLamports,
+        disputeReceiptId: receipt.receiptId,
+      });
+    }
+  }
+
+  return events;
+};
+
+const createEmptyStakeState = (identityId: string): MutableStakeState => ({
+  identityId,
+  activeLamports: 0n,
+  pendingUnstakeLamports: 0n,
+  slashedLamports: 0n,
+  slashReceiptIds: [],
+});
+
+const subtractStakeLamports = (
+  current: bigint,
+  amount: bigint,
+  receiptId: string
+): bigint => {
+  if (amount > current) {
+    throw new Error(`stake underflow while projecting receipt ${receiptId}`);
+  }
+  return current - amount;
+};
+
+const applyStakeEvent = (
+  state: MutableStakeState,
+  event: ParsedStakeEvent,
+  receiptId: string
+): void => {
+  switch (event.kind) {
+    case "initialized":
+      state.ownerId = event.ownerId ?? state.ownerId;
+      state.slashAuthorityId = event.slashAuthorityId ?? state.slashAuthorityId;
+      break;
+    case "deposited":
+      if (event.amountLamports !== undefined) {
+        state.activeLamports += event.amountLamports;
+      }
+      break;
+    case "unstake_requested":
+      if (event.amountLamports !== undefined) {
+        state.pendingUnstakeLamports = event.amountLamports;
+        state.unstakeUnlocksAtSlot = event.unlocksAtSlot;
+      }
+      break;
+    case "unstake_finalized":
+      if (event.amountLamports !== undefined) {
+        state.activeLamports = subtractStakeLamports(
+          state.activeLamports,
+          event.amountLamports,
+          receiptId
+        );
+        state.pendingUnstakeLamports = subtractStakeLamports(
+          state.pendingUnstakeLamports,
+          event.amountLamports,
+          receiptId
+        );
+        if (state.pendingUnstakeLamports === 0n) {
+          state.unstakeUnlocksAtSlot = undefined;
+        }
+      }
+      break;
+    case "slashed":
+      if (event.amountLamports !== undefined) {
+        state.activeLamports = subtractStakeLamports(
+          state.activeLamports,
+          event.amountLamports,
+          receiptId
+        );
+        state.slashedLamports += event.amountLamports;
+        state.slashReceiptIds.push(event.disputeReceiptId ?? receiptId);
+      }
+      break;
+  }
+};
+
+const freezeStakeState = (state: MutableStakeState): StakeStateView => ({
+  identityId: state.identityId,
+  ownerId: state.ownerId,
+  slashAuthorityId: state.slashAuthorityId,
+  activeLamports: state.activeLamports.toString(),
+  pendingUnstakeLamports: state.pendingUnstakeLamports.toString(),
+  unstakeUnlocksAtSlot: state.unstakeUnlocksAtSlot,
+  slashedLamports: state.slashedLamports.toString(),
+  slashReceiptIds: [...new Set(state.slashReceiptIds)].sort(),
+});
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
@@ -476,6 +671,36 @@ export class LocalDurableIndexer {
       entries = entries.filter((entry) => entry.attestations > 0);
     }
     return entries.sort((left, right) => right.score - left.score);
+  }
+
+  getStakeState(identityId: string): StakeStateView {
+    const state = createEmptyStakeState(identityId);
+    for (const receipt of this.sortedReceipts()) {
+      for (const event of parseStakeEvents(receipt)) {
+        if (event.identityId === identityId) {
+          applyStakeEvent(state, event, receipt.receiptId);
+        }
+      }
+    }
+    return freezeStakeState(state);
+  }
+
+  getStakeStates(): StakeStateView[] {
+    const states = new Map<string, MutableStakeState>();
+
+    for (const receipt of this.sortedReceipts()) {
+      for (const event of parseStakeEvents(receipt)) {
+        const state =
+          states.get(event.identityId) ??
+          createEmptyStakeState(event.identityId);
+        applyStakeEvent(state, event, receipt.receiptId);
+        states.set(event.identityId, state);
+      }
+    }
+
+    return [...states.values()]
+      .map(freezeStakeState)
+      .sort((left, right) => left.identityId.localeCompare(right.identityId));
   }
 
   getToolQualityStats(agentId: string): ToolQualityStat[] {

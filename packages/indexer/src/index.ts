@@ -20,6 +20,7 @@ export type {
   LeaderboardQuery,
   LocalReceiptRecord,
   ReceiptKind,
+  StakeStateView,
   TaskHistoryView,
   ToolQualityStat,
 } from "./types.js";

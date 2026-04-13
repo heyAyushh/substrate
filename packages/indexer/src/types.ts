@@ -164,3 +164,14 @@ export interface CommitmentStatus {
   revealReceiptId?: string;
   expired: boolean;
 }
+
+export interface StakeStateView {
+  identityId: string;
+  ownerId?: string;
+  slashAuthorityId?: string;
+  activeLamports: string;
+  pendingUnstakeLamports: string;
+  unstakeUnlocksAtSlot?: number;
+  slashedLamports: string;
+  slashReceiptIds: string[];
+}
