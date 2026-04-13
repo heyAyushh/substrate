@@ -57,6 +57,10 @@ Next:
 - explicit multi-hop handoff proof chains
 - clearer authority-chain display in the agent simulation
 
+## Off-Chain Storage
+
+The on-chain programs anchor only what must be globally ordered. Execution records, evidence bundles, and agent-trace exports live off-chain. See `docs/off-chain-storage.md` for the split, supported blob backends, replay model, and the gaming-resistance surface each Wave B/C task addresses.
+
 ## Phase 3: Compressed History And Proof API
 
 Current scope:
