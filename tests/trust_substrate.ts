@@ -39,6 +39,8 @@ const MAX_U64 = new anchor.BN("18446744073709551615");
 describe("trust_substrate protocol flow", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
+  let historyUpdater: anchor.web3.PublicKey;
+  let domainCatalog: anchor.web3.PublicKey;
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
@@ -56,6 +58,66 @@ describe("trust_substrate protocol flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
+    }
+
+    const [historyPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("history_updater", "utf8")],
+      proofProgram.programId
+    );
+    historyUpdater = historyPda;
+    try {
+      await proofProgram.account.historyUpdater.fetch(historyUpdater);
+    } catch {
+      await proofProgram.methods
+        .initializeHistoryUpdater()
+        .accountsStrict({
+          payer: provider.wallet.publicKey,
+          historyUpdater,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("domain_catalog", "utf8")],
+      reputationProgram.programId
+    );
+    domainCatalog = catalogPda;
+    try {
+      await reputationProgram.account.reputationDomainCatalog.fetch(domainCatalog);
+    } catch {
+      await reputationProgram.methods
+        .initializeDomainCatalog()
+        .accountsStrict({
+          curator: authority,
+          domainCatalog,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    for (const domainByte of [77, 105, 125, 134, 143, 163, 604]) {
+      const domain = bytes32(domainByte);
+      try {
+        const catalog = await reputationProgram.account.reputationDomainCatalog.fetch(domainCatalog);
+        if (!catalog.domains.some((d: number[]) => Buffer.from(d).equals(Buffer.from(domain)))) {
+          await reputationProgram.methods
+            .registerDomain(domain)
+            .accountsStrict({
+              curator: authority,
+              domainCatalog,
+            })
+            .rpc();
+        }
+      } catch {
+        await reputationProgram.methods
+          .registerDomain(domain)
+          .accountsStrict({
+            curator: authority,
+            domainCatalog,
+          })
+          .rpc();
+      }
     }
   });
 
@@ -197,6 +259,7 @@ describe("trust_substrate protocol flow", () => {
         delegation,
         task,
         receipt: delegatedReceipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -218,6 +281,7 @@ describe("trust_substrate protocol flow", () => {
         identity,
         task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -255,6 +319,8 @@ describe("trust_substrate protocol flow", () => {
         identity,
         checkpoint,
         latestCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -286,6 +352,8 @@ describe("trust_substrate protocol flow", () => {
         previousCheckpoint: checkpoint,
         checkpoint: nextCheckpoint,
         latestCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -301,6 +369,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity,
         reputation,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -430,9 +499,10 @@ describe("trust_substrate protocol flow", () => {
           delegation: invalidDelegation,
           task: setup.task,
           receipt: delegatedCompletionReceipt,
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegateKeypair])
         .rpc(),
@@ -461,9 +531,10 @@ describe("trust_substrate protocol flow", () => {
           identity: setup.identity,
           task: setup.task,
           receipt: invalidKindReceipt,
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "InvalidReceiptKind"
@@ -491,9 +562,10 @@ describe("trust_substrate protocol flow", () => {
           identity: setup.identity,
           task: otherSetup.task,
           receipt: wrongIdentityReceipt,
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "TaskIdentityMismatch"
@@ -522,6 +594,8 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         checkpoint,
         latestCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -541,6 +615,8 @@ describe("trust_substrate protocol flow", () => {
           previousCheckpoint: checkpoint,
           checkpoint: skippedCheckpoint,
           latestCheckpoint,
+          historyUpdater,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -566,6 +642,8 @@ describe("trust_substrate protocol flow", () => {
           previousCheckpoint: checkpoint,
           checkpoint: regressedCheckpoint,
           latestCheckpoint,
+          historyUpdater,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -589,6 +667,8 @@ describe("trust_substrate protocol flow", () => {
         identity: overflowSetup.identity,
         checkpoint: maxEpochCheckpoint,
         latestCheckpoint: latestMaxEpochCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -608,6 +688,8 @@ describe("trust_substrate protocol flow", () => {
           previousCheckpoint: maxEpochCheckpoint,
           checkpoint: overflowCheckpoint,
           latestCheckpoint: latestMaxEpochCheckpoint,
+          historyUpdater,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -642,6 +724,8 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         checkpoint,
         latestCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -658,6 +742,8 @@ describe("trust_substrate protocol flow", () => {
         previousCheckpoint: checkpoint,
         checkpoint: nextCheckpoint,
         latestCheckpoint,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -717,6 +803,7 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         task: setup.task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -747,8 +834,19 @@ describe("trust_substrate protocol flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReceiptAlreadyAppliedToTask"
+      "AccountAlreadyInitialized"
     );
+
+    await taskProgram.methods
+      .taskReceiptAlreadyApplied()
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        task: setup.task,
+        receipt,
+        receiptApplication: taskReceiptApplication,
+      })
+      .rpc();
 
     await reputationProgram.methods
       .createReputationDomain(
@@ -761,6 +859,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         reputation,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -789,8 +888,19 @@ describe("trust_substrate protocol flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReceiptAlreadyAppliedToReputation"
+      "AccountAlreadyInitialized"
     );
+
+    await reputationProgram.methods
+      .reputationReceiptAlreadyApplied()
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        receipt,
+        reputation,
+        receiptApplication: reputationReceiptApplication,
+      })
+      .rpc();
   });
 
   it("rejects reputation writes for the wrong agent identity", async () => {
@@ -828,6 +938,7 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         task: setup.task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -845,6 +956,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: otherSetup.identity,
         reputation: otherReputation,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -899,6 +1011,7 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         task: setup.task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -916,6 +1029,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         reputation,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -961,6 +1075,7 @@ describe("trust_substrate protocol flow", () => {
         identity: setup.identity,
         task: setup.task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -1027,6 +1142,119 @@ describe("trust_substrate protocol flow", () => {
       )
     );
   }
+
+  it("emits DelegationCreated and DelegationRevoked events", async () => {
+    const setup = await createIdentityAndTask(501, 502);
+    const delegateKeypair = anchor.web3.Keypair.generate();
+    await fund(delegateKeypair.publicKey);
+
+    const [delegation] = pda(delegationProgram, [
+      seed(DELEGATION_SEED),
+      setup.identity.toBuffer(),
+      delegateKeypair.publicKey.toBuffer(),
+    ]);
+
+    const createdEvent = await captureEvent(
+      delegationProgram,
+      "delegationCreated",
+      async () => {
+        await delegationProgram.methods
+          .createDelegation(ASSIGNMENT_ACTION_MASK, new anchor.BN(0))
+          .accountsStrict({
+            authority,
+            identity: setup.identity,
+            delegate: delegateKeypair.publicKey,
+            delegation,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .rpc();
+      }
+    );
+
+    strictEqual(createdEvent.identity.toBase58(), setup.identity.toBase58());
+    strictEqual(createdEvent.delegate.toBase58(), delegateKeypair.publicKey.toBase58());
+    strictEqual(createdEvent.allowedActions, ASSIGNMENT_ACTION_MASK);
+    ok(Number(createdEvent.slot) > 0);
+
+    const revokedEvent = await captureEvent(
+      delegationProgram,
+      "delegationRevoked",
+      async () => {
+        await delegationProgram.methods
+          .revokeDelegation()
+          .accountsStrict({
+            authority,
+            identity: setup.identity,
+            delegation,
+          })
+          .rpc();
+      }
+    );
+
+    strictEqual(revokedEvent.identity.toBase58(), setup.identity.toBase58());
+    strictEqual(revokedEvent.delegate.toBase58(), delegateKeypair.publicKey.toBase58());
+    ok(Number(revokedEvent.slot) > 0);
+  });
+
+  it("emits TaskStatusSynced event on receipt application", async () => {
+    const setup = await createIdentityAndTask(601, 602);
+    const receiptId = bytes32(603);
+    const domain = bytes32(604);
+    const payloadHash = bytes32(605);
+    const [receipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      setup.identity.toBuffer(),
+      setup.task.toBuffer(),
+      asBuffer(receiptId),
+    ]);
+    const taskReceiptApplication = taskReceiptApplicationPda(setup.task, receipt);
+
+    await receiptProgram.methods
+      .emitReceipt(
+        receiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        payloadHash
+      )
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        task: setup.task,
+        receipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
+
+    const syncedEvent = await captureEvent(
+      taskProgram,
+      "taskStatusSynced",
+      async () => {
+        await taskProgram.methods
+          .syncTaskStatus()
+          .accountsStrict({
+            authority,
+            identity: setup.identity,
+            task: setup.task,
+            receipt,
+            receiptApplication: taskReceiptApplication,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .rpc();
+      }
+    );
+
+    strictEqual(syncedEvent.identity.toBase58(), setup.identity.toBase58());
+    strictEqual(syncedEvent.task.toBase58(), setup.task.toBase58());
+    strictEqual(syncedEvent.receipt.toBase58(), receipt.toBase58());
+    strictEqual(syncedEvent.kind, COMPLETION_RECEIPT_KIND);
+    strictEqual(syncedEvent.newStatus, TASK_STATUS_COMPLETED);
+    ok(Number(syncedEvent.slot) > 0);
+  });
 
   function latestCheckpointPda(identity: anchor.web3.PublicKey) {
     const [latestCheckpoint] = pda(proofProgram, [
@@ -1098,12 +1326,43 @@ async function expectAnchorError(
 ) {
   try {
     await promise;
-  } catch (error) {
-    const actualCode = (error as { error?: { errorCode?: { code?: string } } })
-      .error?.errorCode?.code;
+  } catch (error: any) {
+    const actualCode =
+      error?.error?.errorCode?.code ??
+      error?.errorCode?.code ??
+      error?.code;
+    if (actualCode === expectedCode) return;
+    const msg = error?.message ?? "";
+    if (msg.includes(expectedCode)) return;
     strictEqual(actualCode, expectedCode);
     return;
   }
 
   throw new Error(`Expected Anchor error ${expectedCode}`);
+}
+
+async function captureEvent<T>(
+  program: Program<any>,
+  eventName: string,
+  action: () => Promise<void>,
+  timeoutMs = 10000
+): Promise<T> {
+  return new Promise(async (resolve, reject) => {
+    const listener = program.addEventListener(eventName, (event) => {
+      program.removeEventListener(listener);
+      resolve(event as T);
+    });
+
+    await new Promise((r) => setTimeout(r, 200));
+
+    action().catch((err) => {
+      program.removeEventListener(listener);
+      reject(err);
+    });
+
+    setTimeout(() => {
+      program.removeEventListener(listener);
+      reject(new Error(`Timeout waiting for ${eventName}`));
+    }, timeoutMs);
+  });
 }

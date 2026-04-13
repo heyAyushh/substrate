@@ -1,6 +1,7 @@
 use crate::{
     identity_registry::state::AgentIdentity,
-    state::{HistoryCheckpoint, LatestCheckpoint},
+    state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
+    CheckpointCreated,
     TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
@@ -33,12 +34,30 @@ pub fn handler(
     latest_checkpoint.root = root;
     latest_checkpoint.bump = ctx.bumps.latest_checkpoint;
 
+    emit!(CheckpointCreated {
+        identity: checkpoint.identity,
+        epoch,
+        root,
+        leaf_count,
+        slot: Clock::get()?.slot,
+    });
+
+    let cpi_program = ctx.accounts.identity_registry_program.to_account_info();
+    let cpi_accounts = identity_registry::cpi::accounts::UpdateHistoryRoot {
+        identity: ctx.accounts.identity.to_account_info(),
+        history_updater: ctx.accounts.history_updater.to_account_info(),
+    };
+    let signer_seeds: &[&[&[u8]]] = &[&[b"history_updater", &[ctx.bumps.history_updater][..]]];
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    identity_registry::cpi::update_history_root(cpi_ctx, root)?;
+
     Ok(())
 }
 
 #[derive(Accounts)]
 #[instruction(epoch: u64)]
 pub struct CheckpointHistory<'info> {
+    #[account(mut)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -58,5 +77,11 @@ pub struct CheckpointHistory<'info> {
         bump
     )]
     pub latest_checkpoint: Account<'info, LatestCheckpoint>,
+    #[account(
+        seeds = [b"history_updater"],
+        bump
+    )]
+    pub history_updater: Account<'info, HistoryUpdater>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }

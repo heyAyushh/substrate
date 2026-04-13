@@ -56,6 +56,8 @@ pub enum TrustSubstrateError {
     ReceiptAuthorityMismatch,
     #[msg("The signer cannot update this identity policy root")]
     IdentityAuthorityMismatch,
+    #[msg("The signer is not the valid history updater PDA")]
+    InvalidHistoryUpdater,
     #[msg("The receipt does not extend the task's latest receipt")]
     ReceiptChainBroken,
     #[msg("Receipt sequence must increase by exactly one")]
@@ -90,4 +92,14 @@ pub enum TrustSubstrateError {
     StakeReceiptKindMismatch,
     #[msg("This dispute receipt has already been used for slashing")]
     StakeSlashAlreadyApplied,
+    #[msg("The receipt kind cannot be emitted as an audit receipt")]
+    ReceiptKindNotAuditable,
+    #[msg("The receipt kind cannot be emitted as a self-receipt")]
+    ReceiptKindNotSelfEmittable,
+    #[msg("The domain is not registered in the canonical domain catalog")]
+    DomainNotRegistered,
+    #[msg("The domain is already registered in the canonical domain catalog")]
+    DomainAlreadyRegistered,
+    #[msg("The domain catalog has reached its maximum capacity")]
+    DomainCatalogFull,
 }

@@ -1,15 +1,21 @@
+pub mod events;
 pub mod identity_registry;
 pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
+pub use events::*;
 pub use instructions::*;
 pub use state::*;
 pub use trust_substrate_core::{TrustSubstrateError, CHECKPOINT_SEED};
 
 pub mod __client_accounts_checkpoint_history {
     pub use crate::instructions::checkpoint_history::__client_accounts_checkpoint_history::*;
+}
+
+pub mod __client_accounts_initialize_history_updater {
+    pub use crate::instructions::initialize_history_updater::__client_accounts_initialize_history_updater::*;
 }
 
 pub mod __client_accounts_rotate_checkpoint {
@@ -23,6 +29,11 @@ pub mod __client_accounts_verify_receipt_inclusion {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_checkpoint_history {
     pub use crate::instructions::checkpoint_history::__cpi_client_accounts_checkpoint_history::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_initialize_history_updater {
+    pub use crate::instructions::initialize_history_updater::__cpi_client_accounts_initialize_history_updater::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -40,6 +51,10 @@ declare_id!("4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi");
 #[program]
 pub mod proof_verifier {
     use super::*;
+
+    pub fn initialize_history_updater(ctx: Context<InitializeHistoryUpdater>) -> Result<()> {
+        instructions::initialize_history_updater::handler(ctx)
+    }
 
     pub fn checkpoint_history(
         ctx: Context<CheckpointHistory>,

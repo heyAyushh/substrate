@@ -1,6 +1,7 @@
 use crate::{
     identity_registry::state::AgentIdentity,
-    state::{HistoryCheckpoint, LatestCheckpoint},
+    state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
+    CheckpointRotated,
     TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
@@ -55,12 +56,31 @@ pub fn handler(
     latest_checkpoint.epoch = new_epoch;
     latest_checkpoint.root = new_root;
 
+    emit!(CheckpointRotated {
+        identity: checkpoint.identity,
+        epoch: new_epoch,
+        previous_root: checkpoint.previous_root,
+        new_root,
+        leaf_count: new_leaf_count,
+        slot: Clock::get()?.slot,
+    });
+
+    let cpi_program = ctx.accounts.identity_registry_program.to_account_info();
+    let cpi_accounts = identity_registry::cpi::accounts::UpdateHistoryRoot {
+        identity: ctx.accounts.identity.to_account_info(),
+        history_updater: ctx.accounts.history_updater.to_account_info(),
+    };
+    let signer_seeds: &[&[&[u8]]] = &[&[b"history_updater", &[ctx.bumps.history_updater][..]]];
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    identity_registry::cpi::update_history_root(cpi_ctx, new_root)?;
+
     Ok(())
 }
 
 #[derive(Accounts)]
 #[instruction(new_epoch: u64)]
 pub struct RotateCheckpoint<'info> {
+    #[account(mut)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -88,5 +108,11 @@ pub struct RotateCheckpoint<'info> {
         constraint = latest_checkpoint.identity == identity.key() @ TrustSubstrateError::CheckpointIdentityMismatch
     )]
     pub latest_checkpoint: Account<'info, LatestCheckpoint>,
+    #[account(
+        seeds = [b"history_updater"],
+        bump
+    )]
+    pub history_updater: Account<'info, HistoryUpdater>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }
