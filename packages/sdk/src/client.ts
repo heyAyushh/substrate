@@ -6,6 +6,11 @@ import {
 } from "./merkle.js";
 import { deriveIdentifier, emptyRoot, hashCanonical } from "./canonical.js";
 import { deriveReputation, type ReputationProfile } from "./reputation.js";
+import {
+  createStakeEvent,
+  deriveStakeState,
+  extractStakeEventsFromReceipt,
+} from "./stake.js";
 
 export type ReceiptKind =
   | "assignment"
@@ -180,6 +185,12 @@ export class TrustSubstrateClient {
   readonly reputation = {
     derive: (history: ReadonlyArray<ReceiptRecord>): ReputationProfile =>
       deriveReputation(history),
+  };
+
+  readonly stake = {
+    createEvent: createStakeEvent,
+    deriveState: deriveStakeState,
+    extractEvents: extractStakeEventsFromReceipt,
   };
 }
 

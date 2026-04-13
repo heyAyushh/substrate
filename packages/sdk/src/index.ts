@@ -49,6 +49,13 @@ export {
 } from "./receipt-builders.js";
 
 export {
+  createStakeEvent,
+  deriveStakeState,
+  extractStakeEventsFromReceipt,
+  STAKE_EVENT_MARKER,
+} from "./stake.js";
+
+export {
   DataAvailabilityError,
   verifyPayloadAvailable,
 } from "./data-availability.js";
@@ -93,6 +100,13 @@ export type {
   ReceiptFromExecutionInput,
   ReceiptStorageRef,
 } from "./receipt-builders.js";
+
+export type {
+  StakeEvent,
+  StakeEventInput,
+  StakeEventKind,
+  StakeState,
+} from "./stake.js";
 
 export type { AgentTraceBundle, AgentTraceFileEdit } from "./agent-trace.js";
 
