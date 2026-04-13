@@ -17,6 +17,8 @@ export interface ReputationDerivationOptions {
 
 const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
+  challenge: 0,
+  challenge_response: 0,
   completion: 5,
   dispute: -4,
   dispute_resolved: 3,
@@ -29,6 +31,8 @@ const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
   "completion",
   "dispute",
   "dispute_resolved",
+  "challenge",
+  "challenge_response",
 ];
 
 export function deriveReputation(

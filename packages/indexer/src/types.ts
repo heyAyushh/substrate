@@ -121,6 +121,18 @@ export interface AgentTraceExportBundle {
   edits: AgentTraceExportEdit[];
 }
 
+export interface ChallengeStatus {
+  challengeReceiptId: string;
+  actorId: string;
+  taskId: string;
+  domain: string;
+  targetReceiptId: string;
+  deadlineSlot?: number;
+  answered: boolean;
+  responseReceiptId?: string;
+  expired: boolean;
+}
+
 export interface CommitmentStatus {
   commitReceiptId: string;
   actorId: string;

@@ -249,3 +249,50 @@ test("tracks expired unrevealed commit receipts", () => {
   strictEqual(expired[0].expired, true);
   strictEqual(expired[0].revealed, false);
 });
+
+test("tracks unanswered availability challenges", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "challenge-1",
+      slot: 10,
+      taskId: "t1",
+      actorId: "agent-reviewer",
+      kind: "challenge",
+      payload: {
+        challengeTarget: "receipt-target",
+        deadlineSlot: 20,
+      },
+    }),
+    receipt({
+      receiptId: "challenge-2",
+      slot: 11,
+      taskId: "t1",
+      actorId: "agent-reviewer",
+      kind: "challenge",
+      payload: {
+        challengeTarget: "receipt-target-2",
+        deadlineSlot: 20,
+      },
+    }),
+    receipt({
+      receiptId: "response-2",
+      slot: 12,
+      taskId: "t1",
+      actorId: "agent-a",
+      kind: "challenge_response",
+      payload: {
+        challengeReceiptId: "challenge-2",
+        evidenceHash: "hash",
+      },
+    }),
+  ]);
+
+  const unanswered = indexer.getUnansweredChallenges(21);
+
+  strictEqual(indexer.isChallengeUnansweredAfter("challenge-1", 21), true);
+  strictEqual(indexer.isChallengeUnansweredAfter("challenge-2", 21), false);
+  strictEqual(unanswered.length, 1);
+  strictEqual(unanswered[0].challengeReceiptId, "challenge-1");
+  strictEqual(unanswered[0].expired, true);
+});

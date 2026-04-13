@@ -42,6 +42,20 @@ fn delegation_rejects_actions_outside_scope() {
 
     assert!(delegation.allows(ReceiptKind::Assignment));
     assert!(!delegation.allows(ReceiptKind::Completion));
+    assert!(!delegation.allows(ReceiptKind::Challenge));
+}
+
+#[test]
+fn challenge_receipts_do_not_change_reputation() {
+    let history = vec![
+        receipt(RECEIPT_A, ReceiptKind::Challenge, 1),
+        receipt(RECEIPT_B, ReceiptKind::ChallengeResponse, 2),
+    ];
+    let reputation = derive_reputation(&history);
+
+    assert_eq!(reputation.overall, 0);
+    assert_eq!(reputation.domains[0].completed, 0);
+    assert_eq!(reputation.domains[0].disputed, 0);
 }
 
 #[test]

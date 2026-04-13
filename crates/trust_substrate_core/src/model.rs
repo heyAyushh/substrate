@@ -10,6 +10,8 @@ const HANDOFF_KIND_CODE: u8 = 2;
 const COMPLETION_KIND_CODE: u8 = 3;
 const DISPUTE_KIND_CODE: u8 = 4;
 const DISPUTE_RESOLVED_KIND_CODE: u8 = 5;
+const CHALLENGE_KIND_CODE: u8 = 6;
+const CHALLENGE_RESPONSE_KIND_CODE: u8 = 7;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReceiptKind {
@@ -18,6 +20,8 @@ pub enum ReceiptKind {
     Completion,
     Dispute,
     DisputeResolved,
+    Challenge,
+    ChallengeResponse,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -207,7 +211,10 @@ pub fn derive_reputation(history: &[Receipt]) -> ReputationVector {
                 let compensation = DISPUTE_RESOLVED_WEIGHT.min(domain.disputed);
                 domain.disputed = domain.disputed.saturating_sub(compensation);
             }
-            ReceiptKind::Assignment | ReceiptKind::Handoff => {}
+            ReceiptKind::Assignment
+            | ReceiptKind::Handoff
+            | ReceiptKind::Challenge
+            | ReceiptKind::ChallengeResponse => {}
         }
     }
 
@@ -248,5 +255,7 @@ fn receipt_kind_code(kind: ReceiptKind) -> u8 {
         ReceiptKind::Completion => COMPLETION_KIND_CODE,
         ReceiptKind::Dispute => DISPUTE_KIND_CODE,
         ReceiptKind::DisputeResolved => DISPUTE_RESOLVED_KIND_CODE,
+        ReceiptKind::Challenge => CHALLENGE_KIND_CODE,
+        ReceiptKind::ChallengeResponse => CHALLENGE_RESPONSE_KIND_CODE,
     }
 }

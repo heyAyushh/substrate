@@ -12,7 +12,9 @@ export type ReceiptKind =
   | "handoff"
   | "completion"
   | "dispute"
-  | "dispute_resolved";
+  | "dispute_resolved"
+  | "challenge"
+  | "challenge_response";
 
 export const RECEIPT_KIND_CODES: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
@@ -20,6 +22,8 @@ export const RECEIPT_KIND_CODES: Readonly<Record<ReceiptKind, number>> = {
   completion: 3,
   dispute: 4,
   dispute_resolved: 5,
+  challenge: 6,
+  challenge_response: 7,
 };
 
 export const RECEIPT_SCOPE_BITS: Readonly<Record<ReceiptKind, number>> = {
@@ -28,6 +32,8 @@ export const RECEIPT_SCOPE_BITS: Readonly<Record<ReceiptKind, number>> = {
   completion: 1 << 2,
   dispute: 1 << 3,
   dispute_resolved: 1 << 4,
+  challenge: 1 << 5,
+  challenge_response: 1 << 6,
 };
 
 export interface IdentityCreateInput {

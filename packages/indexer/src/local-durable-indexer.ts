@@ -5,6 +5,7 @@ import {
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
+  type ChallengeStatus,
   type CommitmentStatus,
   type DomainSummary,
   type ExecutionGraph,
@@ -24,9 +25,13 @@ const KIND_WEIGHTS: Readonly<Record<string, number>> = {
   completion: 5,
   dispute: -4,
   dispute_resolved: 3,
+  challenge: 0,
+  challenge_response: 0,
 };
 
 const ATTESTATION_KIND = "attestation";
+const CHALLENGE_KIND = "challenge";
+const CHALLENGE_RESPONSE_KIND = "challenge_response";
 const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
 
@@ -581,6 +586,58 @@ export class LocalDurableIndexer {
     return this.getCommitmentStatuses(currentSlot).filter(
       (commitment) => commitment.expired
     );
+  }
+
+  getChallengeStatuses(currentSlot?: number): ChallengeStatus[] {
+    const responses = new Map<string, IndexedReceipt>();
+    for (const receipt of this.sortedReceipts()) {
+      if (receipt.kind !== CHALLENGE_RESPONSE_KIND) {
+        continue;
+      }
+      const challengeReceiptId = asString(receipt.payload.challengeReceiptId);
+      if (challengeReceiptId) {
+        responses.set(challengeReceiptId, receipt);
+      }
+    }
+
+    return this.sortedReceipts()
+      .filter((receipt) => receipt.kind === CHALLENGE_KIND)
+      .map((receipt) => {
+        const response = responses.get(receipt.receiptId);
+        const deadlineSlot = asNumber(receipt.payload.deadlineSlot);
+        const targetReceiptId = asString(receipt.payload.challengeTarget);
+        return {
+          challengeReceiptId: receipt.receiptId,
+          actorId: receipt.actorId,
+          taskId: receipt.taskId,
+          domain: receipt.domain,
+          targetReceiptId: targetReceiptId ?? "",
+          deadlineSlot,
+          answered: response !== undefined,
+          responseReceiptId: response?.receiptId,
+          expired:
+            response === undefined &&
+            deadlineSlot !== undefined &&
+            currentSlot !== undefined &&
+            currentSlot > deadlineSlot,
+        };
+      });
+  }
+
+  getUnansweredChallenges(currentSlot: number): ChallengeStatus[] {
+    return this.getChallengeStatuses(currentSlot).filter(
+      (challenge) => challenge.expired
+    );
+  }
+
+  isChallengeUnansweredAfter(
+    challengeReceiptId: string,
+    currentSlot: number
+  ): boolean {
+    const challenge = this.getChallengeStatuses(currentSlot).find(
+      (candidate) => candidate.challengeReceiptId === challengeReceiptId
+    );
+    return challenge?.expired ?? false;
   }
 
   private collectAttestationCounts(): Map<string, number> {

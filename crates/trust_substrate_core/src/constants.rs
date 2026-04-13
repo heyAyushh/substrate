@@ -15,17 +15,23 @@ pub const HANDOFF_KIND: u8 = 2;
 pub const COMPLETION_KIND: u8 = 3;
 pub const DISPUTE_KIND: u8 = 4;
 pub const DISPUTE_RESOLVED_KIND: u8 = 5;
+pub const CHALLENGE_KIND: u8 = 6;
+pub const CHALLENGE_RESPONSE_KIND: u8 = 7;
 
 pub const ASSIGNMENT_SCOPE_BIT: u8 = 1 << 0;
 pub const HANDOFF_SCOPE_BIT: u8 = 1 << 1;
 pub const COMPLETION_SCOPE_BIT: u8 = 1 << 2;
 pub const DISPUTE_SCOPE_BIT: u8 = 1 << 3;
 pub const DISPUTE_RESOLVED_SCOPE_BIT: u8 = 1 << 4;
+pub const CHALLENGE_SCOPE_BIT: u8 = 1 << 5;
+pub const CHALLENGE_RESPONSE_SCOPE_BIT: u8 = 1 << 6;
 pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
     | HANDOFF_SCOPE_BIT
     | COMPLETION_SCOPE_BIT
     | DISPUTE_SCOPE_BIT
-    | DISPUTE_RESOLVED_SCOPE_BIT;
+    | DISPUTE_RESOLVED_SCOPE_BIT
+    | CHALLENGE_SCOPE_BIT
+    | CHALLENGE_RESPONSE_SCOPE_BIT;
 
 pub const DEFAULT_COMPLETION_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_WEIGHT: u64 = 1;
@@ -47,6 +53,8 @@ pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
         COMPLETION_KIND => Some(COMPLETION_SCOPE_BIT),
         DISPUTE_KIND => Some(DISPUTE_SCOPE_BIT),
         DISPUTE_RESOLVED_KIND => Some(DISPUTE_RESOLVED_SCOPE_BIT),
+        CHALLENGE_KIND => Some(CHALLENGE_SCOPE_BIT),
+        CHALLENGE_RESPONSE_KIND => Some(CHALLENGE_RESPONSE_SCOPE_BIT),
         _ => None,
     }
 }
@@ -54,6 +62,12 @@ pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
 pub fn is_valid_receipt_kind(kind: u8) -> bool {
     matches!(
         kind,
-        ASSIGNMENT_KIND | HANDOFF_KIND | COMPLETION_KIND | DISPUTE_KIND | DISPUTE_RESOLVED_KIND
+        ASSIGNMENT_KIND
+            | HANDOFF_KIND
+            | COMPLETION_KIND
+            | DISPUTE_KIND
+            | DISPUTE_RESOLVED_KIND
+            | CHALLENGE_KIND
+            | CHALLENGE_RESPONSE_KIND
     )
 }

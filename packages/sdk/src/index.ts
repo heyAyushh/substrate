@@ -53,6 +53,21 @@ export {
   verifyPayloadAvailable,
 } from "./data-availability.js";
 
+export {
+  CHALLENGE_MARKER,
+  CHALLENGE_RESPONSE_MARKER,
+  createChallengeReceipt,
+  createChallengeResponseReceipt,
+  createUnansweredChallengeDispute,
+  UNANSWERED_CHALLENGE_MARKER,
+} from "./challenge.js";
+
+export type {
+  ChallengeReceiptInput,
+  ChallengeResponseReceiptInput,
+  UnansweredChallengeDisputeInput,
+} from "./challenge.js";
+
 export type {
   BlobFetchResult,
   BlobFetcher,
@@ -107,4 +122,7 @@ export type {
 
 export type { OnchainProof } from "./onchain-merkle.js";
 
-export type { ReputationProfile } from "./reputation.js";
+export type {
+  ReputationDerivationOptions,
+  ReputationProfile,
+} from "./reputation.js";
