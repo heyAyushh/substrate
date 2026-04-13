@@ -35,6 +35,18 @@ export type {
   ExecutionStepKind,
 } from "./execution-record.js";
 
+export {
+  AGENT_TRACE_VERSION,
+  canonicalAgentTrace,
+  executionRecordToAgentTrace,
+  hashAgentTrace,
+} from "./agent-trace.js";
+
+export type {
+  AgentTraceBundle,
+  AgentTraceFileEdit,
+} from "./agent-trace.js";
+
 export type {
   DelegationAssertionInput,
   DelegationCreateInput,
