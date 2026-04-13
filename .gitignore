@@ -5,6 +5,7 @@ target
 node_modules
 packages/*/dist
 examples/agent_loop/.snapshot
+examples/multi_agent/.snapshot
 test-ledger
 .yarn
 .surfpool
