@@ -60,13 +60,53 @@ const appendReceipt = (
 
 const assignment = appendReceipt(planner.identityId, "assignment", {
   note: "kickoff planning",
+  stakeEvents: [
+    client.stake.createEvent({
+      kind: "initialized",
+      identityId: planner.identityId,
+      ownerId: planner.authority,
+      slashAuthorityId: "arbiter-agent",
+    }),
+    client.stake.createEvent({
+      kind: "deposited",
+      identityId: planner.identityId,
+      amountLamports: 750_000n,
+    }),
+  ],
 });
 const handoff = appendReceipt(planner.identityId, "handoff", {
   toAgentId: builder.identityId,
   note: "routing to builder",
+  stakeEvents: [
+    client.stake.createEvent({
+      kind: "initialized",
+      identityId: builder.identityId,
+      ownerId: builder.authority,
+      slashAuthorityId: "arbiter-agent",
+    }),
+    client.stake.createEvent({
+      kind: "deposited",
+      identityId: builder.identityId,
+      amountLamports: 1_000_000n,
+    }),
+  ],
 });
 const completion = appendReceipt(builder.identityId, "completion", {
   outcome: "digest published",
+});
+const dispute = appendReceipt(planner.identityId, "dispute", {
+  targetReceiptId: completion.receiptId,
+  reason: "source attribution missing from digest",
+  evidenceHash: "sha256:evidence-attribution-gap",
+});
+const resolution = appendReceipt(planner.identityId, "dispute_resolved", {
+  targetReceiptId: dispute.receiptId,
+  resolution: {
+    outcome: "agent_lost",
+    slashedAgentId: builder.identityId,
+    slashAmountLamports: "125000",
+    note: "builder accepted work without required citations",
+  },
 });
 
 const receipts = ledger.list();
@@ -104,6 +144,27 @@ const included = verifyOnchainInclusion(
 
 const reputation = client.reputation.derive(receipts);
 const handoffChain = indexer.getHandoffChain(task.taskId);
+const stakeEvents = receipts.flatMap((receipt) =>
+  client.stake.extractEvents(receipt)
+);
+const sdkStake = {
+  planner: client.stake.deriveState(planner.identityId, stakeEvents),
+  builder: client.stake.deriveState(builder.identityId, stakeEvents),
+};
+const jsonStake = {
+  planner: {
+    ...sdkStake.planner,
+    activeLamports: sdkStake.planner.activeLamports.toString(),
+    pendingUnstakeLamports: sdkStake.planner.pendingUnstakeLamports.toString(),
+    slashedLamports: sdkStake.planner.slashedLamports.toString(),
+  },
+  builder: {
+    ...sdkStake.builder,
+    activeLamports: sdkStake.builder.activeLamports.toString(),
+    pendingUnstakeLamports: sdkStake.builder.pendingUnstakeLamports.toString(),
+    slashedLamports: sdkStake.builder.slashedLamports.toString(),
+  },
+};
 
 const restored = LocalDurableIndexer.loadSnapshot(SNAPSHOT_PATH);
 const restoredGraph = restored.getExecutionGraph();
@@ -122,7 +183,16 @@ console.log(
       assignmentReceiptId: assignment.receiptId,
       handoffReceiptId: handoff.receiptId,
       completionReceiptId: completion.receiptId,
+      disputeReceiptId: dispute.receiptId,
+      resolutionReceiptId: resolution.receiptId,
       handoffChain,
+      stake: {
+        sdk: jsonStake,
+        indexer: {
+          planner: indexer.getStakeState(planner.identityId),
+          builder: indexer.getStakeState(builder.identityId),
+        },
+      },
       merkleRoot: merkle.root.toString("hex"),
       completionIncluded: included,
       reputation,
