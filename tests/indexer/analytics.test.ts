@@ -200,3 +200,52 @@ test("getAgentTraceBundle projects file edit receipts", () => {
   strictEqual(bundle.edits.length, 2);
   ok(bundle.edits.every((edit) => typeof edit.path === "string" && edit.path.length > 0));
 });
+
+test("tracks expired unrevealed commit receipts", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "commit-1",
+      slot: 5,
+      taskId: "t1",
+      actorId: "agent-a",
+      kind: "assignment",
+      payload: {
+        commitMarker: true,
+        commitHash: "hash-a",
+        revealDeadlineSlot: 10,
+      },
+    }),
+    receipt({
+      receiptId: "commit-2",
+      slot: 6,
+      taskId: "t2",
+      actorId: "agent-b",
+      kind: "assignment",
+      payload: {
+        commitMarker: true,
+        commitHash: "hash-b",
+        revealDeadlineSlot: 10,
+      },
+    }),
+    receipt({
+      receiptId: "reveal-2",
+      slot: 8,
+      taskId: "t2",
+      actorId: "agent-b",
+      kind: "completion",
+      payload: {
+        revealMarker: true,
+        commitReceiptId: "commit-2",
+        commitHash: "hash-b",
+      },
+    }),
+  ]);
+
+  const expired = indexer.getExpiredCommitments(11);
+
+  strictEqual(expired.length, 1);
+  strictEqual(expired[0].commitReceiptId, "commit-1");
+  strictEqual(expired[0].expired, true);
+  strictEqual(expired[0].revealed, false);
+});

@@ -1,5 +1,6 @@
 import { hashCanonical } from "./canonical.js";
 import type { ReceiptRecord, ReceiptKind } from "./client.js";
+import { COMMIT_MARKER, REVEAL_MARKER } from "./commit-reveal.js";
 
 export interface ReputationProfile {
   readonly identityId: string;
@@ -8,6 +9,10 @@ export interface ReputationProfile {
   readonly byKind: Readonly<Record<ReceiptKind, number>>;
   readonly receiptCount: number;
   readonly historyHash: string;
+}
+
+export interface ReputationDerivationOptions {
+  readonly currentSlot?: number;
 }
 
 const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
@@ -27,7 +32,8 @@ const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
 ];
 
 export function deriveReputation(
-  history: ReadonlyArray<ReceiptRecord>
+  history: ReadonlyArray<ReceiptRecord>,
+  options: ReputationDerivationOptions = {}
 ): ReputationProfile {
   if (history.length === 0) {
     throw new Error(
@@ -40,12 +46,24 @@ export function deriveReputation(
   const domains: Record<string, number> = {};
   const byKind = createEmptyKindVector();
   let overall = 0;
+  const expiredCommitments = collectExpiredCommitments(
+    orderedHistory,
+    options.currentSlot
+  );
 
   for (const receipt of orderedHistory) {
     const weight = KIND_WEIGHTS[receipt.kind];
     const domain = receipt.domain;
 
     byKind[receipt.kind] += 1;
+    domains[domain] = (domains[domain] ?? 0) + weight;
+    overall += weight;
+  }
+
+  for (const receipt of expiredCommitments) {
+    const domain = receipt.domain;
+    const weight = KIND_WEIGHTS.dispute;
+    byKind.dispute += 1;
     domains[domain] = (domains[domain] ?? 0) + weight;
     overall += weight;
   }
@@ -68,6 +86,52 @@ export function deriveReputation(
       }))
     ),
   };
+}
+
+function collectExpiredCommitments(
+  history: ReadonlyArray<ReceiptRecord>,
+  currentSlot?: number
+): ReceiptRecord[] {
+  if (currentSlot === undefined) {
+    return [];
+  }
+
+  const revealedCommitIds = new Set<string>();
+  for (const receipt of history) {
+    if (!isRevealReceipt(receipt)) {
+      continue;
+    }
+    const commitReceiptId = receipt.payload.commitReceiptId;
+    if (typeof commitReceiptId === "string") {
+      revealedCommitIds.add(commitReceiptId);
+    }
+  }
+
+  return history.filter((receipt) => {
+    if (!isCommitReceipt(receipt)) {
+      return false;
+    }
+    const deadline = receipt.payload.revealDeadlineSlot;
+    return (
+      typeof deadline === "number" &&
+      currentSlot > deadline &&
+      !revealedCommitIds.has(receipt.receiptId)
+    );
+  });
+}
+
+function isCommitReceipt(receipt: ReceiptRecord): boolean {
+  return (
+    receipt.payload.type === COMMIT_MARKER ||
+    receipt.payload.commitMarker === true
+  );
+}
+
+function isRevealReceipt(receipt: ReceiptRecord): boolean {
+  return (
+    receipt.payload.type === REVEAL_MARKER ||
+    receipt.payload.revealMarker === true
+  );
 }
 
 function createEmptyKindVector(): Record<ReceiptKind, number> {

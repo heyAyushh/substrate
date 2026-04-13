@@ -5,6 +5,7 @@ import {
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
+  type CommitmentStatus,
   type DomainSummary,
   type ExecutionGraph,
   type HandoffStep,
@@ -26,6 +27,8 @@ const KIND_WEIGHTS: Readonly<Record<string, number>> = {
 };
 
 const ATTESTATION_KIND = "attestation";
+const COMMIT_MARKER = "trust-substrate.commit";
+const REVEAL_MARKER = "trust-substrate.reveal";
 
 const SNAPSHOT_VERSION = 1 as const;
 
@@ -84,6 +87,17 @@ const isFileEditReceipt = (receipt: LocalReceiptRecord): boolean => {
     typeof receipt.payload.file === "string"
   );
 };
+
+const isCommitReceipt = (receipt: LocalReceiptRecord): boolean =>
+  receipt.payload.type === COMMIT_MARKER ||
+  receipt.payload.commitMarker === true;
+
+const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
+  receipt.payload.type === REVEAL_MARKER ||
+  receipt.payload.revealMarker === true;
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
@@ -409,6 +423,14 @@ export class LocalDurableIndexer {
 
   getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
     const attestations = this.collectAttestationCounts();
+    const expiredCommitments =
+      query.currentSlot === undefined
+        ? new Set<string>()
+        : new Set(
+            this.getExpiredCommitments(query.currentSlot).map(
+              (commitment) => commitment.commitReceiptId
+            )
+          );
     const scores = new Map<string, LeaderboardEntry>();
 
     for (const receipt of this.sortedReceipts()) {
@@ -434,6 +456,9 @@ export class LocalDurableIndexer {
         attestations: attestations.get(receipt.actorId) ?? 0,
       };
       existing.score += weight;
+      if (expiredCommitments.has(receipt.receiptId)) {
+        existing.score += KIND_WEIGHTS.dispute;
+      }
       existing.receiptCount += 1;
       scores.set(receipt.actorId, existing);
     }
@@ -514,6 +539,48 @@ export class LocalDurableIndexer {
       agentIds: [...agentIds].sort(),
       edits,
     };
+  }
+
+  getCommitmentStatuses(currentSlot?: number): CommitmentStatus[] {
+    const reveals = new Map<string, IndexedReceipt>();
+    for (const receipt of this.sortedReceipts()) {
+      if (!isRevealReceipt(receipt)) {
+        continue;
+      }
+      const commitReceiptId = asString(receipt.payload.commitReceiptId);
+      if (commitReceiptId) {
+        reveals.set(commitReceiptId, receipt);
+      }
+    }
+
+    return this.sortedReceipts()
+      .filter(isCommitReceipt)
+      .map((receipt) => {
+        const reveal = reveals.get(receipt.receiptId);
+        const deadlineSlot = asNumber(receipt.payload.revealDeadlineSlot);
+        const commitHash = asString(receipt.payload.commitHash);
+        return {
+          commitReceiptId: receipt.receiptId,
+          actorId: receipt.actorId,
+          taskId: receipt.taskId,
+          domain: receipt.domain,
+          commitHash: commitHash ?? "",
+          deadlineSlot,
+          revealed: reveal !== undefined,
+          revealReceiptId: reveal?.receiptId,
+          expired:
+            reveal === undefined &&
+            deadlineSlot !== undefined &&
+            currentSlot !== undefined &&
+            currentSlot > deadlineSlot,
+        };
+      });
+  }
+
+  getExpiredCommitments(currentSlot: number): CommitmentStatus[] {
+    return this.getCommitmentStatuses(currentSlot).filter(
+      (commitment) => commitment.expired
+    );
   }
 
   private collectAttestationCounts(): Map<string, number> {

@@ -59,6 +59,18 @@ export type {
   VerifyPayloadInput,
 } from "./data-availability.js";
 
+export {
+  COMMIT_MARKER,
+  createCommitReceipt,
+  createRevealReceipt,
+  REVEAL_MARKER,
+} from "./commit-reveal.js";
+
+export type {
+  CommitReceiptInput,
+  RevealReceiptInput,
+} from "./commit-reveal.js";
+
 export type {
   DisputeReceiptInput,
   DisputeResolution,

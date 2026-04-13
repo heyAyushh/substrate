@@ -7,6 +7,7 @@ export type {
   AgentProfile,
   AgentTraceExportBundle,
   AgentTraceExportEdit,
+  CommitmentStatus,
   DomainSummary,
   ExecutionGraph,
   HandoffStep,

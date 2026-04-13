@@ -91,6 +91,7 @@ export interface LeaderboardQuery {
   since?: number;
   until?: number;
   attestedOnly?: boolean;
+  currentSlot?: number;
 }
 
 export interface ToolQualityStat {
@@ -118,4 +119,16 @@ export interface AgentTraceExportBundle {
   taskId: string;
   agentIds: string[];
   edits: AgentTraceExportEdit[];
+}
+
+export interface CommitmentStatus {
+  commitReceiptId: string;
+  actorId: string;
+  taskId: string;
+  domain: string;
+  commitHash: string;
+  deadlineSlot?: number;
+  revealed: boolean;
+  revealReceiptId?: string;
+  expired: boolean;
 }
