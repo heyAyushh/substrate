@@ -15,7 +15,6 @@ import {
 const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
-const RECEIPT_CHAIN_SEED = "receipt_chain";
 const DELEGATION_SEED = "delegation";
 const CHECKPOINT_SEED = "checkpoint";
 const REPUTATION_SEED = "reputation";
@@ -39,6 +38,27 @@ const MAX_U64 = new anchor.BN("18446744073709551615");
 
 describe("trust_substrate protocol flow", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
+  let cpiAuthority: anchor.web3.PublicKey;
+  before(async () => {
+    const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("cpi_authority", "utf8")],
+      receiptProgram.programId
+    );
+    cpiAuthority = pda;
+    try {
+      await receiptProgram.account.cpiAuthority.fetch(cpiAuthority);
+    } catch {
+      await receiptProgram.methods
+        .initializeCpiAuthority()
+        .accountsStrict({
+          payer: provider.wallet.publicKey,
+          cpiAuthority,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+  });
+
 
   const provider = anchor.AnchorProvider.env();
   const authority = provider.wallet.publicKey;
@@ -90,7 +110,6 @@ describe("trust_substrate protocol flow", () => {
       task.toBuffer(),
       asBuffer(delegatedHandoffReceiptId),
     ]);
-    const receiptChain = receiptChainPda(identity, task);
     const [delegation] = pda(delegationProgram, [
       seed(DELEGATION_SEED),
       identity.toBuffer(),
@@ -177,9 +196,10 @@ describe("trust_substrate protocol flow", () => {
         identity,
         delegation,
         task,
-        receiptChain,
         receipt: delegatedReceipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .signers([delegate])
       .rpc();
@@ -197,9 +217,10 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity,
         task,
-        receiptChain,
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -408,9 +429,10 @@ describe("trust_substrate protocol flow", () => {
           identity: setup.identity,
           delegation: invalidDelegation,
           task: setup.task,
-          receiptChain: receiptChainPda(setup.identity, setup.task),
           receipt: delegatedCompletionReceipt,
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegateKeypair])
         .rpc(),
@@ -438,9 +460,10 @@ describe("trust_substrate protocol flow", () => {
           authority,
           identity: setup.identity,
           task: setup.task,
-          receiptChain: receiptChainPda(setup.identity, setup.task),
           receipt: invalidKindReceipt,
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "InvalidReceiptKind"
@@ -467,9 +490,10 @@ describe("trust_substrate protocol flow", () => {
           authority,
           identity: setup.identity,
           task: otherSetup.task,
-          receiptChain: receiptChainPda(setup.identity, otherSetup.task),
           receipt: wrongIdentityReceipt,
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "TaskIdentityMismatch"
@@ -692,9 +716,10 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: receiptChainPda(setup.identity, setup.task),
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -802,9 +827,10 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: receiptChainPda(setup.identity, setup.task),
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -872,9 +898,10 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: receiptChainPda(setup.identity, setup.task),
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -933,9 +960,10 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: receiptChainPda(setup.identity, setup.task),
         receipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -1018,18 +1046,6 @@ describe("trust_substrate protocol flow", () => {
       receipt.toBuffer(),
     ]);
     return receiptApplication;
-  }
-
-  function receiptChainPda(
-    identity: anchor.web3.PublicKey,
-    task: anchor.web3.PublicKey
-  ) {
-    const [receiptChain] = pda(receiptProgram, [
-      seed(RECEIPT_CHAIN_SEED),
-      identity.toBuffer(),
-      task.toBuffer(),
-    ]);
-    return receiptChain;
   }
 
   function reputationReceiptApplicationPda(

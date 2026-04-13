@@ -11,5 +11,7 @@ pub struct TaskRecord {
     pub completed_count: u32,
     pub disputed_count: u32,
     pub resolved_count: u32,
+    pub last_receipt: Pubkey,
+    pub last_sequence: u64,
     pub bump: u8,
 }

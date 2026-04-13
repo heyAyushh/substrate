@@ -42,6 +42,8 @@ pub fn handler(
     task.completed_count = 0;
     task.disputed_count = 0;
     task.resolved_count = 0;
+    task.last_receipt = Pubkey::default();
+    task.last_sequence = 0;
     task.bump = ctx.bumps.task;
 
     Ok(())

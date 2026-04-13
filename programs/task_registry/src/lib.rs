@@ -7,12 +7,21 @@ use anchor_lang::prelude::*;
 pub use instructions::*;
 pub use state::*;
 
+pub mod __client_accounts_advance_receipt_chain {
+    pub use crate::instructions::advance_receipt_chain::__client_accounts_advance_receipt_chain::*;
+}
+
 pub mod __client_accounts_create_task {
     pub use crate::instructions::create_task::__client_accounts_create_task::*;
 }
 
 pub mod __client_accounts_sync_task_status {
     pub use crate::instructions::sync_task_status::__client_accounts_sync_task_status::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_advance_receipt_chain {
+    pub use crate::instructions::advance_receipt_chain::__cpi_client_accounts_advance_receipt_chain::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -38,6 +47,14 @@ pub mod task_registry {
         subtask_count: u16,
     ) -> Result<()> {
         instructions::create_task::handler(ctx, task_id, subtask_root, subtask_count)
+    }
+
+    pub fn advance_receipt_chain(
+        ctx: Context<AdvanceReceiptChain>,
+        last_receipt: Pubkey,
+        last_sequence: u64,
+    ) -> Result<()> {
+        instructions::advance_receipt_chain::handler(ctx, last_receipt, last_sequence)
     }
 
     pub fn sync_task_status(ctx: Context<SyncTaskStatus>) -> Result<()> {

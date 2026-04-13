@@ -1,12 +1,10 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use task_registry::state::TaskRecord;
-use trust_substrate_core::{
-    is_valid_receipt_kind, TrustSubstrateError, RECEIPT_CHAIN_SEED, RECEIPT_SEED,
-};
+use trust_substrate_core::{is_valid_receipt_kind, TrustSubstrateError, RECEIPT_SEED};
 
 use crate::events::ReceiptCommitted;
-use crate::state::{ReceiptChain, ReceiptRecord};
+use crate::state::{CpiAuthority, ReceiptRecord};
 
 pub fn handler(
     ctx: Context<EmitReceipt>,
@@ -23,21 +21,12 @@ pub fn handler(
     );
 
     let task = &ctx.accounts.task;
-    let receipt_chain = &mut ctx.accounts.receipt_chain;
-    if receipt_chain.identity == Pubkey::default() {
-        receipt_chain.identity = ctx.accounts.identity.key();
-        receipt_chain.task = task.key();
-        receipt_chain.last_receipt = Pubkey::default();
-        receipt_chain.last_sequence = 0;
-        receipt_chain.bump = ctx.bumps.receipt_chain;
-    }
-
     require!(
-        sequence == receipt_chain.last_sequence + 1,
+        sequence == task.last_sequence + 1,
         TrustSubstrateError::ReceiptSequenceNotMonotonic
     );
     require!(
-        previous_receipt == receipt_chain.last_receipt.to_bytes(),
+        previous_receipt == task.last_receipt.to_bytes(),
         TrustSubstrateError::ReceiptChainBroken
     );
 
@@ -54,8 +43,15 @@ pub fn handler(
     receipt.via_delegation = Pubkey::default();
     receipt.bump = ctx.bumps.receipt;
 
-    receipt_chain.last_receipt = receipt.key();
-    receipt_chain.last_sequence = sequence;
+    let cpi_program = ctx.accounts.task_registry_program.to_account_info();
+    let cpi_accounts = task_registry::cpi::accounts::AdvanceReceiptChain {
+        task: ctx.accounts.task.to_account_info(),
+        identity: ctx.accounts.identity.to_account_info(),
+        authority: ctx.accounts.cpi_authority.to_account_info(),
+    };
+    let signer_seeds: &[&[&[u8]]] = &[&[b"cpi_authority", &[ctx.bumps.cpi_authority][..]]];
+    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    task_registry::cpi::advance_receipt_chain(cpi_ctx, receipt.key(), sequence)?;
 
     emit!(ReceiptCommitted {
         identity: receipt.identity,
@@ -78,22 +74,11 @@ pub struct EmitReceipt<'info> {
     pub authority: Signer<'info>,
     #[account(constraint = identity.authority == authority.key() @ TrustSubstrateError::ReceiptAuthorityMismatch)]
     pub identity: Account<'info, AgentIdentity>,
-    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
-    pub task: Account<'info, TaskRecord>,
     #[account(
-        init_if_needed,
-        payer = authority,
-        space = 8 + ReceiptChain::INIT_SPACE,
-        seeds = [
-            RECEIPT_CHAIN_SEED,
-            identity.key().as_ref(),
-            task.key().as_ref()
-        ],
-        bump,
-        constraint = receipt_chain.identity == Pubkey::default() || receipt_chain.identity == identity.key() @ TrustSubstrateError::ReceiptIdentityMismatch,
-        constraint = receipt_chain.task == Pubkey::default() || receipt_chain.task == task.key() @ TrustSubstrateError::TaskIdentityMismatch
+        mut,
+        constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch
     )]
-    pub receipt_chain: Account<'info, ReceiptChain>,
+    pub task: Account<'info, TaskRecord>,
     #[account(
         init,
         payer = authority,
@@ -107,5 +92,11 @@ pub struct EmitReceipt<'info> {
         bump
     )]
     pub receipt: Account<'info, ReceiptRecord>,
+    #[account(
+        seeds = [b"cpi_authority"],
+        bump
+    )]
+    pub cpi_authority: Account<'info, CpiAuthority>,
+    pub task_registry_program: Program<'info, task_registry::program::TaskRegistry>,
     pub system_program: Program<'info, System>,
 }

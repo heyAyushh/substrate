@@ -20,6 +20,10 @@ pub mod __client_accounts_emit_receipt {
     pub use crate::instructions::emit_receipt::__client_accounts_emit_receipt::*;
 }
 
+pub mod __client_accounts_initialize_cpi_authority {
+    pub use crate::instructions::initialize_cpi_authority::__client_accounts_initialize_cpi_authority::*;
+}
+
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_emit_delegated_receipt {
     pub use crate::instructions::emit_delegated_receipt::__cpi_client_accounts_emit_delegated_receipt::*;
@@ -30,11 +34,22 @@ pub mod __cpi_client_accounts_emit_receipt {
     pub use crate::instructions::emit_receipt::__cpi_client_accounts_emit_receipt::*;
 }
 
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_initialize_cpi_authority {
+    pub use crate::instructions::initialize_cpi_authority::__cpi_client_accounts_initialize_cpi_authority::*;
+}
+
 declare_id!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
 
 #[program]
 pub mod receipt_emitter {
     use super::*;
+
+    pub fn initialize_cpi_authority(ctx: Context<InitializeCpiAuthority>) -> Result<()> {
+        let authority = &mut ctx.accounts.cpi_authority;
+        authority.bump = ctx.bumps.cpi_authority;
+        Ok(())
+    }
 
     pub fn emit_receipt(
         ctx: Context<EmitReceipt>,

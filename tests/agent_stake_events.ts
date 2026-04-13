@@ -9,7 +9,6 @@ import { TaskRegistry } from "../target/types/task_registry";
 const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
-const RECEIPT_CHAIN_SEED = "receipt_chain";
 const STAKE_SEED = "stake";
 const SLASH_MARKER_SEED = "slash_marker";
 const SUBTASK_COUNT = 0;
@@ -26,6 +25,27 @@ const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
 
 describe("agent_stake structured events", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
+  let cpiAuthority: anchor.web3.PublicKey;
+  before(async () => {
+    const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("cpi_authority", "utf8")],
+      receiptProgram.programId
+    );
+    cpiAuthority = pda;
+    try {
+      await receiptProgram.account.cpiAuthority.fetch(cpiAuthority);
+    } catch {
+      await receiptProgram.methods
+        .initializeCpiAuthority()
+        .accountsStrict({
+          payer: provider.wallet.publicKey,
+          cpiAuthority,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+  });
+
 
   const provider = anchor.AnchorProvider.env();
   const owner = provider.wallet.publicKey;
@@ -58,11 +78,6 @@ describe("agent_stake structured events", () => {
       identity.toBuffer(),
       task.toBuffer(),
       asBuffer(receiptId),
-    ]);
-    const [receiptChain] = pda(receiptProgram, [
-      seed(RECEIPT_CHAIN_SEED),
-      identity.toBuffer(),
-      task.toBuffer(),
     ]);
     const [stake] = pda(stakeProgram, [seed(STAKE_SEED), identity.toBuffer()]);
     const [slashMarker] = pda(stakeProgram, [
@@ -223,9 +238,10 @@ describe("agent_stake structured events", () => {
             authority: owner,
             identity,
             task,
-            receiptChain,
             receipt,
             systemProgram: anchor.web3.SystemProgram.programId,
+            cpiAuthority,
+          taskRegistryProgram: taskProgram.programId,
           })
           .rpc();
 

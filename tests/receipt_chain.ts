@@ -9,7 +9,6 @@ import { TaskRegistry } from "../target/types/task_registry";
 const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
-const RECEIPT_CHAIN_SEED = "receipt_chain";
 const DELEGATION_SEED = "delegation";
 const ASSIGNMENT_KIND = 1;
 const HANDOFF_KIND = 2;
@@ -17,6 +16,27 @@ const HANDOFF_SCOPE_BIT = 1 << 1;
 
 describe("receipt_chain", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
+  let cpiAuthority: anchor.web3.PublicKey;
+  before(async () => {
+    const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("cpi_authority", "utf8")],
+      receiptProgram.programId
+    );
+    cpiAuthority = pda;
+    try {
+      await receiptProgram.account.cpiAuthority.fetch(cpiAuthority);
+    } catch {
+      await receiptProgram.methods
+        .initializeCpiAuthority()
+        .accountsStrict({
+          payer: provider.wallet.publicKey,
+          cpiAuthority,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+  });
+
 
   const provider = anchor.AnchorProvider.env();
   const authority = provider.wallet.publicKey;
@@ -48,9 +68,10 @@ describe("receipt_chain", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: firstReceipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -68,26 +89,20 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         delegation: setup.delegation,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: secondReceipt,
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .signers([delegate])
       .rpc();
 
-    const chainState = await receiptProgram.account.receiptChain.fetch(
-      setup.receiptChain
-    );
-    const receiptChainState = chainState as unknown as {
-      lastReceipt: anchor.web3.PublicKey;
-      lastSequence: anchor.BN;
-    };
-
+    const taskState = await taskProgram.account.taskRecord.fetch(setup.task);
     strictEqual(
-      receiptChainState.lastReceipt.toBase58(),
+      (taskState as any).lastReceipt.toBase58(),
       setup.secondReceipt.toBase58()
     );
-    strictEqual(receiptChainState.lastSequence.toString(), "2");
+    strictEqual((taskState as any).lastSequence.toString(), "2");
   });
 
   it("rejects a receipt with a non-monotonic sequence", async () => {
@@ -106,9 +121,10 @@ describe("receipt_chain", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: setup.receipts[0],
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -126,9 +142,10 @@ describe("receipt_chain", () => {
           authority,
           identity: setup.identity,
           task: setup.task,
-          receiptChain: setup.receiptChain,
           receipt: setup.receipts[1],
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "ReceiptSequenceNotMonotonic"
@@ -152,9 +169,10 @@ describe("receipt_chain", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: setup.receipts[0],
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -173,9 +191,10 @@ describe("receipt_chain", () => {
           identity: setup.identity,
           delegation: setup.delegation,
           task: setup.task,
-          receiptChain: setup.receiptChain,
           receipt: setup.receipts[1],
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegate])
         .rpc(),
@@ -199,9 +218,10 @@ describe("receipt_chain", () => {
         authority,
         identity: setup.identity,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: setup.receipts[0],
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .rpc();
 
@@ -219,9 +239,10 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         delegation: setup.delegation,
         task: setup.task,
-        receiptChain: setup.receiptChain,
         receipt: setup.receipts[1],
         systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
       })
       .signers([delegate])
       .rpc();
@@ -241,9 +262,10 @@ describe("receipt_chain", () => {
           identity: setup.identity,
           delegation: setup.delegation,
           task: setup.task,
-          receiptChain: setup.receiptChain,
           receipt: setup.receipts[2],
           systemProgram: anchor.web3.SystemProgram.programId,
+          cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegate])
         .rpc(),
@@ -279,11 +301,6 @@ describe("receipt_chain", () => {
       seed(DELEGATION_SEED),
       identity.toBuffer(),
       delegate.publicKey.toBuffer(),
-    ]);
-    const [receiptChain] = pda(receiptProgram, [
-      seed(RECEIPT_CHAIN_SEED),
-      identity.toBuffer(),
-      task.toBuffer(),
     ]);
     const [firstReceipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -337,7 +354,6 @@ describe("receipt_chain", () => {
     return {
       identity,
       task,
-      receiptChain,
       delegation,
       domain,
       payloadHash,
