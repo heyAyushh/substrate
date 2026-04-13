@@ -2,10 +2,18 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED};
 
+use crate::events::DelegationRevoked;
 use crate::state::DelegationRecord;
 
 pub fn handler(ctx: Context<RevokeDelegation>) -> Result<()> {
     ctx.accounts.delegation.revoked = true;
+
+    emit!(DelegationRevoked {
+        identity: ctx.accounts.delegation.identity,
+        delegate: ctx.accounts.delegation.delegate,
+        slot: Clock::get()?.slot,
+    });
+
     Ok(())
 }
 

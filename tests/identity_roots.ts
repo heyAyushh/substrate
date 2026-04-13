@@ -15,8 +15,7 @@ describe("identity root updates", () => {
   const authority = provider.wallet.publicKey;
   const identityProgram = anchor.workspace
     .identityRegistry as Program<IdentityRegistry>;
-  const proofProgram = anchor.workspace
-    .proofVerifier as Program<ProofVerifier>;
+  const proofProgram = anchor.workspace.proofVerifier as Program<ProofVerifier>;
 
   let historyUpdater: anchor.web3.PublicKey;
   before(async () => {
@@ -194,7 +193,9 @@ describe("identity root updates", () => {
       identity
     );
     strictEqual(
-      Buffer.from(identityAccount.historyRoot).equals(Buffer.from(checkpointRoot)),
+      Buffer.from(identityAccount.historyRoot).equals(
+        Buffer.from(checkpointRoot)
+      ),
       true
     );
 
@@ -218,7 +219,9 @@ describe("identity root updates", () => {
       })
       .rpc();
 
-    identityAccount = await identityProgram.account.agentIdentity.fetch(identity);
+    identityAccount = await identityProgram.account.agentIdentity.fetch(
+      identity
+    );
     strictEqual(
       Buffer.from(identityAccount.historyRoot).equals(Buffer.from(rotatedRoot)),
       true
@@ -311,9 +314,7 @@ async function expectAnchorError(
     await promise;
   } catch (error: any) {
     const actualCode =
-      error?.error?.errorCode?.code ??
-      error?.errorCode?.code ??
-      error?.code;
+      error?.error?.errorCode?.code ?? error?.errorCode?.code ?? error?.code;
     if (actualCode === expectedCode) return;
     const msg = error?.message ?? "";
     if (msg.includes(expectedCode)) return;

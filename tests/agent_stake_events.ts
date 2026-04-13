@@ -1,9 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { ok, strictEqual } from "assert";
+import { createHash } from "crypto";
 import { AgentStake } from "../target/types/agent_stake";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
+import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 
 const IDENTITY_SEED = "identity";
@@ -20,12 +22,14 @@ const STAKE_DEPOSITED_EVENT = "StakeDeposited";
 const STAKE_UNSTAKE_REQUESTED_EVENT = "StakeUnstakeRequested";
 const STAKE_UNSTAKE_FINALIZED_EVENT = "StakeUnstakeFinalized";
 const STAKE_SLASHED_EVENT = "StakeSlashed";
-const COMPLETION_RECEIPT_KIND = 3;
 const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
+const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
 describe("agent_stake structured events", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
+  let domainCatalog: anchor.web3.PublicKey;
+
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
@@ -44,8 +48,58 @@ describe("agent_stake structured events", () => {
         })
         .rpc();
     }
-  });
 
+    const reputationProgram = anchor.workspace
+      .reputationAccumulator as Program<ReputationAccumulator>;
+    const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("domain_catalog", "utf8")],
+      reputationProgram.programId
+    );
+    domainCatalog = catalogPda;
+    try {
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
+    } catch {
+      await reputationProgram.methods
+        .initializeDomainCatalog()
+        .accountsStrict({
+          curator: provider.wallet.publicKey,
+          domainCatalog,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    const domain = bytes32(174);
+    try {
+      const catalog =
+        await reputationProgram.account.reputationDomainCatalog.fetch(
+          domainCatalog
+        );
+      if (
+        !catalog.domains.some((d: number[]) =>
+          Buffer.from(d).equals(Buffer.from(domain))
+        )
+      ) {
+        await reputationProgram.methods
+          .registerDomain(domain)
+          .accountsStrict({
+            curator: provider.wallet.publicKey,
+            domainCatalog,
+          })
+          .rpc();
+      }
+    } catch {
+      await reputationProgram.methods
+        .registerDomain(domain)
+        .accountsStrict({
+          curator: provider.wallet.publicKey,
+          domainCatalog,
+        })
+        .rpc();
+    }
+  });
 
   const provider = anchor.AnchorProvider.env();
   const owner = provider.wallet.publicKey;
@@ -57,11 +111,11 @@ describe("agent_stake structured events", () => {
   const stakeProgram = anchor.workspace.agentStake as Program<AgentStake>;
 
   it("emits structured events for every stake lifecycle state change", async () => {
-    const agentId = bytes32(171);
-    const taskId = bytes32(172);
-    const receiptId = bytes32(173);
+    const agentId = testBytes32(171);
+    const taskId = testBytes32(172);
+    const receiptId = testBytes32(173);
     const domain = bytes32(174);
-    const payloadHash = bytes32(175);
+    const payloadHash = testBytes32(175);
 
     const [identity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
@@ -86,29 +140,30 @@ describe("agent_stake structured events", () => {
       receipt.toBuffer(),
     ]);
 
+    await identityProgram.methods
+      .createIdentity(agentId, testBytes32(176), testBytes32(177))
+      .accountsStrict({
+        identity,
+        authority: owner,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await taskProgram.methods
+      .createTask(taskId, testBytes32(178), SUBTASK_COUNT)
+      .accountsStrict({
+        authority: owner,
+        identity,
+        task,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
     const initialized = await captureEvent(
+      stakeProgram,
       STAKE_INITIALIZED_EVENT,
-      async () => {
-        await identityProgram.methods
-          .createIdentity(agentId, bytes32(176), bytes32(177))
-          .accountsStrict({
-            identity,
-            authority: owner,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          })
-          .rpc();
-
-        await taskProgram.methods
-          .createTask(taskId, bytes32(178), SUBTASK_COUNT)
-          .accountsStrict({
-            authority: owner,
-            identity,
-            task,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          })
-          .rpc();
-
-        return await stakeProgram.methods
+      () =>
+        stakeProgram.methods
           .initializeStake(owner)
           .accountsStrict({
             owner,
@@ -116,8 +171,7 @@ describe("agent_stake structured events", () => {
             stake,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .simulate();
-      },
+          .instruction(),
       async () => {
         await stakeProgram.methods
           .initializeStake(owner)
@@ -131,12 +185,13 @@ describe("agent_stake structured events", () => {
       }
     );
 
-    strictEqual(initialized.event.identity.toBase58(), identity.toBase58());
-    strictEqual(initialized.event.authority.toBase58(), owner.toBase58());
-    strictEqual(initialized.event.slashAuthority.toBase58(), owner.toBase58());
-    ok(Number(initialized.event.slot.toString()) > 0);
+    strictEqual(initialized.identity.toBase58(), identity.toBase58());
+    strictEqual(initialized.authority.toBase58(), owner.toBase58());
+    strictEqual(initialized.slashAuthority.toBase58(), owner.toBase58());
+    ok(Number(initialized.slot.toString()) > 0);
 
     const deposited = await captureEvent(
+      stakeProgram,
       STAKE_DEPOSITED_EVENT,
       () =>
         stakeProgram.methods
@@ -146,7 +201,7 @@ describe("agent_stake structured events", () => {
             stake,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .simulate(),
+          .instruction(),
       async () => {
         await stakeProgram.methods
           .stake(STAKE_AMOUNT)
@@ -159,12 +214,13 @@ describe("agent_stake structured events", () => {
       }
     );
 
-    strictEqual(deposited.event.identity.toBase58(), identity.toBase58());
-    strictEqual(deposited.event.authority.toBase58(), owner.toBase58());
-    strictEqual(deposited.event.amount.toString(), STAKE_AMOUNT.toString());
-    ok(Number(deposited.event.slot.toString()) > 0);
+    strictEqual(deposited.identity.toBase58(), identity.toBase58());
+    strictEqual(deposited.authority.toBase58(), owner.toBase58());
+    strictEqual(deposited.amount.toString(), STAKE_AMOUNT.toString());
+    ok(Number(deposited.slot.toString()) > 0);
 
     const requested = await captureEvent(
+      stakeProgram,
       STAKE_UNSTAKE_REQUESTED_EVENT,
       () =>
         stakeProgram.methods
@@ -173,7 +229,7 @@ describe("agent_stake structured events", () => {
             owner,
             stake,
           })
-          .simulate(),
+          .instruction(),
       async () => {
         await stakeProgram.methods
           .requestUnstake(UNSTAKE_AMOUNT)
@@ -185,18 +241,19 @@ describe("agent_stake structured events", () => {
       }
     );
 
-    strictEqual(requested.event.identity.toBase58(), identity.toBase58());
-    strictEqual(requested.event.authority.toBase58(), owner.toBase58());
-    strictEqual(requested.event.amount.toString(), UNSTAKE_AMOUNT.toString());
+    strictEqual(requested.identity.toBase58(), identity.toBase58());
+    strictEqual(requested.authority.toBase58(), owner.toBase58());
+    strictEqual(requested.amount.toString(), UNSTAKE_AMOUNT.toString());
     strictEqual(
-      requested.event.pendingUnstakeAmount.toString(),
+      requested.pendingUnstakeAmount.toString(),
       UNSTAKE_AMOUNT.toString()
     );
-    ok(Number(requested.event.slot.toString()) > 0);
+    ok(Number(requested.slot.toString()) > 0);
 
-    await waitForSlot(Number(requested.event.unlocksAtSlot.toString()));
+    await waitForSlot(Number(requested.unlocksAtSlot.toString()));
 
     const finalized = await captureEvent(
+      stakeProgram,
       STAKE_UNSTAKE_FINALIZED_EVENT,
       () =>
         stakeProgram.methods
@@ -205,7 +262,7 @@ describe("agent_stake structured events", () => {
             owner,
             stake,
           })
-          .simulate(),
+          .instruction(),
       async () => {
         await stakeProgram.methods
           .finalizeUnstake()
@@ -217,35 +274,37 @@ describe("agent_stake structured events", () => {
       }
     );
 
-    strictEqual(finalized.event.identity.toBase58(), identity.toBase58());
-    strictEqual(finalized.event.authority.toBase58(), owner.toBase58());
-    strictEqual(finalized.event.amount.toString(), UNSTAKE_AMOUNT.toString());
-    ok(Number(finalized.event.slot.toString()) > 0);
+    strictEqual(finalized.identity.toBase58(), identity.toBase58());
+    strictEqual(finalized.authority.toBase58(), owner.toBase58());
+    strictEqual(finalized.amount.toString(), UNSTAKE_AMOUNT.toString());
+    ok(Number(finalized.slot.toString()) > 0);
+
+    await receiptProgram.methods
+      .emitReceipt(
+        receiptId,
+        DISPUTE_RESOLVED_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        payloadHash
+      )
+      .accountsStrict({
+        authority: owner,
+        identity,
+        task,
+        receipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
 
     const slashed = await captureEvent(
+      stakeProgram,
       STAKE_SLASHED_EVENT,
-      async () => {
-        await receiptProgram.methods
-          .emitReceipt(
-            receiptId,
-            DISPUTE_RESOLVED_RECEIPT_KIND,
-            new anchor.BN(1),
-            domain,
-            bytes32(0),
-            payloadHash
-          )
-          .accountsStrict({
-            authority: owner,
-            identity,
-            task,
-            receipt,
-            systemProgram: anchor.web3.SystemProgram.programId,
-            cpiAuthority,
-          taskRegistryProgram: taskProgram.programId,
-          })
-          .rpc();
-
-        return await stakeProgram.methods
+      () =>
+        stakeProgram.methods
           .slash(SLASH_AMOUNT)
           .accountsStrict({
             slashAuthority: owner,
@@ -255,8 +314,7 @@ describe("agent_stake structured events", () => {
             treasury: owner,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .simulate();
-      },
+          .instruction(),
       async () => {
         await stakeProgram.methods
           .slash(SLASH_AMOUNT)
@@ -272,41 +330,68 @@ describe("agent_stake structured events", () => {
       }
     );
 
-    strictEqual(slashed.event.identity.toBase58(), identity.toBase58());
-    strictEqual(slashed.event.authority.toBase58(), owner.toBase58());
-    strictEqual(slashed.event.amount.toString(), SLASH_AMOUNT.toString());
-    strictEqual(slashed.event.disputeReceipt.toBase58(), receipt.toBase58());
-    ok(Number(slashed.event.slot.toString()) > 0);
+    strictEqual(slashed.identity.toBase58(), identity.toBase58());
+    strictEqual(slashed.authority.toBase58(), owner.toBase58());
+    strictEqual(slashed.amount.toString(), SLASH_AMOUNT.toString());
+    strictEqual(slashed.disputeReceipt.toBase58(), receipt.toBase58());
+    ok(Number(slashed.slot.toString()) > 0);
   });
 });
 
 async function captureEvent(
+  program: Program<any>,
   eventName: string,
-  simulateAction: () => Promise<{
-    events?: Array<{ name: string; data: any }>;
-  }>,
-  rpcAction: () => Promise<void>
-): Promise<{ event: any }> {
-  const simulation = await simulateAction();
-  const parsedEvents = simulation.events ?? [];
-  for (const event of parsedEvents) {
-    if (event.name.toLowerCase() === eventName.toLowerCase()) {
-      await rpcAction();
-      return { event: event.data };
-    }
-  }
+  _buildInstruction: () => Promise<anchor.web3.TransactionInstruction>,
+  action: () => Promise<void>
+): Promise<any> {
+  const connection = anchor.AnchorProvider.env().connection;
+  const parser = new anchor.EventParser(program.programId, program.coder);
 
-  throw new Error(
-    `Missing ${eventName} event in simulation; parsed ${parsedEvents
-      .map((event) => event.name)
-      .join(", ")}`
-  );
+  return await new Promise<any>(async (resolve, reject) => {
+    let resolved = false;
+    const listenerId = await connection.onLogs(
+      program.programId,
+      (logInfo) => {
+        for (const parsedEvent of parser.parseLogs(logInfo.logs)) {
+          if (parsedEvent.name.toLowerCase() === eventName.toLowerCase()) {
+            if (!resolved) {
+              resolved = true;
+              void connection.removeOnLogsListener(listenerId);
+              resolve(parsedEvent.data);
+            }
+          }
+        }
+      },
+      "confirmed"
+    );
+
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        void connection.removeOnLogsListener(listenerId);
+        reject(new Error(`Timeout waiting for ${eventName}`));
+      }
+    }, 15000);
+
+    await new Promise((resolveSubscription) =>
+      setTimeout(resolveSubscription, 500)
+    );
+
+    try {
+      await action();
+    } catch (error) {
+      if (!resolved) {
+        resolved = true;
+        void connection.removeOnLogsListener(listenerId);
+        reject(error);
+      }
+    }
+  });
 }
 
 async function waitForSlot(targetSlot: number) {
   const connection = anchor.AnchorProvider.env().connection;
-
-  while ((await connection.getSlot()) < targetSlot) {
+  while ((await connection.getSlot("confirmed")) <= targetSlot) {
     await new Promise((resolve) => setTimeout(resolve, 300));
   }
 }
@@ -324,6 +409,14 @@ function seed(value: string): Buffer {
 
 function bytes32(value: number): number[] {
   return Array.from(Buffer.alloc(32, value));
+}
+
+function testBytes32(value: number): number[] {
+  return Array.from(
+    createHash("sha256")
+      .update(`agent_stake_events:${TEST_RUN_NAMESPACE}:${value}`)
+      .digest()
+  );
 }
 
 function asBuffer(value: number[]): Buffer {

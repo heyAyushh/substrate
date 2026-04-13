@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use delegation_engine::state::DelegationRecord;
 use identity_registry::state::AgentIdentity;
+use reputation_accumulator::state::ReputationDomainCatalog;
 use task_registry::state::TaskRecord;
 use trust_substrate_core::{
     is_valid_receipt_kind, scope_bit_for_kind, TrustSubstrateError, DELEGATION_SEED, RECEIPT_SEED,
@@ -22,6 +23,14 @@ pub fn handler(
         is_valid_receipt_kind(kind),
         TrustSubstrateError::InvalidReceiptKind
     );
+
+    let empty_domain = [0u8; 32];
+    if domain != empty_domain {
+        require!(
+            ctx.accounts.domain_catalog.is_domain_registered(&domain),
+            TrustSubstrateError::DomainNotRegistered
+        );
+    }
 
     let delegation = &ctx.accounts.delegation;
     require_keys_eq!(
@@ -125,6 +134,7 @@ pub struct EmitDelegatedReceipt<'info> {
         bump
     )]
     pub receipt: Account<'info, ReceiptRecord>,
+    pub domain_catalog: Account<'info, ReputationDomainCatalog>,
     #[account(
         seeds = [b"cpi_authority"],
         bump

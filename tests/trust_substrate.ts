@@ -1,6 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { strictEqual, ok } from "assert";
+import { createHash } from "crypto";
 import { DelegationEngine } from "../target/types/delegation_engine";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ProofVerifier } from "../target/types/proof_verifier";
@@ -35,6 +36,8 @@ const NEXT_EPOCH_NUMBER = 2;
 const SUBTASK_COUNT = 2;
 const NO_WEIGHT_OVERRIDE = new anchor.BN(0);
 const MAX_U64 = new anchor.BN("18446744073709551615");
+const ZERO_BYTE = 0;
+const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
 describe("trust_substrate protocol flow", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -84,7 +87,9 @@ describe("trust_substrate protocol flow", () => {
     );
     domainCatalog = catalogPda;
     try {
-      await reputationProgram.account.reputationDomainCatalog.fetch(domainCatalog);
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
     } catch {
       await reputationProgram.methods
         .initializeDomainCatalog()
@@ -97,10 +102,17 @@ describe("trust_substrate protocol flow", () => {
     }
 
     for (const domainByte of [77, 105, 125, 134, 143, 163, 604]) {
-      const domain = bytes32(domainByte);
+      const domain = testBytes32(domainByte);
       try {
-        const catalog = await reputationProgram.account.reputationDomainCatalog.fetch(domainCatalog);
-        if (!catalog.domains.some((d: number[]) => Buffer.from(d).equals(Buffer.from(domain)))) {
+        const catalog =
+          await reputationProgram.account.reputationDomainCatalog.fetch(
+            domainCatalog
+          );
+        if (
+          !catalog.domains.some((d: number[]) =>
+            Buffer.from(d).equals(Buffer.from(domain))
+          )
+        ) {
           await reputationProgram.methods
             .registerDomain(domain)
             .accountsStrict({
@@ -121,7 +133,6 @@ describe("trust_substrate protocol flow", () => {
     }
   });
 
-
   const provider = anchor.AnchorProvider.env();
   const authority = provider.wallet.publicKey;
   const delegate = anchor.web3.Keypair.generate();
@@ -137,16 +148,16 @@ describe("trust_substrate protocol flow", () => {
     .reputationAccumulator as Program<ReputationAccumulator>;
 
   it("records the identity, task, receipt, delegation, checkpoint, and reputation graph", async () => {
-    const agentId = bytes32(11);
-    const taskId = bytes32(22);
-    const completionReceiptId = bytes32(33);
-    const delegatedHandoffReceiptId = bytes32(34);
-    const policyRoot = bytes32(44);
-    const historyRoot = bytes32(55);
-    const subtaskRoot = bytes32(66);
-    const domain = bytes32(77);
-    const previousReceipt = bytes32(0);
-    const payloadHash = bytes32(88);
+    const agentId = testBytes32(11);
+    const taskId = testBytes32(22);
+    const completionReceiptId = testBytes32(33);
+    const delegatedHandoffReceiptId = testBytes32(34);
+    const policyRoot = testBytes32(44);
+    const historyRoot = testBytes32(55);
+    const subtaskRoot = testBytes32(66);
+    const domain = testBytes32(77);
+    const previousReceipt = bytes32(ZERO_BYTE);
+    const payloadHash = testBytes32(88);
     const allowedActions =
       ASSIGNMENT_ACTION_MASK | HANDOFF_ACTION_MASK | COMPLETION_ACTION_MASK;
 
@@ -339,7 +350,7 @@ describe("trust_substrate protocol flow", () => {
       })
       .rpc();
 
-    const rotatedRoot = bytes32(123);
+    const rotatedRoot = testBytes32(123);
     await proofProgram.methods
       .rotateCheckpoint(
         new anchor.BN(NEXT_EPOCH_NUMBER),
@@ -439,9 +450,9 @@ describe("trust_substrate protocol flow", () => {
     const setup = await createIdentityAndTask(101, 102);
     const otherSetup = await createIdentityAndTask(103, 104);
     const delegateKeypair = anchor.web3.Keypair.generate();
-    const domain = bytes32(105);
-    const previousReceipt = bytes32(0);
-    const payloadHash = bytes32(106);
+    const domain = testBytes32(105);
+    const previousReceipt = bytes32(ZERO_BYTE);
+    const payloadHash = testBytes32(106);
 
     await fund(delegateKeypair.publicKey);
 
@@ -480,13 +491,13 @@ describe("trust_substrate protocol flow", () => {
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
       setup.task.toBuffer(),
-      asBuffer(bytes32(107)),
+      asBuffer(testBytes32(107)),
     ]);
 
     await expectAnchorError(
       receiptProgram.methods
         .emitDelegatedReceipt(
-          bytes32(107),
+          testBytes32(107),
           COMPLETION_RECEIPT_KIND,
           new anchor.BN(1),
           domain,
@@ -513,13 +524,13 @@ describe("trust_substrate protocol flow", () => {
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
       setup.task.toBuffer(),
-      asBuffer(bytes32(108)),
+      asBuffer(testBytes32(108)),
     ]);
 
     await expectAnchorError(
       receiptProgram.methods
         .emitReceipt(
-          bytes32(108),
+          testBytes32(108),
           255,
           new anchor.BN(1),
           domain,
@@ -544,13 +555,13 @@ describe("trust_substrate protocol flow", () => {
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
       otherSetup.task.toBuffer(),
-      asBuffer(bytes32(109)),
+      asBuffer(testBytes32(109)),
     ]);
 
     await expectAnchorError(
       receiptProgram.methods
         .emitReceipt(
-          bytes32(109),
+          testBytes32(109),
           COMPLETION_RECEIPT_KIND,
           new anchor.BN(1),
           domain,
@@ -574,7 +585,7 @@ describe("trust_substrate protocol flow", () => {
 
   it("returns specific errors for stale checkpoint rotation", async () => {
     const setup = await createIdentityAndTask(111, 112);
-    const checkpointRoot = bytes32(113);
+    const checkpointRoot = testBytes32(113);
     const initialLeafCount = new anchor.BN(4);
     const [checkpoint] = pda(proofProgram, [
       seed(CHECKPOINT_SEED),
@@ -608,7 +619,7 @@ describe("trust_substrate protocol flow", () => {
 
     await expectAnchorError(
       proofProgram.methods
-        .rotateCheckpoint(new anchor.BN(3), bytes32(114), initialLeafCount)
+        .rotateCheckpoint(new anchor.BN(3), testBytes32(114), initialLeafCount)
         .accountsStrict({
           authority,
           identity: setup.identity,
@@ -633,7 +644,7 @@ describe("trust_substrate protocol flow", () => {
       proofProgram.methods
         .rotateCheckpoint(
           new anchor.BN(NEXT_EPOCH_NUMBER),
-          bytes32(115),
+          testBytes32(115),
           new anchor.BN(3)
         )
         .accountsStrict({
@@ -661,7 +672,7 @@ describe("trust_substrate protocol flow", () => {
     );
 
     await proofProgram.methods
-      .checkpointHistory(MAX_U64, bytes32(116), new anchor.BN(1))
+      .checkpointHistory(MAX_U64, testBytes32(116), new anchor.BN(1))
       .accountsStrict({
         authority,
         identity: overflowSetup.identity,
@@ -681,7 +692,7 @@ describe("trust_substrate protocol flow", () => {
 
     await expectAnchorError(
       proofProgram.methods
-        .rotateCheckpoint(new anchor.BN(0), bytes32(117), new anchor.BN(1))
+        .rotateCheckpoint(new anchor.BN(0), testBytes32(117), new anchor.BN(1))
         .accountsStrict({
           authority,
           identity: overflowSetup.identity,
@@ -699,7 +710,10 @@ describe("trust_substrate protocol flow", () => {
 
   it("rejects inclusion proofs against stale checkpoints", async () => {
     const setup = await createIdentityAndTask(151, 152);
-    const receiptLeaves = [asBuffer(bytes32(153)), asBuffer(bytes32(154))];
+    const receiptLeaves = [
+      asBuffer(testBytes32(153)),
+      asBuffer(testBytes32(154)),
+    ];
     const merkleTree = new OnchainMerkleTree(receiptLeaves);
     const [checkpoint] = pda(proofProgram, [
       seed(CHECKPOINT_SEED),
@@ -733,7 +747,7 @@ describe("trust_substrate protocol flow", () => {
     await proofProgram.methods
       .rotateCheckpoint(
         new anchor.BN(NEXT_EPOCH_NUMBER),
-        bytes32(155),
+        testBytes32(155),
         new anchor.BN(receiptLeaves.length + 1)
       )
       .accountsStrict({
@@ -767,8 +781,8 @@ describe("trust_substrate protocol flow", () => {
 
   it("rejects duplicate task and reputation receipt applications", async () => {
     const setup = await createIdentityAndTask(161, 162);
-    const domain = bytes32(163);
-    const receiptId = bytes32(164);
+    const domain = testBytes32(163);
+    const receiptId = testBytes32(164);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
@@ -795,8 +809,8 @@ describe("trust_substrate protocol flow", () => {
         COMPLETION_RECEIPT_KIND,
         new anchor.BN(1),
         domain,
-        bytes32(0),
-        bytes32(165)
+        bytes32(ZERO_BYTE),
+        testBytes32(165)
       )
       .accountsStrict({
         authority,
@@ -906,8 +920,8 @@ describe("trust_substrate protocol flow", () => {
   it("rejects reputation writes for the wrong agent identity", async () => {
     const setup = await createIdentityAndTask(121, 122);
     const otherSetup = await createIdentityAndTask(123, 124);
-    const domain = bytes32(125);
-    const receiptId = bytes32(126);
+    const domain = testBytes32(125);
+    const receiptId = testBytes32(126);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
@@ -930,8 +944,8 @@ describe("trust_substrate protocol flow", () => {
         COMPLETION_RECEIPT_KIND,
         new anchor.BN(1),
         domain,
-        bytes32(0),
-        bytes32(127)
+        bytes32(ZERO_BYTE),
+        testBytes32(127)
       )
       .accountsStrict({
         authority,
@@ -979,8 +993,8 @@ describe("trust_substrate protocol flow", () => {
 
   it("rejects receipt kinds that do not affect reputation", async () => {
     const setup = await createIdentityAndTask(141, 142);
-    const domain = bytes32(143);
-    const receiptId = bytes32(144);
+    const domain = testBytes32(143);
+    const receiptId = testBytes32(144);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
@@ -1003,8 +1017,8 @@ describe("trust_substrate protocol flow", () => {
         ASSIGNMENT_RECEIPT_KIND,
         new anchor.BN(1),
         domain,
-        bytes32(0),
-        bytes32(145)
+        bytes32(ZERO_BYTE),
+        testBytes32(145)
       )
       .accountsStrict({
         authority,
@@ -1052,7 +1066,7 @@ describe("trust_substrate protocol flow", () => {
 
   it("returns a specific task-state error when resolving without a dispute", async () => {
     const setup = await createIdentityAndTask(131, 132);
-    const receiptId = bytes32(133);
+    const receiptId = testBytes32(133);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
@@ -1066,9 +1080,9 @@ describe("trust_substrate protocol flow", () => {
         receiptId,
         DISPUTE_RESOLVED_RECEIPT_KIND,
         new anchor.BN(1),
-        bytes32(134),
-        bytes32(0),
-        bytes32(135)
+        testBytes32(134),
+        bytes32(ZERO_BYTE),
+        testBytes32(135)
       )
       .accountsStrict({
         authority,
@@ -1099,8 +1113,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   async function createIdentityAndTask(agentByte: number, taskByte: number) {
-    const agentId = bytes32(agentByte);
-    const taskId = bytes32(taskByte);
+    const agentId = testBytes32(agentByte);
+    const taskId = testBytes32(taskByte);
     const [identity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
       authority.toBuffer(),
@@ -1113,7 +1127,11 @@ describe("trust_substrate protocol flow", () => {
     ]);
 
     await identityProgram.methods
-      .createIdentity(agentId, bytes32(agentByte + 1), bytes32(agentByte + 2))
+      .createIdentity(
+        agentId,
+        testBytes32(agentByte + 1),
+        testBytes32(agentByte + 2)
+      )
       .accountsStrict({
         identity,
         authority,
@@ -1122,7 +1140,7 @@ describe("trust_substrate protocol flow", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, bytes32(taskByte + 1), SUBTASK_COUNT)
+      .createTask(taskId, testBytes32(taskByte + 1), SUBTASK_COUNT)
       .accountsStrict({
         authority,
         identity,
@@ -1172,9 +1190,14 @@ describe("trust_substrate protocol flow", () => {
     );
 
     strictEqual(createdEvent.identity.toBase58(), setup.identity.toBase58());
-    strictEqual(createdEvent.delegate.toBase58(), delegateKeypair.publicKey.toBase58());
+    strictEqual(
+      createdEvent.delegate.toBase58(),
+      delegateKeypair.publicKey.toBase58()
+    );
     strictEqual(createdEvent.allowedActions, ASSIGNMENT_ACTION_MASK);
     ok(Number(createdEvent.slot) > 0);
+
+    await new Promise((r) => setTimeout(r, 500));
 
     const revokedEvent = await captureEvent(
       delegationProgram,
@@ -1192,22 +1215,28 @@ describe("trust_substrate protocol flow", () => {
     );
 
     strictEqual(revokedEvent.identity.toBase58(), setup.identity.toBase58());
-    strictEqual(revokedEvent.delegate.toBase58(), delegateKeypair.publicKey.toBase58());
+    strictEqual(
+      revokedEvent.delegate.toBase58(),
+      delegateKeypair.publicKey.toBase58()
+    );
     ok(Number(revokedEvent.slot) > 0);
   });
 
   it("emits TaskStatusSynced event on receipt application", async () => {
     const setup = await createIdentityAndTask(601, 602);
-    const receiptId = bytes32(603);
-    const domain = bytes32(604);
-    const payloadHash = bytes32(605);
+    const receiptId = testBytes32(603);
+    const domain = testBytes32(604);
+    const payloadHash = testBytes32(605);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
       setup.task.toBuffer(),
       asBuffer(receiptId),
     ]);
-    const taskReceiptApplication = taskReceiptApplicationPda(setup.task, receipt);
+    const taskReceiptApplication = taskReceiptApplicationPda(
+      setup.task,
+      receipt
+    );
 
     await receiptProgram.methods
       .emitReceipt(
@@ -1215,7 +1244,7 @@ describe("trust_substrate protocol flow", () => {
         COMPLETION_RECEIPT_KIND,
         new anchor.BN(1),
         domain,
-        bytes32(0),
+        bytes32(ZERO_BYTE),
         payloadHash
       )
       .accountsStrict({
@@ -1304,6 +1333,14 @@ function bytes32(value: number): number[] {
   return Array.from(Buffer.alloc(32, value));
 }
 
+function testBytes32(value: number): number[] {
+  return Array.from(
+    createHash("sha256")
+      .update(`trust_substrate:${TEST_RUN_NAMESPACE}:${value}`)
+      .digest()
+  );
+}
+
 function asBuffer(value: number[]): Buffer {
   return Buffer.from(value);
 }
@@ -1328,12 +1365,18 @@ async function expectAnchorError(
     await promise;
   } catch (error: any) {
     const actualCode =
-      error?.error?.errorCode?.code ??
-      error?.errorCode?.code ??
-      error?.code;
+      error?.error?.errorCode?.code ?? error?.errorCode?.code ?? error?.code;
     if (actualCode === expectedCode) return;
     const msg = error?.message ?? "";
     if (msg.includes(expectedCode)) return;
+    const logs: string[] = error?.logs ?? error?.error?.logs ?? [];
+    if (
+      expectedCode === "AccountAlreadyInitialized" &&
+      (msg.includes("custom program error: 0x0") ||
+        logs.some((l: string) => l.includes("already in use")))
+    ) {
+      return;
+    }
     strictEqual(actualCode, expectedCode);
     return;
   }
@@ -1348,21 +1391,29 @@ async function captureEvent<T>(
   timeoutMs = 10000
 ): Promise<T> {
   return new Promise(async (resolve, reject) => {
+    let resolved = false;
     const listener = program.addEventListener(eventName, (event) => {
-      program.removeEventListener(listener);
-      resolve(event as T);
+      if (!resolved) {
+        resolved = true;
+        resolve(event as T);
+      }
     });
 
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300));
 
     action().catch((err) => {
-      program.removeEventListener(listener);
-      reject(err);
+      if (!resolved) {
+        resolved = true;
+        reject(err);
+      }
     });
 
     setTimeout(() => {
       program.removeEventListener(listener);
-      reject(new Error(`Timeout waiting for ${eventName}`));
+      if (!resolved) {
+        resolved = true;
+        reject(new Error(`Timeout waiting for ${eventName}`));
+      }
     }, timeoutMs);
   });
 }

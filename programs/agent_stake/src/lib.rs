@@ -23,6 +23,10 @@ pub mod __client_accounts_slash {
     pub use crate::instructions::slash::__client_accounts_slash::*;
 }
 
+pub mod __client_accounts_slash_already_applied {
+    pub use crate::instructions::slash::__client_accounts_slash_already_applied::*;
+}
+
 pub mod __client_accounts_stake {
     pub use crate::instructions::stake::__client_accounts_stake::*;
 }
@@ -45,6 +49,11 @@ pub mod __cpi_client_accounts_request_unstake {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_slash {
     pub use crate::instructions::slash::__cpi_client_accounts_slash::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_slash_already_applied {
+    pub use crate::instructions::slash::__cpi_client_accounts_slash_already_applied::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -119,5 +128,9 @@ pub mod agent_stake {
 
     pub fn slash(ctx: Context<Slash>, amount: u64) -> Result<()> {
         instructions::slash::handler(ctx, amount)
+    }
+
+    pub fn slash_already_applied(ctx: Context<SlashAlreadyApplied>) -> Result<()> {
+        instructions::slash::already_applied_handler(ctx)
     }
 }

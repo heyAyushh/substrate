@@ -1,4 +1,5 @@
 use crate::{
+    events::InclusionVerified,
     state::{HistoryCheckpoint, LatestCheckpoint},
     TrustSubstrateError, CHECKPOINT_SEED,
 };
@@ -30,6 +31,13 @@ pub fn handler(
         ),
         TrustSubstrateError::InvalidMerkleProof
     );
+
+    emit!(InclusionVerified {
+        identity: ctx.accounts.checkpoint.identity,
+        checkpoint: ctx.accounts.checkpoint.key(),
+        receipt: leaf,
+        slot: Clock::get()?.slot,
+    });
 
     Ok(())
 }

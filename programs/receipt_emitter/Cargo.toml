@@ -19,6 +19,7 @@ idl-build = [
     "identity_registry/idl-build",
     "task_registry/idl-build",
     "delegation_engine/idl-build",
+    "reputation_accumulator/idl-build",
     "trust_substrate_core/idl-build",
 ]
 
@@ -27,4 +28,5 @@ anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
 identity_registry = { path = "../identity_registry", features = ["cpi"] }
 task_registry = { path = "../task_registry", features = ["cpi"] }
 delegation_engine = { path = "../delegation_engine", features = ["cpi"] }
+reputation_accumulator = { path = "../reputation_accumulator", features = ["cpi"] }
 trust_substrate_core = { path = "../../crates/trust_substrate_core" }

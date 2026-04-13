@@ -1,9 +1,11 @@
+pub mod events;
 pub mod instructions;
 pub mod receipt_emitter;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
+pub use events::*;
 pub use instructions::*;
 pub use state::*;
 
@@ -19,6 +21,10 @@ pub mod __client_accounts_sync_task_status {
     pub use crate::instructions::sync_task_status::__client_accounts_sync_task_status::*;
 }
 
+pub mod __client_accounts_task_receipt_already_applied {
+    pub use crate::instructions::sync_task_status::__client_accounts_task_receipt_already_applied::*;
+}
+
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_advance_receipt_chain {
     pub use crate::instructions::advance_receipt_chain::__cpi_client_accounts_advance_receipt_chain::*;
@@ -32,6 +38,11 @@ pub mod __cpi_client_accounts_create_task {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_sync_task_status {
     pub use crate::instructions::sync_task_status::__cpi_client_accounts_sync_task_status::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_task_receipt_already_applied {
+    pub use crate::instructions::sync_task_status::__cpi_client_accounts_task_receipt_already_applied::*;
 }
 
 declare_id!("5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4");
@@ -59,5 +70,9 @@ pub mod task_registry {
 
     pub fn sync_task_status(ctx: Context<SyncTaskStatus>) -> Result<()> {
         instructions::sync_task_status::handler(ctx)
+    }
+
+    pub fn task_receipt_already_applied(ctx: Context<TaskReceiptAlreadyApplied>) -> Result<()> {
+        instructions::sync_task_status::already_applied_handler(ctx)
     }
 }

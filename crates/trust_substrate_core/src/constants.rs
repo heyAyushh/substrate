@@ -1,6 +1,7 @@
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
+pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
@@ -9,6 +10,7 @@ pub const SLASH_MARKER_SEED: &[u8] = b"slash_marker";
 pub const LATEST_CHECKPOINT_SEED: &[u8] = b"latest_checkpoint";
 pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
 pub const REPUTATION_RECEIPT_APPLICATION_SEED: &[u8] = b"reputation_receipt_application";
+pub const DOMAIN_CATALOG_SEED: &[u8] = b"domain_catalog";
 
 pub const EMPTY_SCOPE_BITMAP: u8 = 0;
 
@@ -19,6 +21,9 @@ pub const DISPUTE_KIND: u8 = 4;
 pub const DISPUTE_RESOLVED_KIND: u8 = 5;
 pub const CHALLENGE_KIND: u8 = 6;
 pub const CHALLENGE_RESPONSE_KIND: u8 = 7;
+pub const ATTESTATION_KIND: u8 = 8;
+pub const COMMIT_KIND: u8 = 9;
+pub const REVEAL_KIND: u8 = 10;
 
 pub const ASSIGNMENT_SCOPE_BIT: u8 = 1 << 0;
 pub const HANDOFF_SCOPE_BIT: u8 = 1 << 1;
@@ -27,6 +32,10 @@ pub const DISPUTE_SCOPE_BIT: u8 = 1 << 3;
 pub const DISPUTE_RESOLVED_SCOPE_BIT: u8 = 1 << 4;
 pub const CHALLENGE_SCOPE_BIT: u8 = 1 << 5;
 pub const CHALLENGE_RESPONSE_SCOPE_BIT: u8 = 1 << 6;
+pub const ATTESTATION_SCOPE_BIT: u8 = 1 << 7;
+
+// The audit receipt flow is not live yet, so delegation scopes only authorize
+// receipt kinds that can currently be emitted onchain.
 pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
     | HANDOFF_SCOPE_BIT
     | COMPLETION_SCOPE_BIT

@@ -63,6 +63,20 @@ pub fn handler(ctx: Context<ApplyReputationReceipt>) -> Result<()> {
     Ok(())
 }
 
+pub fn already_applied_handler(ctx: Context<ReputationReceiptAlreadyApplied>) -> Result<()> {
+    require_keys_eq!(
+        ctx.accounts.receipt_application.reputation,
+        ctx.accounts.reputation.key(),
+        TrustSubstrateError::ReceiptAlreadyAppliedToReputation
+    );
+    require_keys_eq!(
+        ctx.accounts.receipt_application.receipt,
+        ctx.accounts.receipt.key(),
+        TrustSubstrateError::ReceiptAlreadyAppliedToReputation
+    );
+    Ok(())
+}
+
 #[derive(Accounts)]
 pub struct ApplyReputationReceipt<'info> {
     pub identity: Account<'info, AgentIdentity>,
@@ -72,7 +86,7 @@ pub struct ApplyReputationReceipt<'info> {
     #[account(mut, constraint = reputation.identity == identity.key() @ TrustSubstrateError::ReputationIdentityMismatch)]
     pub reputation: Account<'info, ReputationAccumulator>,
     #[account(
-        init_if_needed,
+        init,
         payer = authority,
         space = 8 + AppliedReputationReceipt::INIT_SPACE,
         seeds = [
@@ -84,4 +98,24 @@ pub struct ApplyReputationReceipt<'info> {
     )]
     pub receipt_application: Account<'info, AppliedReputationReceipt>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct ReputationReceiptAlreadyApplied<'info> {
+    pub identity: Account<'info, AgentIdentity>,
+    pub authority: Signer<'info>,
+    pub receipt: Account<'info, ReceiptRecord>,
+    #[account(constraint = reputation.identity == identity.key() @ TrustSubstrateError::ReputationIdentityMismatch)]
+    pub reputation: Account<'info, ReputationAccumulator>,
+    #[account(
+        seeds = [
+            REPUTATION_RECEIPT_APPLICATION_SEED,
+            reputation.key().as_ref(),
+            receipt.key().as_ref()
+        ],
+        bump = receipt_application.bump,
+        has_one = reputation @ TrustSubstrateError::ReceiptAlreadyAppliedToReputation,
+        has_one = receipt @ TrustSubstrateError::ReceiptAlreadyAppliedToReputation
+    )]
+    pub receipt_application: Account<'info, AppliedReputationReceipt>,
 }

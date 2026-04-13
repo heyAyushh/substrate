@@ -1,9 +1,11 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { strictEqual } from "assert";
+import { createHash } from "crypto";
 import { DelegationEngine } from "../target/types/delegation_engine";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
+import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 
 const IDENTITY_SEED = "identity";
@@ -13,10 +15,13 @@ const DELEGATION_SEED = "delegation";
 const ASSIGNMENT_KIND = 1;
 const HANDOFF_KIND = 2;
 const HANDOFF_SCOPE_BIT = 1 << 1;
+const ZERO_BYTE = 0;
+const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
 describe("receipt_chain", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
+  let domainCatalog: anchor.web3.PublicKey;
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
@@ -35,8 +40,29 @@ describe("receipt_chain", () => {
         })
         .rpc();
     }
-  });
 
+    const reputationProgram = anchor.workspace
+      .reputationAccumulator as Program<ReputationAccumulator>;
+    const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("domain_catalog", "utf8")],
+      reputationProgram.programId
+    );
+    domainCatalog = catalogPda;
+    try {
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
+    } catch {
+      await reputationProgram.methods
+        .initializeDomainCatalog()
+        .accountsStrict({
+          curator: provider.wallet.publicKey,
+          domainCatalog,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+  });
 
   const provider = anchor.AnchorProvider.env();
   const authority = provider.wallet.publicKey;
@@ -48,6 +74,8 @@ describe("receipt_chain", () => {
     .receiptEmitter as Program<ReceiptEmitter>;
   const delegationProgram = anchor.workspace
     .delegationEngine as Program<DelegationEngine>;
+  const reputationProgram = anchor.workspace
+    .reputationAccumulator as Program<ReputationAccumulator>;
 
   it("requires receipts to extend the previous task receipt", async () => {
     const setup = await createTaskFixture(181, 182, 183);
@@ -69,6 +97,7 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         task: setup.task,
         receipt: firstReceipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -90,6 +119,7 @@ describe("receipt_chain", () => {
         delegation: setup.delegation,
         task: setup.task,
         receipt: secondReceipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -122,6 +152,7 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         task: setup.task,
         receipt: setup.receipts[0],
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -143,9 +174,10 @@ describe("receipt_chain", () => {
           identity: setup.identity,
           task: setup.task,
           receipt: setup.receipts[1],
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
       "ReceiptSequenceNotMonotonic"
@@ -170,6 +202,7 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         task: setup.task,
         receipt: setup.receipts[0],
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -192,9 +225,10 @@ describe("receipt_chain", () => {
           delegation: setup.delegation,
           task: setup.task,
           receipt: setup.receipts[1],
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegate])
         .rpc(),
@@ -219,6 +253,7 @@ describe("receipt_chain", () => {
         identity: setup.identity,
         task: setup.task,
         receipt: setup.receipts[0],
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -240,6 +275,7 @@ describe("receipt_chain", () => {
         delegation: setup.delegation,
         task: setup.task,
         receipt: setup.receipts[1],
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -263,9 +299,10 @@ describe("receipt_chain", () => {
           delegation: setup.delegation,
           task: setup.task,
           receipt: setup.receipts[2],
+          domainCatalog,
           systemProgram: anchor.web3.SystemProgram.programId,
           cpiAuthority,
-        taskRegistryProgram: taskProgram.programId,
+          taskRegistryProgram: taskProgram.programId,
         })
         .signers([delegate])
         .rpc(),
@@ -280,13 +317,13 @@ describe("receipt_chain", () => {
   ) {
     await fund(delegate.publicKey);
 
-    const agentId = bytes32(agentByte);
-    const taskId = bytes32(taskByte);
-    const firstReceiptId = bytes32(receiptByte);
-    const secondReceiptId = bytes32(receiptByte + 1);
-    const thirdReceiptId = bytes32(receiptByte + 2);
-    const domain = bytes32(receiptByte + 10);
-    const payloadHash = bytes32(receiptByte + 20);
+    const agentId = testBytes32(agentByte);
+    const taskId = testBytes32(taskByte);
+    const firstReceiptId = testBytes32(receiptByte);
+    const secondReceiptId = testBytes32(receiptByte + 1);
+    const thirdReceiptId = testBytes32(receiptByte + 2);
+    const domain = bytes32(ZERO_BYTE);
+    const payloadHash = testBytes32(receiptByte + 20);
     const [identity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
       authority.toBuffer(),
@@ -322,7 +359,11 @@ describe("receipt_chain", () => {
     ]);
 
     await identityProgram.methods
-      .createIdentity(agentId, bytes32(agentByte + 1), bytes32(agentByte + 2))
+      .createIdentity(
+        agentId,
+        testBytes32(agentByte + 1),
+        testBytes32(agentByte + 2)
+      )
       .accountsStrict({
         identity,
         authority,
@@ -331,7 +372,7 @@ describe("receipt_chain", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, bytes32(taskByte + 1), 0)
+      .createTask(taskId, testBytes32(taskByte + 1), 0)
       .accountsStrict({
         authority,
         identity,
@@ -350,6 +391,34 @@ describe("receipt_chain", () => {
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
+
+    try {
+      const catalog =
+        await reputationProgram.account.reputationDomainCatalog.fetch(
+          domainCatalog
+        );
+      if (
+        !catalog.domains.some((d: number[]) =>
+          Buffer.from(d).equals(Buffer.from(domain))
+        )
+      ) {
+        await reputationProgram.methods
+          .registerDomain(domain)
+          .accountsStrict({
+            curator: authority,
+            domainCatalog,
+          })
+          .rpc();
+      }
+    } catch {
+      await reputationProgram.methods
+        .registerDomain(domain)
+        .accountsStrict({
+          curator: authority,
+          domainCatalog,
+        })
+        .rpc();
+    }
 
     return {
       identity,
@@ -392,6 +461,14 @@ function bytes32(value: number): number[] {
   return Array.from(Buffer.alloc(32, value));
 }
 
+function testBytes32(value: number): number[] {
+  return Array.from(
+    createHash("sha256")
+      .update(`receipt_chain:${TEST_RUN_NAMESPACE}:${value}`)
+      .digest()
+  );
+}
+
 function asBuffer(value: number[]): Buffer {
   return Buffer.from(value);
 }
@@ -406,9 +483,12 @@ async function expectAnchorError(
 ) {
   try {
     await promise;
-  } catch (error) {
-    const actualCode = (error as { error?: { errorCode?: { code?: string } } })
-      .error?.errorCode?.code;
+  } catch (error: any) {
+    const actualCode =
+      error?.error?.errorCode?.code ?? error?.errorCode?.code ?? error?.code;
+    if (actualCode === expectedCode) return;
+    const msg = error?.message ?? "";
+    if (msg.includes(expectedCode)) return;
     strictEqual(actualCode, expectedCode);
     return;
   }

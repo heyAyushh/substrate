@@ -1,5 +1,11 @@
 pub mod apply_reputation_receipt;
 pub mod create_reputation_domain;
+pub mod deprecate_domain;
+pub mod initialize_domain_catalog;
+pub mod register_domain;
 
-pub use apply_reputation_receipt::ApplyReputationReceipt;
+pub use apply_reputation_receipt::{ApplyReputationReceipt, ReputationReceiptAlreadyApplied};
 pub use create_reputation_domain::CreateReputationDomain;
+pub use deprecate_domain::DeprecateDomain;
+pub use initialize_domain_catalog::InitializeDomainCatalog;
+pub use register_domain::RegisterDomain;

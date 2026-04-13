@@ -713,6 +713,7 @@ name = "proof_verifier"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "identity_registry",
  "trust_substrate_core",
 ]
 
@@ -738,6 +739,7 @@ dependencies = [
  "anchor-lang",
  "delegation_engine",
  "identity_registry",
+ "reputation_accumulator",
  "task_registry",
  "trust_substrate_core",
 ]

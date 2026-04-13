@@ -7,5 +7,5 @@ pub mod stake;
 pub use finalize_unstake::FinalizeUnstake;
 pub use initialize_stake::InitializeStake;
 pub use request_unstake::RequestUnstake;
-pub use slash::Slash;
+pub use slash::{Slash, SlashAlreadyApplied};
 pub use stake::Stake;

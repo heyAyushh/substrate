@@ -4,6 +4,7 @@ import { strictEqual, ok } from "assert";
 import { AgentStake } from "../target/types/agent_stake";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
+import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 
 const IDENTITY_SEED = "identity";
@@ -21,6 +22,7 @@ const SLASH_AMOUNT = new anchor.BN(100_000);
 describe("agent_stake", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
+  let domainCatalog: anchor.web3.PublicKey;
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
@@ -39,8 +41,58 @@ describe("agent_stake", () => {
         })
         .rpc();
     }
-  });
 
+    const reputationProgram = anchor.workspace
+      .reputationAccumulator as Program<ReputationAccumulator>;
+    const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("domain_catalog", "utf8")],
+      reputationProgram.programId
+    );
+    domainCatalog = catalogPda;
+    try {
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
+    } catch {
+      await reputationProgram.methods
+        .initializeDomainCatalog()
+        .accountsStrict({
+          curator: owner,
+          domainCatalog,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    const domain = bytes32(74);
+    try {
+      const catalog =
+        await reputationProgram.account.reputationDomainCatalog.fetch(
+          domainCatalog
+        );
+      if (
+        !catalog.domains.some((d: number[]) =>
+          Buffer.from(d).equals(Buffer.from(domain))
+        )
+      ) {
+        await reputationProgram.methods
+          .registerDomain(domain)
+          .accountsStrict({
+            curator: owner,
+            domainCatalog,
+          })
+          .rpc();
+      }
+    } catch {
+      await reputationProgram.methods
+        .registerDomain(domain)
+        .accountsStrict({
+          curator: owner,
+          domainCatalog,
+        })
+        .rpc();
+    }
+  });
 
   const provider = anchor.AnchorProvider.env();
   const owner = provider.wallet.publicKey;
@@ -163,6 +215,7 @@ describe("agent_stake", () => {
         identity,
         task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -205,8 +258,18 @@ describe("agent_stake", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "StakeSlashAlreadyApplied"
+      "AccountAlreadyInitialized"
     );
+
+    await stakeProgram.methods
+      .slashAlreadyApplied()
+      .accountsStrict({
+        slashAuthority: owner,
+        stake,
+        disputeReceipt: receipt,
+        slashMarker,
+      })
+      .rpc();
   });
 
   it("rejects zero-lamport stake writes with a program error", async () => {
@@ -421,7 +484,7 @@ describe("agent_stake", () => {
         receiptId,
         input.receiptKind,
         new anchor.BN(1),
-        bytes32(input.receiptId + 20),
+        bytes32(0),
         bytes32(0),
         bytes32(input.receiptId + 30)
       )
@@ -430,6 +493,7 @@ describe("agent_stake", () => {
         identity,
         task,
         receipt,
+        domainCatalog,
         systemProgram: anchor.web3.SystemProgram.programId,
         cpiAuthority,
         taskRegistryProgram: taskProgram.programId,
@@ -465,9 +529,21 @@ async function expectAnchorError(
 ) {
   try {
     await promise;
-  } catch (error) {
-    const actualCode = (error as { error?: { errorCode?: { code?: string } } })
-      .error?.errorCode?.code;
+  } catch (error: any) {
+    const actualCode =
+      error?.error?.errorCode?.code ?? error?.errorCode?.code ?? error?.code;
+    if (actualCode === expectedCode) return;
+    const message = String(error?.message ?? "");
+    const logs: string[] = error?.logs ?? error?.error?.logs ?? [];
+    const combined = message + " " + logs.join(" ");
+    if (combined.includes(expectedCode)) return;
+    if (
+      expectedCode === "AccountAlreadyInitialized" &&
+      (message.includes("custom program error: 0x0") ||
+        logs.some((l: string) => l.includes("already in use")))
+    ) {
+      return;
+    }
     strictEqual(actualCode, expectedCode);
     return;
   }

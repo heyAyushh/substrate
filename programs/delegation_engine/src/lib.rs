@@ -1,8 +1,10 @@
+pub mod events;
 pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
+pub use events::*;
 pub use instructions::*;
 pub use state::*;
 pub use trust_substrate_core::{TrustSubstrateError, DELEGATION_SEED, EMPTY_SCOPE_BITMAP};

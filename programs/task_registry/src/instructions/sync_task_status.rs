@@ -6,6 +6,7 @@ use trust_substrate_core::{
     TASK_STATUS_DISPUTED, TASK_STATUS_RESOLVED,
 };
 
+use crate::events::TaskStatusSynced;
 use crate::receipt_emitter::state::ReceiptRecord;
 use crate::state::{AppliedTaskReceipt, TaskRecord};
 
@@ -67,6 +68,29 @@ pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
     receipt_application.receipt = ctx.accounts.receipt.key();
     receipt_application.bump = ctx.bumps.receipt_application;
 
+    emit!(TaskStatusSynced {
+        identity: task.identity,
+        task: task.key(),
+        receipt: ctx.accounts.receipt.key(),
+        kind: ctx.accounts.receipt.kind,
+        new_status: task.status,
+        slot: Clock::get()?.slot,
+    });
+
+    Ok(())
+}
+
+pub fn already_applied_handler(ctx: Context<TaskReceiptAlreadyApplied>) -> Result<()> {
+    require_keys_eq!(
+        ctx.accounts.receipt_application.task,
+        ctx.accounts.task.key(),
+        TrustSubstrateError::ReceiptAlreadyAppliedToTask
+    );
+    require_keys_eq!(
+        ctx.accounts.receipt_application.receipt,
+        ctx.accounts.receipt.key(),
+        TrustSubstrateError::ReceiptAlreadyAppliedToTask
+    );
     Ok(())
 }
 
@@ -79,7 +103,7 @@ pub struct SyncTaskStatus<'info> {
     pub task: Account<'info, TaskRecord>,
     pub receipt: Account<'info, ReceiptRecord>,
     #[account(
-        init_if_needed,
+        init,
         payer = authority,
         space = 8 + AppliedTaskReceipt::INIT_SPACE,
         seeds = [
@@ -91,4 +115,24 @@ pub struct SyncTaskStatus<'info> {
     )]
     pub receipt_application: Account<'info, AppliedTaskReceipt>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct TaskReceiptAlreadyApplied<'info> {
+    pub authority: Signer<'info>,
+    pub identity: Account<'info, AgentIdentity>,
+    #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
+    pub task: Account<'info, TaskRecord>,
+    pub receipt: Account<'info, ReceiptRecord>,
+    #[account(
+        seeds = [
+            TASK_RECEIPT_APPLICATION_SEED,
+            task.key().as_ref(),
+            receipt.key().as_ref()
+        ],
+        bump = receipt_application.bump,
+        has_one = task @ TrustSubstrateError::ReceiptAlreadyAppliedToTask,
+        has_one = receipt @ TrustSubstrateError::ReceiptAlreadyAppliedToTask
+    )]
+    pub receipt_application: Account<'info, AppliedTaskReceipt>,
 }

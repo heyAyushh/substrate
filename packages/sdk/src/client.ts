@@ -90,6 +90,9 @@ export interface ReceiptRecord {
   readonly sequence: number;
   readonly previousReceiptId?: string;
   readonly domain: string;
+  readonly auditorId?: string;
+  readonly targetReceiptId?: string;
+  readonly round?: number;
 }
 
 export interface DelegationScope {

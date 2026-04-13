@@ -4,6 +4,7 @@ use trust_substrate_core::{
     TrustSubstrateError, DELEGATION_SEED, EMPTY_SCOPE_BITMAP, VALID_SCOPE_BITMAP,
 };
 
+use crate::events::DelegationCreated;
 use crate::state::DelegationRecord;
 
 pub fn handler(
@@ -27,6 +28,14 @@ pub fn handler(
     delegation.expires_at_slot = expires_at_slot;
     delegation.revoked = false;
     delegation.bump = ctx.bumps.delegation;
+
+    emit!(DelegationCreated {
+        identity: delegation.identity,
+        delegate: delegation.delegate,
+        allowed_actions,
+        expires_at_slot,
+        slot: Clock::get()?.slot,
+    });
 
     Ok(())
 }

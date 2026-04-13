@@ -1,5 +1,5 @@
 use crate::{
-    identity_registry::state::AgentIdentity, state::ReputationAccumulator, TrustSubstrateError,
+    identity_registry::state::AgentIdentity, state::ReputationAccumulator, state::ReputationDomainCatalog, TrustSubstrateError,
     REPUTATION_SEED,
 };
 use anchor_lang::prelude::*;
@@ -18,6 +18,11 @@ pub fn handler(
         ctx.accounts.identity.authority,
         ctx.accounts.authority.key(),
         TrustSubstrateError::ReputationAuthorityMismatch
+    );
+
+    require!(
+        ctx.accounts.domain_catalog.is_domain_active(&domain),
+        TrustSubstrateError::DomainNotRegistered
     );
 
     let reputation = &mut ctx.accounts.reputation;
@@ -60,5 +65,6 @@ pub struct CreateReputationDomain<'info> {
         bump
     )]
     pub reputation: Account<'info, ReputationAccumulator>,
+    pub domain_catalog: Account<'info, ReputationDomainCatalog>,
     pub system_program: Program<'info, System>,
 }

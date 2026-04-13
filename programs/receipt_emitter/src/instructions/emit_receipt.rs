@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
+use reputation_accumulator::state::ReputationDomainCatalog;
 use task_registry::state::TaskRecord;
 use trust_substrate_core::{is_valid_receipt_kind, TrustSubstrateError, RECEIPT_SEED};
 
@@ -19,6 +20,14 @@ pub fn handler(
         is_valid_receipt_kind(kind),
         TrustSubstrateError::InvalidReceiptKind
     );
+
+    let empty_domain = [0u8; 32];
+    if domain != empty_domain {
+        require!(
+            ctx.accounts.domain_catalog.is_domain_registered(&domain),
+            TrustSubstrateError::DomainNotRegistered
+        );
+    }
 
     let task = &ctx.accounts.task;
     require!(
@@ -92,6 +101,7 @@ pub struct EmitReceipt<'info> {
         bump
     )]
     pub receipt: Account<'info, ReceiptRecord>,
+    pub domain_catalog: Account<'info, ReputationDomainCatalog>,
     #[account(
         seeds = [b"cpi_authority"],
         bump
