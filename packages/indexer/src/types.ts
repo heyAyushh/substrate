@@ -65,3 +65,57 @@ export interface IngestResult {
   accepted: number;
   duplicates: number;
 }
+
+export interface AgentProfile {
+  agentId: string;
+  receiptCount: number;
+  domains: Record<string, number>;
+  kinds: Record<string, number>;
+  modelUsage: Record<string, number>;
+  toolUsage: Record<string, number>;
+  handoffPartners: string[];
+  firstSlot: number;
+  latestSlot: number;
+}
+
+export interface LeaderboardEntry {
+  agentId: string;
+  score: number;
+  receiptCount: number;
+  domain?: string;
+  attestations: number;
+}
+
+export interface LeaderboardQuery {
+  domain?: string;
+  since?: number;
+  until?: number;
+  attestedOnly?: boolean;
+}
+
+export interface ToolQualityStat {
+  tool: string;
+  attempts: number;
+  completions: number;
+  disputes: number;
+  successRate: number;
+}
+
+export interface AgentTraceExportEdit {
+  receiptId: string;
+  seq: number;
+  path: string;
+  slot: number;
+  actorId: string;
+  beforeHash?: string;
+  afterHash?: string;
+  diff?: string;
+}
+
+export interface AgentTraceExportBundle {
+  version: "0.1.0";
+  traceId: string;
+  taskId: string;
+  agentIds: string[];
+  edits: AgentTraceExportEdit[];
+}

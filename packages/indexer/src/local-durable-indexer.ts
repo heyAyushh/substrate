@@ -2,14 +2,30 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { compareBySlotThenReceiptId, stableStringify } from "./utils.js";
 import {
   type AgentHistoryView,
+  type AgentProfile,
+  type AgentTraceExportBundle,
+  type AgentTraceExportEdit,
   type DomainSummary,
   type ExecutionGraph,
   type HandoffStep,
   type IndexedReceipt,
   type IngestResult,
+  type LeaderboardEntry,
+  type LeaderboardQuery,
   type LocalReceiptRecord,
   type TaskHistoryView,
+  type ToolQualityStat,
 } from "./types.js";
+
+const KIND_WEIGHTS: Readonly<Record<string, number>> = {
+  assignment: 1,
+  handoff: 2,
+  completion: 5,
+  dispute: -4,
+  dispute_resolved: 3,
+};
+
+const ATTESTATION_KIND = "attestation";
 
 const SNAPSHOT_VERSION = 1 as const;
 
@@ -51,6 +67,23 @@ const cloneReceipt = (
 
 const dedupeStrings = (values: string[]): string[] =>
   [...new Set(values)].sort();
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
+const isFileEditReceipt = (receipt: LocalReceiptRecord): boolean => {
+  if (receipt.kind === "file_edit") {
+    return true;
+  }
+  const stepKind = receipt.payload.stepKind;
+  if (stepKind === "file_edit") {
+    return true;
+  }
+  return (
+    typeof receipt.payload.path === "string" ||
+    typeof receipt.payload.file === "string"
+  );
+};
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
@@ -320,6 +353,182 @@ export class LocalDurableIndexer {
         this.getDomainSummaries().map((summary) => [summary.domain, summary])
       ),
     };
+  }
+
+  getAgentProfile(agentId: string): AgentProfile {
+    const receipts = this.sortedReceipts().filter(
+      (receipt) => receipt.actorId === agentId
+    );
+
+    const profile: AgentProfile = {
+      agentId,
+      receiptCount: receipts.length,
+      domains: {},
+      kinds: {},
+      modelUsage: {},
+      toolUsage: {},
+      handoffPartners: [],
+      firstSlot: 0,
+      latestSlot: 0,
+    };
+
+    if (receipts.length === 0) {
+      return profile;
+    }
+
+    const partners = new Set<string>();
+    profile.firstSlot = receipts[0].slot;
+    profile.latestSlot = receipts[receipts.length - 1].slot;
+
+    for (const receipt of receipts) {
+      profile.domains[receipt.domain] =
+        (profile.domains[receipt.domain] ?? 0) + 1;
+      profile.kinds[receipt.kind] = (profile.kinds[receipt.kind] ?? 0) + 1;
+
+      const model = asString(receipt.payload.model);
+      if (model) {
+        profile.modelUsage[model] = (profile.modelUsage[model] ?? 0) + 1;
+      }
+
+      const tool = asString(receipt.payload.tool);
+      if (tool) {
+        profile.toolUsage[tool] = (profile.toolUsage[tool] ?? 0) + 1;
+      }
+
+      if (isHandoff(receipt)) {
+        const target = getHandoffTarget(receipt);
+        if (target) {
+          partners.add(target);
+        }
+      }
+    }
+
+    profile.handoffPartners = [...partners].sort();
+    return profile;
+  }
+
+  getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
+    const attestations = this.collectAttestationCounts();
+    const scores = new Map<string, LeaderboardEntry>();
+
+    for (const receipt of this.sortedReceipts()) {
+      if (query.domain !== undefined && receipt.domain !== query.domain) {
+        continue;
+      }
+      if (query.since !== undefined && receipt.slot < query.since) {
+        continue;
+      }
+      if (query.until !== undefined && receipt.slot > query.until) {
+        continue;
+      }
+      if (receipt.kind === ATTESTATION_KIND) {
+        continue;
+      }
+
+      const weight = KIND_WEIGHTS[receipt.kind] ?? 0;
+      const existing = scores.get(receipt.actorId) ?? {
+        agentId: receipt.actorId,
+        score: 0,
+        receiptCount: 0,
+        domain: query.domain,
+        attestations: attestations.get(receipt.actorId) ?? 0,
+      };
+      existing.score += weight;
+      existing.receiptCount += 1;
+      scores.set(receipt.actorId, existing);
+    }
+
+    let entries = [...scores.values()];
+    if (query.attestedOnly) {
+      entries = entries.filter((entry) => entry.attestations > 0);
+    }
+    return entries.sort((left, right) => right.score - left.score);
+  }
+
+  getToolQualityStats(agentId: string): ToolQualityStat[] {
+    const stats = new Map<string, ToolQualityStat>();
+
+    for (const receipt of this.sortedReceipts()) {
+      if (receipt.actorId !== agentId) {
+        continue;
+      }
+
+      const tool = asString(receipt.payload.tool);
+      if (!tool) {
+        continue;
+      }
+
+      const stat = stats.get(tool) ?? {
+        tool,
+        attempts: 0,
+        completions: 0,
+        disputes: 0,
+        successRate: 0,
+      };
+      stat.attempts += 1;
+      if (receipt.kind === "completion") {
+        stat.completions += 1;
+      }
+      if (receipt.kind === "dispute" || receipt.kind === "dispute_resolved") {
+        stat.disputes += 1;
+      }
+      stats.set(tool, stat);
+    }
+
+    const results = [...stats.values()];
+    for (const stat of results) {
+      stat.successRate =
+        stat.attempts === 0 ? 0 : stat.completions / stat.attempts;
+    }
+    return results.sort((left, right) => left.tool.localeCompare(right.tool));
+  }
+
+  getAgentTraceBundle(taskId: string): AgentTraceExportBundle {
+    const receipts = this.getTaskHistory(taskId);
+    const agentIds = new Set<string>();
+    const edits: AgentTraceExportEdit[] = [];
+
+    for (const receipt of receipts) {
+      agentIds.add(receipt.actorId);
+      if (!isFileEditReceipt(receipt)) {
+        continue;
+      }
+
+      edits.push({
+        receiptId: receipt.receiptId,
+        seq: receipt.sequence,
+        path:
+          asString(receipt.payload.path) ?? asString(receipt.payload.file) ?? "",
+        slot: receipt.slot,
+        actorId: receipt.actorId,
+        beforeHash: asString(receipt.payload.beforeHash),
+        afterHash: asString(receipt.payload.afterHash),
+        diff: asString(receipt.payload.diff),
+      });
+    }
+
+    return {
+      version: "0.1.0",
+      traceId: taskId,
+      taskId,
+      agentIds: [...agentIds].sort(),
+      edits,
+    };
+  }
+
+  private collectAttestationCounts(): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const receipt of this.sortedReceipts()) {
+      if (receipt.kind !== ATTESTATION_KIND) {
+        continue;
+      }
+      const target = asString(receipt.payload.target);
+      if (!target) {
+        continue;
+      }
+      counts.set(target, (counts.get(target) ?? 0) + 1);
+    }
+    return counts;
   }
 
   private sortedReceipts(): IndexedReceipt[] {
