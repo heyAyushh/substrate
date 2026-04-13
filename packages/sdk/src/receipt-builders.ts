@@ -3,6 +3,7 @@ import {
   type ReceiptKind,
   type ReceiptRecord,
 } from "./client.js";
+import { type BlobFetcher, verifyPayloadAvailable } from "./data-availability.js";
 import {
   hashExecutionRecord,
   hashStep,
@@ -12,6 +13,8 @@ import {
 export interface ReceiptStorageRef {
   readonly uri: string;
   readonly hash?: string;
+  readonly verify?: boolean;
+  readonly fetcher?: BlobFetcher;
 }
 
 export interface ReceiptFromExecutionInput {
@@ -48,10 +51,11 @@ export function createReceiptFromExecution(
   input: ReceiptFromExecutionInput
 ): ReceiptRecord {
   const { root } = hashExecutionRecord(input.record);
+  const payloadHash = root.toString("hex");
   const payload: Record<string, unknown> = {
     domain: input.domain,
     recordId: input.record.recordId,
-    payloadHash: root.toString("hex"),
+    payloadHash,
   };
 
   if (input.storage) {
@@ -69,6 +73,20 @@ export function createReceiptFromExecution(
     previousReceiptId: input.previousReceiptId,
     payload,
   });
+}
+
+export async function createVerifiedReceiptFromExecution(
+  input: ReceiptFromExecutionInput
+): Promise<ReceiptRecord> {
+  if (input.storage?.verify) {
+    const { root } = hashExecutionRecord(input.record);
+    await verifyPayloadAvailable({
+      uri: input.storage.uri,
+      expectedHash: input.storage.hash ?? root.toString("hex"),
+      fetcher: input.storage.fetcher,
+    });
+  }
+  return createReceiptFromExecution(input);
 }
 
 export function createDisputeReceipt(input: DisputeReceiptInput): ReceiptRecord {

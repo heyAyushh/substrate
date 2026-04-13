@@ -45,7 +45,19 @@ export {
 export {
   createDisputeReceipt,
   createReceiptFromExecution,
+  createVerifiedReceiptFromExecution,
 } from "./receipt-builders.js";
+
+export {
+  DataAvailabilityError,
+  verifyPayloadAvailable,
+} from "./data-availability.js";
+
+export type {
+  BlobFetchResult,
+  BlobFetcher,
+  VerifyPayloadInput,
+} from "./data-availability.js";
 
 export type {
   DisputeReceiptInput,
