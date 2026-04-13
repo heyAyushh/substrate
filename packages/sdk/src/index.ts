@@ -42,6 +42,19 @@ export {
   hashAgentTrace,
 } from "./agent-trace.js";
 
+export {
+  createDisputeReceipt,
+  createReceiptFromExecution,
+} from "./receipt-builders.js";
+
+export type {
+  DisputeReceiptInput,
+  DisputeResolution,
+  DisputeResolutionOutcome,
+  ReceiptFromExecutionInput,
+  ReceiptStorageRef,
+} from "./receipt-builders.js";
+
 export type {
   AgentTraceBundle,
   AgentTraceFileEdit,
