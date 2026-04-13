@@ -35,9 +35,7 @@ const recordFetcher: BlobFetcher = async () => ({
 });
 
 test("verifyPayloadAvailable accepts a matching blob", async () => {
-  const { hashCanonical } = await import(
-    "../../packages/sdk/src/canonical.js"
-  );
+  const { hashCanonical } = await import("../../packages/sdk/src/canonical.js");
   const expected = hashCanonical(payload);
   await verifyPayloadAvailable({
     uri: "memory://payload",

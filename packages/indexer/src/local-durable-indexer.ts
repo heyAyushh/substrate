@@ -528,7 +528,9 @@ export class LocalDurableIndexer {
         receiptId: receipt.receiptId,
         seq: receipt.sequence,
         path:
-          asString(receipt.payload.path) ?? asString(receipt.payload.file) ?? "",
+          asString(receipt.payload.path) ??
+          asString(receipt.payload.file) ??
+          "",
         slot: receipt.slot,
         actorId: receipt.actorId,
         beforeHash: asString(receipt.payload.beforeHash),

@@ -20,8 +20,7 @@ const CHECKPOINT_SEED = "checkpoint";
 const REPUTATION_SEED = "reputation";
 const LATEST_CHECKPOINT_SEED = "latest_checkpoint";
 const TASK_RECEIPT_APPLICATION_SEED = "task_receipt_application";
-const REPUTATION_RECEIPT_APPLICATION_SEED =
-  "reputation_receipt_application";
+const REPUTATION_RECEIPT_APPLICATION_SEED = "reputation_receipt_application";
 const ASSIGNMENT_ACTION_MASK = 1 << 0;
 const HANDOFF_ACTION_MASK = 1 << 1;
 const COMPLETION_ACTION_MASK = 1 << 2;
@@ -548,7 +547,9 @@ describe("trust_substrate protocol flow", () => {
       overflowSetup.identity.toBuffer(),
       u64Bn(MAX_U64),
     ]);
-    const latestMaxEpochCheckpoint = latestCheckpointPda(overflowSetup.identity);
+    const latestMaxEpochCheckpoint = latestCheckpointPda(
+      overflowSetup.identity
+    );
 
     await proofProgram.methods
       .checkpointHistory(MAX_U64, bytes32(116), new anchor.BN(1))

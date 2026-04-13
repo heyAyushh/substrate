@@ -40,7 +40,9 @@ export function hashStep(step: ExecutionStep): string {
   return hashCanonical(step);
 }
 
-export function hashExecutionRecord(record: ExecutionRecord): ExecutionRecordHash {
+export function hashExecutionRecord(
+  record: ExecutionRecord
+): ExecutionRecordHash {
   if (record.steps.length === 0) {
     throw new Error("ExecutionRecord must contain at least one step");
   }

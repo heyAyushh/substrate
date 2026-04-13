@@ -3,7 +3,10 @@ import {
   type ReceiptKind,
   type ReceiptRecord,
 } from "./client.js";
-import { type BlobFetcher, verifyPayloadAvailable } from "./data-availability.js";
+import {
+  type BlobFetcher,
+  verifyPayloadAvailable,
+} from "./data-availability.js";
 import {
   hashExecutionRecord,
   hashStep,
@@ -89,7 +92,9 @@ export async function createVerifiedReceiptFromExecution(
   return createReceiptFromExecution(input);
 }
 
-export function createDisputeReceipt(input: DisputeReceiptInput): ReceiptRecord {
+export function createDisputeReceipt(
+  input: DisputeReceiptInput
+): ReceiptRecord {
   const step = input.record.steps.find((entry) => entry.seq === input.stepSeq);
   if (!step) {
     throw new Error(

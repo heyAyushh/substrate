@@ -198,7 +198,11 @@ test("getAgentTraceBundle projects file edit receipts", () => {
   strictEqual(bundle.taskId, "t1");
   deepStrictEqual(bundle.agentIds, ["agent-a", "agent-b"]);
   strictEqual(bundle.edits.length, 2);
-  ok(bundle.edits.every((edit) => typeof edit.path === "string" && edit.path.length > 0));
+  ok(
+    bundle.edits.every(
+      (edit) => typeof edit.path === "string" && edit.path.length > 0
+    )
+  );
 });
 
 test("tracks expired unrevealed commit receipts", () => {

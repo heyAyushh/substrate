@@ -94,10 +94,7 @@ export type {
   ReceiptStorageRef,
 } from "./receipt-builders.js";
 
-export type {
-  AgentTraceBundle,
-  AgentTraceFileEdit,
-} from "./agent-trace.js";
+export type { AgentTraceBundle, AgentTraceFileEdit } from "./agent-trace.js";
 
 export type {
   DelegationAssertionInput,

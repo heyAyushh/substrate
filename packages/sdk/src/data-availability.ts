@@ -56,8 +56,7 @@ export async function verifyPayloadAvailable(
 }
 
 function decodePayload(result: BlobFetchResult): unknown {
-  const text =
-    result.text ?? Buffer.from(result.bytes).toString("utf8");
+  const text = result.text ?? Buffer.from(result.bytes).toString("utf8");
   try {
     return JSON.parse(text);
   } catch {
