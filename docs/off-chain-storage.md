@@ -64,9 +64,9 @@ After submission, a blob can disappear. A `challenge` receipt names a target rec
 
 For payloads that must not leak before a deadline (sealed bids, blind reviews), the author emits a `commit` receipt with `hashCanonical(payload)` and later a `reveal` receipt with the payload. The SDK rejects reveals whose hash does not match the prior commit. Unrevealed commits past the deadline are weighted as disputes.
 
-### Authority-rotation soft-decay (task #14)
+### Authority-rotation history (task #14)
 
-Selling a high-reputation identity must not transfer its reputation. When an `authority_rotated` marker is seen for an identity, the reputation derivation halves the weight of all pre-rotation receipts. A new buyer inherits the history but not the score.
+Selling a high-reputation identity must not silently transfer its reputation. The indexer exposes `authority_rotated` markers so consumers can inspect authority history, but v1 does not apply automatic score decay because a payload-only marker can be forged by the current authority. Reputation decay should be enabled only after an on-chain authority-rotation instruction makes the transition independently verifiable.
 
 ### Attestation filter (task #15)
 
@@ -87,7 +87,7 @@ An attacker who loses nothing when caught can grind the system. The `agent_stake
 | Off-chain payload withheld at submit    | DA proof (`verifyPayloadAvailable`)     | #11  |
 | Off-chain payload deleted after submit  | Availability challenge                  | #12  |
 | Early payload disclosure                | Commit-reveal                           | #13  |
-| Reputation resold with identity         | Authority-rotation decay                | #14  |
+| Reputation resold with identity         | Authority-rotation history              | #14  |
 | Sybil identity farming                  | Attestation filter                      | #15  |
 | Snapshot loss                           | Archive rotation                        | #16  |
 | Disputes without skin in the game       | Stake + slashing via CPI                | #17, #18 |

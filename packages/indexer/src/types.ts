@@ -105,6 +105,15 @@ export interface AgentAttestation {
   evidenceHash?: string;
 }
 
+export interface AuthorityRotation {
+  receiptId: string;
+  slot: number;
+  taskId: string;
+  agentId: string;
+  previousAuthority?: string;
+  newAuthority?: string;
+}
+
 export interface ToolQualityStat {
   tool: string;
   attempts: number;

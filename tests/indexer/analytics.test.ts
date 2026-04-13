@@ -164,6 +164,39 @@ test("getAttestations returns attestations targeting an agent", () => {
   strictEqual(attestations[0].evidenceUri, "ipfs://review");
 });
 
+test("getAuthorityHistory returns ordered rotation markers", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "r1",
+      slot: 3,
+      taskId: "t1",
+      actorId: "agent-a",
+      kind: "handoff",
+      payload: {
+        type: "trust-substrate.authority_rotated",
+        previousAuthority: "old-authority",
+        newAuthority: "new-authority",
+      },
+    }),
+    receipt({
+      receiptId: "r2",
+      slot: 1,
+      taskId: "t1",
+      actorId: "agent-a",
+      kind: "assignment",
+      payload: { note: "not a rotation" },
+    }),
+  ]);
+
+  const history = indexer.getAuthorityHistory("agent-a");
+
+  strictEqual(history.length, 1);
+  strictEqual(history[0].receiptId, "r1");
+  strictEqual(history[0].previousAuthority, "old-authority");
+  strictEqual(history[0].newAuthority, "new-authority");
+});
+
 test("getToolQualityStats computes per-tool success rate", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([

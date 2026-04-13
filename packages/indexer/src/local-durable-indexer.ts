@@ -6,6 +6,7 @@ import {
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
+  type AuthorityRotation,
   type ChallengeStatus,
   type CommitmentStatus,
   type DomainSummary,
@@ -35,6 +36,7 @@ const CHALLENGE_KIND = "challenge";
 const CHALLENGE_RESPONSE_KIND = "challenge_response";
 const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
+const AUTHORITY_ROTATED_MARKER = "trust-substrate.authority_rotated";
 
 const SNAPSHOT_VERSION = 1 as const;
 
@@ -534,6 +536,24 @@ export class LocalDurableIndexer {
         attestationKind: asString(receipt.payload.kind),
         evidenceUri: asString(receipt.payload.evidenceUri),
         evidenceHash: asString(receipt.payload.evidenceHash),
+      }));
+  }
+
+  getAuthorityHistory(agentId: string): AuthorityRotation[] {
+    return this.sortedReceipts()
+      .filter(
+        (receipt) =>
+          receipt.actorId === agentId &&
+          (receipt.kind === "authority_rotated" ||
+            receipt.payload.type === AUTHORITY_ROTATED_MARKER)
+      )
+      .map((receipt) => ({
+        receiptId: receipt.receiptId,
+        slot: receipt.slot,
+        taskId: receipt.taskId,
+        agentId: receipt.actorId,
+        previousAuthority: asString(receipt.payload.previousAuthority),
+        newAuthority: asString(receipt.payload.newAuthority),
       }));
   }
 

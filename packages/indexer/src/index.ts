@@ -8,6 +8,7 @@ export type {
   AgentProfile,
   AgentTraceExportBundle,
   AgentTraceExportEdit,
+  AuthorityRotation,
   ChallengeStatus,
   CommitmentStatus,
   DomainSummary,
