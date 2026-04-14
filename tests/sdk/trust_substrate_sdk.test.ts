@@ -1,5 +1,7 @@
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
+import { resolve } from "node:path";
 import {
   ReceiptLedger,
   TrustSubstrateClient,
@@ -89,6 +91,82 @@ test("rejects delegation scope mismatches", () => {
       }),
     /scope/i
   );
+});
+
+test("multi-agent simulation emits explicit delegation chain metadata", () => {
+  const scriptPath = resolve(
+    process.cwd(),
+    "../../examples/multi_agent/run.ts"
+  );
+  const result = spawnSync("node", ["--experimental-strip-types", scriptPath], {
+    encoding: "utf8",
+  });
+
+  strictEqual(result.status, 0, result.stderr);
+
+  const output = JSON.parse(result.stdout) as {
+    readonly identities: {
+      readonly planner: string;
+      readonly alpha: string;
+      readonly beta: string;
+    };
+    readonly task: string;
+    readonly delegationChain?: ReadonlyArray<{
+      readonly delegatorId: string;
+      readonly delegateId: string;
+      readonly allowedActions: ReadonlyArray<string>;
+      readonly taskId: string;
+      readonly domain: string;
+    }>;
+    readonly delegationAssertions?: ReadonlyArray<{
+      readonly actorId: string;
+      readonly action: string;
+      readonly taskId: string;
+    }>;
+  };
+
+  strictEqual(output.delegationChain?.length, 2);
+  deepStrictEqual(output.delegationChain, [
+    {
+      delegatorId: output.identities.planner,
+      delegateId: output.identities.alpha,
+      allowedActions: ["handoff", "completion"],
+      taskId: output.task,
+      domain: "coding",
+      expiresAtSlot: 260,
+    },
+    {
+      delegatorId: output.identities.alpha,
+      delegateId: output.identities.beta,
+      allowedActions: ["handoff", "completion"],
+      taskId: output.task,
+      domain: "coding",
+      expiresAtSlot: 300,
+    },
+  ]);
+  deepStrictEqual(output.delegationAssertions, [
+    {
+      actorId: output.identities.alpha,
+      action: "completion",
+      taskId: output.task,
+      domain: "coding",
+      currentSlot: 150,
+    },
+    {
+      actorId: output.identities.alpha,
+      action: "handoff",
+      taskId: output.task,
+      domain: "coding",
+      currentSlot: 240,
+    },
+    {
+      actorId: output.identities.beta,
+      action: "completion",
+      taskId: output.task,
+      domain: "coding",
+      currentSlot: 260,
+    },
+  ]);
 });
 
 test("verifies merkle proofs deterministically", () => {

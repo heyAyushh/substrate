@@ -15,6 +15,7 @@ import {
   hashExecutionRecord,
   ReceiptLedger,
   TrustSubstrateClient,
+  type DelegationRecord,
   type ExecutionRecord,
   type ExecutionStep,
   type ExecutionStepKind,
@@ -104,6 +105,56 @@ const nextSequence = () => {
 
 const appendLedger = (receipt: ReceiptRecord) => ledger.append(receipt);
 
+interface DelegationSummary {
+  readonly delegatorId: string;
+  readonly delegateId: string;
+  readonly allowedActions: ReadonlyArray<string>;
+  readonly taskId: string;
+  readonly domain: string;
+  readonly expiresAtSlot?: number;
+}
+
+interface DelegationAssertionSummary {
+  readonly actorId: string;
+  readonly action: string;
+  readonly taskId: string;
+  readonly domain: string;
+  readonly currentSlot: number;
+}
+
+const delegationChain: DelegationSummary[] = [];
+const delegationAssertions: DelegationAssertionSummary[] = [];
+
+const assertDelegatedReceipt = ({
+  actorId,
+  action,
+  delegation,
+  receipt,
+  currentSlot,
+}: {
+  readonly actorId: string;
+  readonly action: "handoff" | "completion";
+  readonly delegation: DelegationRecord;
+  readonly receipt: ReceiptRecord;
+  readonly currentSlot: number;
+}): ReceiptRecord => {
+  client.delegation.assertAllowed({
+    delegation,
+    action,
+    taskId: receipt.taskId,
+    domain: receipt.domain,
+    currentSlot,
+  });
+  delegationAssertions.push({
+    actorId,
+    action,
+    taskId: receipt.taskId,
+    domain: receipt.domain,
+    currentSlot,
+  });
+  return appendLedger(receipt);
+};
+
 const stakeInitAndDeposit = (
   identityId: string,
   owner: string,
@@ -185,6 +236,23 @@ const handoffToAlpha = appendLedger(
   })
 );
 
+const plannerToAlphaDelegation = client.delegation.create({
+  delegatorId: planner.identityId,
+  delegateId: alpha.identityId,
+  allowedActions: ["handoff", "completion"],
+  taskIds: [task.taskId],
+  domains: [DOMAIN],
+  expiresAtSlot: 260,
+});
+delegationChain.push({
+  delegatorId: plannerToAlphaDelegation.delegatorId,
+  delegateId: plannerToAlphaDelegation.delegateId,
+  allowedActions: plannerToAlphaDelegation.scope.allowedActions,
+  taskId: task.taskId,
+  domain: DOMAIN,
+  expiresAtSlot: plannerToAlphaDelegation.expiresAtSlot,
+});
+
 const alphaStakeSeedPayload = {
   ...handoffToAlpha.payload,
   toAgentId: alpha.identityId,
@@ -242,16 +310,20 @@ try {
   }
 }
 
-const alphaCompletion = appendLedger(
-  createReceiptFromExecution({
+const alphaCompletion = assertDelegatedReceipt({
+  actorId: alpha.identityId,
+  action: "completion",
+  delegation: plannerToAlphaDelegation,
+  currentSlot: 150,
+  receipt: createReceiptFromExecution({
     record: alphaWorkRecord,
     kind: "completion",
     domain: DOMAIN,
     actorId: alpha.identityId,
     sequence: nextSequence(),
     storage: { uri: "memory://alpha-blob" },
-  })
-);
+  }),
+});
 
 const challenge = appendLedger(
   createChallengeReceipt({
@@ -300,9 +372,26 @@ const slashResolutionWithEvents: ReceiptRecord = {
   },
 };
 
+const alphaToBetaDelegation = client.delegation.create({
+  delegatorId: alpha.identityId,
+  delegateId: beta.identityId,
+  allowedActions: ["handoff", "completion"],
+  taskIds: [task.taskId],
+  domains: [DOMAIN],
+  expiresAtSlot: 300,
+});
+delegationChain.push({
+  delegatorId: alphaToBetaDelegation.delegatorId,
+  delegateId: alphaToBetaDelegation.delegateId,
+  allowedActions: alphaToBetaDelegation.scope.allowedActions,
+  taskId: task.taskId,
+  domain: DOMAIN,
+  expiresAtSlot: alphaToBetaDelegation.expiresAtSlot,
+});
+
 const handoffToBetaRecord = buildRecord(
   "rec-handoff-beta",
-  planner.identityId,
+  alpha.identityId,
   task.taskId,
   [
     {
@@ -313,15 +402,19 @@ const handoffToBetaRecord = buildRecord(
   ]
 );
 
-const handoffToBeta = appendLedger(
-  createReceiptFromExecution({
+const handoffToBeta = assertDelegatedReceipt({
+  actorId: alpha.identityId,
+  action: "handoff",
+  delegation: plannerToAlphaDelegation,
+  currentSlot: 240,
+  receipt: createReceiptFromExecution({
     record: handoffToBetaRecord,
     kind: "handoff",
     domain: DOMAIN,
-    actorId: planner.identityId,
+    actorId: alpha.identityId,
     sequence: nextSequence(),
-  })
-);
+  }),
+});
 
 const betaStakeSeed: ReceiptRecord = {
   ...handoffToBeta,
@@ -360,8 +453,12 @@ const betaWorkRecord = buildRecord(
 );
 
 const betaBlob = hashCanonical(betaWorkRecord);
-const betaCompletion = appendLedger(
-  await createVerifiedReceiptFromExecution({
+const betaCompletion = assertDelegatedReceipt({
+  actorId: beta.identityId,
+  action: "completion",
+  delegation: alphaToBetaDelegation,
+  currentSlot: 260,
+  receipt: await createVerifiedReceiptFromExecution({
     record: betaWorkRecord,
     kind: "completion",
     domain: DOMAIN,
@@ -376,8 +473,8 @@ const betaCompletion = appendLedger(
         text: JSON.stringify(betaWorkRecord),
       }),
     },
-  })
-);
+  }),
+});
 
 const attestation = appendLedger(
   client.receipt.create({
@@ -487,6 +584,8 @@ console.log(
       },
       task: task.taskId,
       alphaSubmitRejected: alphaSubmitError,
+      delegationChain,
+      delegationAssertions,
       executionRecordRoots: {
         alpha: alphaRootHex,
         beta: betaRootHex,

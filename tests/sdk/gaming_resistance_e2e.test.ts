@@ -15,6 +15,7 @@ import {
   deriveStakeState,
   extractStakeEventsFromReceipt,
   hashExecutionRecord,
+  ReceiptLedger,
   TrustSubstrateClient,
   type ExecutionRecord,
   type ReceiptRecord,
@@ -368,5 +369,82 @@ test("E2E #6: dispute receipt binds to the exact step of an execution record", (
   strictEqual(
     completion.payload.payloadHash,
     hashExecutionRecord(record).root.toString("hex")
+  );
+});
+
+test("E2E #7: delegated receipts are appended only after scope assertions", () => {
+  const planner = client.identity.create({
+    authority: "wallet-planner",
+    label: "planner",
+  });
+  const alpha = client.identity.create({
+    authority: "wallet-alpha",
+    label: "alpha",
+  });
+  const beta = client.identity.create({
+    authority: "wallet-beta",
+    label: "beta",
+  });
+  const task = client.task.create({
+    identityId: planner.identityId,
+    title: "delegated-chain",
+  });
+  const ledger = new ReceiptLedger();
+
+  const plannerToAlpha = client.delegation.create({
+    delegatorId: planner.identityId,
+    delegateId: alpha.identityId,
+    allowedActions: ["handoff", "completion"],
+    taskIds: [task.taskId],
+    domains: ["coding"],
+  });
+  const alphaToBeta = client.delegation.create({
+    delegatorId: alpha.identityId,
+    delegateId: beta.identityId,
+    allowedActions: ["handoff", "completion"],
+    taskIds: [task.taskId],
+    domains: ["coding"],
+  });
+
+  const alphaCompletion = client.receipt.create({
+    actorId: alpha.identityId,
+    kind: "completion",
+    taskId: task.taskId,
+    sequence: 1,
+    payload: { domain: "coding" },
+  });
+  client.delegation.assertAllowed({
+    delegation: plannerToAlpha,
+    action: "completion",
+    taskId: task.taskId,
+    domain: "coding",
+    currentSlot: 150,
+  });
+  ledger.append(alphaCompletion);
+
+  const betaCompletion = client.receipt.create({
+    actorId: beta.identityId,
+    kind: "completion",
+    taskId: task.taskId,
+    sequence: 2,
+    payload: { domain: "coding" },
+  });
+  client.delegation.assertAllowed({
+    delegation: alphaToBeta,
+    action: "completion",
+    taskId: task.taskId,
+    domain: "coding",
+    currentSlot: 260,
+  });
+  ledger.append(betaCompletion);
+
+  strictEqual(ledger.list().length, 2);
+  throws(() =>
+    client.delegation.assertAllowed({
+      delegation: plannerToAlpha,
+      action: "completion",
+      taskId: task.taskId,
+      domain: "research",
+    })
   );
 });

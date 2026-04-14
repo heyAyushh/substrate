@@ -133,6 +133,50 @@ test("exposes a full handoff chain for a task", () => {
   ]);
 });
 
+test("reconstructs a planner-alpha-beta delegated handoff chain", () => {
+  const indexer = new LocalDurableIndexer();
+
+  indexer.ingest([
+    createReceipt({
+      receiptId: "receipt-31",
+      slot: 31,
+      kind: "handoff",
+      actorId: "planner",
+      payload: { toAgentId: "alpha" },
+    }),
+    createReceipt({
+      receiptId: "receipt-32",
+      slot: 32,
+      kind: "handoff",
+      actorId: "alpha",
+      payload: { toAgentId: "beta" },
+    }),
+    createReceipt({
+      receiptId: "receipt-33",
+      slot: 33,
+      kind: "completion",
+      actorId: "beta",
+    }),
+  ]);
+
+  deepStrictEqual(indexer.getHandoffChain("task-1"), [
+    {
+      receiptId: "receipt-31",
+      slot: 31,
+      fromAgentId: "planner",
+      toAgentId: "alpha",
+      taskId: "task-1",
+    },
+    {
+      receiptId: "receipt-32",
+      slot: 32,
+      fromAgentId: "alpha",
+      toAgentId: "beta",
+      taskId: "task-1",
+    },
+  ]);
+});
+
 test("rejects conflicting duplicate replays for the same receipt id and slot", () => {
   const indexer = new LocalDurableIndexer();
   const firstReceipt = createReceipt({
