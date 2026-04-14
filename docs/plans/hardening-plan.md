@@ -21,7 +21,7 @@ derivation.
 - no direct score-write path
 - canonical hashing rules (`hashCanonical`) remain the single source of truth
   for payload hashes
-- Anchor + Surfpool remain the local verification gates
+- Anchor/LiteSVM + Surfpool remain the local verification gates
 
 ## Invariants we add
 

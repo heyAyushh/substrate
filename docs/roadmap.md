@@ -19,7 +19,8 @@ The repository is organized around a local protocol loop:
 7. stake-backed dispute resolution
 8. SDK replay checks
 9. indexer graph reconstruction
-10. Surfpool end-to-end execution
+10. LiteSVM protocol execution
+11. Surfpool end-to-end execution
 
 The baseline favors correctness, auditability, and test coverage before compute optimization or production deployment.
 
@@ -33,7 +34,7 @@ Current scope:
 - receipt event emission
 - duplicate receipt protection through PDA uniqueness and SDK replay checks
 - task status transitions derived from receipts through `sync_task_status`
-- local Anchor and TypeScript tests
+- local LiteSVM and TypeScript tests
 
 Next:
 
@@ -102,7 +103,7 @@ Current scope:
 - slash authority checks
 - slashing bound to `dispute_resolved` receipts from `receipt_emitter`
 - slash marker replay protection
-- local Anchor tests for success and rejection paths
+- local LiteSVM tests for success and rejection paths
 - stake state exposed through SDK and indexer helpers
 
 Next:
@@ -118,6 +119,7 @@ Current scope:
 - local durable indexer package with JSON snapshot persistence
 - tests for graph reconstruction, replay behavior, and snapshot round-trip
 - local agent-loop example under `examples/agent_loop`
+- LiteSVM protocol integration suite
 - Surfpool E2E harness
 
 Next:
@@ -133,6 +135,7 @@ No phase should be treated as complete without:
 - a failing test written first
 - a passing focused test
 - passing relevant local suite
+- LiteSVM success for protocol instruction/account changes
 - documentation updates
 - Surfpool E2E success for end-to-end behavior
 

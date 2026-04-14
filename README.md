@@ -12,7 +12,7 @@ This repository contains a local protocol baseline:
 - a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
 - deterministic TypeScript SDK helpers
 - a local durable indexer that rebuilds execution graphs from receipts
-- Anchor, Rust, TypeScript, verification, and Surfpool test paths
+- Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
 - documentation for architecture, development, testing, security, and roadmap decisions
 
 This is not a production deployment. The current goal is a correct, auditable local loop that can be hardened before networked indexing, generated clients, compression integrations, or production deployment.
@@ -54,10 +54,11 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 
 ```text
 crates/trust_substrate_core/  Shared protocol constants, errors, Merkle logic, and model tests
+crates/trust_substrate_litesvm_tests/  LiteSVM protocol integration tests
 programs/                    Anchor protocol programs
 packages/sdk/                 Deterministic local SDK helpers
 packages/indexer/             Local durable execution graph indexer
-tests/                        TypeScript, Anchor, Surfpool, and verification tests
+tests/                        TypeScript package, Surfpool, and verification tests
 scripts/                      Local automation scripts
 docs/                         Project documentation
 examples/agent_loop/          Local multi-agent simulation example
@@ -70,6 +71,7 @@ Validated locally:
 - Anchor CLI `1.0.0`
 - Solana CLI `3.1.13`
 - Surfpool `1.0.0`
+- LiteSVM `0.10.0`
 - pnpm `10.33.0`
 - TypeScript `5.7.3`
 
@@ -99,6 +101,8 @@ Run the Anchor flow:
 pnpm test:anchor
 ```
 
+`pnpm test:anchor` builds the programs and runs the granular LiteSVM protocol suites without starting a validator.
+
 Run the Surfpool end-to-end gate:
 
 ```bash
@@ -116,7 +120,7 @@ Every protocol behavior starts as a failing test:
 3. Implement the smallest passing change.
 4. Re-run the focused test.
 5. Run the wider local suite.
-6. Use Surfpool as the final end-to-end gate.
+6. Use LiteSVM for protocol integration and Surfpool as the final end-to-end gate.
 
 Do not add protocol behavior that has no local test.
 
@@ -140,19 +144,20 @@ Receipts are the source of truth. Reputation is derived from that receipt graph.
 ```bash
 pnpm test:packages
 pnpm test:rust
-pnpm test:verification
+pnpm test:litesvm
 pnpm test:anchor
+pnpm test:verification
 pnpm test:surfpool
 pnpm lint
 ```
 
-`anchor build` and `pnpm test:surfpool` may print upstream Anchor/Solana compiler warnings. Passing status is determined by command exit code.
+`anchor build`, `pnpm test:anchor`, and `pnpm test:surfpool` may print upstream Anchor/Solana compiler warnings. Passing status is determined by command exit code.
 
 ## Contributing Rules
 
 - Use Conventional Commits.
 - Keep commits focused and reviewable.
-- Prefer existing Anchor, Solana, TypeScript, and Surfpool tooling over custom infrastructure.
+- Prefer existing Anchor, Solana, LiteSVM, TypeScript, and Surfpool tooling over custom infrastructure.
 - Keep reputation derived from verified execution history.
 - Do not use devnet as the required verification gate.
 - Read [AGENTS.md](AGENTS.md) before making agent-driven changes.

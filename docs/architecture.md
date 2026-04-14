@@ -12,7 +12,7 @@ The durable object is the execution graph. Receipts describe meaningful steps. C
 2. Shared Rust core in `crates/trust_substrate_core`
 3. Deterministic TypeScript helpers in `packages/sdk/src`
 4. Local execution-graph reconstruction in `packages/indexer/src`
-5. Local verification through Rust, TypeScript, Anchor, and Surfpool tests
+5. Local verification through Rust, TypeScript, Anchor/LiteSVM, and Surfpool tests
 
 ## On-Chain Programs
 

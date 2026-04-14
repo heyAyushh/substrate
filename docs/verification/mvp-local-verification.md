@@ -21,8 +21,8 @@ Run the local gates in this order:
 
 1. Local package unit tests
 2. Rust program and model tests
-3. Verification contract tests
-4. Anchor build and test
+3. Anchor/LiteSVM protocol tests
+4. Verification contract tests
 5. Surfpool-backed end-to-end verification
 
 ## Local Verification Rules
@@ -71,7 +71,7 @@ Each item below must be covered by an executable local test before it is treated
 ## MVP Local Pass Criteria
 
 - `pnpm test:verification` passes locally.
-- The verification order is package tests, Rust tests, verification tests, Anchor build/test, then Surfpool E2E.
+- The verification order is package tests, Rust tests, Anchor/LiteSVM protocol tests, verification tests, then Surfpool E2E.
 - The checklist covers every security acceptance criterion listed above.
 - The verification layer remains local-only and uses no external dependencies.
 - Program behavior stays tied to executable tests and the acceptance contract above.

@@ -22,6 +22,7 @@ Validated on this machine:
 - Solana CLI `3.1.13`
 - Anchor CLI `1.0.0`
 - Surfpool `1.0.0`
+- LiteSVM `0.10.0`
 
 Repository pins:
 
@@ -36,6 +37,7 @@ Repository pins:
 - Implement the smallest change that makes that test pass.
 - Run the narrowest local test first, then the wider suite.
 - Keep protocol changes documented in tests, not just in prose.
+- Use LiteSVM for normal protocol instruction/account integration tests.
 - Do not use devnet as the final verification gate. Surfpool is the final end-to-end environment.
 
 ## TDD workflow
@@ -44,7 +46,6 @@ Repository pins:
 2. Run that test and confirm it fails for the expected reason.
 3. Implement the minimal code path.
 4. Re-run the focused test.
-5. Run the relevant package, Rust, Anchor, and Surfpool checks before moving on.
+5. Run the relevant package, Rust, LiteSVM/Anchor, and Surfpool checks before moving on.
 
 The local verification contract is defined in `docs/verification/mvp-local-verification.md`.
-

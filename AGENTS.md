@@ -19,6 +19,7 @@ A change is done only when:
 - the intended behavior is covered by a local test or the change is documentation-only
 - the narrowest relevant check passes
 - the wider local suite has been run when the change touches protocol behavior
+- LiteSVM has passed for protocol instruction/account changes
 - Surfpool has been used as the final E2E gate for end-to-end changes
 - generated caches, logs, build output, and local validator state are not committed
 - documentation reflects any changed behavior or workflow
@@ -31,15 +32,16 @@ Use the narrowest useful command first:
 pnpm test:packages
 pnpm test:rust
 pnpm test:verification
+pnpm test:litesvm
 pnpm test:anchor
 pnpm test:surfpool
 pnpm lint
 ```
 
-During implementation, prefer direct Anchor commands so failures stay focused:
+During implementation, prefer the LiteSVM-backed Anchor command so failures stay focused without starting a validator:
 
 ```bash
-ANCHOR_TEST_RUN=tests/specific_file.ts anchor test --skip-build --skip-lint --validator surfpool
+anchor test --skip-lint --skip-local-validator --skip-deploy
 ```
 
 For full local protocol verification, run:
@@ -52,7 +54,7 @@ pnpm test:surfpool
 
 Surfpool is the final end-to-end gate. Do not replace it with devnet or a raw `solana-test-validator` flow.
 
-Anchor 1.0 uses Surfpool for `anchor test` and `anchor localnet` by default unless `--validator legacy` is chosen. New Anchor 1.0 projects also scaffold LiteSVM tests by default, but this repository's current integration gate is the existing TypeScript/Mocha suite. Add LiteSVM or Mollusk as explicit fast instruction-level tests when a workstream needs that coverage.
+Anchor 1.0 uses Surfpool for validator-backed local testing by default unless `--validator legacy` is chosen. This repository's normal protocol integration path is now the granular LiteSVM suite in `crates/trust_substrate_litesvm_tests/tests`, run through `pnpm test:anchor`. The Surfpool script deliberately sets `ANCHOR_TEST_RUN` and runs Anchor with deployment skipped after Surfpool auto-deploys the declared program IDs.
 
 ## Tooling
 
@@ -61,11 +63,11 @@ Use the existing stack:
 - Anchor for Solana program development
 - Solana CLI and SBF toolchain for local builds
 - Surfpool `1.0.0` for local E2E simulation
-- LiteSVM for fast instruction-level tests when added intentionally
+- LiteSVM for normal protocol instruction and account integration tests
 - Mollusk for controlled processor-level edge-case tests when added intentionally
 - pnpm workspaces for TypeScript packages
 - Node test runner for verification tests
-- Mocha/ts-mocha for package and Anchor tests
+- Mocha/ts-mocha for TypeScript package tests and the Surfpool E2E path
 
 Do not introduce a new framework, build system, indexer backend, or crypto dependency unless it is needed for the requested behavior and has a test-backed reason.
 
