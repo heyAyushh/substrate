@@ -36,6 +36,12 @@ pnpm test:surfpool
 pnpm lint
 ```
 
+During implementation, prefer direct Anchor commands so failures stay focused:
+
+```bash
+ANCHOR_TEST_RUN=tests/specific_file.ts anchor test --skip-build --skip-lint --validator surfpool
+```
+
 For full local protocol verification, run:
 
 ```bash
@@ -44,7 +50,9 @@ pnpm test:anchor
 pnpm test:surfpool
 ```
 
-Surfpool is the final end-to-end gate. Do not replace it with devnet.
+Surfpool is the final end-to-end gate. Do not replace it with devnet or a raw `solana-test-validator` flow.
+
+Anchor 1.0 uses Surfpool for `anchor test` and `anchor localnet` by default unless `--validator legacy` is chosen. New Anchor 1.0 projects also scaffold LiteSVM tests by default, but this repository's current integration gate is the existing TypeScript/Mocha suite. Add LiteSVM or Mollusk as explicit fast instruction-level tests when a workstream needs that coverage.
 
 ## Tooling
 
@@ -53,6 +61,8 @@ Use the existing stack:
 - Anchor for Solana program development
 - Solana CLI and SBF toolchain for local builds
 - Surfpool `1.0.0` for local E2E simulation
+- LiteSVM for fast instruction-level tests when added intentionally
+- Mollusk for controlled processor-level edge-case tests when added intentionally
 - pnpm workspaces for TypeScript packages
 - Node test runner for verification tests
 - Mocha/ts-mocha for package and Anchor tests

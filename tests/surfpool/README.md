@@ -19,12 +19,13 @@ Run the harness from the repository root:
 What the harness does:
 
 1. Builds the Anchor workspace.
-2. Reuses an already-running Surfpool endpoint if `ANCHOR_PROVIDER_URL` or `SURFPOOL_RPC_URL` is already healthy.
-3. Starts Surfpool locally when needed.
-4. Runs the real Anchor test suite against the Surfpool RPC URL.
-5. Cleans up the Surfpool process it started.
+2. Runs Anchor tests with Anchor 1.0's built-in Surfpool validator.
 
-To point the harness at an existing local Surfpool instance, set `SURFPOOL_RPC_URL` before running it.
+To run a targeted Surfpool suite, pass the test path:
+
+```bash
+./scripts/surfpool-e2e.sh tests/audit_receipts.ts
+```
 
 The `tests/surfpool/surfpool_e2e.ts` file is a lightweight smoke contract for the Surfpool endpoint. The main harness still runs the full Anchor suite from `tests/*.ts`.
 
