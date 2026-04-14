@@ -16,6 +16,10 @@ pub mod __client_accounts_emit_delegated_receipt {
     pub use crate::instructions::emit_delegated_receipt::__client_accounts_emit_delegated_receipt::*;
 }
 
+pub mod __client_accounts_emit_audit_receipt {
+    pub use crate::instructions::emit_audit_receipt::__client_accounts_emit_audit_receipt::*;
+}
+
 pub mod __client_accounts_emit_receipt {
     pub use crate::instructions::emit_receipt::__client_accounts_emit_receipt::*;
 }
@@ -27,6 +31,11 @@ pub mod __client_accounts_initialize_cpi_authority {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_emit_delegated_receipt {
     pub use crate::instructions::emit_delegated_receipt::__cpi_client_accounts_emit_delegated_receipt::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emit_audit_receipt {
+    pub use crate::instructions::emit_audit_receipt::__cpi_client_accounts_emit_audit_receipt::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -89,5 +98,16 @@ pub mod receipt_emitter {
             previous_receipt,
             payload_hash,
         )
+    }
+
+    pub fn emit_audit_receipt(
+        ctx: Context<EmitAuditReceipt>,
+        kind: u8,
+        domain: [u8; 32],
+        payload_hash: [u8; 32],
+        sequence: u64,
+        round: u16,
+    ) -> Result<()> {
+        emit_audit_receipt::handler(ctx, kind, domain, payload_hash, sequence, round)
     }
 }

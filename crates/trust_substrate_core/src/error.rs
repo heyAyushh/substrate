@@ -96,6 +96,8 @@ pub enum TrustSubstrateError {
     ReceiptKindNotAuditable,
     #[msg("The receipt kind cannot be emitted as a self-receipt")]
     ReceiptKindNotSelfEmittable,
+    #[msg("An audit receipt must target another agent identity's receipt")]
+    ReceiptAuditorCannotTargetOwnReceipt,
     #[msg("The domain is not registered in the canonical domain catalog")]
     DomainNotRegistered,
     #[msg("The domain is already registered in the canonical domain catalog")]

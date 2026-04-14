@@ -2,7 +2,9 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use reputation_accumulator::state::ReputationDomainCatalog;
 use task_registry::state::TaskRecord;
-use trust_substrate_core::{is_valid_receipt_kind, TrustSubstrateError, RECEIPT_SEED};
+use trust_substrate_core::{
+    is_self_emittable_receipt_kind, is_valid_receipt_kind, TrustSubstrateError, RECEIPT_SEED,
+};
 
 use crate::events::ReceiptCommitted;
 use crate::state::{CpiAuthority, ReceiptRecord};
@@ -19,6 +21,10 @@ pub fn handler(
     require!(
         is_valid_receipt_kind(kind),
         TrustSubstrateError::InvalidReceiptKind
+    );
+    require!(
+        is_self_emittable_receipt_kind(kind),
+        TrustSubstrateError::ReceiptKindNotSelfEmittable
     );
 
     let empty_domain = [0u8; 32];
@@ -50,6 +56,9 @@ pub fn handler(
     receipt.previous_receipt = previous_receipt;
     receipt.payload_hash = payload_hash;
     receipt.via_delegation = Pubkey::default();
+    receipt.auditor_identity = Pubkey::default();
+    receipt.target_receipt = Pubkey::default();
+    receipt.round = 0;
     receipt.bump = ctx.bumps.receipt;
 
     let cpi_accounts = task_registry::cpi::accounts::AdvanceReceiptChain {

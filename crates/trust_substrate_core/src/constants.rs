@@ -1,3 +1,5 @@
+use solana_sha256_hasher::hashv;
+
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
@@ -56,7 +58,7 @@ pub const TASK_STATUS_ACTIVE: u8 = 1;
 pub const TASK_STATUS_COMPLETED: u8 = 2;
 pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
-pub const STAKE_COOLDOWN_SLOTS: u64 = 1;
+pub const STAKE_COOLDOWN_SLOTS: u64 = 5;
 
 pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
     match kind {
@@ -71,7 +73,7 @@ pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
     }
 }
 
-pub fn is_valid_receipt_kind(kind: u8) -> bool {
+pub fn is_self_emittable_receipt_kind(kind: u8) -> bool {
     matches!(
         kind,
         ASSIGNMENT_KIND
@@ -79,7 +81,35 @@ pub fn is_valid_receipt_kind(kind: u8) -> bool {
             | COMPLETION_KIND
             | DISPUTE_KIND
             | DISPUTE_RESOLVED_KIND
-            | CHALLENGE_KIND
             | CHALLENGE_RESPONSE_KIND
+            | COMMIT_KIND
+            | REVEAL_KIND
     )
+}
+
+pub fn is_auditable_receipt_kind(kind: u8) -> bool {
+    matches!(kind, CHALLENGE_KIND | DISPUTE_KIND | ATTESTATION_KIND)
+}
+
+pub fn is_valid_receipt_kind(kind: u8) -> bool {
+    is_self_emittable_receipt_kind(kind) || is_auditable_receipt_kind(kind)
+}
+
+pub fn derive_audit_receipt_id(
+    auditor_identity: &[u8],
+    target_receipt: &[u8],
+    kind: u8,
+    round: u16,
+) -> [u8; 32] {
+    let kind_bytes = kind.to_le_bytes();
+    let round_bytes = round.to_le_bytes();
+
+    hashv(&[
+        AUDIT_RECEIPT_SEED,
+        auditor_identity,
+        target_receipt,
+        kind_bytes.as_ref(),
+        round_bytes.as_ref(),
+    ])
+    .to_bytes()
 }
