@@ -1,0 +1,22 @@
+{
+  "idl": "../target/idl/task_registry.json",
+  "before": [],
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": [
+        "packages/program-clients",
+        {
+          "generatedFolder": "src/generated/task_registry",
+          "deleteFolderBeforeRendering": false,
+          "formatCode": true,
+          "kitImportStrategy": "rootOnly",
+          "syncPackageJson": false,
+          "dependencyVersions": {
+            "@solana/kit": "6.8.0"
+          }
+        }
+      ]
+    }
+  }
+}

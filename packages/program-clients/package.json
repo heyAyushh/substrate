@@ -1,0 +1,17 @@
+{
+  "name": "@trust-substrate/program-clients",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/packages/program-clients/src/index.js",
+  "types": "dist/packages/program-clients/src/index.d.ts",
+  "scripts": {
+    "generate": "pnpm exec node ../../scripts/generate-program-clients.mjs",
+    "build": "pnpm run generate && tsc -p tsconfig.json",
+    "test": "pnpm run build",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@solana/kit": "6.8.0"
+  }
+}
