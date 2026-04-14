@@ -10,6 +10,12 @@
 pnpm test
 ```
 
+4. Regenerate the typed program clients whenever an IDL changes:
+
+```bash
+pnpm generate:clients
+```
+
 ## Toolchain
 
 Validated on this machine:
@@ -39,6 +45,7 @@ Repository pins:
 - Keep protocol changes documented in tests, not just in prose.
 - Use LiteSVM for normal protocol instruction/account integration tests.
 - Do not use devnet as the final verification gate. Surfpool is the final end-to-end environment.
+- Regenerate `packages/program-clients/src/generated` from `target/idl/*.json` instead of hand-writing RPC wrappers.
 
 ## TDD workflow
 

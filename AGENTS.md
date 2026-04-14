@@ -65,6 +65,7 @@ Use the existing stack:
 - Surfpool `1.0.0` for local E2E simulation
 - LiteSVM for normal protocol instruction and account integration tests
 - Mollusk for controlled processor-level edge-case tests when added intentionally
+- Codama for generated `@solana/kit` program clients
 - pnpm workspaces for TypeScript packages
 - Node test runner for verification tests
 - Mocha/ts-mocha for TypeScript package tests and the Surfpool E2E path
@@ -84,6 +85,7 @@ The local protocol is split across deployable Anchor programs:
 - `agent_stake`
 
 Shared constants, errors, Merkle proof logic, and pure model tests live in `crates/trust_substrate_core`.
+Generated program clients live in `packages/program-clients/src/generated` and must be regenerated from `target/idl/*.json` instead of hand-maintained.
 
 Keep these boundaries visible in naming, tests, and documentation. Do not reintroduce the old bundled `trust_substrate` program as a deployable target.
 

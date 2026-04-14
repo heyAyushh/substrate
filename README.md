@@ -10,12 +10,13 @@ This repository contains a local protocol baseline:
 
 - Anchor programs for identity, tasks, receipts, delegation, checkpoints, reputation, and stake-backed disputes
 - a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
-- deterministic TypeScript SDK helpers
+- Codama-generated `@solana/kit` program clients
+- deterministic TypeScript SDK helpers for local graph, proof, and reputation modeling
 - a local durable indexer that rebuilds execution graphs from receipts
 - Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
 - documentation for architecture, development, testing, security, and roadmap decisions
 
-This is not a production deployment. The current goal is a correct, auditable local loop that can be hardened before networked indexing, generated clients, compression integrations, or production deployment.
+This is not a production deployment. The current goal is a correct, auditable local loop that can be hardened before networked indexing, compression integrations, or production deployment.
 
 ## Protocol Programs
 
@@ -35,7 +36,7 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 
 - Light Protocol ZK Compression integration
 - remote event streaming or Geyser ingestion
-- production RPC client wrappers generated from Codama
+- production RPC orchestration beyond the generated local client package
 - mainnet deployment hardening
 - full multi-hop delegation proof chains
 
@@ -57,11 +58,12 @@ crates/trust_substrate_core/  Shared protocol constants, errors, Merkle logic, a
 crates/trust_substrate_litesvm_tests/  LiteSVM protocol integration tests
 programs/                    Anchor protocol programs
 packages/sdk/                 Deterministic local SDK helpers
+packages/program-clients/     Codama-generated @solana/kit clients from Anchor IDLs
 packages/indexer/             Local durable execution graph indexer
 tests/                        TypeScript package, Surfpool, and verification tests
 scripts/                      Local automation scripts
 docs/                         Project documentation
-examples/agent_loop/          Local multi-agent simulation example
+examples/                     Local agent simulations
 ```
 
 ## Toolchain
@@ -87,6 +89,12 @@ Install dependencies:
 
 ```bash
 pnpm install
+```
+
+Regenerate the typed program clients from the current IDLs:
+
+```bash
+pnpm generate:clients
 ```
 
 Run the local unit and model checks:
@@ -143,6 +151,7 @@ Receipts are the source of truth. Reputation is derived from that receipt graph.
 
 ```bash
 pnpm test:packages
+pnpm generate:clients
 pnpm test:rust
 pnpm test:litesvm
 pnpm test:anchor

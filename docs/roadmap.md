@@ -39,7 +39,7 @@ Current scope:
 Next:
 
 - richer task DAG constraints across parent and subtask receipts
-- generated transaction clients for real RPC submission
+- generated-client adoption in higher-level examples and package consumers
 
 ## Phase 2: Delegation And Handoff Chain
 
@@ -115,18 +115,19 @@ Next:
 
 Current scope:
 
+- Codama-generated client layer targeting `@solana/kit`
 - SDK helper package with checkpoint-compatible Merkle primitives
 - local durable indexer package with JSON snapshot persistence
 - tests for graph reconstruction, replay behavior, and snapshot round-trip
 - local agent-loop example under `examples/agent_loop`
+- stronger multi-agent simulation flows with explicit delegation assertions
 - LiteSVM protocol integration suite
 - Surfpool E2E harness
 
 Next:
 
-- Codama-generated client layer targeting `@solana/kit`
 - production event ingestion design
-- stronger multi-agent simulation flows
+- generated-client use in agent-facing integration flows
 
 ## Release Gate
 

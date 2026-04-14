@@ -551,7 +551,6 @@ Defined in `crates/trust_substrate_core/src/error.rs`:
 
 ## Future Work
 
-- generated clients targeting `@solana/kit`
 - stronger multi-hop delegation proof chains
 - Light Protocol ZK Compression integration
 - production event ingestion

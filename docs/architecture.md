@@ -114,15 +114,18 @@ The indexer is local and deterministic. Remote event ingestion and Geyser-style 
 
 ## SDK
 
+`packages/program-clients/src/generated` contains Codama-generated `@solana/kit` clients derived from the current Anchor IDLs. This is the RPC-facing layer for instructions, accounts, PDAs, and typed parsers.
+
 `packages/sdk/src` provides deterministic local helpers for:
 
-- identity, task, receipt, and delegation records
+- canonical execution records and receipt builders
 - append-only receipt ledger replay checks
 - Merkle tree creation and proof verification
 - delegation scope assertions
 - derived reputation profiles
+- stake, challenge, and execution-trace projection helpers
 
-It is not yet a production RPC client layer generated from Codama.
+The generated clients and the SDK have different roles. The generated package speaks to programs. The SDK derives and validates local protocol state around those on-chain facts.
 
 ## Local Flow
 
