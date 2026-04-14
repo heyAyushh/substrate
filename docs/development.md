@@ -20,14 +20,14 @@ Validated on this machine:
 - Rust `1.92.0`
 - Cargo `1.92.0`
 - Solana CLI `3.1.13`
-- Anchor CLI `0.32.1`
+- Anchor CLI `1.0.0`
 - Surfpool `1.0.0`
 
 Repository pins:
 
 - `packageManager`: `pnpm@10.33.0`
-- `@coral-xyz/anchor`: `0.32.1`
-- `Anchor.toml`: `anchor_version = "0.32.1"`
+- `@anchor-lang/core`: `1.0.0`
+- `Anchor.toml`: `anchor_version = "1.0.0"`
 
 ## Developer workflow
 

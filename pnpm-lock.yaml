@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@coral-xyz/anchor':
-        specifier: 0.32.1
-        version: 0.32.1(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)
+      '@anchor-lang/core':
+        specifier: 1.0.0
+        version: 1.0.0(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)
     devDependencies:
       '@types/bn.js':
         specifier: 5.1.0
@@ -43,23 +43,23 @@ importers:
 
 packages:
 
-  '@babel/runtime@7.29.2':
-    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
-    engines: {node: '>=6.9.0'}
-
-  '@coral-xyz/anchor-errors@0.31.1':
-    resolution: {integrity: sha512-NhNEku4F3zzUSBtrYz84FzYWm48+9OvmT1Hhnwr6GnPQry2dsEqH/ti/7ASjjpoFTWRnPXrjAIT1qM6Isop+LQ==}
-    engines: {node: '>=10'}
-
-  '@coral-xyz/anchor@0.32.1':
-    resolution: {integrity: sha512-zAyxFtfeje2FbMA1wzgcdVs7Hng/MijPKpRijoySPCicnvcTQs/+dnPZ/cR+LcXM9v9UYSyW81uRNYZtN5G4yg==}
-    engines: {node: '>=17'}
-
-  '@coral-xyz/borsh@0.31.1':
-    resolution: {integrity: sha512-9N8AU9F0ubriKfNE3g1WF0/4dtlGXoBN/hd1PvbNBamBNwRgHxH4P+o3Zt7rSEloW1HUs6LfZEchlx9fW7POYw==}
+  '@anchor-lang/borsh@1.0.0':
+    resolution: {integrity: sha512-kiUd4S/iGKZ4aZvHtX07vNiNnHa/mI/IHmw+0y0sWlvGpPsAWsLXXMrohII5vNCdgZrw+5vVXH9kt836yP9YmQ==}
     engines: {node: '>=10'}
     peerDependencies:
       '@solana/web3.js': ^1.69.0
+
+  '@anchor-lang/core@1.0.0':
+    resolution: {integrity: sha512-YHJQCJNQwF1M1M5VNNOj1DuR7B9v7f/6I9NkFYty7HAbpb3+1HpuDD7nOqI+X3CafXzteWGWZE2kn+Ts7PBKNQ==}
+    engines: {node: '>=17'}
+
+  '@anchor-lang/errors@1.0.0':
+    resolution: {integrity: sha512-j3ymePewd9Bi6OcXATViRS0IPdPBT8qW4LVM3/hNePH/rZdgi8qDkToiDGuR1fFccfn7t+BrNGudHvcs6JWCFQ==}
+    engines: {node: '>=10'}
+
+  '@babel/runtime@7.29.2':
+    resolution: {integrity: sha512-JiDShH45zKHWyGe4ZNVRrCjBz8Nh9TMmZG1kh4QTK8hCBTWBi8Da+i7s1fJw7/lYpM4ccepSNfqzZ/QvABBi5g==}
+    engines: {node: '>=6.9.0'}
 
   '@noble/curves@1.9.7':
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
@@ -721,14 +721,16 @@ packages:
 
 snapshots:
 
-  '@babel/runtime@7.29.2': {}
-
-  '@coral-xyz/anchor-errors@0.31.1': {}
-
-  '@coral-xyz/anchor@0.32.1(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)':
+  '@anchor-lang/borsh@1.0.0(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6))':
     dependencies:
-      '@coral-xyz/anchor-errors': 0.31.1
-      '@coral-xyz/borsh': 0.31.1(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6))
+      '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)
+      bn.js: 5.2.3
+      buffer-layout: 1.2.2
+
+  '@anchor-lang/core@1.0.0(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)':
+    dependencies:
+      '@anchor-lang/borsh': 1.0.0(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6))
+      '@anchor-lang/errors': 1.0.0
       '@noble/hashes': 1.8.0
       '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)
       bn.js: 5.2.3
@@ -746,11 +748,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.31.1(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6))':
-    dependencies:
-      '@solana/web3.js': 1.98.4(bufferutil@4.1.0)(typescript@5.7.3)(utf-8-validate@6.0.6)
-      bn.js: 5.2.3
-      buffer-layout: 1.2.2
+  '@anchor-lang/errors@1.0.0': {}
+
+  '@babel/runtime@7.29.2': {}
 
   '@noble/curves@1.9.7':
     dependencies:
@@ -814,7 +814,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 12.20.55
+      '@types/node': 25.6.0
 
   '@types/json5@0.0.29':
     optional: true
@@ -831,7 +831,7 @@ snapshots:
 
   '@types/ws@7.4.7':
     dependencies:
-      '@types/node': 12.20.55
+      '@types/node': 25.6.0
 
   '@types/ws@8.18.1':
     dependencies:

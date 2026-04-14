@@ -42,13 +42,16 @@ pub fn handler(
         slot: Clock::get()?.slot,
     });
 
-    let cpi_program = ctx.accounts.identity_registry_program.to_account_info();
     let cpi_accounts = identity_registry::cpi::accounts::UpdateHistoryRoot {
         identity: ctx.accounts.identity.to_account_info(),
         history_updater: ctx.accounts.history_updater.to_account_info(),
     };
     let signer_seeds: &[&[&[u8]]] = &[&[b"history_updater", &[ctx.bumps.history_updater][..]]];
-    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.identity_registry_program.key(),
+        cpi_accounts,
+        signer_seeds,
+    );
     identity_registry::cpi::update_history_root(cpi_ctx, root)?;
 
     Ok(())

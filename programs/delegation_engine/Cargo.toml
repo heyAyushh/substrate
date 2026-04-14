@@ -21,7 +21,7 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = "1.0.0"
 identity_registry = { path = "../identity_registry", features = ["cpi"] }
 trust_substrate_core = { path = "../../crates/trust_substrate_core" }
 

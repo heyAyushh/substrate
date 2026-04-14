@@ -17,5 +17,5 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = "1.0.0"
 trust_substrate_core = { path = "../../crates/trust_substrate_core" }

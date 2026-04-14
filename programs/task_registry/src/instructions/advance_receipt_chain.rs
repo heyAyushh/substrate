@@ -30,5 +30,5 @@ pub struct AdvanceReceiptChain<'info> {
         seeds::program = RECEIPT_EMITTER_PROGRAM_ID
     )]
     /// CHECK: Verified via PDA seeds to receipt_emitter program
-    pub authority: AccountInfo<'info>,
+    pub authority: UncheckedAccount<'info>,
 }

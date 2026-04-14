@@ -52,14 +52,17 @@ pub fn handler(
     receipt.via_delegation = Pubkey::default();
     receipt.bump = ctx.bumps.receipt;
 
-    let cpi_program = ctx.accounts.task_registry_program.to_account_info();
     let cpi_accounts = task_registry::cpi::accounts::AdvanceReceiptChain {
         task: ctx.accounts.task.to_account_info(),
         identity: ctx.accounts.identity.to_account_info(),
         authority: ctx.accounts.cpi_authority.to_account_info(),
     };
     let signer_seeds: &[&[&[u8]]] = &[&[b"cpi_authority", &[ctx.bumps.cpi_authority][..]]];
-    let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.task_registry_program.key(),
+        cpi_accounts,
+        signer_seeds,
+    );
     task_registry::cpi::advance_receipt_chain(cpi_ctx, receipt.key(), sequence)?;
 
     emit!(ReceiptCommitted {

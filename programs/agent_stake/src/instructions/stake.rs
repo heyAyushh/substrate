@@ -21,7 +21,7 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
 
     system_program::transfer(
         CpiContext::new(
-            ctx.accounts.system_program.to_account_info(),
+            ctx.accounts.system_program.key(),
             system_program::Transfer {
                 from: ctx.accounts.owner.to_account_info(),
                 to: ctx.accounts.stake.to_account_info(),

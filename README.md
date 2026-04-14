@@ -67,7 +67,7 @@ examples/agent_loop/          Local multi-agent simulation example
 
 Validated locally:
 
-- Anchor CLI `0.32.1`
+- Anchor CLI `1.0.0`
 - Solana CLI `3.1.13`
 - Surfpool `1.0.0`
 - pnpm `10.33.0`
@@ -75,9 +75,9 @@ Validated locally:
 
 Repository pins:
 
-- `@coral-xyz/anchor` `0.32.1`
+- `@anchor-lang/core` `1.0.0`
 - `packageManager` `pnpm@10.33.0`
-- `Anchor.toml` `anchor_version = "0.32.1"`
+- `Anchor.toml` `anchor_version = "1.0.0"`
 
 ## Quick Start
 

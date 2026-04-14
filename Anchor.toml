@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.32.1"
+anchor_version = "1.0.0"
 package_manager = "pnpm"
 
 [features]
@@ -14,9 +14,6 @@ delegation_engine = "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49"
 reputation_accumulator = "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv"
 proof_verifier = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi"
 agent_stake = "GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ"
-
-[registry]
-url = "https://api.apr.dev"
 
 [provider]
 cluster = "localnet"

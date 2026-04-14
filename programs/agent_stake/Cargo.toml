@@ -22,7 +22,7 @@ idl-build = [
 ]
 
 [dependencies]
-anchor-lang = { version = "0.32.1", features = ["init-if-needed"] }
+anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
 identity_registry = { path = "../identity_registry", features = ["cpi"] }
 receipt_emitter = { path = "../receipt_emitter", features = ["cpi"] }
 trust_substrate_core = { path = "../../crates/trust_substrate_core" }

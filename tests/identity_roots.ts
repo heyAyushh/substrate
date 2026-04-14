@@ -1,5 +1,5 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import * as anchor from "@anchor-lang/core";
+import { Program } from "@anchor-lang/core";
 import { strictEqual } from "assert";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ProofVerifier } from "../target/types/proof_verifier";
