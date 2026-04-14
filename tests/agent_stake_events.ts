@@ -162,18 +162,8 @@ describe("agent_stake structured events", () => {
     const initialized = await captureEvent(
       stakeProgram,
       STAKE_INITIALIZED_EVENT,
-      () =>
-        stakeProgram.methods
-          .initializeStake(owner)
-          .accountsStrict({
-            owner,
-            identity,
-            stake,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          })
-          .instruction(),
       async () => {
-        await stakeProgram.methods
+        return await stakeProgram.methods
           .initializeStake(owner)
           .accountsStrict({
             owner,
@@ -193,17 +183,8 @@ describe("agent_stake structured events", () => {
     const deposited = await captureEvent(
       stakeProgram,
       STAKE_DEPOSITED_EVENT,
-      () =>
-        stakeProgram.methods
-          .stake(STAKE_AMOUNT)
-          .accountsStrict({
-            owner,
-            stake,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          })
-          .instruction(),
       async () => {
-        await stakeProgram.methods
+        return await stakeProgram.methods
           .stake(STAKE_AMOUNT)
           .accountsStrict({
             owner,
@@ -222,16 +203,8 @@ describe("agent_stake structured events", () => {
     const requested = await captureEvent(
       stakeProgram,
       STAKE_UNSTAKE_REQUESTED_EVENT,
-      () =>
-        stakeProgram.methods
-          .requestUnstake(UNSTAKE_AMOUNT)
-          .accountsStrict({
-            owner,
-            stake,
-          })
-          .instruction(),
       async () => {
-        await stakeProgram.methods
+        return await stakeProgram.methods
           .requestUnstake(UNSTAKE_AMOUNT)
           .accountsStrict({
             owner,
@@ -255,16 +228,8 @@ describe("agent_stake structured events", () => {
     const finalized = await captureEvent(
       stakeProgram,
       STAKE_UNSTAKE_FINALIZED_EVENT,
-      () =>
-        stakeProgram.methods
-          .finalizeUnstake()
-          .accountsStrict({
-            owner,
-            stake,
-          })
-          .instruction(),
       async () => {
-        await stakeProgram.methods
+        return await stakeProgram.methods
           .finalizeUnstake()
           .accountsStrict({
             owner,
@@ -303,20 +268,8 @@ describe("agent_stake structured events", () => {
     const slashed = await captureEvent(
       stakeProgram,
       STAKE_SLASHED_EVENT,
-      () =>
-        stakeProgram.methods
-          .slash(SLASH_AMOUNT)
-          .accountsStrict({
-            slashAuthority: owner,
-            stake,
-            disputeReceipt: receipt,
-            slashMarker,
-            treasury: owner,
-            systemProgram: anchor.web3.SystemProgram.programId,
-          })
-          .instruction(),
       async () => {
-        await stakeProgram.methods
+        return await stakeProgram.methods
           .slash(SLASH_AMOUNT)
           .accountsStrict({
             slashAuthority: owner,
@@ -341,52 +294,33 @@ describe("agent_stake structured events", () => {
 async function captureEvent(
   program: Program<any>,
   eventName: string,
-  _buildInstruction: () => Promise<anchor.web3.TransactionInstruction>,
-  action: () => Promise<void>
+  action: () => Promise<string>
 ): Promise<any> {
   const connection = anchor.AnchorProvider.env().connection;
   const parser = new anchor.EventParser(program.programId, program.coder);
+  const signature = await action();
+  const maxAttempts = 30;
+  const pollDelayMs = 500;
 
-  return await new Promise<any>(async (resolve, reject) => {
-    let resolved = false;
-    const listenerId = await connection.onLogs(
-      program.programId,
-      (logInfo) => {
-        for (const parsedEvent of parser.parseLogs(logInfo.logs)) {
-          if (parsedEvent.name.toLowerCase() === eventName.toLowerCase()) {
-            if (!resolved) {
-              resolved = true;
-              void connection.removeOnLogsListener(listenerId);
-              resolve(parsedEvent.data);
-            }
-          }
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const transaction = await connection.getTransaction(signature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+    const logs = transaction?.meta?.logMessages;
+
+    if (logs) {
+      for (const parsedEvent of parser.parseLogs(logs)) {
+        if (parsedEvent.name.toLowerCase() === eventName.toLowerCase()) {
+          return parsedEvent.data;
         }
-      },
-      "confirmed"
-    );
-
-    setTimeout(() => {
-      if (!resolved) {
-        resolved = true;
-        void connection.removeOnLogsListener(listenerId);
-        reject(new Error(`Timeout waiting for ${eventName}`));
-      }
-    }, 15000);
-
-    await new Promise((resolveSubscription) =>
-      setTimeout(resolveSubscription, 500)
-    );
-
-    try {
-      await action();
-    } catch (error) {
-      if (!resolved) {
-        resolved = true;
-        void connection.removeOnLogsListener(listenerId);
-        reject(error);
       }
     }
-  });
+
+    await new Promise((resolve) => setTimeout(resolve, pollDelayMs));
+  }
+
+  throw new Error(`Timeout waiting for ${eventName}`);
 }
 
 async function waitForSlot(targetSlot: number) {
