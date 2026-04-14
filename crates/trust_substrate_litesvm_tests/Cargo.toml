@@ -1,0 +1,26 @@
+[package]
+name = "trust_substrate_litesvm_tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+agent_stake = { path = "../../programs/agent_stake", features = ["no-entrypoint"] }
+anchor-lang = "1.0.0"
+anyhow = "1.0.102"
+delegation_engine = { path = "../../programs/delegation_engine", features = ["no-entrypoint"] }
+identity_registry = { path = "../../programs/identity_registry", features = ["no-entrypoint"] }
+litesvm = "=0.10.0"
+proof_verifier = { path = "../../programs/proof_verifier", features = ["no-entrypoint"] }
+receipt_emitter = { path = "../../programs/receipt_emitter", features = ["no-entrypoint"] }
+reputation_accumulator = { path = "../../programs/reputation_accumulator", features = ["no-entrypoint"] }
+solana-clock = "=3.0.1"
+solana-keypair = "=3.1.0"
+solana-message = "=3.0.1"
+solana-signer = "=3.0.0"
+solana-transaction = "=3.0.2"
+task_registry = { path = "../../programs/task_registry", features = ["no-entrypoint"] }
+trust_substrate_core = { path = "../trust_substrate_core" }

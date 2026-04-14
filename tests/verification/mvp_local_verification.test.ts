@@ -26,8 +26,8 @@ const REQUIRED_SECURITY_COVERAGE = [
 const REQUIRED_VERIFICATION_PIPELINE = [
   "local-package-tests",
   "rust-program-and-model-tests",
+  "anchor-litesvm-protocol-tests",
   "verification-contract-tests",
-  "anchor-build-and-test",
   "surfpool-end-to-end",
 ];
 
@@ -120,8 +120,8 @@ test("verification order ends with surfpool and excludes devnet as a required ga
   deepStrictEqual(REQUIRED_VERIFICATION_PIPELINE, [
     "local-package-tests",
     "rust-program-and-model-tests",
+    "anchor-litesvm-protocol-tests",
     "verification-contract-tests",
-    "anchor-build-and-test",
     "surfpool-end-to-end",
   ]);
   ok(!REQUIRED_VERIFICATION_PIPELINE.includes("devnet"));
