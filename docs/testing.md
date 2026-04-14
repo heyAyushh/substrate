@@ -20,6 +20,12 @@ Run Rust program and model tests:
 pnpm test:rust
 ```
 
+Run LiteSVM protocol tests through Anchor:
+
+```bash
+pnpm test:litesvm
+```
+
 Run the verification contract:
 
 ```bash
@@ -40,9 +46,9 @@ pnpm test:surfpool
 
 ## Anchor Test Flow
 
-`pnpm test:anchor` runs every Anchor test file under `tests/*.ts` against the local validator flow used by the workspace.
+`pnpm test:anchor` is an alias for `pnpm test:litesvm`. It runs `anchor test --skip-lint --skip-local-validator --skip-deploy`, which builds the Anchor workspace and then runs the granular LiteSVM suites in `crates/trust_substrate_litesvm_tests/tests`.
 
-The main protocol flow is covered by the Anchor suite, including:
+The main protocol flow is covered by the LiteSVM suite, including:
 
 - identity creation
 - task creation
@@ -54,6 +60,8 @@ The main protocol flow is covered by the Anchor suite, including:
 - receipt inclusion proof verification
 - reputation domain creation and receipt application
 - stake escrow, cooldown unstake, dispute-resolution slashing, and slash replay rejection
+
+The pure Rust command intentionally excludes `trust_substrate_litesvm_tests`, because those tests load built SBF artifacts from `target/deploy`. Use `pnpm test:anchor` when instruction/account behavior changed.
 
 ## Verification Tests
 
@@ -74,24 +82,24 @@ Surfpool replaces devnet as the final end-to-end gate.
 `pnpm test:surfpool` runs `scripts/surfpool-e2e.sh`, which:
 
 1. builds the Anchor workspace
-2. starts Surfpool locally when needed
-3. waits for RPC and websocket readiness
-4. runs the real Anchor test suite against Surfpool
-5. cleans up the Surfpool process it started
+2. starts Surfpool directly at the local endpoint
+3. sets `ANCHOR_TEST_RUN` so the validator-backed TypeScript E2E suite runs instead of the default LiteSVM script
+4. lets Surfpool auto-deploy the declared Anchor program IDs
+5. runs the E2E suite against Surfpool with Anchor deployment skipped
 
 Default local endpoint:
 
 - RPC: `http://127.0.0.1:8899`
 - Websocket: `ws://127.0.0.1:8900`
 
-The harness uses `tests/surfpool/txtx.yml` when that manifest is present. Without that manifest, it starts Surfpool against the default local endpoint contract and runs the Anchor suite with deployment skipped after the local build.
+The harness intentionally lets Surfpool own local program deployment, then runs Anchor with `--skip-deploy`. That avoids deploying generated `target/deploy/*-keypair.json` IDs that do not match the declared program IDs used by the TypeScript tests.
 
 ## Expected Local Order
 
 1. `pnpm test:packages`
 2. `pnpm test:rust`
-3. `pnpm test:verification`
-4. `pnpm test:anchor`
+3. `pnpm test:anchor`
+4. `pnpm test:verification`
 5. `pnpm test:surfpool`
 
 The verification contract explicitly keeps devnet out of the required gate.

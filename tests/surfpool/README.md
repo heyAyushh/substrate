@@ -19,7 +19,9 @@ Run the harness from the repository root:
 What the harness does:
 
 1. Builds the Anchor workspace.
-2. Runs Anchor tests with Anchor 1.0's built-in Surfpool validator.
+2. Starts Surfpool at the local endpoint.
+3. Lets Surfpool auto-deploy the declared Anchor program IDs.
+4. Runs the validator-backed TypeScript tests with Anchor deployment skipped.
 
 To run a targeted Surfpool suite, pass the test path:
 
