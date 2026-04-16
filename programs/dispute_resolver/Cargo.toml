@@ -1,0 +1,26 @@
+[package]
+name = "dispute_resolver"
+version = "0.1.0"
+description = "Trust Substrate dispute verdict program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "dispute_resolver"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = [
+    "anchor-lang/idl-build",
+    "receipt_emitter/idl-build",
+    "trust_substrate_core/idl-build",
+]
+
+[dependencies]
+anchor-lang = "1.0.0"
+receipt_emitter = { path = "../receipt_emitter", features = ["no-entrypoint"] }
+trust_substrate_core = { path = "../../crates/trust_substrate_core" }

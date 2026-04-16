@@ -6,6 +6,7 @@ pub struct StakeAccount {
     pub identity: Pubkey,
     pub owner: Pubkey,
     pub slash_authority: Pubkey,
+    pub trust_mode: u8,
     pub amount: u64,
     pub pending_unstake_amount: u64,
     pub unstake_unlocks_at: u64,

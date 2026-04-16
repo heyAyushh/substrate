@@ -8,6 +8,9 @@ pub const CHALLENGE_RESPONSE_SEED: &[u8] = b"challenge_response";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const CHECKPOINT_IMPORTER_SEED: &[u8] = b"checkpoint_importer";
+pub const ADJUDICATOR_CONFIG_SEED: &[u8] = b"adjudicator_config";
+pub const TREASURY_VAULT_SEED: &[u8] = b"treasury";
+pub const VERDICT_SEED: &[u8] = b"verdict";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
 pub const STAKE_SEED: &[u8] = b"stake";
 pub const SLASH_MARKER_SEED: &[u8] = b"slash_marker";
@@ -62,6 +65,13 @@ pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
 pub const STAKE_COOLDOWN_SLOTS: u64 = 5;
 
+pub const TRUST_MODE_VERDICT: u8 = 0;
+pub const TRUST_MODE_AUTHORITY: u8 = 1;
+
+pub const AGENT_WON_OUTCOME: u8 = 0;
+pub const AGENT_LOST_OUTCOME: u8 = 1;
+pub const NO_FAULT_OUTCOME: u8 = 2;
+
 pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
     match kind {
         ASSIGNMENT_KIND => Some(ASSIGNMENT_SCOPE_BIT),
@@ -73,6 +83,14 @@ pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
         CHALLENGE_RESPONSE_KIND => Some(CHALLENGE_RESPONSE_SCOPE_BIT),
         _ => None,
     }
+}
+
+pub fn is_valid_trust_mode(trust_mode: u8) -> bool {
+    matches!(trust_mode, TRUST_MODE_VERDICT | TRUST_MODE_AUTHORITY)
+}
+
+pub fn is_valid_verdict_outcome(outcome: u8) -> bool {
+    matches!(outcome, AGENT_WON_OUTCOME | AGENT_LOST_OUTCOME | NO_FAULT_OUTCOME)
 }
 
 pub fn is_self_emittable_receipt_kind(kind: u8) -> bool {

@@ -15,13 +15,15 @@ use solana_transaction::versioned::VersionedTransaction;
 use std::rc::Rc;
 
 pub use trust_substrate_core::{
-    ASSIGNMENT_KIND, ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
+    ADJUDICATOR_CONFIG_SEED, AGENT_LOST_OUTCOME, AGENT_WON_OUTCOME, ASSIGNMENT_KIND,
+    ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
     CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
     COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
     DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED, LATEST_CHECKPOINT_SEED,
-    RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, SLASH_MARKER_SEED,
-    STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
-    TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
+    NO_FAULT_OUTCOME, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED,
+    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED,
+    TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED,
+    TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -55,6 +57,7 @@ pub struct Harness {
     cpi_authority: Pubkey,
     history_updater: Pubkey,
     domain_catalog: Pubkey,
+    treasury_vault: Pubkey,
 }
 
 impl Harness {
@@ -72,6 +75,7 @@ impl Harness {
         let cpi_authority = pda(&[b"cpi_authority"], &receipt_emitter::ID);
         let history_updater = pda(&[b"history_updater"], &proof_verifier::ID);
         let domain_catalog = pda(&[DOMAIN_CATALOG_SEED], &reputation_accumulator::ID);
+        let treasury_vault = pda(&[TREASURY_VAULT_SEED], &dispute_resolver::ID);
 
         let mut harness = Self {
             svm,
@@ -80,6 +84,7 @@ impl Harness {
             cpi_authority,
             history_updater,
             domain_catalog,
+            treasury_vault,
         };
         let ix = harness.ix_initialize_cpi_authority();
         harness.send_as_payer(ix)?;
@@ -186,6 +191,14 @@ impl Harness {
             .unwrap_or_else(|| panic!("missing account {address}"));
         let mut data: &[u8] = &account.data;
         T::try_deserialize(&mut data).expect("account should deserialize")
+    }
+
+    pub fn lamports(&self, address: Pubkey) -> TestResult<u64> {
+        let account = self
+            .svm
+            .get_account(&address)
+            .ok_or_else(|| anyhow!("missing account {address}"))?;
+        Ok(account.lamports)
     }
 
     pub fn warp_to_slot(&mut self, slot: u64) {
@@ -532,11 +545,22 @@ impl Harness {
         &mut self,
         identity: &IdentityFixture,
         slash_authority: Pubkey,
+        trust_mode: u8,
     ) -> TestResult<Pubkey> {
         let stake = stake_pda(identity.address);
-        let ix = self.ix_initialize_stake(identity.address, stake, slash_authority);
+        let ix = self.ix_initialize_stake(identity.address, stake, slash_authority, trust_mode);
         self.send_as_payer(ix)?;
         Ok(stake)
+    }
+
+    pub fn register_adjudicator(
+        &mut self,
+        governance: &Keypair,
+        adjudicator: Pubkey,
+    ) -> TestResult<Pubkey> {
+        let ix = self.ix_register_adjudicator(governance.pubkey(), adjudicator);
+        self.send(ix, &[governance])?;
+        Ok(self.treasury_vault)
     }
 
     pub fn stake(&mut self, stake: Pubkey, amount: u64) -> TestResult {
@@ -557,26 +581,85 @@ impl Harness {
         Ok(())
     }
 
+    pub fn slash_with_authority(
+        &mut self,
+        slash_authority: &Keypair,
+        stake: Pubkey,
+        dispute_receipt: Pubkey,
+        slash_marker: Pubkey,
+        treasury_vault: Pubkey,
+        amount: u64,
+    ) -> TestResult {
+        self.send(
+            self.ix_slash_with_authority(
+                stake,
+                dispute_receipt,
+                slash_marker,
+                treasury_vault,
+                slash_authority.pubkey(),
+                amount,
+            ),
+            &[slash_authority],
+        )?;
+        Ok(())
+    }
+
     pub fn slash(
         &mut self,
         slash_authority: &Keypair,
         stake: Pubkey,
         dispute_receipt: Pubkey,
         slash_marker: Pubkey,
-        treasury: Pubkey,
+        treasury_vault: Pubkey,
         amount: u64,
     ) -> TestResult {
-        self.send(
-            self.ix_slash(
-                stake,
-                dispute_receipt,
-                slash_marker,
-                treasury,
-                slash_authority.pubkey(),
-                amount,
-            ),
-            &[slash_authority],
-        )?;
+        self.slash_with_authority(
+            slash_authority,
+            stake,
+            dispute_receipt,
+            slash_marker,
+            treasury_vault,
+            amount,
+        )
+    }
+
+    pub fn record_verdict(
+        &mut self,
+        adjudicator: &Keypair,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        outcome: u8,
+        slash_amount: u64,
+    ) -> TestResult {
+        let ix = self.ix_record_verdict(
+            adjudicator.pubkey(),
+            dispute_receipt,
+            verdict,
+            outcome,
+            slash_amount,
+        );
+        self.send(ix, &[adjudicator])?;
+        Ok(())
+    }
+
+    pub fn slash_with_verdict(
+        &mut self,
+        adjudicator: &Keypair,
+        stake: Pubkey,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        slash_marker: Pubkey,
+        treasury_vault: Pubkey,
+    ) -> TestResult {
+        let ix = self.ix_slash_with_verdict(
+            stake,
+            dispute_receipt,
+            verdict,
+            slash_marker,
+            treasury_vault,
+            adjudicator.pubkey(),
+        );
+        self.send(ix, &[adjudicator])?;
         Ok(())
     }
 
@@ -894,24 +977,67 @@ impl Harness {
         )
     }
 
-    pub fn ix_slash(
+    pub fn ix_slash_with_authority(
         &self,
         stake: Pubkey,
         dispute_receipt: Pubkey,
         slash_marker: Pubkey,
-        treasury: Pubkey,
+        treasury_vault: Pubkey,
         slash_authority: Pubkey,
         amount: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             agent_stake::ID,
-            agent_stake::instruction::Slash { amount }.data(),
-            agent_stake::accounts::Slash {
+            agent_stake::instruction::SlashWithAuthority { amount }.data(),
+            agent_stake::accounts::SlashWithAuthority {
                 slash_authority,
                 stake,
                 dispute_receipt,
                 slash_marker,
-                treasury,
+                treasury_vault,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_slash(
+        &self,
+        stake: Pubkey,
+        dispute_receipt: Pubkey,
+        slash_marker: Pubkey,
+        treasury_vault: Pubkey,
+        slash_authority: Pubkey,
+        amount: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_slash_with_authority(
+            stake,
+            dispute_receipt,
+            slash_marker,
+            treasury_vault,
+            slash_authority,
+            amount,
+        )
+    }
+
+    pub fn ix_slash_with_verdict(
+        &self,
+        stake: Pubkey,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        slash_marker: Pubkey,
+        treasury_vault: Pubkey,
+        adjudicator: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            agent_stake::ID,
+            agent_stake::instruction::SlashWithVerdict {}.data(),
+            agent_stake::accounts::SlashWithVerdict {
+                adjudicator,
+                stake,
+                dispute_receipt,
+                verdict,
+                treasury_vault,
+                slash_marker,
                 system_program: system_program::ID,
             },
         )
@@ -938,6 +1064,48 @@ impl Harness {
             proof_verifier::accounts::InitializeHistoryUpdater {
                 payer: self.payer.pubkey(),
                 history_updater: self.history_updater,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    fn ix_register_adjudicator(
+        &self,
+        governance: Pubkey,
+        adjudicator: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            dispute_resolver::ID,
+            dispute_resolver::instruction::RegisterAdjudicator { adjudicator }.data(),
+            dispute_resolver::accounts::RegisterAdjudicator {
+                governance,
+                adjudicator_config: adjudicator_config_pda(),
+                treasury_vault: self.treasury_vault,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    fn ix_record_verdict(
+        &self,
+        adjudicator: Pubkey,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        outcome: u8,
+        slash_amount: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            dispute_resolver::ID,
+            dispute_resolver::instruction::RecordVerdict {
+                outcome,
+                slash_amount,
+            }
+            .data(),
+            dispute_resolver::accounts::RecordVerdict {
+                adjudicator,
+                adjudicator_config: adjudicator_config_pda(),
+                dispute_receipt,
+                verdict,
                 system_program: system_program::ID,
             },
         )
@@ -1160,10 +1328,15 @@ impl Harness {
         identity: Pubkey,
         stake: Pubkey,
         slash_authority: Pubkey,
+        trust_mode: u8,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             agent_stake::ID,
-            agent_stake::instruction::InitializeStake { slash_authority }.data(),
+            agent_stake::instruction::InitializeStakeWithTrustMode {
+                slash_authority,
+                trust_mode,
+            }
+            .data(),
             agent_stake::accounts::InitializeStake {
                 owner: self.payer.pubkey(),
                 identity,
@@ -1216,6 +1389,7 @@ fn load_programs(svm: &mut LiteSVM) -> TestResult {
     add_program(svm, delegation_engine::ID, "delegation_engine")?;
     add_program(svm, reputation_accumulator::ID, "reputation_accumulator")?;
     add_program(svm, proof_verifier::ID, "proof_verifier")?;
+    add_program(svm, dispute_resolver::ID, "dispute_resolver")?;
     add_program(svm, agent_stake::ID, "agent_stake")?;
     Ok(())
 }
@@ -1299,6 +1473,18 @@ fn delegation_pda(identity: Pubkey, delegate: Pubkey) -> Pubkey {
 
 fn checkpoint_importer_pda() -> Pubkey {
     pda(&[CHECKPOINT_IMPORTER_SEED], &proof_verifier::ID)
+}
+
+fn adjudicator_config_pda() -> Pubkey {
+    pda(&[ADJUDICATOR_CONFIG_SEED], &dispute_resolver::ID)
+}
+
+pub fn treasury_vault_pda() -> Pubkey {
+    pda(&[TREASURY_VAULT_SEED], &dispute_resolver::ID)
+}
+
+pub fn verdict_pda(dispute_receipt: Pubkey) -> Pubkey {
+    pda(&[VERDICT_SEED, dispute_receipt.as_ref()], &dispute_resolver::ID)
 }
 
 pub fn checkpoint_pda(identity: Pubkey, epoch: u64) -> Pubkey {

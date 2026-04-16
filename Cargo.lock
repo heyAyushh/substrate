@@ -111,6 +111,7 @@ name = "agent_stake"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "dispute_resolver",
  "identity_registry",
  "receipt_emitter",
  "trust_substrate_core",
@@ -1119,6 +1120,15 @@ dependencies = [
  "block-buffer 0.12.0",
  "crypto-common 0.2.1",
  "ctutils",
+]
+
+[[package]]
+name = "dispute_resolver"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "receipt_emitter",
+ "trust_substrate_core",
 ]
 
 [[package]]
@@ -3938,6 +3948,7 @@ dependencies = [
  "anchor-lang",
  "anyhow",
  "delegation_engine",
+ "dispute_resolver",
  "identity_registry",
  "litesvm",
  "proof_verifier",

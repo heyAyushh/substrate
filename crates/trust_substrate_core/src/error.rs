@@ -86,10 +86,16 @@ pub enum TrustSubstrateError {
     StaleCheckpoint,
     #[msg("Imported checkpoints cannot accept direct receipt appends")]
     CheckpointImportedIsReadOnly,
+    #[msg("The supplied trust mode is not supported by this protocol")]
+    InvalidTrustMode,
     #[msg("The signer cannot mutate this stake account")]
     StakeAuthorityMismatch,
     #[msg("The signer cannot slash this stake account")]
     StakeSlashAuthorityMismatch,
+    #[msg("The stake account trust mode does not allow this slash path")]
+    StakeTrustModeMismatch,
+    #[msg("The stake account treasury vault does not match the protocol treasury PDA")]
+    StakeTreasuryVaultMismatch,
     #[msg("Stake amount cannot be added without overflowing")]
     StakeAmountOverflow,
     #[msg("Stake amount must be greater than zero")]
@@ -104,6 +110,20 @@ pub enum TrustSubstrateError {
     StakeReceiptKindMismatch,
     #[msg("This dispute receipt has already been used for slashing")]
     StakeSlashAlreadyApplied,
+    #[msg("The supplied verdict outcome is not part of the protocol vocabulary")]
+    InvalidVerdictOutcome,
+    #[msg("Only the configured adjudicator can record or apply this verdict")]
+    VerdictAdjudicatorMismatch,
+    #[msg("The supplied receipt is not a dispute receipt")]
+    VerdictReceiptKindMismatch,
+    #[msg("The verdict does not target this stake identity")]
+    VerdictTargetIdentityMismatch,
+    #[msg("The verdict is not bound to the supplied dispute receipt")]
+    VerdictDisputeReceiptMismatch,
+    #[msg("Only AGENT_LOST verdicts can slash stake")]
+    VerdictOutcomeNotSlashable,
+    #[msg("Verdict challenges are reserved for a later protocol wave")]
+    VerdictChallengeNotImplemented,
     #[msg("The receipt kind cannot be emitted as an audit receipt")]
     ReceiptKindNotAuditable,
     #[msg("The receipt kind cannot be emitted as a self-receipt")]
