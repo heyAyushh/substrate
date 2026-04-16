@@ -7,5 +7,5 @@
  */
 
 export * from "./agentIdentity";
-export * from "./receiptRecord";
+export * from "./receiptRecordAccount";
 export * from "./taskStatusSynced";

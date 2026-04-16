@@ -138,6 +138,9 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 - delegation scope assertions
 - derived reputation profiles
 - stake, challenge, and execution-trace projection helpers
+- PI tool-stream adaptation through `pi-adapter.ts`
+- Solana `@solana/kit` transaction dispatch and typed program bindings through `onchain-client.ts`
+- receipt-plus-indexer commit orchestration through `pi-bridge.ts`
 
 [sdk] The generated clients and the SDK have different roles. The generated package speaks to programs. The SDK derives and validates local protocol state around those on-chain facts.
 

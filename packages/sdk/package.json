@@ -18,8 +18,12 @@
     }
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter @trust-substrate/program-clients build && tsc -p tsconfig.build.json",
     "test": "pnpm run build && tsc -p tsconfig.test.json && node --test dist-tests/tests/sdk/*.test.js",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true }); require('node:fs').rmSync('dist-tests', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@solana/kit": "6.8.0",
+    "@trust-substrate/program-clients": "workspace:*"
   }
 }

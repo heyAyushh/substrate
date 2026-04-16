@@ -7,4 +7,4 @@
  */
 
 export * from "./agentIdentity";
-export * from "./receiptRecord";
+export * from "./receiptRecordAccount";

@@ -54,6 +54,13 @@ The simulation is pure TypeScript and requires no Solana RPC. It reuses the
 on-chain canonical hashing rules, so the execution-record roots it prints are
 the same `payload_hash` values the `receipt_emitter` program would anchor.
 
+For a live Solana hook-up, use the SDK bridge path instead of this demo-only
+script:
+
+- `adaptPiToolCalls` / `adaptAndSignPiToolCalls` in `packages/sdk/src/pi-adapter.ts`
+- `TrustSubstrateOnchainClient` in `packages/sdk/src/onchain-client.ts`
+- `PiToolStreamBridge` in `packages/sdk/src/pi-bridge.ts`
+
 ## Tool mapping
 
 Pi-mono's coding agent exposes four default tools: `read`, `write`, `edit`,

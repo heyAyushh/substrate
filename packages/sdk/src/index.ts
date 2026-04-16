@@ -40,6 +40,39 @@ export type {
 } from "./execution-record.js";
 
 export {
+  adaptAndSignPiToolCalls,
+  adaptPiToolCalls,
+  PI_TOOL_TO_STEP_KIND,
+} from "./pi-adapter.js";
+
+export {
+  KitTransactionDispatcher,
+  TrustSubstrateOnchainClient,
+  createKitTransactionDispatcher,
+} from "./onchain-client.js";
+
+export {
+  PiToolStreamBridge,
+} from "./pi-bridge.js";
+
+export {
+  bytes32Equals,
+  bytes32ToHex,
+  deriveAgentIdBytes,
+  deriveDomainBytes,
+  deriveHistoryRootBytes,
+  derivePayloadHashBytes,
+  derivePolicyRootBytes,
+  derivePreviousReceiptBytes,
+  deriveProtocolBytes32,
+  deriveReceiptIdBytes,
+  deriveSubtaskRootBytes,
+  deriveTaskIdBytes,
+  normalizeBytes32,
+  zeroBytes32,
+} from "./onchain-identifiers.js";
+
+export {
   appendRuntimeAttestation,
   resolveRuntimeAtSlot,
 } from "./runtime-attestation.js";
@@ -95,6 +128,37 @@ export type {
   BlobFetcher,
   VerifyPayloadInput,
 } from "./data-availability.js";
+
+export type {
+  AdaptPiToolCallsInput,
+  AdaptedSignedPiToolCalls,
+  PiToolCall,
+  PiToolName,
+  SignedPiToolCalls,
+} from "./pi-adapter.js";
+
+export type {
+  OnchainIdentityBinding,
+  OnchainOperationResult,
+  OnchainReceiptBinding,
+  OnchainReputationBinding,
+  OnchainStakeBinding,
+  OnchainTaskBinding,
+  OnchainTransactionCommit,
+  OnchainTransactionDispatcher,
+  TrustSubstrateDispatcherConfig,
+  TrustSubstrateRpc,
+  TrustSubstrateRpcSubscriptions,
+} from "./onchain-client.js";
+
+export type {
+  PiBridgeCommitInput,
+  PiBridgeCommitResult,
+  PiBridgeExecutionResult,
+  PiBridgeStakeInput,
+  ReceiptIndexRecord,
+  ReceiptIndexWriter,
+} from "./pi-bridge.js";
 
 export {
   COMMIT_MARKER,

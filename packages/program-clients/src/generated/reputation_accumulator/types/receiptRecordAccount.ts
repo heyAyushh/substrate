@@ -29,7 +29,7 @@ import {
   type ReadonlyUint8Array,
 } from "@solana/kit";
 
-export type ReceiptRecord = {
+export type ReceiptRecordAccount = {
   identity: Address;
   task: Address;
   receiptId: ReadonlyUint8Array;
@@ -48,7 +48,7 @@ export type ReceiptRecord = {
   bump: number;
 };
 
-export type ReceiptRecordArgs = {
+export type ReceiptRecordAccountArgs = {
   identity: Address;
   task: Address;
   receiptId: ReadonlyUint8Array;
@@ -67,7 +67,7 @@ export type ReceiptRecordArgs = {
   bump: number;
 };
 
-export function getReceiptRecordEncoder(): FixedSizeEncoder<ReceiptRecordArgs> {
+export function getReceiptRecordAccountEncoder(): FixedSizeEncoder<ReceiptRecordAccountArgs> {
   return getStructEncoder([
     ["identity", getAddressEncoder()],
     ["task", getAddressEncoder()],
@@ -88,7 +88,7 @@ export function getReceiptRecordEncoder(): FixedSizeEncoder<ReceiptRecordArgs> {
   ]);
 }
 
-export function getReceiptRecordDecoder(): FixedSizeDecoder<ReceiptRecord> {
+export function getReceiptRecordAccountDecoder(): FixedSizeDecoder<ReceiptRecordAccount> {
   return getStructDecoder([
     ["identity", getAddressDecoder()],
     ["task", getAddressDecoder()],
@@ -109,9 +109,12 @@ export function getReceiptRecordDecoder(): FixedSizeDecoder<ReceiptRecord> {
   ]);
 }
 
-export function getReceiptRecordCodec(): FixedSizeCodec<
-  ReceiptRecordArgs,
-  ReceiptRecord
+export function getReceiptRecordAccountCodec(): FixedSizeCodec<
+  ReceiptRecordAccountArgs,
+  ReceiptRecordAccount
 > {
-  return combineCodec(getReceiptRecordEncoder(), getReceiptRecordDecoder());
+  return combineCodec(
+    getReceiptRecordAccountEncoder(),
+    getReceiptRecordAccountDecoder(),
+  );
 }
