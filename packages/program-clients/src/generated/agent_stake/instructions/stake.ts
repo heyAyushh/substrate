@@ -51,7 +51,10 @@ export function getStakeDiscriminatorBytes() {
 export type StakeInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountOwner extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -63,9 +66,15 @@ export type StakeInstruction<
         ? WritableSignerAccount<TAccountOwner> &
             AccountSignerMeta<TAccountOwner>
         : TAccountOwner,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountStake extends string
         ? WritableAccount<TAccountStake>
         : TAccountStake,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -109,27 +118,41 @@ export function getStakeInstructionDataCodec(): FixedSizeCodec<
 
 export type StakeInput<
   TAccountOwner extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   owner: TransactionSigner<TAccountOwner>;
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   amount: StakeInstructionDataArgs["amount"];
 };
 
 export function getStakeInstruction<
   TAccountOwner extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
-  input: StakeInput<TAccountOwner, TAccountStake, TAccountSystemProgram>,
+  input: StakeInput<
+    TAccountOwner,
+    TAccountIdentity,
+    TAccountStake,
+    TAccountIdentityRegistryProgram,
+    TAccountSystemProgram
+  >,
   config?: { programAddress?: TProgramAddress },
 ): StakeInstruction<
   TProgramAddress,
   TAccountOwner,
+  TAccountIdentity,
   TAccountStake,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -138,7 +161,12 @@ export function getStakeInstruction<
   // Original accounts.
   const originalAccounts = {
     owner: { value: input.owner ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -150,6 +178,10 @@ export function getStakeInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -159,7 +191,12 @@ export function getStakeInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("owner", accounts.owner),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getStakeInstructionDataEncoder().encode(
@@ -169,7 +206,9 @@ export function getStakeInstruction<
   } as StakeInstruction<
     TProgramAddress,
     TAccountOwner,
+    TAccountIdentity,
     TAccountStake,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -181,8 +220,10 @@ export type ParsedStakeInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     owner: TAccountMetas[0];
-    stake: TAccountMetas[1];
-    systemProgram: TAccountMetas[2];
+    identity: TAccountMetas[1];
+    stake: TAccountMetas[2];
+    identityRegistryProgram: TAccountMetas[3];
+    systemProgram: TAccountMetas[4];
   };
   data: StakeInstructionData;
 };
@@ -195,12 +236,12 @@ export function parseStakeInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedStakeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 3,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -214,7 +255,9 @@ export function parseStakeInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       owner: getNextAccount(),
+      identity: getNextAccount(),
       stake: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getStakeInstructionDataDecoder().decode(instruction.data),

@@ -26,6 +26,7 @@ import {
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
+  type ReadonlyAccount,
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
@@ -50,7 +51,10 @@ export function getFinalizeUnstakeDiscriminatorBytes() {
 export type FinalizeUnstakeInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountOwner extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -60,9 +64,15 @@ export type FinalizeUnstakeInstruction<
         ? WritableSignerAccount<TAccountOwner> &
             AccountSignerMeta<TAccountOwner>
         : TAccountOwner,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountStake extends string
         ? WritableAccount<TAccountStake>
         : TAccountStake,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -98,45 +108,80 @@ export function getFinalizeUnstakeInstructionDataCodec(): FixedSizeCodec<
 
 export type FinalizeUnstakeInput<
   TAccountOwner extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
 > = {
   owner: TransactionSigner<TAccountOwner>;
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
 };
 
 export function getFinalizeUnstakeInstruction<
   TAccountOwner extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
+  TAccountIdentityRegistryProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
-  input: FinalizeUnstakeInput<TAccountOwner, TAccountStake>,
+  input: FinalizeUnstakeInput<
+    TAccountOwner,
+    TAccountIdentity,
+    TAccountStake,
+    TAccountIdentityRegistryProgram
+  >,
   config?: { programAddress?: TProgramAddress },
-): FinalizeUnstakeInstruction<TProgramAddress, TAccountOwner, TAccountStake> {
+): FinalizeUnstakeInstruction<
+  TProgramAddress,
+  TAccountOwner,
+  TAccountIdentity,
+  TAccountStake,
+  TAccountIdentityRegistryProgram
+> {
   // Program address.
   const programAddress = config?.programAddress ?? AGENT_STAKE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
     owner: { value: input.owner ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedInstructionAccount
   >;
 
+  // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta("owner", accounts.owner),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
     ],
     data: getFinalizeUnstakeInstructionDataEncoder().encode({}),
     programAddress,
   } as FinalizeUnstakeInstruction<
     TProgramAddress,
     TAccountOwner,
-    TAccountStake
+    TAccountIdentity,
+    TAccountStake,
+    TAccountIdentityRegistryProgram
   >);
 }
 
@@ -147,7 +192,9 @@ export type ParsedFinalizeUnstakeInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     owner: TAccountMetas[0];
-    stake: TAccountMetas[1];
+    identity: TAccountMetas[1];
+    stake: TAccountMetas[2];
+    identityRegistryProgram: TAccountMetas[3];
   };
   data: FinalizeUnstakeInstructionData;
 };
@@ -160,12 +207,12 @@ export function parseFinalizeUnstakeInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedFinalizeUnstakeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+  if (instruction.accounts.length < 4) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 2,
+        expectedAccountMetas: 4,
       },
     );
   }
@@ -177,7 +224,12 @@ export function parseFinalizeUnstakeInstruction<
   };
   return {
     programAddress: instruction.programAddress,
-    accounts: { owner: getNextAccount(), stake: getNextAccount() },
+    accounts: {
+      owner: getNextAccount(),
+      identity: getNextAccount(),
+      stake: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
+    },
     data: getFinalizeUnstakeInstructionDataDecoder().decode(instruction.data),
   };
 }

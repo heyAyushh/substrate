@@ -8,4 +8,6 @@
 
 export * from "./agentIdentity";
 export * from "./guardianSet";
+export * from "./identityBond";
 export * from "./pendingAuthorityRotation";
+export * from "./runtimeAttestation";

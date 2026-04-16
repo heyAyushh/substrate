@@ -1,15 +1,27 @@
+pub mod adjust_open_challenge_count;
+pub mod adjust_open_task_count;
+pub mod append_runtime_attestation;
 pub mod create_identity;
+pub mod deposit_identity_bond;
 pub mod emergency_rotate_authority;
 pub mod finalize_authority_rotation;
 pub mod initialize_guardian_set;
 pub mod rotate_authority;
+pub mod set_stake_active;
 pub mod update_history_root;
 pub mod update_policy_root;
+pub mod withdraw_identity_bond;
 
+pub use adjust_open_challenge_count::AdjustOpenChallengeCount;
+pub use adjust_open_task_count::AdjustOpenTaskCount;
+pub use append_runtime_attestation::AppendRuntimeAttestation;
 pub use create_identity::CreateIdentity;
+pub use deposit_identity_bond::DepositIdentityBond;
 pub use emergency_rotate_authority::EmergencyRotateAuthority;
 pub use finalize_authority_rotation::FinalizeAuthorityRotation;
 pub use initialize_guardian_set::InitializeGuardianSet;
 pub use rotate_authority::RotateAuthority;
+pub use set_stake_active::SetStakeActive;
 pub use update_history_root::UpdateHistoryRoot;
 pub use update_policy_root::UpdatePolicyRoot;
+pub use withdraw_identity_bond::WithdrawIdentityBond;

@@ -12,6 +12,7 @@ const CONFIG_NAMES = [
   "proof_verifier.json",
   "reputation_accumulator.json",
   "agent_stake.json",
+  "attester_registry.json",
 ];
 
 for (const configName of CONFIG_NAMES) {

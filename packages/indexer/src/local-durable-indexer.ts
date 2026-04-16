@@ -6,6 +6,7 @@ import {
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
+  type AttesterRecordView,
   type AuthorityRotationEvent,
   type AuthorityRotation,
   type ChallengeRoundView,
@@ -14,6 +15,7 @@ import {
   type DomainSummary,
   type ExecutionGraph,
   type HandoffStep,
+  type IdentityStateView,
   type IndexedReceipt,
   type IngestResult,
   type LeaderboardEntry,
@@ -41,7 +43,7 @@ const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
 const STAKE_EVENT_MARKER = "trust-substrate.stake_event";
 
-const SNAPSHOT_VERSION = 1 as const;
+const SNAPSHOT_VERSION = 2 as const;
 
 interface StoredAuthorityRotation {
   event: AuthorityRotationEvent;
@@ -53,10 +55,22 @@ interface StoredReceipt {
   canonical: string;
 }
 
+interface StoredIdentityState {
+  state: IdentityStateView;
+  canonical: string;
+}
+
+interface StoredAttesterRecord {
+  record: AttesterRecordView;
+  canonical: string;
+}
+
 export interface IndexerSnapshot {
   readonly version: typeof SNAPSHOT_VERSION;
   readonly receipts: ReadonlyArray<IndexedReceipt>;
   readonly authorityRotations?: ReadonlyArray<AuthorityRotationEvent>;
+  readonly identityStates?: ReadonlyArray<IdentityStateView>;
+  readonly attesterRecords?: ReadonlyArray<AttesterRecordView>;
 }
 
 const createDedupeKey = (receipt: LocalReceiptRecord): string =>
@@ -129,6 +143,23 @@ const cloneAuthorityRotation = (
   newAuthority: event.newAuthority,
   mode: event.mode,
   sequence: event.sequence,
+});
+
+const cloneIdentityState = (state: IdentityStateView): IdentityStateView => ({
+  identityId: state.identityId,
+  tier: state.tier,
+  openTaskCount: state.openTaskCount,
+  openChallengeCount: state.openChallengeCount,
+  activeStake: state.activeStake,
+});
+
+const cloneAttesterRecord = (
+  record: AttesterRecordView
+): AttesterRecordView => ({
+  identityId: record.identityId,
+  category: record.category,
+  selfDeclaredTier: record.selfDeclaredTier,
+  effectiveTier: record.effectiveTier,
 });
 
 type StakeEventKind =
@@ -330,6 +361,11 @@ export class LocalDurableIndexer {
     string,
     StoredAuthorityRotation
   >();
+  private readonly identityStatesById = new Map<string, StoredIdentityState>();
+  private readonly attesterRecordsByIdentity = new Map<
+    string,
+    StoredAttesterRecord
+  >();
 
   snapshot(): IndexerSnapshot {
     return {
@@ -340,6 +376,12 @@ export class LocalDurableIndexer {
       })),
       authorityRotations: this.sortedAuthorityRotations().map((event) =>
         cloneAuthorityRotation(event)
+      ),
+      identityStates: this.getIdentityStates().map((state) =>
+        cloneIdentityState(state)
+      ),
+      attesterRecords: this.getAttesterRecords().map((record) =>
+        cloneAttesterRecord(record)
       ),
     };
   }
@@ -368,6 +410,12 @@ export class LocalDurableIndexer {
     }
     if (snapshot.authorityRotations) {
       indexer.ingestAuthorityRotations(snapshot.authorityRotations);
+    }
+    if (snapshot.identityStates) {
+      indexer.ingestIdentityStates(snapshot.identityStates);
+    }
+    if (snapshot.attesterRecords) {
+      indexer.ingestAttesterRecords(snapshot.attesterRecords);
     }
     return indexer;
   }
@@ -438,6 +486,52 @@ export class LocalDurableIndexer {
 
       this.authorityRotationsByKey.set(dedupeKey, {
         event: cloneAuthorityRotation(event),
+        canonical,
+      });
+      accepted += 1;
+    }
+
+    return { accepted, duplicates };
+  }
+
+  ingestIdentityStates(identityStates: readonly IdentityStateView[]): IngestResult {
+    let accepted = 0;
+    let duplicates = 0;
+
+    for (const state of identityStates) {
+      const canonical = stableStringify(state);
+      const existing = this.identityStatesById.get(state.identityId);
+      if (existing?.canonical === canonical) {
+        duplicates += 1;
+        continue;
+      }
+
+      this.identityStatesById.set(state.identityId, {
+        state: cloneIdentityState(state),
+        canonical,
+      });
+      accepted += 1;
+    }
+
+    return { accepted, duplicates };
+  }
+
+  ingestAttesterRecords(
+    attesterRecords: readonly AttesterRecordView[]
+  ): IngestResult {
+    let accepted = 0;
+    let duplicates = 0;
+
+    for (const record of attesterRecords) {
+      const canonical = stableStringify(record);
+      const existing = this.attesterRecordsByIdentity.get(record.identityId);
+      if (existing?.canonical === canonical) {
+        duplicates += 1;
+        continue;
+      }
+
+      this.attesterRecordsByIdentity.set(record.identityId, {
+        record: cloneAttesterRecord(record),
         canonical,
       });
       accepted += 1;
@@ -690,6 +784,9 @@ export class LocalDurableIndexer {
 
   getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
     const attestations = this.collectAttestationCounts();
+    const identityStates = new Map(
+      this.getIdentityStates().map((state) => [state.identityId, state] as const)
+    );
     const stakeStates = new Map(
       this.getStakeStates().map((state) => [state.identityId, state] as const)
     );
@@ -719,7 +816,9 @@ export class LocalDurableIndexer {
 
       const activeLamports =
         BigInt(stakeStates.get(receipt.actorId)?.activeLamports ?? "0");
-      const tier = activeLamports > 0n ? "bonded" : "tier0";
+      const tier =
+        identityStates.get(receipt.actorId)?.tier ??
+        (activeLamports > 0n ? "bonded" : "tier0");
       if (!query.tier0 && tier === "tier0") {
         continue;
       }
@@ -746,6 +845,18 @@ export class LocalDurableIndexer {
       entries = entries.filter((entry) => entry.attestations > 0);
     }
     return entries.sort((left, right) => right.score - left.score);
+  }
+
+  getIdentityStates(): IdentityStateView[] {
+    return [...this.identityStatesById.values()]
+      .map(({ state }) => cloneIdentityState(state))
+      .sort((left, right) => left.identityId.localeCompare(right.identityId));
+  }
+
+  getAttesterRecords(): AttesterRecordView[] {
+    return [...this.attesterRecordsByIdentity.values()]
+      .map(({ record }) => cloneAttesterRecord(record))
+      .sort((left, right) => left.identityId.localeCompare(right.identityId));
   }
 
   getStakeState(identityId: string): StakeStateView {
@@ -1013,11 +1124,17 @@ export class LocalDurableIndexer {
       if (receipt.kind !== ATTESTATION_KIND) {
         continue;
       }
+      const weight =
+        this.attesterRecordsByIdentity.get(receipt.actorId)?.record
+          .effectiveTier ?? 0;
+      if (weight <= 0) {
+        continue;
+      }
       const target = asString(receipt.payload.target);
       if (!target) {
         continue;
       }
-      counts.set(target, (counts.get(target) ?? 0) + 1);
+      counts.set(target, (counts.get(target) ?? 0) + weight);
     }
     return counts;
   }

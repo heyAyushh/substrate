@@ -6,10 +6,16 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./adjustOpenChallengeCount";
+export * from "./adjustOpenTaskCount";
+export * from "./appendRuntimeAttestation";
 export * from "./createIdentity";
+export * from "./depositIdentityBond";
 export * from "./emergencyRotateAuthority";
 export * from "./finalizeAuthorityRotation";
 export * from "./initializeGuardianSet";
 export * from "./rotateAuthority";
+export * from "./setStakeActive";
 export * from "./updateHistoryRoot";
 export * from "./updatePolicyRoot";
+export * from "./withdrawIdentityBond";

@@ -30,6 +30,16 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
         amount,
     )?;
 
+    let identity_cpi_accounts = identity_registry::cpi::accounts::SetStakeActive {
+        authority: ctx.accounts.owner.to_account_info(),
+        identity: ctx.accounts.identity.to_account_info(),
+    };
+    let identity_cpi = CpiContext::new(
+        ctx.accounts.identity_registry_program.key(),
+        identity_cpi_accounts,
+    );
+    identity_registry::cpi::set_stake_active(identity_cpi, true)?;
+
     emit!(StakeDeposited {
         identity: ctx.accounts.stake.identity,
         authority: ctx.accounts.owner.key(),
@@ -44,11 +54,14 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
 pub struct Stake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
+    #[account(mut)]
+    pub identity: Account<'info, identity_registry::state::AgentIdentity>,
     #[account(
         mut,
         seeds = [STAKE_SEED, stake.identity.as_ref()],
         bump = stake.bump
     )]
     pub stake: Account<'info, StakeAccount>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }

@@ -350,9 +350,9 @@ export type ReceiptEmitterPluginInstructions = {
 
 export type ReceiptEmitterPluginPdas = {
   auditReceipt: typeof findAuditReceiptPda;
+  cpiAuthority: typeof findCpiAuthorityPda;
   challengeResponse: typeof findChallengeResponsePda;
   receipt: typeof findReceiptPda;
-  cpiAuthority: typeof findCpiAuthorityPda;
 };
 
 export type ReceiptEmitterPluginRequirements = ClientWithRpc<
@@ -413,9 +413,9 @@ export function receiptEmitterProgram() {
         },
         pdas: {
           auditReceipt: findAuditReceiptPda,
+          cpiAuthority: findCpiAuthorityPda,
           challengeResponse: findChallengeResponsePda,
           receipt: findReceiptPda,
-          cpiAuthority: findCpiAuthorityPda,
         },
       },
     };

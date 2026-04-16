@@ -3,6 +3,7 @@ use solana_sha256_hasher::hashv;
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const PENDING_ROTATION_SEED: &[u8] = b"pending_rotation";
 pub const GUARDIAN_SET_SEED: &[u8] = b"guardian_set";
+pub const IDENTITY_BOND_SEED: &[u8] = b"bond";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
@@ -21,8 +22,18 @@ pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
 pub const REPUTATION_RECEIPT_APPLICATION_SEED: &[u8] = b"reputation_receipt_application";
 pub const DOMAIN_CATALOG_SEED: &[u8] = b"domain_catalog";
 pub const DOMAIN_STATS_SEED: &[u8] = b"domain_stats";
+pub const RUNTIME_ATTESTATION_SEED: &[u8] = b"runtime_attestation";
+pub const ATTESTER_CONFIG_SEED: &[u8] = b"attester_config";
+pub const ATTESTER_RECORD_SEED: &[u8] = b"attester";
 
 pub const EMPTY_SCOPE_BITMAP: u8 = 0;
+
+pub const IDENTITY_TIER0: u8 = 0;
+pub const IDENTITY_TIER1: u8 = 1;
+pub const MAX_ATTESTER_TIER: u8 = 3;
+pub const MAX_ATTESTER_CATEGORY_LEN: usize = 32;
+pub const IDENTITY_BOND_LAMPORTS: u64 = 100_000_000;
+pub const ATTESTER_BOND_LAMPORTS: u64 = 200_000_000;
 
 pub const ASSIGNMENT_KIND: u8 = 1;
 pub const HANDOFF_KIND: u8 = 2;

@@ -9,6 +9,7 @@ path = "src/lib.rs"
 
 [dependencies]
 agent_stake = { path = "../../programs/agent_stake", features = ["no-entrypoint"] }
+attester_registry = { path = "../../programs/attester_registry", features = ["no-entrypoint"] }
 anchor-lang = "1.0.0"
 anyhow = "1.0.102"
 delegation_engine = { path = "../../programs/delegation_engine", features = ["no-entrypoint"] }

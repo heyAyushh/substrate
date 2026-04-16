@@ -34,48 +34,80 @@ import {
 import {
   getAgentIdentityCodec,
   getGuardianSetCodec,
+  getIdentityBondCodec,
   getPendingAuthorityRotationCodec,
+  getRuntimeAttestationCodec,
   type AgentIdentity,
   type AgentIdentityArgs,
   type GuardianSet,
   type GuardianSetArgs,
+  type IdentityBond,
+  type IdentityBondArgs,
   type PendingAuthorityRotation,
   type PendingAuthorityRotationArgs,
+  type RuntimeAttestation,
+  type RuntimeAttestationArgs,
 } from "../accounts";
 import {
+  getAdjustOpenChallengeCountInstruction,
+  getAdjustOpenTaskCountInstruction,
+  getAppendRuntimeAttestationInstructionAsync,
   getCreateIdentityInstructionAsync,
+  getDepositIdentityBondInstructionAsync,
   getEmergencyRotateAuthorityInstruction,
   getFinalizeAuthorityRotationInstructionAsync,
   getInitializeGuardianSetInstructionAsync,
   getRotateAuthorityInstructionAsync,
+  getSetStakeActiveInstruction,
   getUpdateHistoryRootInstruction,
   getUpdatePolicyRootInstruction,
+  getWithdrawIdentityBondInstructionAsync,
+  parseAdjustOpenChallengeCountInstruction,
+  parseAdjustOpenTaskCountInstruction,
+  parseAppendRuntimeAttestationInstruction,
   parseCreateIdentityInstruction,
+  parseDepositIdentityBondInstruction,
   parseEmergencyRotateAuthorityInstruction,
   parseFinalizeAuthorityRotationInstruction,
   parseInitializeGuardianSetInstruction,
   parseRotateAuthorityInstruction,
+  parseSetStakeActiveInstruction,
   parseUpdateHistoryRootInstruction,
   parseUpdatePolicyRootInstruction,
+  parseWithdrawIdentityBondInstruction,
+  type AdjustOpenChallengeCountInput,
+  type AdjustOpenTaskCountInput,
+  type AppendRuntimeAttestationAsyncInput,
   type CreateIdentityAsyncInput,
+  type DepositIdentityBondAsyncInput,
   type EmergencyRotateAuthorityInput,
   type FinalizeAuthorityRotationAsyncInput,
   type InitializeGuardianSetAsyncInput,
+  type ParsedAdjustOpenChallengeCountInstruction,
+  type ParsedAdjustOpenTaskCountInstruction,
+  type ParsedAppendRuntimeAttestationInstruction,
   type ParsedCreateIdentityInstruction,
+  type ParsedDepositIdentityBondInstruction,
   type ParsedEmergencyRotateAuthorityInstruction,
   type ParsedFinalizeAuthorityRotationInstruction,
   type ParsedInitializeGuardianSetInstruction,
   type ParsedRotateAuthorityInstruction,
+  type ParsedSetStakeActiveInstruction,
   type ParsedUpdateHistoryRootInstruction,
   type ParsedUpdatePolicyRootInstruction,
+  type ParsedWithdrawIdentityBondInstruction,
   type RotateAuthorityAsyncInput,
+  type SetStakeActiveInput,
   type UpdateHistoryRootInput,
   type UpdatePolicyRootInput,
+  type WithdrawIdentityBondAsyncInput,
 } from "../instructions";
 import {
   findGuardianSetPda,
+  findIdentityBondPda,
   findIdentityPda,
   findPendingRotationPda,
+  findRuntimeAttestationPda,
 } from "../pdas";
 
 export const IDENTITY_REGISTRY_PROGRAM_ADDRESS =
@@ -84,7 +116,9 @@ export const IDENTITY_REGISTRY_PROGRAM_ADDRESS =
 export enum IdentityRegistryAccount {
   AgentIdentity,
   GuardianSet,
+  IdentityBond,
   PendingAuthorityRotation,
+  RuntimeAttestation,
 }
 
 export function identifyIdentityRegistryAccount(
@@ -117,12 +151,34 @@ export function identifyIdentityRegistryAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([42, 155, 252, 97, 102, 78, 111, 244]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryAccount.IdentityBond;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([228, 102, 208, 113, 133, 243, 39, 18]),
       ),
       0,
     )
   ) {
     return IdentityRegistryAccount.PendingAuthorityRotation;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([1, 86, 253, 43, 237, 246, 16, 16]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryAccount.RuntimeAttestation;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
@@ -131,13 +187,19 @@ export function identifyIdentityRegistryAccount(
 }
 
 export enum IdentityRegistryInstruction {
+  AdjustOpenChallengeCount,
+  AdjustOpenTaskCount,
+  AppendRuntimeAttestation,
   CreateIdentity,
+  DepositIdentityBond,
   EmergencyRotateAuthority,
   FinalizeAuthorityRotation,
   InitializeGuardianSet,
   RotateAuthority,
+  SetStakeActive,
   UpdateHistoryRoot,
   UpdatePolicyRoot,
+  WithdrawIdentityBond,
 }
 
 export function identifyIdentityRegistryInstruction(
@@ -148,12 +210,56 @@ export function identifyIdentityRegistryInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([98, 214, 169, 234, 33, 117, 117, 170]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.AdjustOpenChallengeCount;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([1, 159, 151, 218, 233, 165, 158, 34]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.AdjustOpenTaskCount;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([252, 109, 251, 89, 114, 84, 217, 103]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.AppendRuntimeAttestation;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([12, 253, 209, 41, 176, 51, 195, 179]),
       ),
       0,
     )
   ) {
     return IdentityRegistryInstruction.CreateIdentity;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([197, 18, 126, 185, 0, 101, 73, 52]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.DepositIdentityBond;
   }
   if (
     containsBytes(
@@ -203,6 +309,17 @@ export function identifyIdentityRegistryInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([77, 255, 95, 107, 242, 38, 92, 166]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.SetStakeActive;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([78, 16, 72, 195, 228, 234, 193, 181]),
       ),
       0,
@@ -221,6 +338,17 @@ export function identifyIdentityRegistryInstruction(
   ) {
     return IdentityRegistryInstruction.UpdatePolicyRoot;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([132, 221, 91, 95, 189, 217, 237, 192]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.WithdrawIdentityBond;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "identityRegistry" },
@@ -231,8 +359,20 @@ export type ParsedIdentityRegistryInstruction<
   TProgram extends string = "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
 > =
   | ({
+      instructionType: IdentityRegistryInstruction.AdjustOpenChallengeCount;
+    } & ParsedAdjustOpenChallengeCountInstruction<TProgram>)
+  | ({
+      instructionType: IdentityRegistryInstruction.AdjustOpenTaskCount;
+    } & ParsedAdjustOpenTaskCountInstruction<TProgram>)
+  | ({
+      instructionType: IdentityRegistryInstruction.AppendRuntimeAttestation;
+    } & ParsedAppendRuntimeAttestationInstruction<TProgram>)
+  | ({
       instructionType: IdentityRegistryInstruction.CreateIdentity;
     } & ParsedCreateIdentityInstruction<TProgram>)
+  | ({
+      instructionType: IdentityRegistryInstruction.DepositIdentityBond;
+    } & ParsedDepositIdentityBondInstruction<TProgram>)
   | ({
       instructionType: IdentityRegistryInstruction.EmergencyRotateAuthority;
     } & ParsedEmergencyRotateAuthorityInstruction<TProgram>)
@@ -246,22 +386,56 @@ export type ParsedIdentityRegistryInstruction<
       instructionType: IdentityRegistryInstruction.RotateAuthority;
     } & ParsedRotateAuthorityInstruction<TProgram>)
   | ({
+      instructionType: IdentityRegistryInstruction.SetStakeActive;
+    } & ParsedSetStakeActiveInstruction<TProgram>)
+  | ({
       instructionType: IdentityRegistryInstruction.UpdateHistoryRoot;
     } & ParsedUpdateHistoryRootInstruction<TProgram>)
   | ({
       instructionType: IdentityRegistryInstruction.UpdatePolicyRoot;
-    } & ParsedUpdatePolicyRootInstruction<TProgram>);
+    } & ParsedUpdatePolicyRootInstruction<TProgram>)
+  | ({
+      instructionType: IdentityRegistryInstruction.WithdrawIdentityBond;
+    } & ParsedWithdrawIdentityBondInstruction<TProgram>);
 
 export function parseIdentityRegistryInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
 ): ParsedIdentityRegistryInstruction<TProgram> {
   const instructionType = identifyIdentityRegistryInstruction(instruction);
   switch (instructionType) {
+    case IdentityRegistryInstruction.AdjustOpenChallengeCount: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.AdjustOpenChallengeCount,
+        ...parseAdjustOpenChallengeCountInstruction(instruction),
+      };
+    }
+    case IdentityRegistryInstruction.AdjustOpenTaskCount: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.AdjustOpenTaskCount,
+        ...parseAdjustOpenTaskCountInstruction(instruction),
+      };
+    }
+    case IdentityRegistryInstruction.AppendRuntimeAttestation: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.AppendRuntimeAttestation,
+        ...parseAppendRuntimeAttestationInstruction(instruction),
+      };
+    }
     case IdentityRegistryInstruction.CreateIdentity: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: IdentityRegistryInstruction.CreateIdentity,
         ...parseCreateIdentityInstruction(instruction),
+      };
+    }
+    case IdentityRegistryInstruction.DepositIdentityBond: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.DepositIdentityBond,
+        ...parseDepositIdentityBondInstruction(instruction),
       };
     }
     case IdentityRegistryInstruction.EmergencyRotateAuthority: {
@@ -292,6 +466,13 @@ export function parseIdentityRegistryInstruction<TProgram extends string>(
         ...parseRotateAuthorityInstruction(instruction),
       };
     }
+    case IdentityRegistryInstruction.SetStakeActive: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.SetStakeActive,
+        ...parseSetStakeActiveInstruction(instruction),
+      };
+    }
     case IdentityRegistryInstruction.UpdateHistoryRoot: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -304,6 +485,13 @@ export function parseIdentityRegistryInstruction<TProgram extends string>(
       return {
         instructionType: IdentityRegistryInstruction.UpdatePolicyRoot,
         ...parseUpdatePolicyRootInstruction(instruction),
+      };
+    }
+    case IdentityRegistryInstruction.WithdrawIdentityBond: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.WithdrawIdentityBond,
+        ...parseWithdrawIdentityBondInstruction(instruction),
       };
     }
     default:
@@ -328,16 +516,36 @@ export type IdentityRegistryPluginAccounts = {
     SelfFetchFunctions<AgentIdentityArgs, AgentIdentity>;
   guardianSet: ReturnType<typeof getGuardianSetCodec> &
     SelfFetchFunctions<GuardianSetArgs, GuardianSet>;
+  identityBond: ReturnType<typeof getIdentityBondCodec> &
+    SelfFetchFunctions<IdentityBondArgs, IdentityBond>;
   pendingAuthorityRotation: ReturnType<
     typeof getPendingAuthorityRotationCodec
   > &
     SelfFetchFunctions<PendingAuthorityRotationArgs, PendingAuthorityRotation>;
+  runtimeAttestation: ReturnType<typeof getRuntimeAttestationCodec> &
+    SelfFetchFunctions<RuntimeAttestationArgs, RuntimeAttestation>;
 };
 
 export type IdentityRegistryPluginInstructions = {
+  adjustOpenChallengeCount: (
+    input: AdjustOpenChallengeCountInput,
+  ) => ReturnType<typeof getAdjustOpenChallengeCountInstruction> &
+    SelfPlanAndSendFunctions;
+  adjustOpenTaskCount: (
+    input: AdjustOpenTaskCountInput,
+  ) => ReturnType<typeof getAdjustOpenTaskCountInstruction> &
+    SelfPlanAndSendFunctions;
+  appendRuntimeAttestation: (
+    input: AppendRuntimeAttestationAsyncInput,
+  ) => ReturnType<typeof getAppendRuntimeAttestationInstructionAsync> &
+    SelfPlanAndSendFunctions;
   createIdentity: (
     input: CreateIdentityAsyncInput,
   ) => ReturnType<typeof getCreateIdentityInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  depositIdentityBond: (
+    input: DepositIdentityBondAsyncInput,
+  ) => ReturnType<typeof getDepositIdentityBondInstructionAsync> &
     SelfPlanAndSendFunctions;
   emergencyRotateAuthority: (
     input: EmergencyRotateAuthorityInput,
@@ -355,6 +563,10 @@ export type IdentityRegistryPluginInstructions = {
     input: RotateAuthorityAsyncInput,
   ) => ReturnType<typeof getRotateAuthorityInstructionAsync> &
     SelfPlanAndSendFunctions;
+  setStakeActive: (
+    input: SetStakeActiveInput,
+  ) => ReturnType<typeof getSetStakeActiveInstruction> &
+    SelfPlanAndSendFunctions;
   updateHistoryRoot: (
     input: UpdateHistoryRootInput,
   ) => ReturnType<typeof getUpdateHistoryRootInstruction> &
@@ -363,10 +575,16 @@ export type IdentityRegistryPluginInstructions = {
     input: UpdatePolicyRootInput,
   ) => ReturnType<typeof getUpdatePolicyRootInstruction> &
     SelfPlanAndSendFunctions;
+  withdrawIdentityBond: (
+    input: WithdrawIdentityBondAsyncInput,
+  ) => ReturnType<typeof getWithdrawIdentityBondInstructionAsync> &
+    SelfPlanAndSendFunctions;
 };
 
 export type IdentityRegistryPluginPdas = {
+  runtimeAttestation: typeof findRuntimeAttestationPda;
   identity: typeof findIdentityPda;
+  identityBond: typeof findIdentityBondPda;
   pendingRotation: typeof findPendingRotationPda;
   guardianSet: typeof findGuardianSetPda;
 };
@@ -385,16 +603,41 @@ export function identityRegistryProgram() {
         accounts: {
           agentIdentity: addSelfFetchFunctions(client, getAgentIdentityCodec()),
           guardianSet: addSelfFetchFunctions(client, getGuardianSetCodec()),
+          identityBond: addSelfFetchFunctions(client, getIdentityBondCodec()),
           pendingAuthorityRotation: addSelfFetchFunctions(
             client,
             getPendingAuthorityRotationCodec(),
           ),
+          runtimeAttestation: addSelfFetchFunctions(
+            client,
+            getRuntimeAttestationCodec(),
+          ),
         },
         instructions: {
+          adjustOpenChallengeCount: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAdjustOpenChallengeCountInstruction(input),
+            ),
+          adjustOpenTaskCount: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAdjustOpenTaskCountInstruction(input),
+            ),
+          appendRuntimeAttestation: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getAppendRuntimeAttestationInstructionAsync(input),
+            ),
           createIdentity: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getCreateIdentityInstructionAsync(input),
+            ),
+          depositIdentityBond: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getDepositIdentityBondInstructionAsync(input),
             ),
           emergencyRotateAuthority: (input) =>
             addSelfPlanAndSendFunctions(
@@ -416,6 +659,11 @@ export function identityRegistryProgram() {
               client,
               getRotateAuthorityInstructionAsync(input),
             ),
+          setStakeActive: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSetStakeActiveInstruction(input),
+            ),
           updateHistoryRoot: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -426,9 +674,16 @@ export function identityRegistryProgram() {
               client,
               getUpdatePolicyRootInstruction(input),
             ),
+          withdrawIdentityBond: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getWithdrawIdentityBondInstructionAsync(input),
+            ),
         },
         pdas: {
+          runtimeAttestation: findRuntimeAttestationPda,
           identity: findIdentityPda,
+          identityBond: findIdentityBondPda,
           pendingRotation: findPendingRotationPda,
           guardianSet: findGuardianSetPda,
         },

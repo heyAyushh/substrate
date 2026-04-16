@@ -44,6 +44,18 @@ pub fn handler(ctx: Context<FinalizeUnstake>) -> Result<()> {
         .checked_add(amount)
         .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
 
+    if ctx.accounts.stake.amount == 0 && ctx.accounts.stake.pending_unstake_amount == 0 {
+        let identity_cpi_accounts = identity_registry::cpi::accounts::SetStakeActive {
+            authority: ctx.accounts.owner.to_account_info(),
+            identity: ctx.accounts.identity.to_account_info(),
+        };
+        let identity_cpi = CpiContext::new(
+            ctx.accounts.identity_registry_program.key(),
+            identity_cpi_accounts,
+        );
+        identity_registry::cpi::set_stake_active(identity_cpi, false)?;
+    }
+
     emit!(StakeUnstakeFinalized {
         identity: ctx.accounts.stake.identity,
         authority: ctx.accounts.owner.key(),
@@ -58,10 +70,13 @@ pub fn handler(ctx: Context<FinalizeUnstake>) -> Result<()> {
 pub struct FinalizeUnstake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
+    #[account(mut)]
+    pub identity: Account<'info, identity_registry::state::AgentIdentity>,
     #[account(
         mut,
         seeds = [STAKE_SEED, stake.identity.as_ref()],
         bump = stake.bump
     )]
     pub stake: Account<'info, StakeAccount>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
 }

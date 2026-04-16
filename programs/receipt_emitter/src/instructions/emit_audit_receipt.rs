@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
-use identity_registry::state::AgentIdentity;
+use identity_registry::state::{AgentIdentity, IdentityBond};
 use reputation_accumulator::state::ReputationDomainCatalog;
 use trust_substrate_core::{
     derive_audit_receipt_id, is_auditable_receipt_kind, is_valid_receipt_kind, TrustSubstrateError,
-    AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
+    AUDIT_RECEIPT_SEED, CHALLENGE_KIND, IDENTITY_BOND_SEED,
 };
 
 use crate::events::AuditReceiptCommitted;
-use crate::state::ReceiptRecord;
+use crate::state::{CpiAuthority, ReceiptRecord};
 
 pub fn handler(
     ctx: Context<EmitAuditReceipt>,
@@ -38,6 +38,7 @@ pub fn handler(
     let auditor_identity_key = ctx.accounts.auditor_identity.key();
     let target_receipt_key = ctx.accounts.target_receipt.key();
     let target_receipt = &ctx.accounts.target_receipt;
+    require_bonded_auditor(&ctx.accounts.identity_bond, auditor_identity_key)?;
     if kind == CHALLENGE_KIND {
         require!(
             deadline_slot > 0,
@@ -97,6 +98,20 @@ pub fn handler(
         round,
     });
 
+    if kind == CHALLENGE_KIND {
+        let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenChallengeCount {
+            challenge_authority: ctx.accounts.cpi_authority.to_account_info(),
+            identity: ctx.accounts.target_identity.to_account_info(),
+        };
+        let signer_seeds: &[&[&[u8]]] = &[&[b"cpi_authority", &[ctx.bumps.cpi_authority][..]]];
+        let identity_cpi = CpiContext::new_with_signer(
+            ctx.accounts.identity_registry_program.key(),
+            identity_cpi_accounts,
+            signer_seeds,
+        );
+        identity_registry::cpi::adjust_open_challenge_count(identity_cpi, 1)?;
+    }
+
     Ok(())
 }
 
@@ -109,13 +124,16 @@ pub struct EmitAuditReceipt<'info> {
         constraint = auditor_identity.authority == authority.key()
             @ TrustSubstrateError::ReceiptAuthorityMismatch
     )]
-    pub auditor_identity: Account<'info, AgentIdentity>,
-    pub target_identity: Account<'info, AgentIdentity>,
+    pub auditor_identity: Box<Account<'info, AgentIdentity>>,
+    /// CHECK: the handler validates the PDA address, owner, and deserializes the account.
+    pub identity_bond: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub target_identity: Box<Account<'info, AgentIdentity>>,
     #[account(
         constraint = target_receipt.identity == target_identity.key()
             @ TrustSubstrateError::ReceiptIdentityMismatch
     )]
-    pub target_receipt: Account<'info, ReceiptRecord>,
+    pub target_receipt: Box<Account<'info, ReceiptRecord>>,
     #[account(
         init,
         payer = authority,
@@ -129,7 +147,46 @@ pub struct EmitAuditReceipt<'info> {
         ],
         bump
     )]
-    pub audit_receipt: Account<'info, ReceiptRecord>,
-    pub domain_catalog: Account<'info, ReputationDomainCatalog>,
+    pub audit_receipt: Box<Account<'info, ReceiptRecord>>,
+    pub domain_catalog: Box<Account<'info, ReputationDomainCatalog>>,
+    #[account(
+        seeds = [b"cpi_authority"],
+        bump
+    )]
+    pub cpi_authority: Box<Account<'info, CpiAuthority>>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
+}
+
+fn require_bonded_auditor(identity_bond: &UncheckedAccount<'_>, auditor_identity: Pubkey) -> Result<()> {
+    let (expected_bond, _) = Pubkey::find_program_address(
+        &[IDENTITY_BOND_SEED, auditor_identity.as_ref()],
+        &identity_registry::ID,
+    );
+    require_keys_eq!(
+        identity_bond.key(),
+        expected_bond,
+        TrustSubstrateError::IdentityBondRequired
+    );
+    require_keys_eq!(
+        *identity_bond.owner,
+        identity_registry::ID,
+        TrustSubstrateError::IdentityBondRequired
+    );
+    require!(
+        !identity_bond.data_is_empty(),
+        TrustSubstrateError::IdentityBondRequired
+    );
+
+    let mut data: &[u8] = &identity_bond.try_borrow_data()?;
+    let bond = IdentityBond::try_deserialize(&mut data)
+        .map_err(|_| error!(TrustSubstrateError::IdentityBondRequired))?;
+
+    require_keys_eq!(
+        bond.identity,
+        auditor_identity,
+        TrustSubstrateError::IdentityBondRequired
+    );
+
+    Ok(())
 }

@@ -12,6 +12,30 @@ pub mod __client_accounts_create_identity {
     pub use crate::instructions::create_identity::__client_accounts_create_identity::*;
 }
 
+pub mod __client_accounts_deposit_identity_bond {
+    pub use crate::instructions::deposit_identity_bond::__client_accounts_deposit_identity_bond::*;
+}
+
+pub mod __client_accounts_withdraw_identity_bond {
+    pub use crate::instructions::withdraw_identity_bond::__client_accounts_withdraw_identity_bond::*;
+}
+
+pub mod __client_accounts_adjust_open_task_count {
+    pub use crate::instructions::adjust_open_task_count::__client_accounts_adjust_open_task_count::*;
+}
+
+pub mod __client_accounts_adjust_open_challenge_count {
+    pub use crate::instructions::adjust_open_challenge_count::__client_accounts_adjust_open_challenge_count::*;
+}
+
+pub mod __client_accounts_set_stake_active {
+    pub use crate::instructions::set_stake_active::__client_accounts_set_stake_active::*;
+}
+
+pub mod __client_accounts_append_runtime_attestation {
+    pub use crate::instructions::append_runtime_attestation::__client_accounts_append_runtime_attestation::*;
+}
+
 pub mod __client_accounts_emergency_rotate_authority {
     pub use crate::instructions::emergency_rotate_authority::__client_accounts_emergency_rotate_authority::*;
 }
@@ -39,6 +63,36 @@ pub mod __client_accounts_update_policy_root {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_create_identity {
     pub use crate::instructions::create_identity::__cpi_client_accounts_create_identity::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_deposit_identity_bond {
+    pub use crate::instructions::deposit_identity_bond::__cpi_client_accounts_deposit_identity_bond::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_withdraw_identity_bond {
+    pub use crate::instructions::withdraw_identity_bond::__cpi_client_accounts_withdraw_identity_bond::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_adjust_open_task_count {
+    pub use crate::instructions::adjust_open_task_count::__cpi_client_accounts_adjust_open_task_count::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_adjust_open_challenge_count {
+    pub use crate::instructions::adjust_open_challenge_count::__cpi_client_accounts_adjust_open_challenge_count::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_set_stake_active {
+    pub use crate::instructions::set_stake_active::__cpi_client_accounts_set_stake_active::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_append_runtime_attestation {
+    pub use crate::instructions::append_runtime_attestation::__cpi_client_accounts_append_runtime_attestation::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -84,6 +138,40 @@ pub mod identity_registry {
         history_root: [u8; 32],
     ) -> Result<()> {
         instructions::create_identity::handler(ctx, agent_id, policy_root, history_root)
+    }
+
+    pub fn deposit_identity_bond(ctx: Context<DepositIdentityBond>) -> Result<()> {
+        instructions::deposit_identity_bond::handler(ctx)
+    }
+
+    pub fn withdraw_identity_bond(ctx: Context<WithdrawIdentityBond>) -> Result<()> {
+        instructions::withdraw_identity_bond::handler(ctx)
+    }
+
+    pub fn adjust_open_task_count(
+        ctx: Context<AdjustOpenTaskCount>,
+        delta: i8,
+    ) -> Result<()> {
+        instructions::adjust_open_task_count::handler(ctx, delta)
+    }
+
+    pub fn adjust_open_challenge_count(
+        ctx: Context<AdjustOpenChallengeCount>,
+        delta: i8,
+    ) -> Result<()> {
+        instructions::adjust_open_challenge_count::handler(ctx, delta)
+    }
+
+    pub fn set_stake_active(ctx: Context<SetStakeActive>, active_stake: bool) -> Result<()> {
+        instructions::set_stake_active::handler(ctx, active_stake)
+    }
+
+    pub fn append_runtime_attestation(
+        ctx: Context<AppendRuntimeAttestation>,
+        runtime_commit: [u8; 32],
+        runtime_authority: Pubkey,
+    ) -> Result<()> {
+        instructions::append_runtime_attestation::handler(ctx, runtime_commit, runtime_authority)
     }
 
     pub fn rotate_authority(

@@ -17,10 +17,14 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU32Decoder,
+  getU32Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -53,6 +57,10 @@ export type AgentIdentity = {
   agentId: ReadonlyUint8Array;
   policyRoot: ReadonlyUint8Array;
   historyRoot: ReadonlyUint8Array;
+  tier: number;
+  openTaskCount: number;
+  openChallengeCount: number;
+  activeStake: boolean;
   bump: number;
 };
 
@@ -61,6 +69,10 @@ export type AgentIdentityArgs = {
   agentId: ReadonlyUint8Array;
   policyRoot: ReadonlyUint8Array;
   historyRoot: ReadonlyUint8Array;
+  tier: number;
+  openTaskCount: number;
+  openChallengeCount: number;
+  activeStake: boolean;
   bump: number;
 };
 
@@ -73,6 +85,10 @@ export function getAgentIdentityEncoder(): FixedSizeEncoder<AgentIdentityArgs> {
       ["agentId", fixEncoderSize(getBytesEncoder(), 32)],
       ["policyRoot", fixEncoderSize(getBytesEncoder(), 32)],
       ["historyRoot", fixEncoderSize(getBytesEncoder(), 32)],
+      ["tier", getU8Encoder()],
+      ["openTaskCount", getU32Encoder()],
+      ["openChallengeCount", getU32Encoder()],
+      ["activeStake", getBooleanEncoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: AGENT_IDENTITY_DISCRIMINATOR }),
@@ -87,6 +103,10 @@ export function getAgentIdentityDecoder(): FixedSizeDecoder<AgentIdentity> {
     ["agentId", fixDecoderSize(getBytesDecoder(), 32)],
     ["policyRoot", fixDecoderSize(getBytesDecoder(), 32)],
     ["historyRoot", fixDecoderSize(getBytesDecoder(), 32)],
+    ["tier", getU8Decoder()],
+    ["openTaskCount", getU32Decoder()],
+    ["openChallengeCount", getU32Decoder()],
+    ["activeStake", getBooleanDecoder()],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -157,5 +177,5 @@ export async function fetchAllMaybeAgentIdentity(
 }
 
 export function getAgentIdentitySize(): number {
-  return 137;
+  return 147;
 }

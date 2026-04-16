@@ -200,4 +200,30 @@ pub enum TrustSubstrateError {
     ReceiptDeadlineNotSupported,
     #[msg("Receipt sequence cannot be incremented without overflowing")]
     ReceiptSequenceOverflow,
+    #[msg("This identity must post the protocol bond before it can use this surface")]
+    IdentityBondRequired,
+    #[msg("This identity has already posted the protocol bond")]
+    IdentityAlreadyBonded,
+    #[msg("This identity does not currently have a posted protocol bond")]
+    IdentityNotBonded,
+    #[msg("Identity bond withdrawal requires all tasks to be settled")]
+    IdentityHasOpenTasks,
+    #[msg("Identity bond withdrawal requires all open challenges to be resolved")]
+    IdentityHasOpenChallenges,
+    #[msg("Identity bond withdrawal requires stake activity to be cleared")]
+    IdentityHasActiveStake,
+    #[msg("Task count adjustment would underflow the identity state")]
+    IdentityTaskCountUnderflow,
+    #[msg("Challenge count adjustment would underflow the identity state")]
+    IdentityChallengeCountUnderflow,
+    #[msg("The supplied identity tier is not part of the protocol vocabulary")]
+    InvalidIdentityTier,
+    #[msg("Only the configured receipt emitter CPI authority may update challenge counts")]
+    IdentityChallengeAuthorityMismatch,
+    #[msg("Attester categories must be non-empty and fit within the configured limit")]
+    AttesterCategoryInvalid,
+    #[msg("The supplied attester tier is outside the configured range")]
+    AttesterTierInvalid,
+    #[msg("Only the configured attester curator may change effective attester tiers")]
+    AttesterCuratorMismatch,
 }

@@ -5,7 +5,7 @@ use trust_substrate_core::{
 };
 
 use crate::events::ChallengeResponseCommitted;
-use crate::state::ReceiptRecord;
+use crate::state::{CpiAuthority, ReceiptRecord};
 
 pub fn handler(ctx: Context<EmitChallengeResponse>, payload_hash: [u8; 32]) -> Result<()> {
     let challenge = &ctx.accounts.challenge;
@@ -59,6 +59,18 @@ pub fn handler(ctx: Context<EmitChallengeResponse>, payload_hash: [u8; 32]) -> R
         domain: response.domain,
     });
 
+    let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenChallengeCount {
+        challenge_authority: ctx.accounts.cpi_authority.to_account_info(),
+        identity: ctx.accounts.target_identity.to_account_info(),
+    };
+    let signer_seeds: &[&[&[u8]]] = &[&[b"cpi_authority", &[ctx.bumps.cpi_authority][..]]];
+    let identity_cpi = CpiContext::new_with_signer(
+        ctx.accounts.identity_registry_program.key(),
+        identity_cpi_accounts,
+        signer_seeds,
+    );
+    identity_registry::cpi::adjust_open_challenge_count(identity_cpi, -1)?;
+
     Ok(())
 }
 
@@ -71,6 +83,8 @@ pub struct EmitChallengeResponse<'info> {
             @ TrustSubstrateError::ReceiptAuthorityMismatch
     )]
     pub identity: Account<'info, AgentIdentity>,
+    #[account(mut, address = challenge.identity @ TrustSubstrateError::ReceiptIdentityMismatch)]
+    pub target_identity: Account<'info, AgentIdentity>,
     pub challenge: Account<'info, ReceiptRecord>,
     #[account(
         init,
@@ -83,5 +97,11 @@ pub struct EmitChallengeResponse<'info> {
         bump
     )]
     pub challenge_response: Account<'info, ReceiptRecord>,
+    #[account(
+        seeds = [b"cpi_authority"],
+        bump
+    )]
+    pub cpi_authority: Account<'info, CpiAuthority>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }

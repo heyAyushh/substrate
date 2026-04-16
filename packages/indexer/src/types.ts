@@ -87,6 +87,21 @@ export interface LeaderboardEntry {
   tier: "bonded" | "tier0";
 }
 
+export interface IdentityStateView {
+  identityId: string;
+  tier: "bonded" | "tier0";
+  openTaskCount: number;
+  openChallengeCount: number;
+  activeStake: boolean;
+}
+
+export interface AttesterRecordView {
+  identityId: string;
+  category: string;
+  selfDeclaredTier: number;
+  effectiveTier: number;
+}
+
 export interface LeaderboardQuery {
   domain?: string;
   since?: number;

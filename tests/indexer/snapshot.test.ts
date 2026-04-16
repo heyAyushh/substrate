@@ -53,7 +53,7 @@ test("snapshot round-trip preserves execution graph", () => {
   ]);
 
   const snapshot = original.snapshot();
-  strictEqual(snapshot.version, 1);
+  strictEqual(snapshot.version, 2);
   strictEqual(snapshot.receipts.length, 3);
   strictEqual(snapshot.authorityRotations?.length, 1);
 
@@ -89,7 +89,7 @@ test("fromSnapshot rejects unsupported snapshot versions", () => {
   throws(
     () =>
       LocalDurableIndexer.fromSnapshot({
-        version: 99 as 1,
+        version: 99 as 2,
         receipts: [],
       }),
     /unsupported snapshot version/i

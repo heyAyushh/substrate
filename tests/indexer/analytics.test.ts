@@ -152,6 +152,14 @@ test("attestedOnly leaderboard filters unattested agents", () => {
       payload: { target: "agent-a", kind: "kyc" },
     }),
   ]);
+  indexer.ingestAttesterRecords([
+    {
+      identityId: "attester",
+      category: "review",
+      selfDeclaredTier: 1,
+      effectiveTier: 1,
+    },
+  ]);
 
   const board = indexer.getAgentLeaderboard({ attestedOnly: true });
   strictEqual(board.length, 1);

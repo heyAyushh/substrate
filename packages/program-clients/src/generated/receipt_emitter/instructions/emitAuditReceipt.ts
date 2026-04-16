@@ -44,7 +44,7 @@ import {
   getNonNullResolvedInstructionInput,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findAuditReceiptPda } from "../pdas";
+import { findAuditReceiptPda, findCpiAuthorityPda } from "../pdas";
 import { RECEIPT_EMITTER_PROGRAM_ADDRESS } from "../programs";
 
 export const EMIT_AUDIT_RECEIPT_DISCRIMINATOR = new Uint8Array([
@@ -61,10 +61,14 @@ export type EmitAuditReceiptInstruction<
   TProgram extends string = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountAuditorIdentity extends string | AccountMeta<string> = string,
+  TAccountIdentityBond extends string | AccountMeta<string> = string,
   TAccountTargetIdentity extends string | AccountMeta<string> = string,
   TAccountTargetReceipt extends string | AccountMeta<string> = string,
   TAccountAuditReceipt extends string | AccountMeta<string> = string,
   TAccountDomainCatalog extends string | AccountMeta<string> = string,
+  TAccountCpiAuthority extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -79,8 +83,11 @@ export type EmitAuditReceiptInstruction<
       TAccountAuditorIdentity extends string
         ? ReadonlyAccount<TAccountAuditorIdentity>
         : TAccountAuditorIdentity,
+      TAccountIdentityBond extends string
+        ? ReadonlyAccount<TAccountIdentityBond>
+        : TAccountIdentityBond,
       TAccountTargetIdentity extends string
-        ? ReadonlyAccount<TAccountTargetIdentity>
+        ? WritableAccount<TAccountTargetIdentity>
         : TAccountTargetIdentity,
       TAccountTargetReceipt extends string
         ? ReadonlyAccount<TAccountTargetReceipt>
@@ -91,6 +98,12 @@ export type EmitAuditReceiptInstruction<
       TAccountDomainCatalog extends string
         ? ReadonlyAccount<TAccountDomainCatalog>
         : TAccountDomainCatalog,
+      TAccountCpiAuthority extends string
+        ? ReadonlyAccount<TAccountCpiAuthority>
+        : TAccountCpiAuthority,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -157,18 +170,24 @@ export function getEmitAuditReceiptInstructionDataCodec(): FixedSizeCodec<
 export type EmitAuditReceiptAsyncInput<
   TAccountAuthority extends string = string,
   TAccountAuditorIdentity extends string = string,
+  TAccountIdentityBond extends string = string,
   TAccountTargetIdentity extends string = string,
   TAccountTargetReceipt extends string = string,
   TAccountAuditReceipt extends string = string,
   TAccountDomainCatalog extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   auditorIdentity: Address<TAccountAuditorIdentity>;
+  identityBond: Address<TAccountIdentityBond>;
   targetIdentity: Address<TAccountTargetIdentity>;
   targetReceipt: Address<TAccountTargetReceipt>;
   auditReceipt?: Address<TAccountAuditReceipt>;
   domainCatalog: Address<TAccountDomainCatalog>;
+  cpiAuthority?: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   kind: EmitAuditReceiptInstructionDataArgs["kind"];
   domain: EmitAuditReceiptInstructionDataArgs["domain"];
@@ -181,20 +200,26 @@ export type EmitAuditReceiptAsyncInput<
 export async function getEmitAuditReceiptInstructionAsync<
   TAccountAuthority extends string,
   TAccountAuditorIdentity extends string,
+  TAccountIdentityBond extends string,
   TAccountTargetIdentity extends string,
   TAccountTargetReceipt extends string,
   TAccountAuditReceipt extends string,
   TAccountDomainCatalog extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: EmitAuditReceiptAsyncInput<
     TAccountAuthority,
     TAccountAuditorIdentity,
+    TAccountIdentityBond,
     TAccountTargetIdentity,
     TAccountTargetReceipt,
     TAccountAuditReceipt,
     TAccountDomainCatalog,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -203,10 +228,13 @@ export async function getEmitAuditReceiptInstructionAsync<
     TProgramAddress,
     TAccountAuthority,
     TAccountAuditorIdentity,
+    TAccountIdentityBond,
     TAccountTargetIdentity,
     TAccountTargetReceipt,
     TAccountAuditReceipt,
     TAccountDomainCatalog,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -221,10 +249,16 @@ export async function getEmitAuditReceiptInstructionAsync<
       value: input.auditorIdentity ?? null,
       isWritable: false,
     },
-    targetIdentity: { value: input.targetIdentity ?? null, isWritable: false },
+    identityBond: { value: input.identityBond ?? null, isWritable: false },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     targetReceipt: { value: input.targetReceipt ?? null, isWritable: false },
     auditReceipt: { value: input.auditReceipt ?? null, isWritable: true },
     domainCatalog: { value: input.domainCatalog ?? null, isWritable: false },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -250,6 +284,13 @@ export async function getEmitAuditReceiptInstructionAsync<
       round: getNonNullResolvedInstructionInput("round", args.round),
     });
   }
+  if (!accounts.cpiAuthority.value) {
+    accounts.cpiAuthority.value = await findCpiAuthorityPda();
+  }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -260,10 +301,16 @@ export async function getEmitAuditReceiptInstructionAsync<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("auditorIdentity", accounts.auditorIdentity),
+      getAccountMeta("identityBond", accounts.identityBond),
       getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("targetReceipt", accounts.targetReceipt),
       getAccountMeta("auditReceipt", accounts.auditReceipt),
       getAccountMeta("domainCatalog", accounts.domainCatalog),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getEmitAuditReceiptInstructionDataEncoder().encode(
@@ -274,10 +321,13 @@ export async function getEmitAuditReceiptInstructionAsync<
     TProgramAddress,
     TAccountAuthority,
     TAccountAuditorIdentity,
+    TAccountIdentityBond,
     TAccountTargetIdentity,
     TAccountTargetReceipt,
     TAccountAuditReceipt,
     TAccountDomainCatalog,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -285,18 +335,24 @@ export async function getEmitAuditReceiptInstructionAsync<
 export type EmitAuditReceiptInput<
   TAccountAuthority extends string = string,
   TAccountAuditorIdentity extends string = string,
+  TAccountIdentityBond extends string = string,
   TAccountTargetIdentity extends string = string,
   TAccountTargetReceipt extends string = string,
   TAccountAuditReceipt extends string = string,
   TAccountDomainCatalog extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   auditorIdentity: Address<TAccountAuditorIdentity>;
+  identityBond: Address<TAccountIdentityBond>;
   targetIdentity: Address<TAccountTargetIdentity>;
   targetReceipt: Address<TAccountTargetReceipt>;
   auditReceipt: Address<TAccountAuditReceipt>;
   domainCatalog: Address<TAccountDomainCatalog>;
+  cpiAuthority: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   kind: EmitAuditReceiptInstructionDataArgs["kind"];
   domain: EmitAuditReceiptInstructionDataArgs["domain"];
@@ -309,20 +365,26 @@ export type EmitAuditReceiptInput<
 export function getEmitAuditReceiptInstruction<
   TAccountAuthority extends string,
   TAccountAuditorIdentity extends string,
+  TAccountIdentityBond extends string,
   TAccountTargetIdentity extends string,
   TAccountTargetReceipt extends string,
   TAccountAuditReceipt extends string,
   TAccountDomainCatalog extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: EmitAuditReceiptInput<
     TAccountAuthority,
     TAccountAuditorIdentity,
+    TAccountIdentityBond,
     TAccountTargetIdentity,
     TAccountTargetReceipt,
     TAccountAuditReceipt,
     TAccountDomainCatalog,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -330,10 +392,13 @@ export function getEmitAuditReceiptInstruction<
   TProgramAddress,
   TAccountAuthority,
   TAccountAuditorIdentity,
+  TAccountIdentityBond,
   TAccountTargetIdentity,
   TAccountTargetReceipt,
   TAccountAuditReceipt,
   TAccountDomainCatalog,
+  TAccountCpiAuthority,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -347,10 +412,16 @@ export function getEmitAuditReceiptInstruction<
       value: input.auditorIdentity ?? null,
       isWritable: false,
     },
-    targetIdentity: { value: input.targetIdentity ?? null, isWritable: false },
+    identityBond: { value: input.identityBond ?? null, isWritable: false },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     targetReceipt: { value: input.targetReceipt ?? null, isWritable: false },
     auditReceipt: { value: input.auditReceipt ?? null, isWritable: true },
     domainCatalog: { value: input.domainCatalog ?? null, isWritable: false },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -362,6 +433,10 @@ export function getEmitAuditReceiptInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -372,10 +447,16 @@ export function getEmitAuditReceiptInstruction<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("auditorIdentity", accounts.auditorIdentity),
+      getAccountMeta("identityBond", accounts.identityBond),
       getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("targetReceipt", accounts.targetReceipt),
       getAccountMeta("auditReceipt", accounts.auditReceipt),
       getAccountMeta("domainCatalog", accounts.domainCatalog),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getEmitAuditReceiptInstructionDataEncoder().encode(
@@ -386,10 +467,13 @@ export function getEmitAuditReceiptInstruction<
     TProgramAddress,
     TAccountAuthority,
     TAccountAuditorIdentity,
+    TAccountIdentityBond,
     TAccountTargetIdentity,
     TAccountTargetReceipt,
     TAccountAuditReceipt,
     TAccountDomainCatalog,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -402,11 +486,14 @@ export type ParsedEmitAuditReceiptInstruction<
   accounts: {
     authority: TAccountMetas[0];
     auditorIdentity: TAccountMetas[1];
-    targetIdentity: TAccountMetas[2];
-    targetReceipt: TAccountMetas[3];
-    auditReceipt: TAccountMetas[4];
-    domainCatalog: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
+    identityBond: TAccountMetas[2];
+    targetIdentity: TAccountMetas[3];
+    targetReceipt: TAccountMetas[4];
+    auditReceipt: TAccountMetas[5];
+    domainCatalog: TAccountMetas[6];
+    cpiAuthority: TAccountMetas[7];
+    identityRegistryProgram: TAccountMetas[8];
+    systemProgram: TAccountMetas[9];
   };
   data: EmitAuditReceiptInstructionData;
 };
@@ -419,12 +506,12 @@ export function parseEmitAuditReceiptInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEmitAuditReceiptInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 10) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 7,
+        expectedAccountMetas: 10,
       },
     );
   }
@@ -439,10 +526,13 @@ export function parseEmitAuditReceiptInstruction<
     accounts: {
       authority: getNextAccount(),
       auditorIdentity: getNextAccount(),
+      identityBond: getNextAccount(),
       targetIdentity: getNextAccount(),
       targetReceipt: getNextAccount(),
       auditReceipt: getNextAccount(),
       domainCatalog: getNextAccount(),
+      cpiAuthority: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getEmitAuditReceiptInstructionDataDecoder().decode(instruction.data),

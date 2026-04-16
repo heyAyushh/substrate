@@ -37,7 +37,7 @@ import {
   getAddressFromResolvedInstructionAccount,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findChallengeResponsePda } from "../pdas";
+import { findChallengeResponsePda, findCpiAuthorityPda } from "../pdas";
 import { RECEIPT_EMITTER_PROGRAM_ADDRESS } from "../programs";
 
 export const EMIT_CHALLENGE_RESPONSE_DISCRIMINATOR = new Uint8Array([
@@ -54,8 +54,12 @@ export type EmitChallengeResponseInstruction<
   TProgram extends string = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountIdentity extends string | AccountMeta<string> = string,
+  TAccountTargetIdentity extends string | AccountMeta<string> = string,
   TAccountChallenge extends string | AccountMeta<string> = string,
   TAccountChallengeResponse extends string | AccountMeta<string> = string,
+  TAccountCpiAuthority extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -70,12 +74,21 @@ export type EmitChallengeResponseInstruction<
       TAccountIdentity extends string
         ? ReadonlyAccount<TAccountIdentity>
         : TAccountIdentity,
+      TAccountTargetIdentity extends string
+        ? WritableAccount<TAccountTargetIdentity>
+        : TAccountTargetIdentity,
       TAccountChallenge extends string
         ? ReadonlyAccount<TAccountChallenge>
         : TAccountChallenge,
       TAccountChallengeResponse extends string
         ? WritableAccount<TAccountChallengeResponse>
         : TAccountChallengeResponse,
+      TAccountCpiAuthority extends string
+        ? ReadonlyAccount<TAccountCpiAuthority>
+        : TAccountCpiAuthority,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -125,14 +138,20 @@ export function getEmitChallengeResponseInstructionDataCodec(): FixedSizeCodec<
 export type EmitChallengeResponseAsyncInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
+  TAccountTargetIdentity extends string = string,
   TAccountChallenge extends string = string,
   TAccountChallengeResponse extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
+  targetIdentity: Address<TAccountTargetIdentity>;
   challenge: Address<TAccountChallenge>;
   challengeResponse?: Address<TAccountChallengeResponse>;
+  cpiAuthority?: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   payloadHash: EmitChallengeResponseInstructionDataArgs["payloadHash"];
 };
@@ -140,16 +159,22 @@ export type EmitChallengeResponseAsyncInput<
 export async function getEmitChallengeResponseInstructionAsync<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
+  TAccountTargetIdentity extends string,
   TAccountChallenge extends string,
   TAccountChallengeResponse extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: EmitChallengeResponseAsyncInput<
     TAccountAuthority,
     TAccountIdentity,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountChallengeResponse,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -158,8 +183,11 @@ export async function getEmitChallengeResponseInstructionAsync<
     TProgramAddress,
     TAccountAuthority,
     TAccountIdentity,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountChallengeResponse,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -171,10 +199,16 @@ export async function getEmitChallengeResponseInstructionAsync<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
     identity: { value: input.identity ?? null, isWritable: false },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     challenge: { value: input.challenge ?? null, isWritable: false },
     challengeResponse: {
       value: input.challengeResponse ?? null,
       isWritable: true,
+    },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
     },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -195,6 +229,13 @@ export async function getEmitChallengeResponseInstructionAsync<
       ),
     });
   }
+  if (!accounts.cpiAuthority.value) {
+    accounts.cpiAuthority.value = await findCpiAuthorityPda();
+  }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -205,8 +246,14 @@ export async function getEmitChallengeResponseInstructionAsync<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("identity", accounts.identity),
+      getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("challenge", accounts.challenge),
       getAccountMeta("challengeResponse", accounts.challengeResponse),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getEmitChallengeResponseInstructionDataEncoder().encode(
@@ -217,8 +264,11 @@ export async function getEmitChallengeResponseInstructionAsync<
     TProgramAddress,
     TAccountAuthority,
     TAccountIdentity,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountChallengeResponse,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -226,14 +276,20 @@ export async function getEmitChallengeResponseInstructionAsync<
 export type EmitChallengeResponseInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
+  TAccountTargetIdentity extends string = string,
   TAccountChallenge extends string = string,
   TAccountChallengeResponse extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
+  targetIdentity: Address<TAccountTargetIdentity>;
   challenge: Address<TAccountChallenge>;
   challengeResponse: Address<TAccountChallengeResponse>;
+  cpiAuthority: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   payloadHash: EmitChallengeResponseInstructionDataArgs["payloadHash"];
 };
@@ -241,16 +297,22 @@ export type EmitChallengeResponseInput<
 export function getEmitChallengeResponseInstruction<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
+  TAccountTargetIdentity extends string,
   TAccountChallenge extends string,
   TAccountChallengeResponse extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: EmitChallengeResponseInput<
     TAccountAuthority,
     TAccountIdentity,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountChallengeResponse,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -258,8 +320,11 @@ export function getEmitChallengeResponseInstruction<
   TProgramAddress,
   TAccountAuthority,
   TAccountIdentity,
+  TAccountTargetIdentity,
   TAccountChallenge,
   TAccountChallengeResponse,
+  TAccountCpiAuthority,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -270,10 +335,16 @@ export function getEmitChallengeResponseInstruction<
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
     identity: { value: input.identity ?? null, isWritable: false },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     challenge: { value: input.challenge ?? null, isWritable: false },
     challengeResponse: {
       value: input.challengeResponse ?? null,
       isWritable: true,
+    },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
     },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -286,6 +357,10 @@ export function getEmitChallengeResponseInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -296,8 +371,14 @@ export function getEmitChallengeResponseInstruction<
     accounts: [
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("identity", accounts.identity),
+      getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("challenge", accounts.challenge),
       getAccountMeta("challengeResponse", accounts.challengeResponse),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getEmitChallengeResponseInstructionDataEncoder().encode(
@@ -308,8 +389,11 @@ export function getEmitChallengeResponseInstruction<
     TProgramAddress,
     TAccountAuthority,
     TAccountIdentity,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountChallengeResponse,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -322,9 +406,12 @@ export type ParsedEmitChallengeResponseInstruction<
   accounts: {
     authority: TAccountMetas[0];
     identity: TAccountMetas[1];
-    challenge: TAccountMetas[2];
-    challengeResponse: TAccountMetas[3];
-    systemProgram: TAccountMetas[4];
+    targetIdentity: TAccountMetas[2];
+    challenge: TAccountMetas[3];
+    challengeResponse: TAccountMetas[4];
+    cpiAuthority: TAccountMetas[5];
+    identityRegistryProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
   data: EmitChallengeResponseInstructionData;
 };
@@ -337,12 +424,12 @@ export function parseEmitChallengeResponseInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedEmitChallengeResponseInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 5) {
+  if (instruction.accounts.length < 8) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 5,
+        expectedAccountMetas: 8,
       },
     );
   }
@@ -357,8 +444,11 @@ export function parseEmitChallengeResponseInstruction<
     accounts: {
       authority: getNextAccount(),
       identity: getNextAccount(),
+      targetIdentity: getNextAccount(),
       challenge: getNextAccount(),
       challengeResponse: getNextAccount(),
+      cpiAuthority: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getEmitChallengeResponseInstructionDataDecoder().decode(

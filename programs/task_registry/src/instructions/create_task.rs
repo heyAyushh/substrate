@@ -9,6 +9,7 @@ use trust_substrate_core::{TrustSubstrateError, TASK_STATUS_PENDING};
 pub struct CreateTask<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    #[account(mut)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(
         init,
@@ -18,6 +19,7 @@ pub struct CreateTask<'info> {
         bump
     )]
     pub task: Account<'info, TaskRecord>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }
 
@@ -47,6 +49,16 @@ pub fn handler(
     task.last_receipt = Pubkey::default();
     task.last_sequence = 0;
     task.bump = ctx.bumps.task;
+
+    let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenTaskCount {
+        authority: ctx.accounts.authority.to_account_info(),
+        identity: ctx.accounts.identity.to_account_info(),
+    };
+    let identity_cpi = CpiContext::new(
+        ctx.accounts.identity_registry_program.key(),
+        identity_cpi_accounts,
+    );
+    identity_registry::cpi::adjust_open_task_count(identity_cpi, 1)?;
 
     Ok(())
 }

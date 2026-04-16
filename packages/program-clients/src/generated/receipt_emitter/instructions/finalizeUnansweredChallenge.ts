@@ -37,7 +37,7 @@ import {
   getAddressFromResolvedInstructionAccount,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findChallengeResponsePda } from "../pdas";
+import { findChallengeResponsePda, findCpiAuthorityPda } from "../pdas";
 import { RECEIPT_EMITTER_PROGRAM_ADDRESS } from "../programs";
 
 export const FINALIZE_UNANSWERED_CHALLENGE_DISCRIMINATOR = new Uint8Array([
@@ -53,10 +53,14 @@ export function getFinalizeUnansweredChallengeDiscriminatorBytes() {
 export type FinalizeUnansweredChallengeInstruction<
   TProgram extends string = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
   TAccountAuthority extends string | AccountMeta<string> = string,
+  TAccountTargetIdentity extends string | AccountMeta<string> = string,
   TAccountChallenge extends string | AccountMeta<string> = string,
   TAccountTargetReceipt extends string | AccountMeta<string> = string,
   TAccountChallengeResponse extends string | AccountMeta<string> = string,
   TAccountAuditReceipt extends string | AccountMeta<string> = string,
+  TAccountCpiAuthority extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -68,6 +72,9 @@ export type FinalizeUnansweredChallengeInstruction<
         ? WritableSignerAccount<TAccountAuthority> &
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
+      TAccountTargetIdentity extends string
+        ? WritableAccount<TAccountTargetIdentity>
+        : TAccountTargetIdentity,
       TAccountChallenge extends string
         ? ReadonlyAccount<TAccountChallenge>
         : TAccountChallenge,
@@ -80,6 +87,12 @@ export type FinalizeUnansweredChallengeInstruction<
       TAccountAuditReceipt extends string
         ? WritableAccount<TAccountAuditReceipt>
         : TAccountAuditReceipt,
+      TAccountCpiAuthority extends string
+        ? ReadonlyAccount<TAccountCpiAuthority>
+        : TAccountCpiAuthority,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -121,35 +134,47 @@ export function getFinalizeUnansweredChallengeInstructionDataCodec(): FixedSizeC
 
 export type FinalizeUnansweredChallengeAsyncInput<
   TAccountAuthority extends string = string,
+  TAccountTargetIdentity extends string = string,
   TAccountChallenge extends string = string,
   TAccountTargetReceipt extends string = string,
   TAccountChallengeResponse extends string = string,
   TAccountAuditReceipt extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
+  targetIdentity: Address<TAccountTargetIdentity>;
   challenge: Address<TAccountChallenge>;
   targetReceipt: Address<TAccountTargetReceipt>;
   challengeResponse?: Address<TAccountChallengeResponse>;
   auditReceipt: Address<TAccountAuditReceipt>;
+  cpiAuthority?: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export async function getFinalizeUnansweredChallengeInstructionAsync<
   TAccountAuthority extends string,
+  TAccountTargetIdentity extends string,
   TAccountChallenge extends string,
   TAccountTargetReceipt extends string,
   TAccountChallengeResponse extends string,
   TAccountAuditReceipt extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: FinalizeUnansweredChallengeAsyncInput<
     TAccountAuthority,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountTargetReceipt,
     TAccountChallengeResponse,
     TAccountAuditReceipt,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -157,10 +182,13 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
   FinalizeUnansweredChallengeInstruction<
     TProgramAddress,
     TAccountAuthority,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountTargetReceipt,
     TAccountChallengeResponse,
     TAccountAuditReceipt,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -171,6 +199,7 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     challenge: { value: input.challenge ?? null, isWritable: false },
     targetReceipt: { value: input.targetReceipt ?? null, isWritable: false },
     challengeResponse: {
@@ -178,6 +207,11 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
       isWritable: false,
     },
     auditReceipt: { value: input.auditReceipt ?? null, isWritable: true },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -194,6 +228,13 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
       ),
     });
   }
+  if (!accounts.cpiAuthority.value) {
+    accounts.cpiAuthority.value = await findCpiAuthorityPda();
+  }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -203,10 +244,16 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("authority", accounts.authority),
+      getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("challenge", accounts.challenge),
       getAccountMeta("targetReceipt", accounts.targetReceipt),
       getAccountMeta("challengeResponse", accounts.challengeResponse),
       getAccountMeta("auditReceipt", accounts.auditReceipt),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getFinalizeUnansweredChallengeInstructionDataEncoder().encode({}),
@@ -214,55 +261,73 @@ export async function getFinalizeUnansweredChallengeInstructionAsync<
   } as FinalizeUnansweredChallengeInstruction<
     TProgramAddress,
     TAccountAuthority,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountTargetReceipt,
     TAccountChallengeResponse,
     TAccountAuditReceipt,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
 
 export type FinalizeUnansweredChallengeInput<
   TAccountAuthority extends string = string,
+  TAccountTargetIdentity extends string = string,
   TAccountChallenge extends string = string,
   TAccountTargetReceipt extends string = string,
   TAccountChallengeResponse extends string = string,
   TAccountAuditReceipt extends string = string,
+  TAccountCpiAuthority extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
+  targetIdentity: Address<TAccountTargetIdentity>;
   challenge: Address<TAccountChallenge>;
   targetReceipt: Address<TAccountTargetReceipt>;
   challengeResponse: Address<TAccountChallengeResponse>;
   auditReceipt: Address<TAccountAuditReceipt>;
+  cpiAuthority: Address<TAccountCpiAuthority>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export function getFinalizeUnansweredChallengeInstruction<
   TAccountAuthority extends string,
+  TAccountTargetIdentity extends string,
   TAccountChallenge extends string,
   TAccountTargetReceipt extends string,
   TAccountChallengeResponse extends string,
   TAccountAuditReceipt extends string,
+  TAccountCpiAuthority extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof RECEIPT_EMITTER_PROGRAM_ADDRESS,
 >(
   input: FinalizeUnansweredChallengeInput<
     TAccountAuthority,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountTargetReceipt,
     TAccountChallengeResponse,
     TAccountAuditReceipt,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): FinalizeUnansweredChallengeInstruction<
   TProgramAddress,
   TAccountAuthority,
+  TAccountTargetIdentity,
   TAccountChallenge,
   TAccountTargetReceipt,
   TAccountChallengeResponse,
   TAccountAuditReceipt,
+  TAccountCpiAuthority,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -272,6 +337,7 @@ export function getFinalizeUnansweredChallengeInstruction<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
+    targetIdentity: { value: input.targetIdentity ?? null, isWritable: true },
     challenge: { value: input.challenge ?? null, isWritable: false },
     targetReceipt: { value: input.targetReceipt ?? null, isWritable: false },
     challengeResponse: {
@@ -279,6 +345,11 @@ export function getFinalizeUnansweredChallengeInstruction<
       isWritable: false,
     },
     auditReceipt: { value: input.auditReceipt ?? null, isWritable: true },
+    cpiAuthority: { value: input.cpiAuthority ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -287,6 +358,10 @@ export function getFinalizeUnansweredChallengeInstruction<
   >;
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -296,10 +371,16 @@ export function getFinalizeUnansweredChallengeInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("authority", accounts.authority),
+      getAccountMeta("targetIdentity", accounts.targetIdentity),
       getAccountMeta("challenge", accounts.challenge),
       getAccountMeta("targetReceipt", accounts.targetReceipt),
       getAccountMeta("challengeResponse", accounts.challengeResponse),
       getAccountMeta("auditReceipt", accounts.auditReceipt),
+      getAccountMeta("cpiAuthority", accounts.cpiAuthority),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getFinalizeUnansweredChallengeInstructionDataEncoder().encode({}),
@@ -307,10 +388,13 @@ export function getFinalizeUnansweredChallengeInstruction<
   } as FinalizeUnansweredChallengeInstruction<
     TProgramAddress,
     TAccountAuthority,
+    TAccountTargetIdentity,
     TAccountChallenge,
     TAccountTargetReceipt,
     TAccountChallengeResponse,
     TAccountAuditReceipt,
+    TAccountCpiAuthority,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -322,11 +406,14 @@ export type ParsedFinalizeUnansweredChallengeInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     authority: TAccountMetas[0];
-    challenge: TAccountMetas[1];
-    targetReceipt: TAccountMetas[2];
-    challengeResponse: TAccountMetas[3];
-    auditReceipt: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    targetIdentity: TAccountMetas[1];
+    challenge: TAccountMetas[2];
+    targetReceipt: TAccountMetas[3];
+    challengeResponse: TAccountMetas[4];
+    auditReceipt: TAccountMetas[5];
+    cpiAuthority: TAccountMetas[6];
+    identityRegistryProgram: TAccountMetas[7];
+    systemProgram: TAccountMetas[8];
   };
   data: FinalizeUnansweredChallengeInstructionData;
 };
@@ -339,12 +426,12 @@ export function parseFinalizeUnansweredChallengeInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedFinalizeUnansweredChallengeInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 9) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 9,
       },
     );
   }
@@ -358,10 +445,13 @@ export function parseFinalizeUnansweredChallengeInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       authority: getNextAccount(),
+      targetIdentity: getNextAccount(),
       challenge: getNextAccount(),
       targetReceipt: getNextAccount(),
       challengeResponse: getNextAccount(),
       auditReceipt: getNextAccount(),
+      cpiAuthority: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getFinalizeUnansweredChallengeInstructionDataDecoder().decode(

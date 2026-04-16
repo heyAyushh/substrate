@@ -56,6 +56,8 @@ export type CreateTaskInstruction<
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountTask extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -68,11 +70,14 @@ export type CreateTaskInstruction<
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       TAccountIdentity extends string
-        ? ReadonlyAccount<TAccountIdentity>
+        ? WritableAccount<TAccountIdentity>
         : TAccountIdentity,
       TAccountTask extends string
         ? WritableAccount<TAccountTask>
         : TAccountTask,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -132,11 +137,13 @@ export type CreateTaskAsyncInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
   TAccountTask extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
   task?: Address<TAccountTask>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   taskId: CreateTaskInstructionDataArgs["taskId"];
   subtaskRoot: CreateTaskInstructionDataArgs["subtaskRoot"];
@@ -148,6 +155,7 @@ export async function getCreateTaskInstructionAsync<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
   TAccountTask extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof TASK_REGISTRY_PROGRAM_ADDRESS,
 >(
@@ -155,6 +163,7 @@ export async function getCreateTaskInstructionAsync<
     TAccountAuthority,
     TAccountIdentity,
     TAccountTask,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -164,6 +173,7 @@ export async function getCreateTaskInstructionAsync<
     TAccountAuthority,
     TAccountIdentity,
     TAccountTask,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -174,8 +184,12 @@ export async function getCreateTaskInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
-    identity: { value: input.identity ?? null, isWritable: false },
+    identity: { value: input.identity ?? null, isWritable: true },
     task: { value: input.task ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -196,6 +210,10 @@ export async function getCreateTaskInstructionAsync<
       taskId: getNonNullResolvedInstructionInput("taskId", args.taskId),
     });
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -207,6 +225,10 @@ export async function getCreateTaskInstructionAsync<
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("identity", accounts.identity),
       getAccountMeta("task", accounts.task),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getCreateTaskInstructionDataEncoder().encode(
@@ -218,6 +240,7 @@ export async function getCreateTaskInstructionAsync<
     TAccountAuthority,
     TAccountIdentity,
     TAccountTask,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -226,11 +249,13 @@ export type CreateTaskInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
   TAccountTask extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
   task: Address<TAccountTask>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   taskId: CreateTaskInstructionDataArgs["taskId"];
   subtaskRoot: CreateTaskInstructionDataArgs["subtaskRoot"];
@@ -242,6 +267,7 @@ export function getCreateTaskInstruction<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
   TAccountTask extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof TASK_REGISTRY_PROGRAM_ADDRESS,
 >(
@@ -249,6 +275,7 @@ export function getCreateTaskInstruction<
     TAccountAuthority,
     TAccountIdentity,
     TAccountTask,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -257,6 +284,7 @@ export function getCreateTaskInstruction<
   TAccountAuthority,
   TAccountIdentity,
   TAccountTask,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -266,8 +294,12 @@ export function getCreateTaskInstruction<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
-    identity: { value: input.identity ?? null, isWritable: false },
+    identity: { value: input.identity ?? null, isWritable: true },
     task: { value: input.task ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -279,6 +311,10 @@ export function getCreateTaskInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -290,6 +326,10 @@ export function getCreateTaskInstruction<
       getAccountMeta("authority", accounts.authority),
       getAccountMeta("identity", accounts.identity),
       getAccountMeta("task", accounts.task),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getCreateTaskInstructionDataEncoder().encode(
@@ -301,6 +341,7 @@ export function getCreateTaskInstruction<
     TAccountAuthority,
     TAccountIdentity,
     TAccountTask,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -314,7 +355,8 @@ export type ParsedCreateTaskInstruction<
     authority: TAccountMetas[0];
     identity: TAccountMetas[1];
     task: TAccountMetas[2];
-    systemProgram: TAccountMetas[3];
+    identityRegistryProgram: TAccountMetas[3];
+    systemProgram: TAccountMetas[4];
   };
   data: CreateTaskInstructionData;
 };
@@ -327,12 +369,12 @@ export function parseCreateTaskInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedCreateTaskInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
+  if (instruction.accounts.length < 5) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 4,
+        expectedAccountMetas: 5,
       },
     );
   }
@@ -348,6 +390,7 @@ export function parseCreateTaskInstruction<
       authority: getNextAccount(),
       identity: getNextAccount(),
       task: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getCreateTaskInstructionDataDecoder().decode(instruction.data),

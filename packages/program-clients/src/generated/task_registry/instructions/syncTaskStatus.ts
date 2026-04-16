@@ -57,6 +57,8 @@ export type SyncTaskStatusInstruction<
   TAccountTask extends string | AccountMeta<string> = string,
   TAccountReceipt extends string | AccountMeta<string> = string,
   TAccountReceiptApplication extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -69,7 +71,7 @@ export type SyncTaskStatusInstruction<
             AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       TAccountIdentity extends string
-        ? ReadonlyAccount<TAccountIdentity>
+        ? WritableAccount<TAccountIdentity>
         : TAccountIdentity,
       TAccountTask extends string
         ? WritableAccount<TAccountTask>
@@ -80,6 +82,9 @@ export type SyncTaskStatusInstruction<
       TAccountReceiptApplication extends string
         ? WritableAccount<TAccountReceiptApplication>
         : TAccountReceiptApplication,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -122,6 +127,7 @@ export type SyncTaskStatusAsyncInput<
   TAccountTask extends string = string,
   TAccountReceipt extends string = string,
   TAccountReceiptApplication extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
@@ -129,6 +135,7 @@ export type SyncTaskStatusAsyncInput<
   task: Address<TAccountTask>;
   receipt: Address<TAccountReceipt>;
   receiptApplication?: Address<TAccountReceiptApplication>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
@@ -138,6 +145,7 @@ export async function getSyncTaskStatusInstructionAsync<
   TAccountTask extends string,
   TAccountReceipt extends string,
   TAccountReceiptApplication extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof TASK_REGISTRY_PROGRAM_ADDRESS,
 >(
@@ -147,6 +155,7 @@ export async function getSyncTaskStatusInstructionAsync<
     TAccountTask,
     TAccountReceipt,
     TAccountReceiptApplication,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -158,6 +167,7 @@ export async function getSyncTaskStatusInstructionAsync<
     TAccountTask,
     TAccountReceipt,
     TAccountReceiptApplication,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -168,12 +178,16 @@ export async function getSyncTaskStatusInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
-    identity: { value: input.identity ?? null, isWritable: false },
+    identity: { value: input.identity ?? null, isWritable: true },
     task: { value: input.task ?? null, isWritable: true },
     receipt: { value: input.receipt ?? null, isWritable: false },
     receiptApplication: {
       value: input.receiptApplication ?? null,
       isWritable: true,
+    },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
     },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -195,6 +209,10 @@ export async function getSyncTaskStatusInstructionAsync<
       ),
     });
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -208,6 +226,10 @@ export async function getSyncTaskStatusInstructionAsync<
       getAccountMeta("task", accounts.task),
       getAccountMeta("receipt", accounts.receipt),
       getAccountMeta("receiptApplication", accounts.receiptApplication),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSyncTaskStatusInstructionDataEncoder().encode({}),
@@ -219,6 +241,7 @@ export async function getSyncTaskStatusInstructionAsync<
     TAccountTask,
     TAccountReceipt,
     TAccountReceiptApplication,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -229,6 +252,7 @@ export type SyncTaskStatusInput<
   TAccountTask extends string = string,
   TAccountReceipt extends string = string,
   TAccountReceiptApplication extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
@@ -236,6 +260,7 @@ export type SyncTaskStatusInput<
   task: Address<TAccountTask>;
   receipt: Address<TAccountReceipt>;
   receiptApplication: Address<TAccountReceiptApplication>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
@@ -245,6 +270,7 @@ export function getSyncTaskStatusInstruction<
   TAccountTask extends string,
   TAccountReceipt extends string,
   TAccountReceiptApplication extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof TASK_REGISTRY_PROGRAM_ADDRESS,
 >(
@@ -254,6 +280,7 @@ export function getSyncTaskStatusInstruction<
     TAccountTask,
     TAccountReceipt,
     TAccountReceiptApplication,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -264,6 +291,7 @@ export function getSyncTaskStatusInstruction<
   TAccountTask,
   TAccountReceipt,
   TAccountReceiptApplication,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -273,12 +301,16 @@ export function getSyncTaskStatusInstruction<
   // Original accounts.
   const originalAccounts = {
     authority: { value: input.authority ?? null, isWritable: true },
-    identity: { value: input.identity ?? null, isWritable: false },
+    identity: { value: input.identity ?? null, isWritable: true },
     task: { value: input.task ?? null, isWritable: true },
     receipt: { value: input.receipt ?? null, isWritable: false },
     receiptApplication: {
       value: input.receiptApplication ?? null,
       isWritable: true,
+    },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
     },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
@@ -288,6 +320,10 @@ export function getSyncTaskStatusInstruction<
   >;
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -301,6 +337,10 @@ export function getSyncTaskStatusInstruction<
       getAccountMeta("task", accounts.task),
       getAccountMeta("receipt", accounts.receipt),
       getAccountMeta("receiptApplication", accounts.receiptApplication),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSyncTaskStatusInstructionDataEncoder().encode({}),
@@ -312,6 +352,7 @@ export function getSyncTaskStatusInstruction<
     TAccountTask,
     TAccountReceipt,
     TAccountReceiptApplication,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -327,7 +368,8 @@ export type ParsedSyncTaskStatusInstruction<
     task: TAccountMetas[2];
     receipt: TAccountMetas[3];
     receiptApplication: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    identityRegistryProgram: TAccountMetas[5];
+    systemProgram: TAccountMetas[6];
   };
   data: SyncTaskStatusInstructionData;
 };
@@ -340,12 +382,12 @@ export function parseSyncTaskStatusInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSyncTaskStatusInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 7) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 7,
       },
     );
   }
@@ -363,6 +405,7 @@ export function parseSyncTaskStatusInstruction<
       task: getNextAccount(),
       receipt: getNextAccount(),
       receiptApplication: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getSyncTaskStatusInstructionDataDecoder().decode(instruction.data),

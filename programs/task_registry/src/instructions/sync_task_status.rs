@@ -33,6 +33,7 @@ pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
     );
 
     let task = &mut ctx.accounts.task;
+    let previous_status = task.status;
 
     match ctx.accounts.receipt.kind {
         ASSIGNMENT_KIND | HANDOFF_KIND => {
@@ -68,6 +69,18 @@ pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
     receipt_application.receipt = ctx.accounts.receipt.key();
     receipt_application.bump = ctx.bumps.receipt_application;
 
+    if let Some(delta) = settled_delta(previous_status, task.status) {
+        let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenTaskCount {
+            authority: ctx.accounts.authority.to_account_info(),
+            identity: ctx.accounts.identity.to_account_info(),
+        };
+        let identity_cpi = CpiContext::new(
+            ctx.accounts.identity_registry_program.key(),
+            identity_cpi_accounts,
+        );
+        identity_registry::cpi::adjust_open_task_count(identity_cpi, delta)?;
+    }
+
     emit!(TaskStatusSynced {
         identity: task.identity,
         task: task.key(),
@@ -98,6 +111,7 @@ pub fn already_applied_handler(ctx: Context<TaskReceiptAlreadyApplied>) -> Resul
 pub struct SyncTaskStatus<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
+    #[account(mut)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut, constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
     pub task: Account<'info, TaskRecord>,
@@ -114,6 +128,7 @@ pub struct SyncTaskStatus<'info> {
         bump
     )]
     pub receipt_application: Account<'info, AppliedTaskReceipt>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }
 
@@ -135,4 +150,16 @@ pub struct TaskReceiptAlreadyApplied<'info> {
         has_one = receipt @ TrustSubstrateError::ReceiptAlreadyAppliedToTask
     )]
     pub receipt_application: Account<'info, AppliedTaskReceipt>,
+}
+
+fn is_settled(status: u8) -> bool {
+    status == TASK_STATUS_COMPLETED || status == TASK_STATUS_RESOLVED
+}
+
+fn settled_delta(previous_status: u8, next_status: u8) -> Option<i8> {
+    match (is_settled(previous_status), is_settled(next_status)) {
+        (false, true) => Some(-1),
+        (true, false) => Some(1),
+        _ => None,
+    }
 }

@@ -16,16 +16,17 @@ use std::rc::Rc;
 
 pub use trust_substrate_core::{
     ADJUDICATOR_CONFIG_SEED, AGENT_LOST_OUTCOME, AGENT_WON_OUTCOME, ASSIGNMENT_KIND,
-    ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
-    CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
-    COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
-    DOMAIN_CATALOG_SEED, DOMAIN_STATS_SEED, GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT,
-    IDENTITY_SEED, LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
-    REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
-    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
-    TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
-    TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY,
-    VERDICT_SEED,
+    ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, ATTESTER_CONFIG_SEED, ATTESTER_RECORD_SEED,
+    AUDIT_RECEIPT_SEED, CHALLENGE_KIND, CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED,
+    CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED, COMPLETION_KIND, COMPLETION_SCOPE_BIT,
+    DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND, DOMAIN_CATALOG_SEED, DOMAIN_STATS_SEED,
+    GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_BOND_SEED, IDENTITY_SEED,
+    LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, RUNTIME_ATTESTATION_SEED,
+    PENDING_ROTATION_SEED, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED,
+    ROTATION_COOLDOWN_SLOTS, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
+    TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
+    TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE,
+    VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -59,6 +60,7 @@ pub struct Harness {
     cpi_authority: Pubkey,
     history_updater: Pubkey,
     domain_catalog: Pubkey,
+    attester_registry_config: Pubkey,
     treasury_vault: Pubkey,
 }
 
@@ -77,6 +79,7 @@ impl Harness {
         let cpi_authority = pda(&[b"cpi_authority"], &receipt_emitter::ID);
         let history_updater = pda(&[b"history_updater"], &proof_verifier::ID);
         let domain_catalog = pda(&[DOMAIN_CATALOG_SEED], &reputation_accumulator::ID);
+        let attester_registry_config = pda(&[ATTESTER_CONFIG_SEED], &attester_registry::ID);
         let treasury_vault = pda(&[TREASURY_VAULT_SEED], &dispute_resolver::ID);
 
         let mut harness = Self {
@@ -86,6 +89,7 @@ impl Harness {
             cpi_authority,
             history_updater,
             domain_catalog,
+            attester_registry_config,
             treasury_vault,
         };
         let ix = harness.ix_initialize_cpi_authority();
@@ -93,6 +97,8 @@ impl Harness {
         let ix = harness.ix_initialize_history_updater();
         harness.send_as_payer(ix)?;
         let ix = harness.ix_initialize_domain_catalog();
+        harness.send_as_payer(ix)?;
+        let ix = harness.ix_initialize_attester_registry();
         harness.send_as_payer(ix)?;
         Ok(harness)
     }
@@ -272,6 +278,32 @@ impl Harness {
         domain: [u8; 32],
     ) -> TestResult<Pubkey> {
         self.create_task(identity, byte, domain)
+    }
+
+    pub fn deposit_identity_bond(&mut self, identity: &IdentityFixture) -> TestResult {
+        let use_reviewer =
+            identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id);
+        let authority = if use_reviewer {
+            self.reviewer.clone()
+        } else {
+            self.payer.clone()
+        };
+        let ix = self.ix_deposit_identity_bond(identity.address, authority.pubkey());
+        self.send(ix, &[authority.as_ref()])?;
+        Ok(())
+    }
+
+    pub fn withdraw_identity_bond(&mut self, identity: &IdentityFixture) -> TestResult {
+        let use_reviewer =
+            identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id);
+        let authority = if use_reviewer {
+            self.reviewer.clone()
+        } else {
+            self.payer.clone()
+        };
+        let ix = self.ix_withdraw_identity_bond(identity.address, authority.pubkey());
+        self.send(ix, &[authority.as_ref()])?;
+        Ok(())
     }
 
     pub fn create_delegation(
@@ -703,6 +735,58 @@ impl Harness {
         Ok(())
     }
 
+    pub fn register_attester(
+        &mut self,
+        identity: &IdentityFixture,
+        category: String,
+        self_declared_tier: u8,
+    ) -> TestResult<Pubkey> {
+        let attester = attester_record_pda(identity.address);
+        let authority = if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id)
+        {
+            self.reviewer.clone()
+        } else {
+            self.payer.clone()
+        };
+        let ix = self.ix_register_attester(
+            identity.address,
+            authority.pubkey(),
+            category,
+            self_declared_tier,
+        );
+        self.send(ix, &[authority.as_ref()])?;
+        Ok(attester)
+    }
+
+    pub fn set_attester_tier(&mut self, attester: Pubkey, effective_tier: u8) -> TestResult {
+        let ix = self.ix_set_attester_tier(attester, effective_tier);
+        self.send_as_payer(ix)?;
+        Ok(())
+    }
+
+    pub fn append_runtime_attestation(
+        &mut self,
+        identity: &IdentityFixture,
+        runtime_commit: [u8; 32],
+        runtime_authority: Pubkey,
+    ) -> TestResult<Pubkey> {
+        let runtime_attestation = runtime_attestation_pda(identity.address, runtime_commit);
+        let authority = if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id)
+        {
+            self.reviewer.clone()
+        } else {
+            self.payer.clone()
+        };
+        let ix = self.ix_append_runtime_attestation(
+            identity.address,
+            authority.pubkey(),
+            runtime_commit,
+            runtime_authority,
+        );
+        self.send(ix, &[authority.as_ref()])?;
+        Ok(runtime_attestation)
+    }
+
     pub fn write_domain_stats_snapshot(
         &mut self,
         operator: &Keypair,
@@ -1019,10 +1103,13 @@ impl Harness {
             receipt_emitter::accounts::EmitAuditReceipt {
                 authority,
                 auditor_identity: auditor.address,
+                identity_bond: identity_bond_pda(auditor.address),
                 target_identity,
                 target_receipt,
                 audit_receipt,
                 domain_catalog: self.domain_catalog,
+                cpi_authority: self.cpi_authority,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1043,8 +1130,11 @@ impl Harness {
             receipt_emitter::accounts::EmitChallengeResponse {
                 authority: self.payer.pubkey(),
                 identity: identity.address,
+                target_identity: challenge_identity(challenge, &self.svm),
                 challenge,
                 challenge_response,
+                cpi_authority: self.cpi_authority,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1061,10 +1151,13 @@ impl Harness {
             receipt_emitter::instruction::FinalizeUnansweredChallenge {}.data(),
             receipt_emitter::accounts::FinalizeUnansweredChallenge {
                 authority: self.payer.pubkey(),
+                target_identity: challenge_identity(challenge, &self.svm),
                 challenge,
                 target_receipt,
                 challenge_response: challenge_response_pda(challenge),
                 audit_receipt,
+                cpi_authority: self.cpi_authority,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1229,6 +1322,7 @@ impl Harness {
                 task,
                 receipt,
                 receipt_application: task_receipt_application_pda(task, receipt),
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1244,7 +1338,9 @@ impl Harness {
             agent_stake::instruction::Stake { amount }.data(),
             agent_stake::accounts::Stake {
                 owner: self.payer.pubkey(),
+                identity: stake_identity(stake, &self.svm),
                 stake,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1259,7 +1355,42 @@ impl Harness {
             agent_stake::instruction::FinalizeUnstake {}.data(),
             agent_stake::accounts::FinalizeUnstake {
                 owner: self.payer.pubkey(),
+                identity: stake_identity(stake, &self.svm),
                 stake,
+                identity_registry_program: identity_registry::ID,
+            },
+        )
+    }
+
+    pub fn ix_deposit_identity_bond(
+        &self,
+        identity: Pubkey,
+        authority: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::DepositIdentityBond {}.data(),
+            identity_registry::accounts::DepositIdentityBond {
+                authority,
+                identity,
+                identity_bond: identity_bond_pda(identity),
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_withdraw_identity_bond(
+        &self,
+        identity: Pubkey,
+        authority: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::WithdrawIdentityBond {}.data(),
+            identity_registry::accounts::WithdrawIdentityBond {
+                authority,
+                identity,
+                identity_bond: identity_bond_pda(identity),
             },
         )
     }
@@ -1450,6 +1581,20 @@ impl Harness {
         )
     }
 
+    fn ix_initialize_attester_registry(
+        &self,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            attester_registry::ID,
+            attester_registry::instruction::InitializeRegistry {}.data(),
+            attester_registry::accounts::InitializeRegistry {
+                curator: self.payer.pubkey(),
+                config: self.attester_registry_config,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
     fn ix_register_domain(
         &self,
         domain: [u8; 32],
@@ -1460,6 +1605,47 @@ impl Harness {
             reputation_accumulator::accounts::RegisterDomain {
                 curator: self.payer.pubkey(),
                 domain_catalog: self.domain_catalog,
+            },
+        )
+    }
+
+    fn ix_register_attester(
+        &self,
+        identity: Pubkey,
+        authority: Pubkey,
+        category: String,
+        self_declared_tier: u8,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            attester_registry::ID,
+            attester_registry::instruction::RegisterAttester {
+                category,
+                self_declared_tier,
+            }
+            .data(),
+            attester_registry::accounts::RegisterAttester {
+                authority,
+                identity,
+                identity_bond: identity_bond_pda(identity),
+                config: self.attester_registry_config,
+                attester: attester_record_pda(identity),
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    fn ix_set_attester_tier(
+        &self,
+        attester: Pubkey,
+        effective_tier: u8,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            attester_registry::ID,
+            attester_registry::instruction::SetAttesterTier { effective_tier }.data(),
+            attester_registry::accounts::SetAttesterTier {
+                curator: self.payer.pubkey(),
+                config: self.attester_registry_config,
+                attester,
             },
         )
     }
@@ -1639,6 +1825,29 @@ impl Harness {
         )
     }
 
+    fn ix_append_runtime_attestation(
+        &self,
+        identity: Pubkey,
+        authority: Pubkey,
+        runtime_commit: [u8; 32],
+        runtime_authority: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::AppendRuntimeAttestation {
+                runtime_commit,
+                runtime_authority,
+            }
+            .data(),
+            identity_registry::accounts::AppendRuntimeAttestation {
+                authority,
+                identity,
+                runtime_attestation: runtime_attestation_pda(identity, runtime_commit),
+                system_program: system_program::ID,
+            },
+        )
+    }
+
     fn ix_create_task(
         &self,
         identity: Pubkey,
@@ -1659,6 +1868,7 @@ impl Harness {
                 authority: self.payer.pubkey(),
                 identity,
                 task,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1855,6 +2065,7 @@ fn load_programs(svm: &mut LiteSVM) -> TestResult {
     add_program(svm, proof_verifier::ID, "proof_verifier")?;
     add_program(svm, dispute_resolver::ID, "dispute_resolver")?;
     add_program(svm, agent_stake::ID, "agent_stake")?;
+    add_program(svm, attester_registry::ID, "attester_registry")?;
     Ok(())
 }
 
@@ -1882,6 +2093,25 @@ fn identity_pda(authority: Pubkey, agent_id: [u8; 32]) -> Pubkey {
         &[IDENTITY_SEED, authority.as_ref(), agent_id.as_ref()],
         &identity_registry::ID,
     )
+}
+
+pub fn identity_bond_pda(identity: Pubkey) -> Pubkey {
+    pda(&[IDENTITY_BOND_SEED, identity.as_ref()], &identity_registry::ID)
+}
+
+pub fn runtime_attestation_pda(identity: Pubkey, runtime_commit: [u8; 32]) -> Pubkey {
+    pda(
+        &[RUNTIME_ATTESTATION_SEED, identity.as_ref(), runtime_commit.as_ref()],
+        &identity_registry::ID,
+    )
+}
+
+pub fn attester_registry_config_pda() -> Pubkey {
+    pda(&[ATTESTER_CONFIG_SEED], &attester_registry::ID)
+}
+
+pub fn attester_record_pda(identity: Pubkey) -> Pubkey {
+    pda(&[ATTESTER_RECORD_SEED, identity.as_ref()], &attester_registry::ID)
 }
 
 pub fn task_pda(identity: Pubkey, task_id: [u8; 32]) -> Pubkey {
@@ -2029,6 +2259,26 @@ fn reputation_receipt_application_pda(reputation: Pubkey, receipt: Pubkey) -> Pu
 
 pub fn stake_pda(identity: Pubkey) -> Pubkey {
     pda(&[STAKE_SEED, identity.as_ref()], &agent_stake::ID)
+}
+
+fn challenge_identity(challenge: Pubkey, svm: &LiteSVM) -> Pubkey {
+    let account = svm
+        .get_account(&challenge)
+        .unwrap_or_else(|| panic!("missing challenge account {challenge}"));
+    let mut data: &[u8] = &account.data;
+    let receipt =
+        receipt_emitter::state::ReceiptRecord::try_deserialize(&mut data).expect("receipt");
+    receipt.identity
+}
+
+fn stake_identity(stake: Pubkey, svm: &LiteSVM) -> Pubkey {
+    let account = svm
+        .get_account(&stake)
+        .unwrap_or_else(|| panic!("missing stake account {stake}"));
+    let mut data: &[u8] = &account.data;
+    let stake_account =
+        agent_stake::state::StakeAccount::try_deserialize(&mut data).expect("stake");
+    stake_account.identity
 }
 
 pub fn slash_marker_pda(stake: Pubkey, dispute_receipt: Pubkey) -> Pubkey {
