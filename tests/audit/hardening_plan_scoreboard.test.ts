@@ -15,7 +15,7 @@ const SCOREBOARD_PATH = join(
 type ScoreStatus = "complete" | "missing";
 
 type ScoreboardItem = {
-  readonly wave: "W0" | "W1" | "W2" | "W3" | "W4" | "W5" | "W8";
+  readonly wave: "W0" | "W1" | "W2" | "W3" | "W4" | "W5" | "W6" | "W7" | "W8";
   readonly item: string;
   readonly status: ScoreStatus;
   readonly evidence: readonly {
@@ -486,6 +486,126 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     ],
   },
   {
+    wave: "W6",
+    item: "W6.1 tiered identities and identity bonding",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/identity_registry/src/state/agent_identity.rs",
+        marker: "pub tier: u8",
+      },
+      {
+        path: "programs/identity_registry/src/state/identity_bond.rs",
+        marker: "pub struct IdentityBond",
+      },
+      {
+        path: "programs/identity_registry/src/instructions/deposit_identity_bond.rs",
+        marker: "IDENTITY_BOND_LAMPORTS",
+      },
+      {
+        path: "programs/identity_registry/src/instructions/withdraw_identity_bond.rs",
+        marker: "IdentityHasOpenChallenges",
+      },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_audit_receipt.rs",
+        marker: "IdentityBondRequired",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/sybil_gating.rs",
+        marker: "tier0_identities_cannot_emit_audit_receipts_until_bonded",
+      },
+    ],
+  },
+  {
+    wave: "W6",
+    item: "W6.2 permissionless attester registry with bonded tiers",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/attester_registry/src/instructions/register_attester.rs",
+        marker: "AttesterRegistered",
+      },
+      {
+        path: "programs/attester_registry/src/instructions/set_attester_tier.rs",
+        marker: "AttesterTierUpdated",
+      },
+      {
+        path: "programs/attester_registry/src/state/attester_record.rs",
+        marker: "effective_tier",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/provenance_and_attesters.rs",
+        marker: "attester_registry_requires_identity_bond_and_supports_tier_updates",
+      },
+      {
+        path: "packages/indexer/src/local-durable-indexer.ts",
+        marker: "getAttesterRecords",
+      },
+      {
+        path: "tests/indexer/analytics.test.ts",
+        marker: "attestedOnly leaderboard filters unattested agents",
+      },
+    ],
+  },
+  {
+    wave: "W7",
+    item: "W7.1 versioned runtime attestation",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/identity_registry/src/instructions/append_runtime_attestation.rs",
+        marker: "RuntimeAttestationAppended",
+      },
+      {
+        path: "programs/identity_registry/src/state/runtime_attestation.rs",
+        marker: "valid_from_slot",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/provenance_and_attesters.rs",
+        marker: "runtime_attestations_append_versioned_history",
+      },
+      {
+        path: "packages/sdk/src/runtime-attestation.ts",
+        marker: "resolveRuntimeAtSlot",
+      },
+      {
+        path: "tests/sdk/provenance.test.ts",
+        marker: "resolveRuntimeAtSlot returns the active runtime version",
+      },
+    ],
+  },
+  {
+    wave: "W7",
+    item: "W7.2 signed execution steps",
+    status: "complete",
+    evidence: [
+      {
+        path: "packages/sdk/src/execution-record.ts",
+        marker: "verifyExecutionRecord",
+      },
+      {
+        path: "tests/sdk/provenance.test.ts",
+        marker:
+          "verifyExecutionRecord separates signed, unsigned, and forged steps",
+      },
+    ],
+  },
+  {
+    wave: "W7",
+    item: "W7.3 cost / effort fields",
+    status: "complete",
+    evidence: [
+      {
+        path: "packages/sdk/src/reputation.ts",
+        marker: "weightByCost",
+      },
+      {
+        path: "tests/sdk/provenance.test.ts",
+        marker: "deriveReputation can weight completions by execution cost",
+      },
+    ],
+  },
+  {
     wave: "W8",
     item: "W8.1 rewrite docs to distinguish enforced vs convention",
     status: "complete",
@@ -583,9 +703,19 @@ function hasScoreboardRow(
   );
 }
 
-const COMPLETED_WAVES = ["W0", "W1", "W2", "W3", "W4", "W5", "W8"] as const;
+const COMPLETED_WAVES = [
+  "W0",
+  "W1",
+  "W2",
+  "W3",
+  "W4",
+  "W5",
+  "W6",
+  "W7",
+  "W8",
+] as const;
 
-test("hardening scoreboard covers W0-W5, excluding open W6/W7, and completed W8 items exactly once", () => {
+test("hardening scoreboard covers completed W0-W8 items exactly once", () => {
   const items = SCOREBOARD.map((entry) => `${entry.wave}:${entry.item}`);
   deepStrictEqual(items, [
     "W0:W0.1 validate receipt chain on-chain",
@@ -604,6 +734,11 @@ test("hardening scoreboard covers W0-W5, excluding open W6/W7, and completed W8 
     "W4:W4.2 task-domain scoped reputation flow",
     "W5:W5.1 on-chain rotation instruction with emergency path",
     "W5:W5.2 SDK and indexer hooks",
+    "W6:W6.1 tiered identities and identity bonding",
+    "W6:W6.2 permissionless attester registry with bonded tiers",
+    "W7:W7.1 versioned runtime attestation",
+    "W7:W7.2 signed execution steps",
+    "W7:W7.3 cost / effort fields",
     "W8:W8.1 rewrite docs to distinguish enforced vs convention",
     "W8:W8.2 mark SDK helpers that are not on-chain equivalents",
     "W8:W8.3 README truthing",
@@ -640,6 +775,15 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
     )
   );
   ok(PLAN.includes("### W5.2 SDK and indexer hooks"));
+  ok(PLAN.includes("### W6.1 Tiered identities (not binary bonded)"));
+  ok(
+    PLAN.includes(
+      "### W6.2 Permissionless attester registry with bonded tiers"
+    )
+  );
+  ok(PLAN.includes("### W7.1 Versioned runtime attestation"));
+  ok(PLAN.includes("### W7.2 Signed execution steps"));
+  ok(PLAN.includes("### W7.3 Cost / effort fields"));
   ok(
     PLAN.includes("### W8.1 Rewrite docs to distinguish enforced vs convention")
   );
@@ -703,6 +847,25 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
     )
   );
   ok(hasScoreboardRow("W5", "W5.2 SDK and indexer hooks", "complete"));
+  ok(
+    hasScoreboardRow(
+      "W6",
+      "W6.1 tiered identities and identity bonding",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W6",
+      "W6.2 permissionless attester registry with bonded tiers",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow("W7", "W7.1 versioned runtime attestation", "complete")
+  );
+  ok(hasScoreboardRow("W7", "W7.2 signed execution steps", "complete"));
+  ok(hasScoreboardRow("W7", "W7.3 cost / effort fields", "complete"));
   ok(
     hasScoreboardRow(
       "W8",

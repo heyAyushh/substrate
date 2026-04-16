@@ -65,6 +65,16 @@ Uncommitted worktree changes are not counted here.
 - [x] W5.1 adds cooldown authority rotation and guardian-gated emergency
       rotation.
 - [x] W5.2 exposes rotation history through SDK and indexer hooks.
+- [x] W6 sybil gating is complete in the scoreboard.
+- [x] W6.1 adds tiered identities, identity bonds, and bond-withdraw guards
+      tied to open tasks, active stake, and open challenges.
+- [x] W6.2 adds a permissionless attester registry with bonded registration and
+      curator-controlled effective tiers.
+- [x] W7 AI-era provenance is complete in the scoreboard.
+- [x] W7.1 adds versioned runtime attestation records and SDK slot-resolution
+      helpers.
+- [x] W7.2 adds signed execution-step verification in the SDK.
+- [x] W7.3 adds cost-aware reputation weighting for completion receipts.
 - [x] W8 docs and SDK alignment is complete in the scoreboard.
 - [x] W8.1 tags docs so guarantees are distinguished as on-chain, SDK, or
       indexer behavior.
@@ -114,15 +124,6 @@ Uncommitted worktree changes are not counted here.
 
 ## Open Or Not Yet Scoreboard-Complete
 
-- [ ] W6 sybil gating remains open.
-- [ ] W6.1 tiered identities and identity bonding are planned but not marked
-      complete.
-- [ ] W6.2 permissionless bonded attester registry is planned but not marked
-      complete.
-- [ ] W7 AI-era provenance remains open.
-- [ ] W7.1 versioned runtime attestation is planned but not marked complete.
-- [ ] W7.2 signed execution steps are planned but not marked complete.
-- [ ] W7.3 cost and effort fields are planned but not marked complete.
 - [ ] Multi-hop delegation proof chains remain future work.
 - [ ] Light Protocol ZK Compression remains future work.
 - [ ] Production event ingestion and remote indexing remain future work.

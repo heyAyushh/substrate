@@ -1,7 +1,7 @@
 # Hardening Plan Scoreboard
 
-This scoreboard tracks W0-W5, excluding open W6/W7, and the completed W8
-items as an executable audit lane.
+This scoreboard tracks the completed hardening waves W0-W8 as an executable
+audit lane.
 Run it with:
 
 ```bash
@@ -13,7 +13,7 @@ Status legend:
 - `complete` means the repo contains the expected on-chain or test evidence.
 - `missing` means the plan item still has a concrete gap.
 
-## W0-W5 And Completed W8 Scoreboard
+## W0-W8 Scoreboard
 
 | Wave | Item                                                                  | Status   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | Gap |
 | ---- | --------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
@@ -33,14 +33,19 @@ Status legend:
 | W4   | W4.2 task-domain scoped reputation flow                               | complete | `programs/task_registry/src/state/task_record.rs`, `programs/receipt_emitter/src/instructions/emit_receipt.rs`, `programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs`, `crates/trust_substrate_litesvm_tests/tests/receipt_chain.rs`, `tests/verification/protocol_workspace.test.ts`                                                                                                                                                                                 |     |
 | W5   | W5.1 on-chain rotation instruction with emergency path                | complete | `programs/identity_registry/src/instructions/rotate_authority.rs`, `programs/identity_registry/src/instructions/finalize_authority_rotation.rs`, `programs/identity_registry/src/instructions/initialize_guardian_set.rs`, `programs/identity_registry/src/instructions/emergency_rotate_authority.rs`, `programs/identity_registry/src/state/guardian_set.rs`, `crates/trust_substrate_litesvm_tests/tests/identity_rotation.rs`, `tests/identity_rotation.ts`                       |     |
 | W5   | W5.2 SDK and indexer hooks                                            | complete | `packages/sdk/src/client.ts`, `packages/sdk/src/rotation.ts`, `packages/indexer/src/local-durable-indexer.ts`, `tests/indexer/analytics.test.ts`, `tests/sdk/trust_substrate_sdk.test.ts`, `docs/plans/hardening-plan.md`                                                                                                                                                                                                                                                             |     |
+| W6   | W6.1 tiered identities and identity bonding                           | complete | `programs/identity_registry/src/state/agent_identity.rs`, `programs/identity_registry/src/state/identity_bond.rs`, `programs/identity_registry/src/instructions/deposit_identity_bond.rs`, `programs/identity_registry/src/instructions/withdraw_identity_bond.rs`, `programs/receipt_emitter/src/instructions/emit_audit_receipt.rs`, `crates/trust_substrate_litesvm_tests/tests/sybil_gating.rs`                                                                                                                                   |     |
+| W6   | W6.2 permissionless attester registry with bonded tiers               | complete | `programs/attester_registry/src/instructions/register_attester.rs`, `programs/attester_registry/src/instructions/set_attester_tier.rs`, `programs/attester_registry/src/state/attester_record.rs`, `crates/trust_substrate_litesvm_tests/tests/provenance_and_attesters.rs`, `packages/indexer/src/local-durable-indexer.ts`, `tests/indexer/analytics.test.ts`                                                                                                                                                                 |     |
+| W7   | W7.1 versioned runtime attestation                                    | complete | `programs/identity_registry/src/instructions/append_runtime_attestation.rs`, `programs/identity_registry/src/state/runtime_attestation.rs`, `crates/trust_substrate_litesvm_tests/tests/provenance_and_attesters.rs`, `packages/sdk/src/runtime-attestation.ts`, `tests/sdk/provenance.test.ts`                                                                                                                                                                                                                           |     |
+| W7   | W7.2 signed execution steps                                           | complete | `packages/sdk/src/execution-record.ts`, `tests/sdk/provenance.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                             |     |
+| W7   | W7.3 cost / effort fields                                             | complete | `packages/sdk/src/reputation.ts`, `tests/sdk/provenance.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                   |     |
 | W8   | W8.1 rewrite docs to distinguish enforced vs convention               | complete | `docs/architecture.md`, `docs/programs.md`, `docs/off-chain-storage.md`, `docs/security.md`, `docs/threat-model.md`, `tests/audit/doc_boundaries.test.ts`                                                                                                                                                                                                                                                                                                                             |     |
 | W8   | W8.2 mark SDK helpers that are not on-chain equivalents               | complete | `packages/sdk/src/challenge.ts`, `packages/sdk/src/commit-reveal.ts`, `packages/sdk/src/data-availability.ts`, `tests/sdk/challenge.test.ts`                                                                                                                                                                                                                                                                                                                                          |     |
 | W8   | W8.3 README truthing                                                  | complete | `README.md`, `tests/audit/readme_truthing.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                    |     |
 
 ## Summary
 
-- Completed: 19
+- Completed: 24
 - Missing: 0
 
-The audit lane is intentionally narrow so completed W0-W5 and W8 items can be
-checked mechanically before W6 and W7 are expanded.
+The audit lane now covers the full completed hardening plan, including the
+sybil-gating and provenance waves.

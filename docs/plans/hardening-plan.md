@@ -31,8 +31,8 @@ derivation.
   - [x] guardian-gated emergency authority rotation
   - [x] SDK and indexer authority-history hooks
   - [x] sweep remaining W5 docs/examples for consistency
-- [ ] W6 sybil gating
-- [ ] W7 AI-era provenance
+- [x] W6 sybil gating
+- [x] W7 AI-era provenance
 - [x] W8 docs and SDK alignment
   - [x] W8.1 rewrite docs to distinguish enforced vs convention
   - [x] W8.2 mark SDK helpers that are not on-chain equivalents
@@ -579,7 +579,11 @@ response.
 
 Fixes audit finding #14. Creates the foundation for #15.
 
+Status: complete.
+
 ### W6.1 Tiered identities (not binary bonded)
+
+Status: complete.
 
 **Refined:** two tiers instead of a single bond requirement. Binary
 bonding would kill the "spin up a cheap read-only helper agent" use
@@ -609,6 +613,8 @@ agents, but griefing via audit-receipts or reputation farming requires
 skin in the game.
 
 ### W6.2 Permissionless attester registry with bonded tiers
+
+Status: complete.
 
 **Refined:** governance curates _tiers_ of attesters, not the membership
 list itself. Any identity can self-register as an attester by bonding.
@@ -644,7 +650,11 @@ them — and the demotion is observable on-chain.
 
 Fixes audit findings #15, #16, #17.
 
+Status: complete.
+
 ### W7.1 Versioned runtime attestation
+
+Status: complete.
 
 **Refined:** the runtime commitment is a versioned list, not a single
 overwritten field. A model swap appends a new version; historical
@@ -675,6 +685,8 @@ verification knows which runtime was active at a given slot.
 
 ### W7.2 Signed execution steps
 
+Status: complete.
+
 **SDK-level addition:**
 
 - extend `ExecutionStep` with `signature?: { signer: string; sig: string }` — signer pubkey (hex), Ed25519 signature over `hashStep(step)`.
@@ -687,6 +699,8 @@ verification knows which runtime was active at a given slot.
 `payload_hash`. Verification is off-chain but now has signatures to check.
 
 ### W7.3 Cost / effort fields
+
+Status: complete.
 
 - add to `ExecutionStep.payload` a convention:
   - `cost?: { tokensIn: number; tokensOut: number; elapsedMs: number; usdMicros?: number }`.
