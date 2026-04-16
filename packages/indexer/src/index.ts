@@ -10,6 +10,7 @@ export type {
   AgentTraceExportEdit,
   AuthorityRotationEvent,
   AuthorityRotation,
+  ChallengeRoundView,
   ChallengeStatus,
   CommitmentStatus,
   DomainSummary,

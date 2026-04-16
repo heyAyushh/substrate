@@ -84,6 +84,7 @@ export interface LeaderboardEntry {
   receiptCount: number;
   domain?: string;
   attestations: number;
+  tier: "bonded" | "tier0";
 }
 
 export interface LeaderboardQuery {
@@ -92,6 +93,7 @@ export interface LeaderboardQuery {
   until?: number;
   attestedOnly?: boolean;
   currentSlot?: number;
+  tier0?: boolean;
 }
 
 export interface AgentAttestation {
@@ -158,6 +160,21 @@ export interface ChallengeStatus {
   taskId: string;
   domain: string;
   targetReceiptId: string;
+  round: number;
+  deadlineSlot?: number;
+  answered: boolean;
+  responseReceiptId?: string;
+  expired: boolean;
+}
+
+export interface ChallengeRoundView {
+  challengeReceiptId: string;
+  actorId: string;
+  taskId: string;
+  domain: string;
+  targetReceiptId: string;
+  round: number;
+  slot: number;
   deadlineSlot?: number;
   answered: boolean;
   responseReceiptId?: string;

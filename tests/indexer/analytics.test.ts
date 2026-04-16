@@ -21,6 +21,31 @@ const receipt = (
   ...overrides,
 });
 
+const stakeReceipt = (
+  receiptId: string,
+  slot: number,
+  identityId: string,
+  amountLamports: string
+): LocalReceiptRecord =>
+  receipt({
+    receiptId,
+    slot,
+    taskId: `stake-${identityId}`,
+    actorId: identityId,
+    kind: "stake_event",
+    payload: {
+      stakeEvents: [
+        {
+          type: STAKE_EVENT_MARKER,
+          eventId: `${receiptId}-deposit`,
+          kind: "deposited",
+          identityId,
+          amountLamports,
+        },
+      ],
+    },
+  });
+
 test("getAgentProfile aggregates domains, kinds, models, tools", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([
@@ -65,6 +90,8 @@ test("getAgentProfile aggregates domains, kinds, models, tools", () => {
 test("getAgentLeaderboard ranks by weighted score", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([
+    stakeReceipt("stake-a", 0, "agent-a", "100"),
+    stakeReceipt("stake-b", 0, "agent-b", "100"),
     receipt({
       receiptId: "r1",
       slot: 1,
@@ -91,13 +118,17 @@ test("getAgentLeaderboard ranks by weighted score", () => {
   const board = indexer.getAgentLeaderboard();
   strictEqual(board[0].agentId, "agent-a");
   strictEqual(board[0].score, 5);
+  strictEqual(board[0].tier, "bonded");
   strictEqual(board[1].agentId, "agent-b");
   strictEqual(board[1].score, 1);
+  strictEqual(board[1].tier, "bonded");
 });
 
 test("attestedOnly leaderboard filters unattested agents", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([
+    stakeReceipt("stake-a", 0, "agent-a", "100"),
+    stakeReceipt("stake-b", 0, "agent-b", "100"),
     receipt({
       receiptId: "r1",
       slot: 1,
@@ -126,6 +157,40 @@ test("attestedOnly leaderboard filters unattested agents", () => {
   strictEqual(board.length, 1);
   strictEqual(board[0].agentId, "agent-a");
   strictEqual(board[0].attestations, 1);
+  strictEqual(board[0].tier, "bonded");
+});
+
+test("tier0 leaderboard opt-in includes unbonded identities", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    stakeReceipt("stake-bonded", 0, "agent-bonded", "100"),
+    receipt({
+      receiptId: "bonded-completion",
+      slot: 1,
+      taskId: "t-bonded",
+      actorId: "agent-bonded",
+      kind: "completion",
+    }),
+    receipt({
+      receiptId: "tier0-completion",
+      slot: 2,
+      taskId: "t-tier0",
+      actorId: "agent-tier0",
+      kind: "completion",
+    }),
+  ]);
+
+  const defaultBoard = indexer.getAgentLeaderboard();
+  strictEqual(defaultBoard.length, 1);
+  strictEqual(defaultBoard[0].agentId, "agent-bonded");
+  strictEqual(defaultBoard[0].tier, "bonded");
+
+  const tier0Board = indexer.getAgentLeaderboard({ tier0: true });
+  strictEqual(tier0Board.length, 2);
+  strictEqual(tier0Board[0].agentId, "agent-bonded");
+  strictEqual(tier0Board[0].tier, "bonded");
+  strictEqual(tier0Board[1].agentId, "agent-tier0");
+  strictEqual(tier0Board[1].tier, "tier0");
 });
 
 test("getAttestations returns attestations targeting an agent", () => {
@@ -383,6 +448,58 @@ test("tracks unanswered availability challenges", () => {
   strictEqual(unanswered.length, 1);
   strictEqual(unanswered[0].challengeReceiptId, "challenge-1");
   strictEqual(unanswered[0].expired, true);
+});
+
+test("groups challenge rounds for the same target receipt", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    receipt({
+      receiptId: "challenge-round-0",
+      slot: 30,
+      taskId: "task-rounds",
+      actorId: "reviewer-a",
+      kind: "challenge",
+      payload: {
+        challengeTarget: "receipt-target",
+        deadlineSlot: 35,
+        round: 0,
+      },
+    }),
+    receipt({
+      receiptId: "challenge-response-round-0",
+      slot: 31,
+      taskId: "task-rounds",
+      actorId: "agent-a",
+      kind: "challenge_response",
+      payload: {
+        challengeReceiptId: "challenge-round-0",
+      },
+    }),
+    receipt({
+      receiptId: "challenge-round-1",
+      slot: 40,
+      taskId: "task-rounds",
+      actorId: "reviewer-b",
+      kind: "challenge",
+      payload: {
+        challengeTarget: "receipt-target",
+        deadlineSlot: 45,
+        round: 1,
+      },
+    }),
+  ]);
+
+  const rounds = indexer.getChallengeRounds("receipt-target", 50);
+
+  strictEqual(rounds.length, 2);
+  deepStrictEqual(
+    rounds.map((round) => round.round),
+    [0, 1]
+  );
+  strictEqual(rounds[0].answered, true);
+  strictEqual(rounds[0].responseReceiptId, "challenge-response-round-0");
+  strictEqual(rounds[1].answered, false);
+  strictEqual(rounds[1].expired, true);
 });
 
 test("projects stake state from receipt payload events", () => {

@@ -8,6 +8,7 @@ import {
   type AgentTraceExportEdit,
   type AuthorityRotationEvent,
   type AuthorityRotation,
+  type ChallengeRoundView,
   type ChallengeStatus,
   type CommitmentStatus,
   type DomainSummary,
@@ -114,6 +115,9 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const getChallengeRound = (receipt: LocalReceiptRecord): number =>
+  asNumber(receipt.payload.round) ?? 0;
 
 const cloneAuthorityRotation = (
   event: AuthorityRotationEvent
@@ -686,6 +690,9 @@ export class LocalDurableIndexer {
 
   getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
     const attestations = this.collectAttestationCounts();
+    const stakeStates = new Map(
+      this.getStakeStates().map((state) => [state.identityId, state] as const)
+    );
     const expiredCommitments =
       query.currentSlot === undefined
         ? new Set<string>()
@@ -710,6 +717,13 @@ export class LocalDurableIndexer {
         continue;
       }
 
+      const activeLamports =
+        BigInt(stakeStates.get(receipt.actorId)?.activeLamports ?? "0");
+      const tier = activeLamports > 0n ? "bonded" : "tier0";
+      if (!query.tier0 && tier === "tier0") {
+        continue;
+      }
+
       const weight = KIND_WEIGHTS[receipt.kind] ?? 0;
       const existing = scores.get(receipt.actorId) ?? {
         agentId: receipt.actorId,
@@ -717,6 +731,7 @@ export class LocalDurableIndexer {
         receiptCount: 0,
         domain: query.domain,
         attestations: attestations.get(receipt.actorId) ?? 0,
+        tier,
       };
       existing.score += weight;
       if (expiredCommitments.has(receipt.receiptId)) {
@@ -939,6 +954,7 @@ export class LocalDurableIndexer {
           taskId: receipt.taskId,
           domain: receipt.domain,
           targetReceiptId: targetReceiptId ?? "",
+          round: getChallengeRound(receipt),
           deadlineSlot,
           answered: response !== undefined,
           responseReceiptId: response?.receiptId,
@@ -949,6 +965,30 @@ export class LocalDurableIndexer {
             currentSlot > deadlineSlot,
         };
       });
+  }
+
+  getChallengeRounds(
+    targetReceiptId: string,
+    currentSlot?: number
+  ): ChallengeRoundView[] {
+    const receiptsById = new Map(
+      this.sortedReceipts().map((receipt) => [receipt.receiptId, receipt] as const)
+    );
+    return this.getChallengeStatuses(currentSlot)
+      .map((challenge) => {
+        const receipt = receiptsById.get(challenge.challengeReceiptId);
+        return {
+          ...challenge,
+          slot: receipt?.slot ?? 0,
+        };
+      })
+      .filter((challenge) => challenge.targetReceiptId === targetReceiptId)
+      .sort(
+        (left, right) =>
+          left.round - right.round ||
+          left.slot - right.slot ||
+          left.challengeReceiptId.localeCompare(right.challengeReceiptId)
+      );
   }
 
   getUnansweredChallenges(currentSlot: number): ChallengeStatus[] {
