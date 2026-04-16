@@ -20,12 +20,12 @@ import {
   type ExecutionStep,
   type ExecutionStepKind,
   type ReceiptRecord,
-} from "../../packages/sdk/dist/index.js";
-import { hashCanonical } from "../../packages/sdk/dist/canonical.js";
+} from "@trust-substrate/sdk";
+import { hashCanonical } from "@trust-substrate/sdk/canonical";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
-} from "../../packages/indexer/dist/index.js";
+} from "@trust-substrate/indexer";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");

@@ -62,12 +62,12 @@ All notable changes to Trust Substrate are documented in this file.
   `writeDomainStatsSnapshot` alongside the earlier hardening surfaces.
 - Removed self-referential verification docs and tests, keeping the remaining
   verification order in `docs/testing.md` and the verification lane focused on
-  shared errors plus generated-client coverage.
+  the archive snapshot script and shared protocol errors.
 - Collapsed `agent_stake` stake initialization to one `initialize_stake`
   instruction with `trust_mode`, and removed the `slash_already_applied`
   helper from the on-chain and generated client surfaces.
 - Flattened the SDK and indexer package builds to `dist/index.js` and updated
-  the example entrypoints to import from the new package roots.
+  the example entrypoints to resolve through the workspace package roots.
 
 ### Verified
 

@@ -7,15 +7,15 @@ import {
   TrustSubstrateClient,
   hashLeafBytes,
   verifyOnchainInclusion,
-} from "../../packages/sdk/dist/index.js";
+} from "@trust-substrate/sdk";
 import type {
   ReceiptKind,
   ReceiptRecord,
-} from "../../packages/sdk/dist/index.js";
+} from "@trust-substrate/sdk";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
-} from "../../packages/indexer/dist/index.js";
+} from "@trust-substrate/indexer";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");

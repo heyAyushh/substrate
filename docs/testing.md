@@ -70,7 +70,6 @@ The pure Rust command intentionally excludes `trust_substrate_litesvm_tests`, be
 These checks keep the lightweight repo-consistency lane honest. They cover:
 
 - the archive snapshot script behavior
-- the committed Codama generation surface
 - the shared protocol error taxonomy
 
 ## Surfpool Final E2E
