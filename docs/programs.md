@@ -309,6 +309,59 @@ Behavior:
 - initializes the identity PDA
 - stores authority, agent id, policy root, history root, and bump
 
+### `identity_registry.rotate_authority`
+
+Signature:
+
+- `rotate_authority(ctx, new_authority, unlock_slot)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- rejects unlock slots earlier than the protocol cooldown window
+- writes the staged authority change into a `PendingAuthorityRotation` PDA
+- emits `AuthorityRotationRequested`
+
+### `identity_registry.initialize_guardian_set`
+
+Signature:
+
+- `initialize_guardian_set(ctx, guardians, threshold)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- initializes a side `GuardianSet` PDA for the identity
+- rejects empty guardian sets, oversized guardian sets, duplicate guardians, and invalid thresholds
+- emits `GuardianSetInitialized`
+
+### `identity_registry.emergency_rotate_authority`
+
+Signature:
+
+- `emergency_rotate_authority(ctx, new_authority)`
+
+Behavior:
+
+- requires the identity to have a configured `GuardianSet`
+- validates the supplied guardian signer set against the configured guardian list and threshold
+- updates `identity.authority` immediately without a cooldown
+- closes a staged `PendingAuthorityRotation` when one is supplied
+- emits `AuthorityRotated` with emergency mode
+
+### `identity_registry.finalize_authority_rotation`
+
+Signature:
+
+- `finalize_authority_rotation(ctx)`
+
+Behavior:
+
+- allows any caller after the cooldown unlock slot
+- swaps `identity.authority` to the staged pending authority
+- closes the `PendingAuthorityRotation` PDA
+- emits `AuthorityRotated` with normal mode
+
 ### `task_registry.create_task`
 
 Signature:

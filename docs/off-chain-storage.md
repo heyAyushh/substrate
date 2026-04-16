@@ -69,6 +69,12 @@ For payloads that must not leak before a deadline (sealed bids, blind reviews), 
 
 Selling a high-reputation identity must not silently transfer its reputation. The indexer exposes `authority_rotated` markers so consumers can inspect authority history, but v1 does not apply automatic score decay because a payload-only marker can be forged by the current authority. Reputation decay should be enabled only after an on-chain authority-rotation instruction makes the transition independently verifiable.
 
+That condition now exists in the local baseline: `identity_registry` supports
+both cooldown-gated authority rotation and guardian-gated emergency rotation,
+and the indexer records the resulting `AuthorityRotated` mode. Consumers can
+differentiate deliberate succession from incident recovery before applying any
+pre-rotation decay policy.
+
 ### Attestation filter (task #15)
 
 Sybil identities can flood the graph. Attestation receipts (`kyc`, `pop`, `dao_vote`, `review`) from independent attesters are indexed per target. The leaderboard exposes an `attestedOnly` filter so downstream apps can exclude unattested identities.

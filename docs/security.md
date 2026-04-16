@@ -47,6 +47,9 @@ The main protected assets are:
 - latest checkpoint pointer checks for on-chain proof freshness
 - local replay checks in the SDK model
 - Merkle proof checks in Rust, TypeScript, and the proof verifier instruction
+- cooldown-gated authority rotation through `PendingAuthorityRotation`
+- guardian-gated emergency authority rotation with explicit threshold checks
+- stale authority rejection after either normal or emergency rotation
 
 ## Known Gaps
 

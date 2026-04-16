@@ -29,6 +29,8 @@ The baseline favors correctness, auditability, and test coverage before compute 
 Current scope:
 
 - identity PDA creation
+- cooldown-gated authority rotation
+- guardian-set initialization and emergency authority rotation
 - authority-gated task creation
 - canonical receipt accounts
 - receipt event emission
@@ -40,6 +42,7 @@ Next:
 
 - richer task DAG constraints across parent and subtask receipts
 - generated-client adoption in higher-level examples and package consumers
+- broader authority-transition examples beyond the protocol tests
 
 ## Phase 2: Delegation And Handoff Chain
 

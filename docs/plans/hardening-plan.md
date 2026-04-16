@@ -25,7 +25,7 @@ derivation.
   - [x] cooldown-gated on-chain authority rotation
   - [x] guardian-gated emergency authority rotation
   - [x] SDK and indexer authority-history hooks
-  - [ ] sweep remaining W5 docs/examples for consistency
+  - [x] sweep remaining W5 docs/examples for consistency
 - [ ] W6 sybil gating
 - [ ] W7 AI-era provenance
 - [ ] W8 docs and SDK alignment
@@ -530,7 +530,8 @@ rotation decay" hinted at in `docs/off-chain-storage.md`.
 
 **Emergency rotation (N-of-M guardian-gated, zero cooldown):**
 
-- identities optionally declare a `GuardianSet` at `create_identity` time:
+- identities optionally configure a `GuardianSet` after creation through a
+  dedicated `initialize_guardian_set` instruction:
   a list of up to `MAX_GUARDIANS` pubkeys plus a threshold `M`. Stored in
   a side PDA `guardian_set` seeded by identity.
 - `emergency_rotate_authority(ctx, new_authority: Pubkey)`:
@@ -549,8 +550,9 @@ response.
 
 ### W5.2 SDK and indexer hooks
 
-- `packages/sdk/src/client.ts` adds `identity.rotateAuthority` and
-  `identity.finalizeRotation` helpers.
+- `packages/sdk/src/client.ts` adds `identity.rotateAuthority`,
+  `identity.finalizeRotation`, `identity.configureGuardianSet`, and
+  `identity.emergencyRotateAuthority` helpers.
 - `packages/indexer/src/local-durable-indexer.ts.getAuthorityHistory`
   becomes a real view of `AuthorityRotated` events, not a derived guess.
 - `deriveReputation` gains an option to weight pre-rotation receipts at a
