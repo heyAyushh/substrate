@@ -140,6 +140,8 @@ pub enum TrustSubstrateError {
     StakeSlashAlreadyApplied,
     #[msg("The supplied verdict outcome is not part of the protocol vocabulary")]
     InvalidVerdictOutcome,
+    #[msg("The supplied verdict class is not part of the protocol vocabulary")]
+    InvalidVerdictClass,
     #[msg("Only the configured adjudicator can record or apply this verdict")]
     VerdictAdjudicatorMismatch,
     #[msg("The supplied receipt is not a dispute receipt")]
@@ -148,6 +150,10 @@ pub enum TrustSubstrateError {
     VerdictTargetIdentityMismatch,
     #[msg("The verdict is not bound to the supplied dispute receipt")]
     VerdictDisputeReceiptMismatch,
+    #[msg("Time-boxed verdicts must include a positive stale-after slot")]
+    VerdictStaleWindowMissing,
+    #[msg("The verdict is no longer slashable because its stale window has elapsed")]
+    VerdictStale,
     #[msg("Only AGENT_LOST verdicts can slash stake")]
     VerdictOutcomeNotSlashable,
     #[msg("Verdict challenges are reserved for a later protocol wave")]
@@ -166,6 +172,12 @@ pub enum TrustSubstrateError {
     DomainAlreadyRegistered,
     #[msg("The domain catalog has reached its maximum capacity")]
     DomainCatalogFull,
+    #[msg("Applying a dispute receipt to reputation requires a matching verdict account")]
+    ReputationVerdictMissing,
+    #[msg("The supplied verdict does not match the dispute receipt being applied")]
+    ReputationVerdictMismatch,
+    #[msg("Only AGENT_LOST verdicts can degrade reputation")]
+    ReputationVerdictOutcomeNotNegative,
     #[msg("Challenge receipts must include a positive deadline slot")]
     ChallengeDeadlineMissing,
     #[msg("The challenge deadline has not elapsed yet")]

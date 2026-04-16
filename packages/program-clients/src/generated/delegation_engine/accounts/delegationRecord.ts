@@ -47,7 +47,7 @@ export const DELEGATION_RECORD_DISCRIMINATOR = new Uint8Array([
 
 export function getDelegationRecordDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    DELEGATION_RECORD_DISCRIMINATOR,
+    DELEGATION_RECORD_DISCRIMINATOR
   );
 }
 
@@ -57,6 +57,7 @@ export type DelegationRecord = {
   delegate: Address;
   allowedActions: number;
   expiresAtSlot: bigint;
+  revokeAtSlot: bigint;
   revoked: boolean;
   bump: number;
 };
@@ -66,6 +67,7 @@ export type DelegationRecordArgs = {
   delegate: Address;
   allowedActions: number;
   expiresAtSlot: number | bigint;
+  revokeAtSlot: number | bigint;
   revoked: boolean;
   bump: number;
 };
@@ -79,10 +81,11 @@ export function getDelegationRecordEncoder(): FixedSizeEncoder<DelegationRecordA
       ["delegate", getAddressEncoder()],
       ["allowedActions", getU8Encoder()],
       ["expiresAtSlot", getU64Encoder()],
+      ["revokeAtSlot", getU64Encoder()],
       ["revoked", getBooleanEncoder()],
       ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: DELEGATION_RECORD_DISCRIMINATOR }),
+    (value) => ({ ...value, discriminator: DELEGATION_RECORD_DISCRIMINATOR })
   );
 }
 
@@ -94,6 +97,7 @@ export function getDelegationRecordDecoder(): FixedSizeDecoder<DelegationRecord>
     ["delegate", getAddressDecoder()],
     ["allowedActions", getU8Decoder()],
     ["expiresAtSlot", getU64Decoder()],
+    ["revokeAtSlot", getU64Decoder()],
     ["revoked", getBooleanDecoder()],
     ["bump", getU8Decoder()],
   ]);
@@ -106,31 +110,31 @@ export function getDelegationRecordCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getDelegationRecordEncoder(),
-    getDelegationRecordDecoder(),
+    getDelegationRecordDecoder()
   );
 }
 
 export function decodeDelegationRecord<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress>
 ): Account<DelegationRecord, TAddress>;
 export function decodeDelegationRecord<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>,
+  encodedAccount: MaybeEncodedAccount<TAddress>
 ): MaybeAccount<DelegationRecord, TAddress>;
 export function decodeDelegationRecord<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
 ):
   | Account<DelegationRecord, TAddress>
   | MaybeAccount<DelegationRecord, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getDelegationRecordDecoder(),
+    getDelegationRecordDecoder()
   );
 }
 
 export async function fetchDelegationRecord<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<Account<DelegationRecord, TAddress>> {
   const maybeAccount = await fetchMaybeDelegationRecord(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -138,11 +142,11 @@ export async function fetchDelegationRecord<TAddress extends string = string>(
 }
 
 export async function fetchMaybeDelegationRecord<
-  TAddress extends string = string,
+  TAddress extends string = string
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig,
+  config?: FetchAccountConfig
 ): Promise<MaybeAccount<DelegationRecord, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeDelegationRecord(maybeAccount);
@@ -151,12 +155,12 @@ export async function fetchMaybeDelegationRecord<
 export async function fetchAllDelegationRecord(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<Account<DelegationRecord>[]> {
   const maybeAccounts = await fetchAllMaybeDelegationRecord(
     rpc,
     addresses,
-    config,
+    config
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -165,14 +169,14 @@ export async function fetchAllDelegationRecord(
 export async function fetchAllMaybeDelegationRecord(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig,
+  config?: FetchAccountsConfig
 ): Promise<MaybeAccount<DelegationRecord>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeDelegationRecord(maybeAccount),
+    decodeDelegationRecord(maybeAccount)
   );
 }
 
 export function getDelegationRecordSize(): number {
-  return 83;
+  return 91;
 }

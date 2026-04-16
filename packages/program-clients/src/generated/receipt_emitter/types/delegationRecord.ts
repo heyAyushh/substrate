@@ -29,6 +29,7 @@ export type DelegationRecord = {
   delegate: Address;
   allowedActions: number;
   expiresAtSlot: bigint;
+  revokeAtSlot: bigint;
   revoked: boolean;
   bump: number;
 };
@@ -38,6 +39,7 @@ export type DelegationRecordArgs = {
   delegate: Address;
   allowedActions: number;
   expiresAtSlot: number | bigint;
+  revokeAtSlot: number | bigint;
   revoked: boolean;
   bump: number;
 };
@@ -48,6 +50,7 @@ export function getDelegationRecordEncoder(): FixedSizeEncoder<DelegationRecordA
     ["delegate", getAddressEncoder()],
     ["allowedActions", getU8Encoder()],
     ["expiresAtSlot", getU64Encoder()],
+    ["revokeAtSlot", getU64Encoder()],
     ["revoked", getBooleanEncoder()],
     ["bump", getU8Encoder()],
   ]);
@@ -59,6 +62,7 @@ export function getDelegationRecordDecoder(): FixedSizeDecoder<DelegationRecord>
     ["delegate", getAddressDecoder()],
     ["allowedActions", getU8Decoder()],
     ["expiresAtSlot", getU64Decoder()],
+    ["revokeAtSlot", getU64Decoder()],
     ["revoked", getBooleanDecoder()],
     ["bump", getU8Decoder()],
   ]);
@@ -70,6 +74,6 @@ export function getDelegationRecordCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getDelegationRecordEncoder(),
-    getDelegationRecordDecoder(),
+    getDelegationRecordDecoder()
   );
 }

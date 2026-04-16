@@ -6,8 +6,58 @@ use crate::{
 };
 use anchor_lang::prelude::*;
 use trust_substrate_core::{
-    COMPLETION_KIND, DISPUTE_KIND, DISPUTE_RESOLVED_KIND, REPUTATION_RECEIPT_APPLICATION_SEED,
+    AGENT_LOST_OUTCOME, COMPLETION_KIND, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
+    REPUTATION_RECEIPT_APPLICATION_SEED, VERDICT_SEED,
 };
+
+const DISPUTE_RESOLVER_ID: Pubkey = pubkey!("9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa");
+const DISPUTE_VERDICT_DISPUTE_RECEIPT_OFFSET: usize = 8;
+const DISPUTE_VERDICT_OUTCOME_OFFSET: usize = 72;
+const DISPUTE_VERDICT_SERIALIZED_LEN: usize = 122;
+
+fn require_negative_verdict(ctx: &Context<ApplyReputationReceipt>) -> Result<()> {
+    let verdict_info = ctx
+        .remaining_accounts
+        .first()
+        .ok_or_else(|| error!(TrustSubstrateError::ReputationVerdictMissing))?;
+    let expected_verdict = Pubkey::find_program_address(
+        &[VERDICT_SEED, ctx.accounts.receipt.key().as_ref()],
+        &DISPUTE_RESOLVER_ID,
+    )
+    .0;
+
+    require_keys_eq!(
+        *verdict_info.key,
+        expected_verdict,
+        TrustSubstrateError::ReputationVerdictMismatch
+    );
+    require_keys_eq!(
+        *verdict_info.owner,
+        DISPUTE_RESOLVER_ID,
+        TrustSubstrateError::ReputationVerdictMismatch
+    );
+    let verdict_data = verdict_info.try_borrow_data()?;
+    require!(
+        verdict_data.len() >= DISPUTE_VERDICT_SERIALIZED_LEN,
+        TrustSubstrateError::ReputationVerdictMismatch
+    );
+    let mut dispute_receipt_bytes = [0u8; 32];
+    dispute_receipt_bytes.copy_from_slice(
+        &verdict_data
+            [DISPUTE_VERDICT_DISPUTE_RECEIPT_OFFSET..DISPUTE_VERDICT_DISPUTE_RECEIPT_OFFSET + 32],
+    );
+    require_keys_eq!(
+        Pubkey::new_from_array(dispute_receipt_bytes),
+        ctx.accounts.receipt.key(),
+        TrustSubstrateError::ReputationVerdictMismatch
+    );
+    require!(
+        verdict_data[DISPUTE_VERDICT_OUTCOME_OFFSET] == AGENT_LOST_OUTCOME,
+        TrustSubstrateError::ReputationVerdictOutcomeNotNegative
+    );
+
+    Ok(())
+}
 
 pub fn handler(ctx: Context<ApplyReputationReceipt>) -> Result<()> {
     require_keys_eq!(
@@ -29,6 +79,10 @@ pub fn handler(ctx: Context<ApplyReputationReceipt>) -> Result<()> {
         Pubkey::default(),
         TrustSubstrateError::ReceiptAlreadyAppliedToReputation
     );
+
+    if ctx.accounts.receipt.kind == DISPUTE_KIND {
+        require_negative_verdict(&ctx)?;
+    }
 
     let reputation = &mut ctx.accounts.reputation;
     match ctx.accounts.receipt.kind {

@@ -9,7 +9,7 @@ const PLAN = readFileSync(
   "utf8"
 );
 const FINDING_ROW_PATTERN =
-  /^\| #(?<finding>\d+) \| (?<title>[^|]+) \| (?<wave>[^|]+) \|$/gm;
+  /^\|\s*#(?<finding>\d+)\s*\|\s*(?<title>[^|]+?)\s*\|\s*(?<wave>[^|]+?)\s*\|$/gm;
 const REQUIRED_WAVES = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"];
 
 const findingRows = [...PLAN.matchAll(FINDING_ROW_PATTERN)].map((match) => ({

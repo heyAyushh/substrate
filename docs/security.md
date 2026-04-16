@@ -37,7 +37,7 @@ The main protected assets are:
 - [on-chain] receipt kind validation
 - [on-chain] task ownership checks during receipt emission
 - [on-chain] empty and unsupported delegation scope rejection
-- [on-chain] delegation revocation checks
+- [on-chain] delegation effective revocation slot checks
 - [on-chain] delegation expiry checks against the slot clock
 - [on-chain] delegated receipt scope checks by receipt kind
 - [on-chain] delegated receipt attribution through `via_delegation`
@@ -57,6 +57,7 @@ The main protected assets are:
 - [on-chain] cooldown-gated authority rotation through `PendingAuthorityRotation`
 - [on-chain] guardian-gated emergency authority rotation with explicit threshold checks
 - [on-chain] stale authority rejection after either normal or emergency rotation
+- [on-chain] stale-window enforcement for non-safety verdict slashing
 
 ## Known Gaps
 
@@ -83,6 +84,7 @@ Before merging protocol behavior, check:
 - [on-chain] receipt emission rejects task-domain mismatches
 - [on-chain] stake, unstake, and slash authority failures are tested
 - [on-chain] slashing binds to a `dispute_resolved` receipt and rejects replay
+- [on-chain] non-safety verdicts cannot slash after their stale window
 - [on-chain] reputation cannot be written directly as a score
 - [on-chain] the on-chain reputation accumulator is treated as a cache/projection over verified history
 - [sdk] SDK behavior matches the on-chain account model

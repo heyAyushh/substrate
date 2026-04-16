@@ -13,5 +13,6 @@ pub struct DelegationCreated {
 pub struct DelegationRevoked {
     pub identity: Pubkey,
     pub delegate: Pubkey,
+    pub revoke_at_slot: u64,
     pub slot: u64,
 }

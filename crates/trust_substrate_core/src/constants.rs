@@ -79,6 +79,10 @@ pub const AGENT_WON_OUTCOME: u8 = 0;
 pub const AGENT_LOST_OUTCOME: u8 = 1;
 pub const NO_FAULT_OUTCOME: u8 = 2;
 
+pub const VERDICT_CLASS_SAFETY: u8 = 0;
+pub const VERDICT_CLASS_PERFORMANCE: u8 = 1;
+pub const VERDICT_CLASS_POLICY: u8 = 2;
+
 pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
     match kind {
         ASSIGNMENT_KIND => Some(ASSIGNMENT_SCOPE_BIT),
@@ -100,6 +104,13 @@ pub fn is_valid_verdict_outcome(outcome: u8) -> bool {
     matches!(
         outcome,
         AGENT_WON_OUTCOME | AGENT_LOST_OUTCOME | NO_FAULT_OUTCOME
+    )
+}
+
+pub fn is_valid_verdict_class(class: u8) -> bool {
+    matches!(
+        class,
+        VERDICT_CLASS_SAFETY | VERDICT_CLASS_PERFORMANCE | VERDICT_CLASS_POLICY
     )
 }
 

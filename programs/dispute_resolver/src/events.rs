@@ -14,6 +14,8 @@ pub struct VerdictRecorded {
     pub target_identity: Pubkey,
     pub outcome: u8,
     pub slash_amount: u64,
+    pub class: u8,
+    pub stale_after_slot: u64,
     pub adjudicator: Pubkey,
     pub slot: u64,
 }

@@ -54,12 +54,12 @@ The main protocol flow is covered by the LiteSVM suite, including:
 - task creation
 - direct receipt emission
 - task status sync from receipts
-- delegation creation and revocation
+- delegation creation, revocation, and future revocation grace windows
 - delegated receipt emission
 - history checkpoint creation and rotation
 - receipt inclusion proof verification
 - reputation domain creation and receipt application
-- stake escrow, cooldown unstake, dispute-resolution slashing, and slash replay rejection
+- stake escrow, cooldown unstake, dispute-resolution slashing, verdict stale windows, and slash replay rejection
 
 The pure Rust command intentionally excludes `trust_substrate_litesvm_tests`, because those tests load built SBF artifacts from `target/deploy`. Use `pnpm test:anchor` when instruction/account behavior changed.
 

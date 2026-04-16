@@ -10,4 +10,6 @@ pub struct DisputeVerdict {
     pub adjudicator: Pubkey,
     pub created_at_slot: u64,
     pub bump: u8,
+    pub class: u8,
+    pub stale_after_slot: u64,
 }

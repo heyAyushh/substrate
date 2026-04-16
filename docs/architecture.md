@@ -79,7 +79,7 @@ Canonical receipt kinds are:
 - challenge
 - challenge response
 
-[on-chain] Direct receipts are signed by the identity authority. Delegated receipts are signed by the delegate and must pass delegation identity, revocation, expiry, and scope checks.
+[on-chain] Direct receipts are signed by the identity authority. Delegated receipts are signed by the delegate and must pass delegation identity, effective revocation slot, expiry, and scope checks.
 
 ## Checkpoints And Proofs
 

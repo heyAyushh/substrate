@@ -23,12 +23,14 @@ import {
 export type DelegationRevoked = {
   identity: Address;
   delegate: Address;
+  revokeAtSlot: bigint;
   slot: bigint;
 };
 
 export type DelegationRevokedArgs = {
   identity: Address;
   delegate: Address;
+  revokeAtSlot: number | bigint;
   slot: number | bigint;
 };
 
@@ -36,6 +38,7 @@ export function getDelegationRevokedEncoder(): FixedSizeEncoder<DelegationRevoke
   return getStructEncoder([
     ["identity", getAddressEncoder()],
     ["delegate", getAddressEncoder()],
+    ["revokeAtSlot", getU64Encoder()],
     ["slot", getU64Encoder()],
   ]);
 }
@@ -44,6 +47,7 @@ export function getDelegationRevokedDecoder(): FixedSizeDecoder<DelegationRevoke
   return getStructDecoder([
     ["identity", getAddressDecoder()],
     ["delegate", getAddressDecoder()],
+    ["revokeAtSlot", getU64Decoder()],
     ["slot", getU64Decoder()],
   ]);
 }
@@ -54,6 +58,6 @@ export function getDelegationRevokedCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getDelegationRevokedEncoder(),
-    getDelegationRevokedDecoder(),
+    getDelegationRevokedDecoder()
   );
 }

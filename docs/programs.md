@@ -12,16 +12,16 @@ Unless noted otherwise, every account, instruction signature, and behavior guara
 
 The workspace exposes deployable Anchor programs in `programs/*`:
 
-| Program | Local Program Id |
-| --- | --- |
-| `identity_registry` | `7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv` |
-| `task_registry` | `5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4` |
-| `receipt_emitter` | `FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp` |
-| `delegation_engine` | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
-| `proof_verifier` | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
+| Program                  | Local Program Id                               |
+| ------------------------ | ---------------------------------------------- |
+| `identity_registry`      | `7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv` |
+| `task_registry`          | `5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4` |
+| `receipt_emitter`        | `FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp` |
+| `delegation_engine`      | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
+| `proof_verifier`         | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
 | `reputation_accumulator` | `8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv` |
-| `dispute_resolver` | `9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa` |
-| `agent_stake` | `GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ` |
+| `dispute_resolver`       | `9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa` |
+| `agent_stake`            | `GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ` |
 
 Shared seeds, constants, errors, and Merkle helpers are defined in `crates/trust_substrate_core`.
 
@@ -103,6 +103,7 @@ Fields:
 - `delegate: Pubkey`
 - `allowed_actions: u8`
 - `expires_at_slot: u64`
+- `revoke_at_slot: u64`
 - `revoked: bool`
 - `bump: u8`
 
@@ -259,6 +260,8 @@ Fields:
 - `adjudicator: Pubkey`
 - `created_at_slot: u64`
 - `bump: u8`
+- `class: u8`
+- `stale_after_slot: u64`
 
 PDA seed:
 
@@ -423,7 +426,7 @@ Behavior:
 - validates `kind`
 - requires the delegate signer to match the delegation PDA
 - requires `domain` to equal `task.domain` or fails with `TaskDomainMismatch`
-- rejects revoked delegations
+- rejects revoked delegations once `revoke_at_slot` has been reached
 - rejects expired delegations when `expires_at_slot` is non-zero
 - requires the delegation scope bit to allow the receipt kind
 - stores the delegate as `actor`
@@ -441,18 +444,21 @@ Behavior:
 - rejects empty action scope
 - rejects unsupported action bits
 - requires the signer to match `identity.authority`
-- stores delegate pubkey, scope bitmap, expiry slot, revocation state, and bump
+- stores delegate pubkey, scope bitmap, expiry slot, revocation state, revoke slot, and bump
 
 ### `delegation_engine.revoke_delegation`
 
 Signature:
 
-- `revoke_delegation(ctx)`
+- `revoke_delegation(ctx, revoke_at_slot)`
 
 Behavior:
 
 - requires the signer to match `identity.authority`
 - marks the delegation as revoked
+- stores the current slot for immediate revocation when `revoke_at_slot` is zero or already passed
+- stores the requested future slot for revocation grace windows
+- never extends an already scheduled revocation
 
 ### `proof_verifier.initialize_checkpoint`
 
@@ -661,6 +667,7 @@ Behavior:
 - requires a `dispute_resolver` verdict PDA bound to the supplied dispute receipt
 - requires the verdict adjudicator to sign
 - requires `AGENT_LOST_OUTCOME`
+- requires non-safety verdicts to remain inside their `stale_after_slot`
 - initializes a slash marker keyed by stake and dispute receipt to reject replay
 - transfers the verdict-defined slash amount to the protocol treasury PDA owned by `dispute_resolver`
 
@@ -680,14 +687,15 @@ Behavior:
 
 Signature:
 
-- `record_verdict(ctx, outcome, slash_amount)`
+- `record_verdict(ctx, outcome, slash_amount, class, stale_after_slot)`
 
 Behavior:
 
 - requires the signer to match the configured adjudicator
 - requires the supplied receipt to be a `DISPUTE_KIND` receipt
+- requires a valid verdict class and a positive stale window for non-safety verdicts
 - creates a verdict PDA keyed by the dispute receipt
-- stores the target identity, adjudicator, outcome, and slash amount
+- stores the target identity, adjudicator, outcome, slash amount, verdict class, and stale window
 
 ### `dispute_resolver.challenge_verdict`
 

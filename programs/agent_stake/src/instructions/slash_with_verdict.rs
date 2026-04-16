@@ -6,7 +6,7 @@ use dispute_resolver::state::{DisputeVerdict, TreasuryVault};
 use receipt_emitter::state::ReceiptRecord;
 use trust_substrate_core::{
     TrustSubstrateError, AGENT_LOST_OUTCOME, DISPUTE_KIND, SLASH_MARKER_SEED, STAKE_SEED,
-    TREASURY_VAULT_SEED, TRUST_MODE_VERDICT, VERDICT_SEED,
+    TREASURY_VAULT_SEED, TRUST_MODE_VERDICT, VERDICT_CLASS_SAFETY, VERDICT_SEED,
 };
 
 pub fn handler(ctx: Context<SlashWithVerdict>) -> Result<()> {
@@ -37,6 +37,16 @@ pub fn handler(ctx: Context<SlashWithVerdict>) -> Result<()> {
         ctx.accounts.verdict.slash_amount > 0,
         TrustSubstrateError::StakeAmountMustBePositive
     );
+    if ctx.accounts.verdict.class != VERDICT_CLASS_SAFETY {
+        require!(
+            ctx.accounts.verdict.stale_after_slot > 0,
+            TrustSubstrateError::VerdictStaleWindowMissing
+        );
+        require!(
+            Clock::get()?.slot <= ctx.accounts.verdict.stale_after_slot,
+            TrustSubstrateError::VerdictStale
+        );
+    }
     require!(
         ctx.accounts.dispute_receipt.kind == DISPUTE_KIND,
         TrustSubstrateError::VerdictReceiptKindMismatch
@@ -49,11 +59,7 @@ pub fn handler(ctx: Context<SlashWithVerdict>) -> Result<()> {
 
     let amount = ctx.accounts.verdict.slash_amount;
     let treasury_info = ctx.accounts.treasury_vault.to_account_info();
-    apply_slash(
-        &mut ctx.accounts.stake,
-        &treasury_info,
-        amount,
-    )?;
+    apply_slash(&mut ctx.accounts.stake, &treasury_info, amount)?;
 
     let marker = &mut ctx.accounts.slash_marker;
     marker.stake = ctx.accounts.stake.key();

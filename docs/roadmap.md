@@ -51,6 +51,7 @@ Current scope:
 - scoped delegation records
 - empty-scope rejection
 - revocation state
+- future revocation grace windows
 - slot-clock expiry checks for delegated receipt emission
 - scope-bit checks for delegated receipt kinds
 - delegated receipt attribution through `via_delegation`

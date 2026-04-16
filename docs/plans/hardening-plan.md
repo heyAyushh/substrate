@@ -19,8 +19,13 @@ derivation.
 - [x] W0 protocol hygiene
 - [x] W1 permissionless receipts
 - [x] W2 real checkpoints
-- [ ] W3 verdict program
-- [ ] W4 reputation as view
+- [x] W3 verdict program
+  - [x] W3.1 separate adjudication from slashing
+  - [x] W3.2 bind verdict-mode slashing to verdict accounts
+  - [x] W3.3 route slash proceeds to the protocol treasury PDA
+- [x] W4 reputation as view
+  - [x] W4.1 permissionless reputation projection with verdict-gated disputes
+  - [x] W4.2 task-domain scoped reputation flow
 - [x] W5 authority rotation
   - [x] cooldown-gated on-chain authority rotation
   - [x] guardian-gated emergency authority rotation
@@ -213,7 +218,7 @@ Fixes audit findings #1, #2, #18.
 and `identity.authority == signer`. That makes challenges and disputes by an
 external auditor impossible on-chain.
 
-**New model:** two distinct on-chain receipt *modes* — self vs audit —
+**New model:** two distinct on-chain receipt _modes_ — self vs audit —
 distinguished by who can author them and what they can assert.
 
 - **Self-receipts** (`assignment`, `handoff`, `completion`, `commit`,
@@ -234,8 +239,7 @@ distinguished by who can author them and what they can assert.
   - self-receipt seed (unchanged): `receipt`, identity, task, receipt_id
   - audit-receipt seed: `audit_receipt`, auditor_identity, target_receipt,
     kind, round_le_bytes
-- new instruction `receipt_emitter.emit_audit_receipt(ctx, kind, domain,
-  payload_hash, sequence, round)`:
+- new instruction `receipt_emitter.emit_audit_receipt(ctx, kind, domain, payload_hash, sequence, round)`:
   - signer must equal `auditor_identity.authority`.
   - must reference a valid `target_receipt` owned by `receipt_emitter`.
   - must reference `target_identity` = `target_receipt.identity`.
@@ -269,7 +273,7 @@ learning a second account shape. Zero IDL churn.
 **Implementation:**
 
 - `AuditReceipt` for `kind == CHALLENGE_KIND` must include
-  `payload.deadline_slot` committed under `payload_hash` *and* a redundant
+  `payload.deadline_slot` committed under `payload_hash` _and_ a redundant
   on-chain `deadline_slot: u64` field on the account so the chain can read
   it without re-parsing.
 - new instruction `receipt_emitter.finalize_unanswered_challenge(ctx)`:
@@ -310,7 +314,7 @@ whatever root the caller passes.
   - signer irrelevant; anyone may append.
   - receipt must be owned by `receipt_emitter`, must belong to the
     identity.
-  - must be the *next* receipt in the identity's canonical ordering.
+  - must be the _next_ receipt in the identity's canonical ordering.
   - ordering: receipts ordered by `(task_pubkey, sequence)` tuple; the
     checkpoint tracks the next (task, sequence) it expects.
   - on success: `root = hash_internal(root || hash_leaf(receipt_pda_bytes))`
@@ -375,6 +379,7 @@ Fixes audit findings #8, #9.
   - `bump: u8`
   - PDA seed: `verdict`, dispute_receipt.
 - Instructions:
+
   - `register_adjudicator(ctx, adjudicator)` gated by governance.
   - `record_verdict(ctx, outcome, slash_amount)` gated by `adjudicator` ==
     signer; PDA uniqueness prevents double-verdicts on a dispute.
@@ -470,10 +475,10 @@ permissionless paths:
 - payer is the caller, not the identity — so a third party can "poke" the
   reputation.
 
-**Refined recommendation:** ship *both* A and B concurrently, not B→A.
+**Refined recommendation:** ship _both_ A and B concurrently, not B→A.
 
 - Option B (on-chain accumulator, permissionless apply) stays as a
-  *cached projection*. Anyone can poke it; verdict-gated for dispute
+  _cached projection_. Anyone can poke it; verdict-gated for dispute
   receipts; self-grading is killed.
 - Option A (off-chain derivation via `deriveReputation`) is the canonical
   truth. When the projection and the derivation disagree (e.g., a missed
@@ -528,8 +533,7 @@ rotation decay" hinted at in `docs/off-chain-storage.md`.
   - anyone may call after `unlock_slot`.
   - swaps `identity.authority` to `pending.new_authority`.
   - deletes the pending rotation.
-  - emits `AuthorityRotated { identity, previous_authority,
-    new_authority, slot, mode: NORMAL }`.
+  - emits `AuthorityRotated { identity, previous_authority, new_authority, slot, mode: NORMAL }`.
 
 **Emergency rotation (N-of-M guardian-gated, zero cooldown):**
 
@@ -583,8 +587,8 @@ case.
 
 - **Tier 0 — unbonded** (default; free beyond rent):
   - can create self-receipts on their own tasks.
-  - *cannot* author audit-receipts (`challenge`, `dispute`, `attestation`).
-  - *does not* appear in `getAgentLeaderboard` unless `tier0: true` is
+  - _cannot_ author audit-receipts (`challenge`, `dispute`, `attestation`).
+  - _does not_ appear in `getAgentLeaderboard` unless `tier0: true` is
     explicitly passed — reputation surface is opt-out for consumers.
 - **Tier 1 — bonded**:
   - requires a lamport deposit into a new `IdentityBond` PDA (seed
@@ -606,7 +610,7 @@ skin in the game.
 
 ### W6.2 Permissionless attester registry with bonded tiers
 
-**Refined:** governance curates *tiers* of attesters, not the membership
+**Refined:** governance curates _tiers_ of attesters, not the membership
 list itself. Any identity can self-register as an attester by bonding.
 
 - new program `attester_registry` with a single `AttesterRecord` account
@@ -624,7 +628,7 @@ list itself. Any identity can self-register as an attester by bonding.
 - `close_attester(ctx)` refunds the bond if no open attestations depend
   on the record.
 
-**Result:** the membership is permissionless, the *trust weighting* is
+**Result:** the membership is permissionless, the _trust weighting_ is
 curated. Governance cannot silently exclude an attester — only demote
 them — and the demotion is observable on-chain.
 
@@ -661,8 +665,7 @@ verification knows which runtime was active at a given slot.
       level: low, but explicit).
   - `runtime_authority: Pubkey`
   - `valid_from_slot: u64`
-- new instruction `append_runtime_attestation(ctx, runtime_commit,
-  runtime_authority)`:
+- new instruction `append_runtime_attestation(ctx, runtime_commit, runtime_authority)`:
   - signer is identity authority.
   - `valid_from_slot = Clock::get()?.slot`.
   - emits `RuntimeAttestationAppended`.
@@ -674,8 +677,7 @@ verification knows which runtime was active at a given slot.
 
 **SDK-level addition:**
 
-- extend `ExecutionStep` with `signature?: { signer: string; sig: string
-  }` — signer pubkey (hex), Ed25519 signature over `hashStep(step)`.
+- extend `ExecutionStep` with `signature?: { signer: string; sig: string }` — signer pubkey (hex), Ed25519 signature over `hashStep(step)`.
 - `hashExecutionRecord` excludes the signature field so the Merkle root
   stays deterministic.
 - `verifyExecutionRecord(record, runtimeAuthority)` new SDK helper that
@@ -687,8 +689,7 @@ verification knows which runtime was active at a given slot.
 ### W7.3 Cost / effort fields
 
 - add to `ExecutionStep.payload` a convention:
-  - `cost?: { tokensIn: number; tokensOut: number; elapsedMs: number;
-    usdMicros?: number }`.
+  - `cost?: { tokensIn: number; tokensOut: number; elapsedMs: number; usdMicros?: number }`.
   - `modelId?: string`.
 - `deriveReputation` optionally weights completions by log(cost) to
   dampen trivial-task farming.
@@ -717,8 +718,7 @@ Fixes audit findings #3, #4, #11, #20. Also part of every wave above.
 
 - `packages/sdk/src/challenge.ts`, `commit-reveal.ts`, and
   `data-availability.ts` get a file-level banner comment:
-  `// [sdk] This module builds receipt payloads. On-chain behavior is
-  governed by the `receipt_emitter` program.`
+  `// [sdk] This module builds receipt payloads. On-chain behavior is governed by the `receipt_emitter` program.`
 - rename `createUnansweredChallengeDispute` →
   `buildUnansweredChallengePayload` (it is only a payload builder; the
   real dispute is W1.2's `finalize_unanswered_challenge`).
@@ -748,12 +748,13 @@ the main waves.
 
 **Wave:** companion to W0.
 
-Today `revoke_delegation` is instant. Optional grace window:
-`revoke_delegation(ctx, revoke_at_slot?)` defaults to instant (current
-behavior) but may set a future slot so in-flight delegated receipts
-don't fail mid-tx. `emit_delegated_receipt` reads
-`delegation.revoke_at_slot` and rejects only when
-`Clock::get()?.slot >= revoke_at_slot`.
+Status: complete.
+
+`revoke_delegation(ctx, revoke_at_slot)` defaults to instant revocation when
+`revoke_at_slot` is zero or already passed, but may set a future slot so
+in-flight delegated receipts continue to work until that slot. The delegation
+account stores `revoke_at_slot`, and `emit_delegated_receipt` rejects only when
+the delegation is revoked and `Clock::get()?.slot >= revoke_at_slot`.
 
 ### N2 — Re-challenge rounds
 
@@ -768,6 +769,8 @@ PDA collision. Default `round = 0`. Indexer exposes
 ### N3 — Evergreen vs time-boxed dispute classes
 
 **Wave:** companion to W3.
+
+**Status:** complete.
 
 `DisputeVerdict` gains a `class: u8` field:
 
@@ -819,17 +822,17 @@ indexer-verifiable.
 This plan is significantly less breaking after the refinements. The only
 true breaks are the places where correctness demands them.
 
-| Change | Wave | Severity |
-| --- | --- | --- |
-| `emit_receipt` requires chain continuity | W0.1 | **hard break** (existing clients must pass `previous_receipt`) |
-| `TaskRecord` gains `last_receipt`, `last_sequence`, `domain` | W0.1, W4.2 | layout break |
-| `apply_reputation_receipt` signer no longer must be identity authority | W4.1 | soft break (more permissive) |
-| `ReceiptRecord` gains `auditor_identity`, `target_receipt`, `round` | W1.1 | **field-additive**, no split |
-| `agent_stake` slashing uses `slash_with_verdict` / `slash_with_authority` | W3.2 | additive split — authority mode stays opt-in and verdict mode is explicit |
-| `reputation_accumulator.create_reputation_domain` requires catalog entry | W0.2 | hard break |
-| `AgentIdentity.policy_root` / `history_root` repurposed (not deleted) | W0.3 | **semantic, not layout** |
-| `checkpoint_history` renamed to `checkpoint_import`, governance-gated | W2.2 | rename + access-control |
-| `runtime_commit` / `runtime_authority` moved to a separate history PDA | W7.1 | **additive** |
+| Change                                                                    | Wave       | Severity                                                                  |
+| ------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------- |
+| `emit_receipt` requires chain continuity                                  | W0.1       | **hard break** (existing clients must pass `previous_receipt`)            |
+| `TaskRecord` gains `last_receipt`, `last_sequence`, `domain`              | W0.1, W4.2 | layout break                                                              |
+| `apply_reputation_receipt` signer no longer must be identity authority    | W4.1       | soft break (more permissive)                                              |
+| `ReceiptRecord` gains `auditor_identity`, `target_receipt`, `round`       | W1.1       | **field-additive**, no split                                              |
+| `agent_stake` slashing uses `slash_with_verdict` / `slash_with_authority` | W3.2       | additive split — authority mode stays opt-in and verdict mode is explicit |
+| `reputation_accumulator.create_reputation_domain` requires catalog entry  | W0.2       | hard break                                                                |
+| `AgentIdentity.policy_root` / `history_root` repurposed (not deleted)     | W0.3       | **semantic, not layout**                                                  |
+| `checkpoint_history` renamed to `checkpoint_import`, governance-gated     | W2.2       | rename + access-control                                                   |
+| `runtime_commit` / `runtime_authority` moved to a separate history PDA    | W7.1       | **additive**                                                              |
 
 All breaking changes land behind a single program-version bump.
 
@@ -877,31 +880,31 @@ finding — making the audit's closure mechanically verifiable.
 
 ## Finding → workstream index
 
-| Finding | Title | Wave |
-| --- | --- | --- |
-| #1 | anyone-can-challenge is false on-chain | W1.1 |
-| #2 | unanswered challenge → slash has no on-chain trigger | W1.2 + W3 |
-| #3 | DA proofs are client-side only | W8.1 (doc-level; on-chain DA is a non-goal) |
-| #4 | commit-reveal only matters if author reveals | W8.1 (doc-level) |
-| #5 | reputation is self-applied | W4.1 |
-| #6 | domains are free-typed `[u8; 32]` | W0.2 + W4.2 |
-| #7 | checkpoint roots are attestations, not proofs | W2.1 |
-| #8 | slash amount is unbounded by the verdict | W3.2 |
-| #9 | treasury is unchecked | W3.3 |
-| #10 | receipt chain is not verified | W0.1 |
-| #11 | handoff does nothing on-chain | N4 (handoff-as-capability-grant) + W3 (verdicts for handoff-scoped disputes) |
-| #12 | authority rotation is impossible on-chain | W5 |
-| #13 | `policy_root` and `history_root` are dead | W0.3 |
-| #14 | identities are rent-only sybil | W6.1 |
-| #15 | nothing binds identity to model/framework | W7.1 |
-| #16 | execution steps have no provenance signature | W7.2 |
-| #17 | no notion of agent cost/compute receipts | W7.3 |
-| #18 | no cross-agent challenge primitive | W1.1 |
-| #19 | receipts have no expiry or slashing window | W3 + N3 (evergreen vs time-boxed dispute classes) |
-| #20 | off-chain blobs have no on-chain pointer | W8.1 (non-goal, clarified in docs) |
-| #21 | checkpoint sequentiality bypassable | W2.1 (first epoch must be 0) |
-| #22 | `init_if_needed` hazards | W0.5 |
-| #23 | only `ReceiptCommitted` event emitted | W0.4 |
+| Finding | Title                                                | Wave                                                                         |
+| ------- | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
+| #1      | anyone-can-challenge is false on-chain               | W1.1                                                                         |
+| #2      | unanswered challenge → slash has no on-chain trigger | W1.2 + W3                                                                    |
+| #3      | DA proofs are client-side only                       | W8.1 (doc-level; on-chain DA is a non-goal)                                  |
+| #4      | commit-reveal only matters if author reveals         | W8.1 (doc-level)                                                             |
+| #5      | reputation is self-applied                           | W4.1                                                                         |
+| #6      | domains are free-typed `[u8; 32]`                    | W0.2 + W4.2                                                                  |
+| #7      | checkpoint roots are attestations, not proofs        | W2.1                                                                         |
+| #8      | slash amount is unbounded by the verdict             | W3.2                                                                         |
+| #9      | treasury is unchecked                                | W3.3                                                                         |
+| #10     | receipt chain is not verified                        | W0.1                                                                         |
+| #11     | handoff does nothing on-chain                        | N4 (handoff-as-capability-grant) + W3 (verdicts for handoff-scoped disputes) |
+| #12     | authority rotation is impossible on-chain            | W5                                                                           |
+| #13     | `policy_root` and `history_root` are dead            | W0.3                                                                         |
+| #14     | identities are rent-only sybil                       | W6.1                                                                         |
+| #15     | nothing binds identity to model/framework            | W7.1                                                                         |
+| #16     | execution steps have no provenance signature         | W7.2                                                                         |
+| #17     | no notion of agent cost/compute receipts             | W7.3                                                                         |
+| #18     | no cross-agent challenge primitive                   | W1.1                                                                         |
+| #19     | receipts have no expiry or slashing window           | W3 + N3 (evergreen vs time-boxed dispute classes)                            |
+| #20     | off-chain blobs have no on-chain pointer             | W8.1 (non-goal, clarified in docs)                                           |
+| #21     | checkpoint sequentiality bypassable                  | W2.1 (first epoch must be 0)                                                 |
+| #22     | `init_if_needed` hazards                             | W0.5                                                                         |
+| #23     | only `ReceiptCommitted` event emitted                | W0.4                                                                         |
 
 23 of 23 findings mapped to concrete fixes.
 

@@ -47,9 +47,13 @@ pub fn handler(
         ctx.accounts.delegate.key(),
         TrustSubstrateError::DelegationDelegateMismatch
     );
-    require!(!delegation.revoked, TrustSubstrateError::DelegationRevoked);
-
     let now = Clock::get()?.slot;
+    let revocation_is_active =
+        delegation.revoked && (delegation.revoke_at_slot == 0 || now >= delegation.revoke_at_slot);
+    require!(
+        !revocation_is_active,
+        TrustSubstrateError::DelegationRevoked
+    );
     require!(
         delegation.expires_at_slot == 0 || now <= delegation.expires_at_slot,
         TrustSubstrateError::DelegationExpired

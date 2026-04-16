@@ -14,6 +14,8 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU64Decoder,
+  getU64Encoder,
   SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
   SolanaError,
   transformEncoder,
@@ -44,7 +46,7 @@ export const REVOKE_DELEGATION_DISCRIMINATOR = new Uint8Array([
 
 export function getRevokeDelegationDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    REVOKE_DELEGATION_DISCRIMINATOR,
+    REVOKE_DELEGATION_DISCRIMINATOR
   );
 }
 
@@ -53,7 +55,7 @@ export type RevokeDelegationInstruction<
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountDelegation extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+  TRemainingAccounts extends readonly AccountMeta<string>[] = []
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -68,26 +70,33 @@ export type RevokeDelegationInstruction<
       TAccountDelegation extends string
         ? WritableAccount<TAccountDelegation>
         : TAccountDelegation,
-      ...TRemainingAccounts,
+      ...TRemainingAccounts
     ]
   >;
 
 export type RevokeDelegationInstructionData = {
   discriminator: ReadonlyUint8Array;
+  revokeAtSlot: bigint;
 };
 
-export type RevokeDelegationInstructionDataArgs = {};
+export type RevokeDelegationInstructionDataArgs = {
+  revokeAtSlot: number | bigint;
+};
 
 export function getRevokeDelegationInstructionDataEncoder(): FixedSizeEncoder<RevokeDelegationInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: REVOKE_DELEGATION_DISCRIMINATOR }),
+    getStructEncoder([
+      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["revokeAtSlot", getU64Encoder()],
+    ]),
+    (value) => ({ ...value, discriminator: REVOKE_DELEGATION_DISCRIMINATOR })
   );
 }
 
 export function getRevokeDelegationInstructionDataDecoder(): FixedSizeDecoder<RevokeDelegationInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["revokeAtSlot", getU64Decoder()],
   ]);
 }
 
@@ -97,32 +106,33 @@ export function getRevokeDelegationInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getRevokeDelegationInstructionDataEncoder(),
-    getRevokeDelegationInstructionDataDecoder(),
+    getRevokeDelegationInstructionDataDecoder()
   );
 }
 
 export type RevokeDelegationInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
-  TAccountDelegation extends string = string,
+  TAccountDelegation extends string = string
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
   delegation: Address<TAccountDelegation>;
+  revokeAtSlot: RevokeDelegationInstructionDataArgs["revokeAtSlot"];
 };
 
 export function getRevokeDelegationInstruction<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
   TAccountDelegation extends string,
-  TProgramAddress extends Address = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS,
+  TProgramAddress extends Address = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS
 >(
   input: RevokeDelegationInput<
     TAccountAuthority,
     TAccountIdentity,
     TAccountDelegation
   >,
-  config?: { programAddress?: TProgramAddress },
+  config?: { programAddress?: TProgramAddress }
 ): RevokeDelegationInstruction<
   TProgramAddress,
   TAccountAuthority,
@@ -144,6 +154,9 @@ export function getRevokeDelegationInstruction<
     ResolvedInstructionAccount
   >;
 
+  // Original args.
+  const args = { ...input };
+
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
@@ -151,19 +164,16 @@ export function getRevokeDelegationInstruction<
       getAccountMeta("identity", accounts.identity),
       getAccountMeta("delegation", accounts.delegation),
     ],
-    data: getRevokeDelegationInstructionDataEncoder().encode({}),
+    data: getRevokeDelegationInstructionDataEncoder().encode(
+      args as RevokeDelegationInstructionDataArgs
+    ),
     programAddress,
-  } as RevokeDelegationInstruction<
-    TProgramAddress,
-    TAccountAuthority,
-    TAccountIdentity,
-    TAccountDelegation
-  >);
+  } as RevokeDelegationInstruction<TProgramAddress, TAccountAuthority, TAccountIdentity, TAccountDelegation>);
 }
 
 export type ParsedRevokeDelegationInstruction<
   TProgram extends string = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -176,11 +186,11 @@ export type ParsedRevokeDelegationInstruction<
 
 export function parseRevokeDelegationInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[],
+  TAccountMetas extends readonly AccountMeta[]
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>,
+    InstructionWithData<ReadonlyUint8Array>
 ): ParsedRevokeDelegationInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     throw new SolanaError(
@@ -188,7 +198,7 @@ export function parseRevokeDelegationInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 3,
-      },
+      }
     );
   }
   let accountIndex = 0;

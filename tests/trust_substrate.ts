@@ -1293,7 +1293,7 @@ describe("trust_substrate protocol flow", () => {
       "delegationRevoked",
       async () => {
         await delegationProgram.methods
-          .revokeDelegation()
+          .revokeDelegation(new anchor.BN(0))
           .accountsStrict({
             authority,
             identity: setup.identity,
@@ -1308,6 +1308,7 @@ describe("trust_substrate protocol flow", () => {
       revokedEvent.delegate.toBase58(),
       delegateKeypair.publicKey.toBase58()
     );
+    ok(Number(revokedEvent.revokeAtSlot) > 0);
     ok(Number(revokedEvent.slot) > 0);
   });
 

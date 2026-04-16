@@ -22,9 +22,10 @@ pub use trust_substrate_core::{
     DOMAIN_CATALOG_SEED, GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED,
     LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
     REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
-    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED,
-    TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED,
-    TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
+    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
+    TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
+    TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY,
+    VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -102,6 +103,10 @@ impl Harness {
             .airdrop(&keypair.pubkey(), LAMPORTS_PER_TEST_ACCOUNT)
             .map_err(|err| anyhow!(format_failed_transaction(err)))?;
         Ok(keypair)
+    }
+
+    pub fn reviewer_pubkey(&self) -> Pubkey {
+        self.reviewer.pubkey()
     }
 
     pub fn send_raw(
@@ -327,7 +332,8 @@ impl Harness {
         threshold: u8,
     ) -> TestResult<Pubkey> {
         let guardian_set = guardian_set_pda(identity.address);
-        let ix = self.ix_initialize_guardian_set(identity.address, guardian_set, guardians, threshold);
+        let ix =
+            self.ix_initialize_guardian_set(identity.address, guardian_set, guardians, threshold);
         self.send_as_payer(ix)?;
         Ok(guardian_set)
     }
@@ -371,8 +377,9 @@ impl Harness {
         &mut self,
         identity: &IdentityFixture,
         delegation: Pubkey,
+        revoke_at_slot: u64,
     ) -> TestResult {
-        let ix = self.ix_revoke_delegation(identity.address, delegation);
+        let ix = self.ix_revoke_delegation(identity.address, delegation, revoke_at_slot);
         self.send_as_payer(ix)?;
         Ok(())
     }
@@ -754,12 +761,35 @@ impl Harness {
         outcome: u8,
         slash_amount: u64,
     ) -> TestResult {
-        let ix = self.ix_record_verdict(
+        self.record_verdict_with_class(
+            adjudicator,
+            dispute_receipt,
+            verdict,
+            outcome,
+            slash_amount,
+            VERDICT_CLASS_SAFETY,
+            0,
+        )
+    }
+
+    pub fn record_verdict_with_class(
+        &mut self,
+        adjudicator: &Keypair,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        outcome: u8,
+        slash_amount: u64,
+        class: u8,
+        stale_after_slot: u64,
+    ) -> TestResult {
+        let ix = self.ix_record_verdict_with_class(
             adjudicator.pubkey(),
             dispute_receipt,
             verdict,
             outcome,
             slash_amount,
+            class,
+            stale_after_slot,
         );
         self.send(ix, &[adjudicator])?;
         Ok(())
@@ -1065,6 +1095,26 @@ impl Harness {
         )
     }
 
+    pub fn ix_apply_reputation_receipt_with_authority_and_verdict(
+        &self,
+        identity: &IdentityFixture,
+        receipt: Pubkey,
+        reputation: Pubkey,
+        authority: Pubkey,
+        verdict: Option<Pubkey>,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        let mut instruction = self
+            .ix_apply_reputation_receipt_with_authority(identity, receipt, reputation, authority);
+
+        if let Some(verdict) = verdict {
+            instruction
+                .accounts
+                .push(AccountMeta::new_readonly(verdict, false));
+        }
+
+        instruction
+    }
+
     pub fn ix_sync_task_status(
         &self,
         identity: &IdentityFixture,
@@ -1224,7 +1274,7 @@ impl Harness {
         )
     }
 
-    fn ix_record_verdict(
+    pub fn ix_record_verdict(
         &self,
         adjudicator: Pubkey,
         dispute_receipt: Pubkey,
@@ -1232,11 +1282,34 @@ impl Harness {
         outcome: u8,
         slash_amount: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_record_verdict_with_class(
+            adjudicator,
+            dispute_receipt,
+            verdict,
+            outcome,
+            slash_amount,
+            VERDICT_CLASS_SAFETY,
+            0,
+        )
+    }
+
+    pub fn ix_record_verdict_with_class(
+        &self,
+        adjudicator: Pubkey,
+        dispute_receipt: Pubkey,
+        verdict: Pubkey,
+        outcome: u8,
+        slash_amount: u64,
+        class: u8,
+        stale_after_slot: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             dispute_resolver::ID,
             dispute_resolver::instruction::RecordVerdict {
                 outcome,
                 slash_amount,
+                class,
+                stale_after_slot,
             }
             .data(),
             dispute_resolver::accounts::RecordVerdict {
@@ -1491,10 +1564,11 @@ impl Harness {
         &self,
         identity: Pubkey,
         delegation: Pubkey,
+        revoke_at_slot: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             delegation_engine::ID,
-            delegation_engine::instruction::RevokeDelegation {}.data(),
+            delegation_engine::instruction::RevokeDelegation { revoke_at_slot }.data(),
             delegation_engine::accounts::RevokeDelegation {
                 authority: self.payer.pubkey(),
                 identity,

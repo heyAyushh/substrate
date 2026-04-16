@@ -8,7 +8,8 @@ pub use events::*;
 pub use instructions::*;
 pub use state::*;
 pub use trust_substrate_core::{
-    AGENT_LOST_OUTCOME, NO_FAULT_OUTCOME, TrustSubstrateError, DISPUTE_KIND,
+    TrustSubstrateError, AGENT_LOST_OUTCOME, DISPUTE_KIND, NO_FAULT_OUTCOME,
+    VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY,
 };
 
 pub mod __client_accounts_record_verdict {
@@ -55,8 +56,10 @@ pub mod dispute_resolver {
         ctx: Context<RecordVerdict>,
         outcome: u8,
         slash_amount: u64,
+        class: u8,
+        stale_after_slot: u64,
     ) -> Result<()> {
-        instructions::record_verdict::handler(ctx, outcome, slash_amount)
+        instructions::record_verdict::handler(ctx, outcome, slash_amount, class, stale_after_slot)
     }
 
     pub fn challenge_verdict(ctx: Context<ChallengeVerdict>) -> Result<()> {

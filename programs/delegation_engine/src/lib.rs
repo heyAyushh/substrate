@@ -41,7 +41,7 @@ pub mod delegation_engine {
         create_delegation::handler(ctx, allowed_actions, expires_at_slot)
     }
 
-    pub fn revoke_delegation(ctx: Context<RevokeDelegation>) -> Result<()> {
-        revoke_delegation::handler(ctx)
+    pub fn revoke_delegation(ctx: Context<RevokeDelegation>, revoke_at_slot: u64) -> Result<()> {
+        revoke_delegation::handler(ctx, revoke_at_slot)
     }
 }

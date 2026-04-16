@@ -15,10 +15,13 @@ const SCOREBOARD_PATH = join(
 type ScoreStatus = "complete" | "missing";
 
 type ScoreboardItem = {
-  readonly wave: "W0" | "W1" | "W2" | "W5" | "W8";
+  readonly wave: "W0" | "W1" | "W2" | "W3" | "W4" | "W5" | "W8";
   readonly item: string;
   readonly status: ScoreStatus;
-  readonly evidence: readonly { readonly path: string; readonly marker?: string }[];
+  readonly evidence: readonly {
+    readonly path: string;
+    readonly marker?: string;
+  }[];
   readonly gap?: string;
 };
 
@@ -28,7 +31,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W0.1 validate receipt chain on-chain",
     status: "complete",
     evidence: [
-      { path: "programs/task_registry/src/state/task_record.rs", marker: "last_receipt" },
+      {
+        path: "programs/task_registry/src/state/task_record.rs",
+        marker: "last_receipt",
+      },
       {
         path: "programs/receipt_emitter/src/instructions/emit_receipt.rs",
         marker: "ReceiptChainBroken",
@@ -37,7 +43,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
         path: "programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs",
         marker: "ReceiptSequenceNotMonotonic",
       },
-      { path: "crates/trust_substrate_litesvm_tests/tests/receipt_chain.rs", marker: "ReceiptChainBroken" },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/receipt_chain.rs",
+        marker: "ReceiptChainBroken",
+      },
     ],
   },
   {
@@ -65,7 +74,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
         path: "programs/receipt_emitter/src/instructions/emit_receipt.rs",
         marker: "DomainNotRegistered",
       },
-      { path: "tests/reputation_domains.ts", marker: "deprecated domain still validates receipts" },
+      {
+        path: "tests/reputation_domains.ts",
+        marker: "deprecated domain still validates receipts",
+      },
     ],
   },
   {
@@ -73,7 +85,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W0.3 repurpose policy_root and history_root",
     status: "complete",
     evidence: [
-      { path: "programs/identity_registry/src/state/agent_identity.rs", marker: "policy_root" },
+      {
+        path: "programs/identity_registry/src/state/agent_identity.rs",
+        marker: "policy_root",
+      },
       {
         path: "programs/identity_registry/src/instructions/update_policy_root.rs",
         marker: "policy_root",
@@ -101,13 +116,31 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W0.4 emit events on every state change",
     status: "complete",
     evidence: [
-      { path: "programs/agent_stake/src/lib.rs", marker: "StakeUnstakeFinalized" },
-      { path: "programs/proof_verifier/src/events.rs", marker: "CheckpointReceiptAppended" },
-      { path: "programs/task_registry/src/events.rs", marker: "TaskStatusSynced" },
-      { path: "programs/delegation_engine/src/events.rs", marker: "DelegationRevoked" },
-      { path: "tests/trust_substrate.ts", marker: "DelegationCreated and DelegationRevoked events" },
+      {
+        path: "programs/agent_stake/src/lib.rs",
+        marker: "StakeUnstakeFinalized",
+      },
+      {
+        path: "programs/proof_verifier/src/events.rs",
+        marker: "CheckpointReceiptAppended",
+      },
+      {
+        path: "programs/task_registry/src/events.rs",
+        marker: "TaskStatusSynced",
+      },
+      {
+        path: "programs/delegation_engine/src/events.rs",
+        marker: "DelegationRevoked",
+      },
+      {
+        path: "tests/trust_substrate.ts",
+        marker: "DelegationCreated and DelegationRevoked events",
+      },
       { path: "tests/agent_stake_events.ts", marker: "StakeUnstakeFinalized" },
-      { path: "tests/proof_verifier_events.ts", marker: "checkpointReceiptAppended" },
+      {
+        path: "tests/proof_verifier_events.ts",
+        marker: "checkpointReceiptAppended",
+      },
     ],
   },
   {
@@ -138,13 +171,34 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W1.1 split self-emit vs audit-emit",
     status: "complete",
     evidence: [
-      { path: "programs/receipt_emitter/src/instructions/emit_receipt.rs", marker: "ReceiptKindNotSelfEmittable" },
-      { path: "programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs", marker: "ReceiptKindNotSelfEmittable" },
-      { path: "programs/receipt_emitter/src/instructions/emit_audit_receipt.rs", marker: "ReceiptKindNotAuditable" },
-      { path: "programs/receipt_emitter/src/state/receipt_record.rs", marker: "auditor_identity" },
-      { path: "programs/receipt_emitter/src/events.rs", marker: "AuditReceiptCommitted" },
-      { path: "crates/trust_substrate_litesvm_tests/tests/audit_receipts.rs", marker: "tracks_audit_receipts_without_advancing_the_task_chain" },
-      { path: "tests/audit_receipts.ts", marker: "allows a reviewer identity to challenge another agent receipt" },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_receipt.rs",
+        marker: "ReceiptKindNotSelfEmittable",
+      },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs",
+        marker: "ReceiptKindNotSelfEmittable",
+      },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_audit_receipt.rs",
+        marker: "ReceiptKindNotAuditable",
+      },
+      {
+        path: "programs/receipt_emitter/src/state/receipt_record.rs",
+        marker: "auditor_identity",
+      },
+      {
+        path: "programs/receipt_emitter/src/events.rs",
+        marker: "AuditReceiptCommitted",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/audit_receipts.rs",
+        marker: "tracks_audit_receipts_without_advancing_the_task_chain",
+      },
+      {
+        path: "tests/audit_receipts.ts",
+        marker: "allows a reviewer identity to challenge another agent receipt",
+      },
     ],
   },
   {
@@ -179,17 +233,38 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W2.1 incremental checkpoint from actual receipts",
     status: "complete",
     evidence: [
-      { path: "programs/proof_verifier/src/instructions/initialize_checkpoint.rs", marker: "CheckpointCreated" },
+      {
+        path: "programs/proof_verifier/src/instructions/initialize_checkpoint.rs",
+        marker: "CheckpointCreated",
+      },
       {
         path: "programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs",
         marker: "CheckpointReceiptAppended",
       },
-      { path: "programs/proof_verifier/src/instructions/rotate_checkpoint.rs", marker: "CheckpointRotated" },
-      { path: "programs/proof_verifier/src/instructions/verify_receipt_inclusion.rs", marker: "InclusionVerified" },
-      { path: "crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs", marker: "append_receipt_to_checkpoint" },
-      { path: "crates/trust_substrate_litesvm_tests/tests/protocol_flow.rs", marker: "history_root" },
-      { path: "tests/proof_verifier_events.ts", marker: "checkpointReceiptAppended" },
-      { path: "tests/trust_substrate.ts", marker: "appendReceiptToCheckpoint()" },
+      {
+        path: "programs/proof_verifier/src/instructions/rotate_checkpoint.rs",
+        marker: "CheckpointRotated",
+      },
+      {
+        path: "programs/proof_verifier/src/instructions/verify_receipt_inclusion.rs",
+        marker: "InclusionVerified",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs",
+        marker: "append_receipt_to_checkpoint",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/protocol_flow.rs",
+        marker: "history_root",
+      },
+      {
+        path: "tests/proof_verifier_events.ts",
+        marker: "checkpointReceiptAppended",
+      },
+      {
+        path: "tests/trust_substrate.ts",
+        marker: "appendReceiptToCheckpoint()",
+      },
     ],
   },
   {
@@ -197,12 +272,151 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W2.2 restrict caller-supplied root instead of removing it",
     status: "complete",
     evidence: [
-      { path: "programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs", marker: "CHECKPOINT_IMPORTER_SEED" },
-      { path: "programs/proof_verifier/src/instructions/checkpoint_import.rs", marker: "CheckpointImportAuthorityMismatch" },
-      { path: "programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs", marker: "CheckpointImportedIsReadOnly" },
+      {
+        path: "programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs",
+        marker: "CHECKPOINT_IMPORTER_SEED",
+      },
+      {
+        path: "programs/proof_verifier/src/instructions/checkpoint_import.rs",
+        marker: "CheckpointImportAuthorityMismatch",
+      },
+      {
+        path: "programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs",
+        marker: "CheckpointImportedIsReadOnly",
+      },
       {
         path: "crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs",
-        marker: "imports_trusted_checkpoint_roots_only_for_configured_governance",
+        marker:
+          "imports_trusted_checkpoint_roots_only_for_configured_governance",
+      },
+    ],
+  },
+  {
+    wave: "W3",
+    item: "W3.1 separate adjudication from slashing",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/dispute_resolver/src/state/dispute_verdict.rs",
+        marker: "pub struct DisputeVerdict",
+      },
+      {
+        path: "programs/dispute_resolver/src/instructions/register_adjudicator.rs",
+        marker: "AdjudicatorRegistered",
+      },
+      {
+        path: "programs/dispute_resolver/src/instructions/record_verdict.rs",
+        marker: "VerdictAdjudicatorMismatch",
+      },
+      {
+        path: "programs/dispute_resolver/src/instructions/challenge_verdict.rs",
+        marker: "VerdictChallengeNotImplemented",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/agent_stake.rs",
+        marker:
+          "slashes_verdict_mode_stake_only_with_matching_verdict_and_treasury",
+      },
+    ],
+  },
+  {
+    wave: "W3",
+    item: "W3.2 bind slash to verdict with authority mode opt-in",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/agent_stake/src/state/stake_account.rs",
+        marker: "trust_mode",
+      },
+      {
+        path: "programs/agent_stake/src/instructions/slash_with_verdict.rs",
+        marker: "TRUST_MODE_VERDICT",
+      },
+      {
+        path: "programs/agent_stake/src/instructions/slash_with_authority.rs",
+        marker: "TRUST_MODE_AUTHORITY",
+      },
+      {
+        path: "crates/trust_substrate_core/src/constants.rs",
+        marker: "TRUST_MODE_VERDICT",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/agent_stake.rs",
+        marker: "keeps_authority_slashing_as_opt_in_trust_mode",
+      },
+    ],
+  },
+  {
+    wave: "W3",
+    item: "W3.3 protocol treasury",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/dispute_resolver/src/state/treasury_vault.rs",
+        marker: "pub struct TreasuryVault",
+      },
+      {
+        path: "programs/dispute_resolver/src/instructions/register_adjudicator.rs",
+        marker: "treasury_vault",
+      },
+      {
+        path: "programs/agent_stake/src/instructions/slash_with_verdict.rs",
+        marker: "treasury_vault",
+      },
+      {
+        path: "programs/agent_stake/src/instructions/slash_with_authority.rs",
+        marker: "StakeTreasuryVaultMismatch",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/agent_stake.rs",
+        marker: "treasury_before + 100_000_000",
+      },
+    ],
+  },
+  {
+    wave: "W4",
+    item: "W4.1 permissionless reputation projection with verdict-gated disputes",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/reputation_accumulator/src/instructions/apply_reputation_receipt.rs",
+        marker: "ReputationVerdictMissing",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/reputation_domains.rs",
+        marker: "requires_a_verdict_before_a_dispute_can_degrade_reputation",
+      },
+      {
+        path: "tests/reputation_domains.ts",
+        marker:
+          "requires a verdict before dispute receipts can degrade reputation",
+      },
+    ],
+  },
+  {
+    wave: "W4",
+    item: "W4.2 task-domain scoped reputation flow",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/task_registry/src/state/task_record.rs",
+        marker: "pub domain: [u8; 32]",
+      },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_receipt.rs",
+        marker: "TaskDomainMismatch",
+      },
+      {
+        path: "programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs",
+        marker: "TaskDomainMismatch",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/receipt_chain.rs",
+        marker: "rejects_receipts_whose_domain_does_not_match_the_task",
+      },
+      {
+        path: "tests/verification/protocol_workspace.test.ts",
+        marker: "program docs reflect task-domain enforcement",
       },
     ],
   },
@@ -233,11 +447,13 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
       },
       {
         path: "crates/trust_substrate_litesvm_tests/tests/identity_rotation.rs",
-        marker: "emergency_rotation_swaps_authority_and_clears_pending_rotation",
+        marker:
+          "emergency_rotation_swaps_authority_and_clears_pending_rotation",
       },
       {
         path: "tests/identity_rotation.ts",
-        marker: "requires guardian threshold and authorized signers for emergency rotation",
+        marker:
+          "requires guardian threshold and authorized signers for emergency rotation",
       },
     ],
   },
@@ -246,9 +462,15 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W5.2 SDK and indexer hooks",
     status: "complete",
     evidence: [
-      { path: "packages/sdk/src/client.ts", marker: "emergencyRotateAuthority" },
+      {
+        path: "packages/sdk/src/client.ts",
+        marker: "emergencyRotateAuthority",
+      },
       { path: "packages/sdk/src/rotation.ts", marker: "configureGuardianSet" },
-      { path: "packages/indexer/src/local-durable-indexer.ts", marker: "getAuthorityHistory" },
+      {
+        path: "packages/indexer/src/local-durable-indexer.ts",
+        marker: "getAuthorityHistory",
+      },
       {
         path: "tests/indexer/analytics.test.ts",
         marker: "getAuthorityHistory returns ordered rotation markers",
@@ -257,7 +479,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
         path: "tests/sdk/trust_substrate_sdk.test.ts",
         marker: "models emergency guardian rotation with sdk identity helpers",
       },
-      { path: "docs/plans/hardening-plan.md", marker: "identity.emergencyRotateAuthority" },
+      {
+        path: "docs/plans/hardening-plan.md",
+        marker: "identity.emergencyRotateAuthority",
+      },
     ],
   },
   {
@@ -265,7 +490,10 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W8.1 rewrite docs to distinguish enforced vs convention",
     status: "complete",
     evidence: [
-      { path: "docs/architecture.md", marker: "Scope tags used in this document:" },
+      {
+        path: "docs/architecture.md",
+        marker: "Scope tags used in this document:",
+      },
       {
         path: "docs/programs.md",
         marker:
@@ -273,11 +501,13 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
       },
       {
         path: "docs/off-chain-storage.md",
-        marker: "[indexer] A consumer that trusts only the chain reconstructs state as follows:",
+        marker:
+          "[indexer] A consumer that trusts only the chain reconstructs state as follows:",
       },
       {
         path: "docs/security.md",
-        marker: "[on-chain] Only the identity authority can create identity-scoped state",
+        marker:
+          "[on-chain] Only the identity authority can create identity-scoped state",
       },
       {
         path: "docs/threat-model.md",
@@ -334,10 +564,28 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
 
 const PLAN = readFileSync(PLAN_PATH, "utf8");
 const SCOREBOARD_DOC = readFileSync(SCOREBOARD_PATH, "utf8");
+const SCOREBOARD_DOC_ROWS = SCOREBOARD_DOC.split("\n")
+  .filter((line) => line.startsWith("|"))
+  .map((line) =>
+    line
+      .split("|")
+      .slice(1, -1)
+      .map((cell) => cell.trim())
+  );
 
-const COMPLETED_WAVES = ["W0", "W1", "W2", "W5", "W8"] as const;
+function hasScoreboardRow(
+  wave: ScoreboardItem["wave"],
+  item: string,
+  status: ScoreStatus
+) {
+  return SCOREBOARD_DOC_ROWS.some(
+    (row) => row[0] === wave && row[1] === item && row[2] === status
+  );
+}
 
-test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once", () => {
+const COMPLETED_WAVES = ["W0", "W1", "W2", "W3", "W4", "W5", "W8"] as const;
+
+test("hardening scoreboard covers W0-W5, excluding open W6/W7, and completed W8 items exactly once", () => {
   const items = SCOREBOARD.map((entry) => `${entry.wave}:${entry.item}`);
   deepStrictEqual(items, [
     "W0:W0.1 validate receipt chain on-chain",
@@ -349,6 +597,11 @@ test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once
     "W1:W1.2 response window + timeout primitive",
     "W2:W2.1 incremental checkpoint from actual receipts",
     "W2:W2.2 restrict caller-supplied root instead of removing it",
+    "W3:W3.1 separate adjudication from slashing",
+    "W3:W3.2 bind slash to verdict with authority mode opt-in",
+    "W3:W3.3 protocol treasury",
+    "W4:W4.1 permissionless reputation projection with verdict-gated disputes",
+    "W4:W4.2 task-domain scoped reputation flow",
     "W5:W5.1 on-chain rotation instruction with emergency path",
     "W5:W5.2 SDK and indexer hooks",
     "W8:W8.1 rewrite docs to distinguish enforced vs convention",
@@ -366,23 +619,105 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   }
 
   ok(PLAN.includes("### W0.1 Validate receipt chain on-chain"));
-  ok(PLAN.includes("### W1.1 Split receipt emission into self-emit vs audit-emit"));
+  ok(
+    PLAN.includes(
+      "### W1.1 Split receipt emission into self-emit vs audit-emit"
+    )
+  );
   ok(PLAN.includes("### W2.1 Incremental checkpoint from actual receipts"));
-  ok(PLAN.includes("### W5.1 On-chain rotation instruction (with emergency path)"));
+  ok(PLAN.includes("### W3.1 Separate adjudication from slashing"));
+  ok(
+    PLAN.includes(
+      "### W3.2 Bind slash to verdict, keep authority path as opt-in tier"
+    )
+  );
+  ok(PLAN.includes("### W3.3 Protocol treasury"));
+  ok(PLAN.includes("### W4.1 Remove self-application"));
+  ok(PLAN.includes("### W4.2 Scope domain per identity-task"));
+  ok(
+    PLAN.includes(
+      "### W5.1 On-chain rotation instruction (with emergency path)"
+    )
+  );
   ok(PLAN.includes("### W5.2 SDK and indexer hooks"));
-  ok(PLAN.includes("### W8.1 Rewrite docs to distinguish enforced vs convention"));
-  ok(PLAN.includes("### W8.2 Mark SDK helpers that are NOT on-chain equivalents"));
+  ok(
+    PLAN.includes("### W8.1 Rewrite docs to distinguish enforced vs convention")
+  );
+  ok(
+    PLAN.includes("### W8.2 Mark SDK helpers that are NOT on-chain equivalents")
+  );
   ok(PLAN.includes("### W8.3 README truthing"));
 
   ok(SCOREBOARD_DOC.includes("# Hardening Plan Scoreboard"));
-  ok(SCOREBOARD_DOC.includes("| W0 | W0.1 validate receipt chain on-chain | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W1 | W1.2 response window + timeout primitive | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W5 | W5.1 on-chain rotation instruction with emergency path | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W5 | W5.2 SDK and indexer hooks | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W8 | W8.1 rewrite docs to distinguish enforced vs convention | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W8 | W8.2 mark SDK helpers that are not on-chain equivalents | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W8 | W8.3 README truthing | complete |"));
+  ok(
+    hasScoreboardRow("W0", "W0.1 validate receipt chain on-chain", "complete")
+  );
+  ok(
+    hasScoreboardRow(
+      "W1",
+      "W1.2 response window + timeout primitive",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W2",
+      "W2.2 restrict caller-supplied root instead of removing it",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W3",
+      "W3.1 separate adjudication from slashing",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W3",
+      "W3.2 bind slash to verdict with authority mode opt-in",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W4",
+      "W4.1 permissionless reputation projection with verdict-gated disputes",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W4",
+      "W4.2 task-domain scoped reputation flow",
+      "complete"
+    )
+  );
+  ok(hasScoreboardRow("W3", "W3.3 protocol treasury", "complete"));
+  ok(
+    hasScoreboardRow(
+      "W5",
+      "W5.1 on-chain rotation instruction with emergency path",
+      "complete"
+    )
+  );
+  ok(hasScoreboardRow("W5", "W5.2 SDK and indexer hooks", "complete"));
+  ok(
+    hasScoreboardRow(
+      "W8",
+      "W8.1 rewrite docs to distinguish enforced vs convention",
+      "complete"
+    )
+  );
+  ok(
+    hasScoreboardRow(
+      "W8",
+      "W8.2 mark SDK helpers that are not on-chain equivalents",
+      "complete"
+    )
+  );
+  ok(hasScoreboardRow("W8", "W8.3 README truthing", "complete"));
 });
 
 test("completed scoreboard rows have concrete file evidence", () => {
@@ -392,7 +727,10 @@ test("completed scoreboard rows have concrete file evidence", () => {
     for (const evidence of item.evidence) {
       const absolutePath = join(REPO_ROOT, evidence.path);
       const source = readFileSync(absolutePath, "utf8");
-      ok(source.includes(evidence.marker ?? ""), `${evidence.path} missing ${evidence.marker ?? "marker"}`);
+      ok(
+        source.includes(evidence.marker ?? ""),
+        `${evidence.path} missing ${evidence.marker ?? "marker"}`
+      );
     }
   }
 });

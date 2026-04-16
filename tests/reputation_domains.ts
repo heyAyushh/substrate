@@ -5,13 +5,20 @@ import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
 import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
+import { DisputeResolver } from "../target/types/dispute_resolver";
 
 const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const REPUTATION_SEED = "reputation";
 const DOMAIN_CATALOG_SEED = "domain_catalog";
+const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
+const AUDIT_RECEIPT_SEED = "audit_receipt";
+const VERDICT_SEED = "verdict";
 const COMPLETION_RECEIPT_KIND = 3;
+const DISPUTE_RECEIPT_KIND = 4;
+const AGENT_LOST_OUTCOME = 1;
+const VERDICT_CLASS_SAFETY = 0;
 
 function bytes32(value: number): number[] {
   return Array.from(Buffer.alloc(32, value));
@@ -19,6 +26,12 @@ function bytes32(value: number): number[] {
 
 function seed(value: string): Buffer {
   return Buffer.from(value, "utf8");
+}
+
+function u16Le(value: number): Buffer {
+  const buffer = Buffer.alloc(2);
+  buffer.writeUInt16LE(value);
+  return buffer;
 }
 
 function pda<T>(
@@ -59,6 +72,8 @@ describe("reputation domain catalog", () => {
     .receiptEmitter as Program<ReceiptEmitter>;
   const reputationProgram = anchor.workspace
     .reputationAccumulator as Program<ReputationAccumulator>;
+  const disputeProgram = anchor.workspace
+    .disputeResolver as Program<DisputeResolver>;
 
   const [domainCatalog] = pda(reputationProgram, [seed(DOMAIN_CATALOG_SEED)]);
 
@@ -98,6 +113,27 @@ describe("reputation domain catalog", () => {
         .rpc();
     }
   });
+
+  async function ensureDomainRegistered(domain: number[]) {
+    const catalog =
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
+    const alreadyRegistered = catalog.domains.some((registered: number[]) =>
+      Buffer.from(registered).equals(Buffer.from(domain))
+    );
+    if (alreadyRegistered) {
+      return;
+    }
+
+    await reputationProgram.methods
+      .registerDomain(domain)
+      .accountsStrict({
+        curator: authority,
+        domainCatalog,
+      })
+      .rpc();
+  }
 
   async function createIdentityAndTask(
     agentByte: number,
@@ -221,23 +257,7 @@ describe("reputation domain catalog", () => {
 
   it("deprecated domain still validates receipts but rejects new create_reputation_domain calls", async () => {
     const domain = bytes32(220);
-
-    const catalog =
-      await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
-      );
-    const alreadyRegistered = catalog.domains.some((d: number[]) =>
-      Buffer.from(d).equals(Buffer.from(domain))
-    );
-    if (!alreadyRegistered) {
-      await reputationProgram.methods
-        .registerDomain(domain)
-        .accountsStrict({
-          curator: authority,
-          domainCatalog,
-        })
-        .rpc();
-    }
+    await ensureDomainRegistered(domain);
 
     const { identity, task } = await createIdentityAndTask(221, 222, domain);
     const receiptId = bytes32(223);
@@ -361,23 +381,7 @@ describe("reputation domain catalog", () => {
   it("allows a third-party caller to apply verified reputation receipts", async () => {
     const domain = bytes32(230);
     const outsider = anchor.web3.Keypair.generate();
-
-    const catalog =
-      await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
-      );
-    const alreadyRegistered = catalog.domains.some((d: number[]) =>
-      Buffer.from(d).equals(Buffer.from(domain))
-    );
-    if (!alreadyRegistered) {
-      await reputationProgram.methods
-        .registerDomain(domain)
-        .accountsStrict({
-          curator: authority,
-          domainCatalog,
-        })
-        .rpc();
-    }
+    await ensureDomainRegistered(domain);
 
     const { identity, task } = await createIdentityAndTask(231, 232, domain);
     const receiptId = bytes32(233);
@@ -455,6 +459,188 @@ describe("reputation domain catalog", () => {
       await reputationProgram.account.reputationAccumulator.fetch(reputation);
     strictEqual(reputationAccount.completed.toNumber(), 1);
     strictEqual(reputationAccount.disputed.toNumber(), 0);
+  });
+
+  it("requires a verdict before dispute receipts can degrade reputation", async () => {
+    const domain = bytes32(240);
+    await ensureDomainRegistered(domain);
+    const builder = await createIdentityAndTask(241, 242, domain);
+    const reviewerAgentId = bytes32(243);
+    const [reviewerIdentity] = pda(identityProgram, [
+      seed(IDENTITY_SEED),
+      authority.toBuffer(),
+      Buffer.from(reviewerAgentId),
+    ]);
+
+    try {
+      await identityProgram.account.agentIdentity.fetch(reviewerIdentity);
+    } catch {
+      await identityProgram.methods
+        .createIdentity(reviewerAgentId, bytes32(244), bytes32(245))
+        .accountsStrict({
+          identity: reviewerIdentity,
+          authority,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    const completionReceiptId = bytes32(246);
+    const [completionReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      builder.identity.toBuffer(),
+      builder.task.toBuffer(),
+      Buffer.from(completionReceiptId),
+    ]);
+
+    await receiptProgram.methods
+      .emitReceipt(
+        completionReceiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        bytes32(247)
+      )
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        task: builder.task,
+        receipt: completionReceipt,
+        cpiAuthority,
+        domainCatalog,
+        taskRegistryProgram: taskProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const [disputeReceipt] = pda(receiptProgram, [
+      seed(AUDIT_RECEIPT_SEED),
+      reviewerIdentity.toBuffer(),
+      completionReceipt.toBuffer(),
+      Buffer.from([DISPUTE_RECEIPT_KIND]),
+      u16Le(0),
+    ]);
+
+    await receiptProgram.methods
+      .emitAuditReceipt(
+        DISPUTE_RECEIPT_KIND,
+        domain,
+        bytes32(248),
+        new anchor.BN(1),
+        0,
+        new anchor.BN(0)
+      )
+      .accountsStrict({
+        authority,
+        auditorIdentity: reviewerIdentity,
+        targetIdentity: builder.identity,
+        targetReceipt: completionReceipt,
+        auditReceipt: disputeReceipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const [reputation] = pda(reputationProgram, [
+      seed(REPUTATION_SEED),
+      builder.identity.toBuffer(),
+      Buffer.from(domain),
+    ]);
+    const [receiptApplication] = pda(reputationProgram, [
+      Buffer.from("reputation_receipt_application", "utf8"),
+      reputation.toBuffer(),
+      disputeReceipt.toBuffer(),
+    ]);
+
+    await reputationProgram.methods
+      .createReputationDomain(
+        domain,
+        new anchor.BN(0),
+        new anchor.BN(0),
+        new anchor.BN(0)
+      )
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        reputation,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await expectAnchorError(
+      reputationProgram.methods
+        .applyReputationReceipt()
+        .accountsStrict({
+          authority,
+          identity: builder.identity,
+          receipt: disputeReceipt,
+          reputation,
+          receiptApplication,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc(),
+      "ReputationVerdictMissing"
+    );
+
+    const [adjudicatorConfig] = pda(disputeProgram, [
+      seed(ADJUDICATOR_CONFIG_SEED),
+    ]);
+    const [treasuryVault] = pda(disputeProgram, [seed("treasury")]);
+    const [verdict] = pda(disputeProgram, [
+      seed(VERDICT_SEED),
+      disputeReceipt.toBuffer(),
+    ]);
+
+    try {
+      await disputeProgram.account.adjudicatorConfig.fetch(adjudicatorConfig);
+    } catch {
+      await disputeProgram.methods
+        .registerAdjudicator(authority)
+        .accountsStrict({
+          governance: authority,
+          adjudicatorConfig,
+          treasuryVault,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    await disputeProgram.methods
+      .recordVerdict(
+        AGENT_LOST_OUTCOME,
+        new anchor.BN(1),
+        VERDICT_CLASS_SAFETY,
+        new anchor.BN(0)
+      )
+      .accountsStrict({
+        adjudicator: authority,
+        adjudicatorConfig,
+        disputeReceipt,
+        verdict,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await reputationProgram.methods
+      .applyReputationReceipt()
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        receipt: disputeReceipt,
+        reputation,
+        receiptApplication,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .remainingAccounts([
+        { pubkey: verdict, isSigner: false, isWritable: false },
+      ])
+      .rpc();
+
+    const reputationAccount =
+      await reputationProgram.account.reputationAccumulator.fetch(reputation);
+    strictEqual(reputationAccount.disputed.toNumber(), 1);
   });
 
   async function fund(publicKey: anchor.web3.PublicKey) {

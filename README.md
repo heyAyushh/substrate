@@ -28,6 +28,7 @@ The workspace has these deployable Anchor programs:
 - `delegation_engine`
 - `proof_verifier`
 - `reputation_accumulator`
+- `dispute_resolver`
 - `agent_stake`
 
 Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.

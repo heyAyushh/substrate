@@ -26,6 +26,7 @@ pub fn handler(
     delegation.delegate = ctx.accounts.delegate.key();
     delegation.allowed_actions = allowed_actions;
     delegation.expires_at_slot = expires_at_slot;
+    delegation.revoke_at_slot = 0;
     delegation.revoked = false;
     delegation.bump = ctx.bumps.delegation;
 
