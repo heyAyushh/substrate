@@ -16,9 +16,9 @@ derivation.
 
 ## TODO status
 
-- [ ] W0 protocol hygiene
-- [ ] W1 permissionless receipts
-- [ ] W2 real checkpoints
+- [x] W0 protocol hygiene
+- [x] W1 permissionless receipts
+- [x] W2 real checkpoints
 - [ ] W3 verdict program
 - [ ] W4 reputation as view
 - [x] W5 authority rotation

@@ -335,6 +335,8 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
 const PLAN = readFileSync(PLAN_PATH, "utf8");
 const SCOREBOARD_DOC = readFileSync(SCOREBOARD_PATH, "utf8");
 
+const COMPLETED_WAVES = ["W0", "W1", "W2", "W5", "W8"] as const;
+
 test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once", () => {
   const items = SCOREBOARD.map((entry) => `${entry.wave}:${entry.item}`);
   deepStrictEqual(items, [
@@ -356,6 +358,13 @@ test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once
 });
 
 test("hardening scoreboard is readable in docs and anchored to the plan", () => {
+  for (const wave of COMPLETED_WAVES) {
+    ok(
+      PLAN.includes(`- [x] ${wave}`),
+      `${wave} should be checked in the hardening plan summary`
+    );
+  }
+
   ok(PLAN.includes("### W0.1 Validate receipt chain on-chain"));
   ok(PLAN.includes("### W1.1 Split receipt emission into self-emit vs audit-emit"));
   ok(PLAN.includes("### W2.1 Incremental checkpoint from actual receipts"));
