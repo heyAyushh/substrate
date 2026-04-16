@@ -130,15 +130,6 @@ through `LocalDurableIndexer.loadSnapshot`.
 [on-chain] An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity, cooldown-gates unstaking, and supports two explicit slash paths: `slash_with_authority` for authority-mode stake against a real `dispute_resolved` receipt, and `slash_with_verdict` for verdict-mode stake against a `dispute_resolver` verdict account bound to a dispute receipt.
 [on-chain] Both paths write replay markers and route funds into the protocol treasury PDA instead of a caller-chosen account.
 
-## Threat Model Summary
-
-The authoritative finding-to-defense mapping lives in [Threat Model](threat-model.md).
-
-## Review Checklist
-
-Before merging work that touches off-chain storage:
-
-- every new receipt kind documents which blob schema it commits to
-- the SDK computes `payload_hash` with `hashCanonical`, not an ad-hoc JSON stringify
-- any new fetch path is covered by a DA-proof test (missing blob rejected, mismatched hash rejected)
-- docs in this file name the task that implements each defence, so a reader can trace threats back to code
+For the authoritative finding-to-defense mapping, see
+[Threat Model](threat-model.md). Keep the protocol review checklist in
+[Security](security.md#review-checklist).

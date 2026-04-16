@@ -29,6 +29,7 @@ To run a targeted Surfpool suite, pass the test path:
 ./scripts/surfpool-e2e.sh tests/audit_receipts.ts
 ```
 
-The `tests/surfpool/surfpool_e2e.ts` file is a lightweight smoke contract for the Surfpool endpoint. The main harness still runs the full Anchor suite from `tests/*.ts`.
+The shell harness waits for Surfpool RPC readiness before handing off to the
+validator-backed Anchor suite from `tests/*.ts`.
 
 If the Surfpool gate fails, inspect the log path printed by the harness before changing code or test expectations.

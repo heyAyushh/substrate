@@ -2,7 +2,9 @@
 
 Agents need wallets, but they also need memory, receipts, delegation, and reputation.
 
-Trust Substrate is a local-first Solana trust layer for autonomous agents. It stores an append-only execution graph and derives reputation from verified history instead of writing a mutable score.
+Trust Substrate is a local Solana trust layer for autonomous agents. It stores
+an append-only execution graph and derives reputation from verified history
+instead of writing a mutable score.
 
 ## What Is Here
 
@@ -16,7 +18,9 @@ This repository contains a local protocol baseline:
 - Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
 - documentation for architecture, development, testing, security, and roadmap decisions
 
-This is not a production deployment. The current goal is a correct, auditable local loop that can be hardened before networked indexing, compression integrations, or production deployment.
+This is not a production deployment. The current goal is a correct local
+baseline that can be hardened before networked indexing, compression
+integrations, or production deployment.
 
 ## Protocol Programs
 
@@ -147,30 +151,15 @@ The current local path is:
 
 Receipts are the source of truth. Reputation is derived from that receipt graph.
 
-## Truths
-
-Slashing is not automatic. A slash requires a dispute outcome that the
-protocol can bind to a valid receipt flow, and the roadmap moves that path
-toward explicit verdict-gated adjudication.
-
-Data-availability proofs, commit-reveal payload shaping, and unanswered
-challenge payload helpers are SDK-enforced at submit time. They are useful
-guardrails, not final truth. Agent consumers must re-verify them during replay.
-
 ## Useful Commands
 
 ```bash
-pnpm test:packages
-pnpm generate:clients
-pnpm test:rust
-pnpm test:litesvm
-pnpm test:anchor
-pnpm test:verification
+pnpm test
 pnpm test:surfpool
-pnpm lint
 ```
 
-`anchor build`, `pnpm test:anchor`, and `pnpm test:surfpool` may print upstream Anchor/Solana compiler warnings. Passing status is determined by command exit code.
+`pnpm test` and `pnpm test:surfpool` may print upstream Anchor or Solana
+warnings. Passing status is determined by command exit code.
 
 ## Contributing Rules
 

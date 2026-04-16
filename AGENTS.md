@@ -2,7 +2,7 @@
 
 These instructions apply to `/Users/ay/Documents/codes/substrate/trust_substrate`.
 
-## Working Agreement
+## Core Rules
 
 - Use test-driven development for protocol behavior.
 - Write the failing test first, run it, then implement the smallest passing change.
@@ -12,7 +12,7 @@ These instructions apply to `/Users/ay/Documents/codes/substrate/trust_substrate
 - Use subagents only with clear, disjoint file ownership.
 - Commit meaningful steps with Conventional Commit messages.
 
-## Current Finishing Criteria
+## Done Criteria
 
 A change is done only when:
 
@@ -54,7 +54,8 @@ pnpm test:surfpool
 
 Surfpool is the final end-to-end gate. Do not replace it with devnet or a raw `solana-test-validator` flow.
 
-Anchor 1.0 uses Surfpool for validator-backed local testing by default unless `--validator legacy` is chosen. This repository's normal protocol integration path is now the granular LiteSVM suite in `crates/trust_substrate_litesvm_tests/tests`, run through `pnpm test:anchor`. The Surfpool script deliberately sets `ANCHOR_TEST_RUN` and runs Anchor with deployment skipped after Surfpool auto-deploys the declared program IDs.
+See [docs/testing.md](docs/testing.md) for the LiteSVM versus Surfpool split
+and the expected local verification order.
 
 ## Tooling
 

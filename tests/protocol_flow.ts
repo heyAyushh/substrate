@@ -12,25 +12,30 @@ import {
   OnchainMerkleTree,
   hashLeafBytes,
 } from "../packages/sdk/src/onchain-merkle";
+import {
+  ASSIGNMENT_KIND as ASSIGNMENT_RECEIPT_KIND,
+  ASSIGNMENT_SCOPE_BIT,
+  CHECKPOINT_SEED,
+  COMPLETION_KIND as COMPLETION_RECEIPT_KIND,
+  COMPLETION_SCOPE_BIT,
+  DELEGATION_SEED,
+  DISPUTE_RESOLVED_KIND as DISPUTE_RESOLVED_RECEIPT_KIND,
+  HANDOFF_KIND as HANDOFF_RECEIPT_KIND,
+  HANDOFF_SCOPE_BIT,
+  IDENTITY_SEED,
+  LATEST_CHECKPOINT_SEED,
+  RECEIPT_SEED,
+  REPUTATION_RECEIPT_APPLICATION_SEED,
+  TASK_RECEIPT_APPLICATION_SEED,
+  TASK_SEED,
+  TASK_STATUS_COMPLETED,
+} from "./helpers/protocol_constants";
 
-const IDENTITY_SEED = "identity";
-const TASK_SEED = "task";
-const RECEIPT_SEED = "receipt";
-const DELEGATION_SEED = "delegation";
-const CHECKPOINT_SEED = "checkpoint";
 const REPUTATION_SEED = "reputation";
-const LATEST_CHECKPOINT_SEED = "latest_checkpoint";
-const TASK_RECEIPT_APPLICATION_SEED = "task_receipt_application";
-const REPUTATION_RECEIPT_APPLICATION_SEED = "reputation_receipt_application";
-const ASSIGNMENT_ACTION_MASK = 1 << 0;
-const HANDOFF_ACTION_MASK = 1 << 1;
-const COMPLETION_ACTION_MASK = 1 << 2;
+const ASSIGNMENT_ACTION_MASK = ASSIGNMENT_SCOPE_BIT;
+const HANDOFF_ACTION_MASK = HANDOFF_SCOPE_BIT;
+const COMPLETION_ACTION_MASK = COMPLETION_SCOPE_BIT;
 const INVALID_ACTION_MASK = 1 << 7;
-const ASSIGNMENT_RECEIPT_KIND = 1;
-const HANDOFF_RECEIPT_KIND = 2;
-const COMPLETION_RECEIPT_KIND = 3;
-const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
-const TASK_STATUS_COMPLETED = 2;
 const EPOCH_NUMBER = 1;
 const NEXT_EPOCH_NUMBER = 2;
 const SUBTASK_COUNT = 2;
@@ -39,7 +44,7 @@ const MAX_U64 = new anchor.BN("18446744073709551615");
 const ZERO_BYTE = 0;
 const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
-describe("trust_substrate protocol flow", () => {
+describe("protocol_flow", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
   let historyUpdater: anchor.web3.PublicKey;

@@ -1,10 +1,13 @@
 # Roadmap
 
-## Product Direction
+## Direction
 
-Trust Substrate is the primitive beneath agent applications. Agents need wallets, memory, receipts, delegation, and reputation that can be audited later.
+Trust Substrate is the protocol beneath agent applications. Agents need
+wallets, memory, receipts, delegation, and reputation that can be audited
+later.
 
-The durable object is the execution graph. Scores, profiles, and trust views are derived from that graph.
+The execution graph is the record. Scores, profiles, and trust views are
+derived from that graph.
 
 ## Phase 1: Identity, Task, And Receipt Flow
 

@@ -51,8 +51,9 @@ All notable changes to Trust Substrate are documented in this file.
   guarantees are enforced on-chain, which are local SDK behavior, and which are
   replay/indexer conventions.
 - Folded the finished hardening plan and archive-durability write-up into the
-  durable docs that remain, keeping the design history in architecture and the
-  archive procedure in off-chain storage instead of separate planning files.
+  durable docs that remain, keeping the archive procedure in off-chain storage
+  and the historical hardening record in the changelog and threat model instead
+  of separate planning files.
 - Added a threat-model document that maps all 23 audit findings to concrete
   hardening workstreams.
 - Program, security, testing, roadmap, and generated-client docs now reflect
@@ -63,11 +64,16 @@ All notable changes to Trust Substrate are documented in this file.
 - Removed self-referential verification docs and tests, keeping the remaining
   verification order in `docs/testing.md` and the verification lane focused on
   the archive snapshot script and shared protocol errors.
+- Trimmed the duplicated constants, error lists, roadmap recap, README command
+  list, and AGENTS/Test docs wording that were restating code or other docs,
+  and renamed the generic TypeScript test files to match what they cover.
 - Collapsed `agent_stake` stake initialization to one `initialize_stake`
   instruction with `trust_mode`, and removed the `slash_already_applied`
   helper from the on-chain and generated client surfaces.
-- Flattened the SDK and indexer package builds to `dist/index.js` and updated
-  the example entrypoints to resolve through the workspace package roots.
+- Flattened the SDK, indexer, and program-clients package builds to
+  `dist/index.js`, aligned the private package versions with the `0.1.0`
+  release, and updated the example entrypoints to resolve through workspace
+  package roots.
 
 ### Verified
 

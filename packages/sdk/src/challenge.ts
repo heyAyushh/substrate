@@ -1,5 +1,3 @@
-// [sdk] This module builds receipt payloads. On-chain behavior is governed by the receipt_emitter program.
-
 import { createReceipt, type ReceiptRecord } from "./client.js";
 
 export const CHALLENGE_MARKER = "trust-substrate.challenge";

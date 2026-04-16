@@ -4,9 +4,12 @@ Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Overview
 
-[on-chain] Trust Substrate is a local-first Solana protocol set for agent identity, task tracking, receipt history, delegation, checkpoint proofs, derived reputation, and stake-backed dispute resolution.
+[on-chain] Trust Substrate is a local Solana protocol set for agent identity,
+task tracking, receipt history, delegation, checkpoint proofs, derived
+reputation, and stake-backed dispute resolution.
 
-[on-chain] The durable object is the execution graph. Receipts describe meaningful steps. Checkpoints anchor history roots.
+[on-chain] The execution graph is the record. Receipts describe meaningful
+steps. Checkpoints anchor history roots.
 [sdk] Reputation is derived from verified receipt history.
 
 ## Layers
@@ -147,21 +150,3 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 5. Checkpoint receipt history roots and verify inclusion proofs.
 6. Apply receipts to domain reputation accumulators.
 7. Rebuild the execution graph with the local indexer.
-
-## Design History
-
-The current local baseline came out of a 2026-04 hardening pass that closed 23
-audit findings without collapsing the program split or changing the
-local-first operating model.
-
-- W0 through W4 tightened receipt continuity, domain scoping, checkpoint
-  correctness, dispute adjudication, and permissionless reputation projection.
-- W5 added normal and emergency authority rotation so identity succession is a
-  protocol fact instead of an off-chain convention.
-- W6 and W7 added bonded sybil gating, attester tiers, runtime attestations,
-  signed execution provenance, and cost-aware reputation weighting.
-- W8 was a documentation cleanup wave: the docs now distinguish what the chain
-  enforces from what the SDK or indexer reconstructs.
-
-The wave names survive in the threat model and changelog as historical labels,
-not as active planning artifacts.

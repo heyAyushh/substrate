@@ -14,6 +14,12 @@ Run package tests only:
 pnpm test:packages
 ```
 
+Regenerate and compile the Codama clients when IDLs change:
+
+```bash
+pnpm --filter @trust-substrate/program-clients build
+```
+
 Run Rust program and model tests:
 
 ```bash

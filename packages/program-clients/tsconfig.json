@@ -10,7 +10,7 @@
     "declaration": true,
     "declarationMap": false,
     "outDir": "dist",
-    "rootDir": "../..",
+    "rootDir": "src",
     "lib": ["ES2022"]
   },
   "include": ["src/**/*.ts"]
