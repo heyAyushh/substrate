@@ -22,6 +22,8 @@ pub enum TrustSubstrateError {
     ProofIndexOutOfRange,
     #[msg("The checkpoint does not belong to this agent identity")]
     CheckpointIdentityMismatch,
+    #[msg("The receipt does not belong to this checkpoint's agent identity")]
+    CheckpointReceiptIdentityMismatch,
     #[msg("The receipt does not belong to the supplied task")]
     ReceiptTaskMismatch,
     #[msg("The delegation scope contains unsupported action bits")]
@@ -64,6 +66,12 @@ pub enum TrustSubstrateError {
     ReceiptSequenceNotMonotonic,
     #[msg("The signer cannot checkpoint history for this agent identity")]
     CheckpointAuthorityMismatch,
+    #[msg("Checkpoint receipts must be appended in canonical task and sequence order")]
+    CheckpointOrderingViolation,
+    #[msg("This receipt has already been appended to the checkpoint")]
+    CheckpointReceiptAlreadyAppended,
+    #[msg("The checkpoint cannot append more receipts without overflowing its frontier")]
+    CheckpointLeafCountOverflow,
     #[msg("The signer cannot update reputation for this agent identity")]
     ReputationAuthorityMismatch,
     #[msg("The signer does not match the delegation delegate")]

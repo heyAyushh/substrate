@@ -5,4 +5,7 @@ pub mod model;
 
 pub use constants::*;
 pub use error::*;
-pub use merkle::{hash_internal, hash_leaf, verify_inclusion, EMPTY_MERKLE_ROOT};
+pub use merkle::{
+    append_leaf, empty_frontier, frontier_root, hash_internal, hash_leaf, verify_inclusion,
+    MerkleFrontier, EMPTY_MERKLE_ROOT, MERKLE_FRONTIER_HEIGHT,
+};

@@ -8,7 +8,7 @@
         "packages/program-clients",
         {
           "generatedFolder": "src/generated/proof_verifier",
-          "deleteFolderBeforeRendering": false,
+          "deleteFolderBeforeRendering": true,
           "formatCode": true,
           "kitImportStrategy": "rootOnly",
           "syncPackageJson": false,

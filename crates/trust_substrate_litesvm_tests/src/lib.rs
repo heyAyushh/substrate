@@ -339,17 +339,26 @@ impl Harness {
         Ok(audit_receipt)
     }
 
-    pub fn checkpoint_history(
+    pub fn initialize_checkpoint(
         &mut self,
         identity: &IdentityFixture,
         epoch: u64,
-        root: [u8; 32],
-        leaf_count: u64,
     ) -> TestResult<Pubkey> {
         let checkpoint = checkpoint_pda(identity.address, epoch);
-        let ix = self.ix_checkpoint_history(identity, checkpoint, epoch, root, leaf_count);
+        let ix = self.ix_initialize_checkpoint(identity, checkpoint, epoch);
         self.send_as_payer(ix)?;
         Ok(checkpoint)
+    }
+
+    pub fn append_receipt_to_checkpoint(
+        &mut self,
+        identity: &IdentityFixture,
+        checkpoint: Pubkey,
+        receipt: Pubkey,
+    ) -> TestResult {
+        let ix = self.ix_append_receipt_to_checkpoint(identity, checkpoint, receipt);
+        self.send_as_payer(ix)?;
+        Ok(())
     }
 
     pub fn rotate_checkpoint(
@@ -357,11 +366,9 @@ impl Harness {
         identity: &IdentityFixture,
         previous_checkpoint: Pubkey,
         epoch: u64,
-        root: [u8; 32],
-        leaf_count: u64,
     ) -> TestResult<Pubkey> {
         let checkpoint = checkpoint_pda(identity.address, epoch);
-        let ix = self.ix_rotate_checkpoint(identity, previous_checkpoint, epoch, root, leaf_count);
+        let ix = self.ix_rotate_checkpoint(identity, previous_checkpoint, epoch);
         self.send_as_payer(ix)?;
         Ok(checkpoint)
     }
@@ -377,6 +384,11 @@ impl Harness {
         let ix = self.ix_verify_receipt_inclusion(identity, checkpoint, leaf, leaf_index, siblings);
         self.send_as_payer(ix)?;
         Ok(())
+    }
+
+    pub fn checkpoint_root(&self, checkpoint: Pubkey) -> [u8; 32] {
+        let account: proof_verifier::state::HistoryCheckpoint = self.account(checkpoint);
+        account.root
     }
 
     pub fn create_reputation_domain(
@@ -592,17 +604,10 @@ impl Harness {
         identity: &IdentityFixture,
         previous_checkpoint: Pubkey,
         new_epoch: u64,
-        new_root: [u8; 32],
-        new_leaf_count: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             proof_verifier::ID,
-            proof_verifier::instruction::RotateCheckpoint {
-                new_epoch,
-                new_root,
-                new_leaf_count,
-            }
-            .data(),
+            proof_verifier::instruction::RotateCheckpoint { new_epoch }.data(),
             proof_verifier::accounts::RotateCheckpoint {
                 identity: identity.address,
                 authority: self.payer.pubkey(),
@@ -612,6 +617,26 @@ impl Harness {
                 history_updater: self.history_updater,
                 identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_append_receipt_to_checkpoint(
+        &self,
+        identity: &IdentityFixture,
+        checkpoint: Pubkey,
+        receipt: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            proof_verifier::ID,
+            proof_verifier::instruction::AppendReceiptToCheckpoint {}.data(),
+            proof_verifier::accounts::AppendReceiptToCheckpoint {
+                identity: identity.address,
+                checkpoint,
+                latest_checkpoint: latest_checkpoint_pda(identity.address),
+                receipt,
+                history_updater: self.history_updater,
+                identity_registry_program: identity_registry::ID,
             },
         )
     }
@@ -910,23 +935,16 @@ impl Harness {
         )
     }
 
-    fn ix_checkpoint_history(
+    fn ix_initialize_checkpoint(
         &self,
         identity: &IdentityFixture,
         checkpoint: Pubkey,
         epoch: u64,
-        root: [u8; 32],
-        leaf_count: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             proof_verifier::ID,
-            proof_verifier::instruction::CheckpointHistory {
-                epoch,
-                root,
-                leaf_count,
-            }
-            .data(),
-            proof_verifier::accounts::CheckpointHistory {
+            proof_verifier::instruction::InitializeCheckpoint { epoch }.data(),
+            proof_verifier::accounts::InitializeCheckpoint {
                 identity: identity.address,
                 authority: self.payer.pubkey(),
                 checkpoint,

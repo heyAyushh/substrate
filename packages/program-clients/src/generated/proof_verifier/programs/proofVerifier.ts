@@ -44,17 +44,21 @@ import {
   type LatestCheckpointArgs,
 } from "../accounts";
 import {
-  getCheckpointHistoryInstructionAsync,
+  getAppendReceiptToCheckpointInstructionAsync,
+  getInitializeCheckpointInstructionAsync,
   getInitializeHistoryUpdaterInstructionAsync,
   getRotateCheckpointInstructionAsync,
   getVerifyReceiptInclusionInstruction,
-  parseCheckpointHistoryInstruction,
+  parseAppendReceiptToCheckpointInstruction,
+  parseInitializeCheckpointInstruction,
   parseInitializeHistoryUpdaterInstruction,
   parseRotateCheckpointInstruction,
   parseVerifyReceiptInclusionInstruction,
-  type CheckpointHistoryAsyncInput,
+  type AppendReceiptToCheckpointAsyncInput,
+  type InitializeCheckpointAsyncInput,
   type InitializeHistoryUpdaterAsyncInput,
-  type ParsedCheckpointHistoryInstruction,
+  type ParsedAppendReceiptToCheckpointInstruction,
+  type ParsedInitializeCheckpointInstruction,
   type ParsedInitializeHistoryUpdaterInstruction,
   type ParsedRotateCheckpointInstruction,
   type ParsedVerifyReceiptInclusionInstruction,
@@ -121,7 +125,8 @@ export function identifyProofVerifierAccount(
 }
 
 export enum ProofVerifierInstruction {
-  CheckpointHistory,
+  AppendReceiptToCheckpoint,
+  InitializeCheckpoint,
   InitializeHistoryUpdater,
   RotateCheckpoint,
   VerifyReceiptInclusion,
@@ -135,12 +140,23 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([141, 198, 144, 198, 133, 12, 196, 247]),
+        new Uint8Array([130, 181, 242, 230, 217, 44, 160, 54]),
       ),
       0,
     )
   ) {
-    return ProofVerifierInstruction.CheckpointHistory;
+    return ProofVerifierInstruction.AppendReceiptToCheckpoint;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([153, 133, 253, 157, 29, 17, 250, 30]),
+      ),
+      0,
+    )
+  ) {
+    return ProofVerifierInstruction.InitializeCheckpoint;
   }
   if (
     containsBytes(
@@ -185,8 +201,11 @@ export type ParsedProofVerifierInstruction<
   TProgram extends string = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi",
 > =
   | ({
-      instructionType: ProofVerifierInstruction.CheckpointHistory;
-    } & ParsedCheckpointHistoryInstruction<TProgram>)
+      instructionType: ProofVerifierInstruction.AppendReceiptToCheckpoint;
+    } & ParsedAppendReceiptToCheckpointInstruction<TProgram>)
+  | ({
+      instructionType: ProofVerifierInstruction.InitializeCheckpoint;
+    } & ParsedInitializeCheckpointInstruction<TProgram>)
   | ({
       instructionType: ProofVerifierInstruction.InitializeHistoryUpdater;
     } & ParsedInitializeHistoryUpdaterInstruction<TProgram>)
@@ -202,11 +221,18 @@ export function parseProofVerifierInstruction<TProgram extends string>(
 ): ParsedProofVerifierInstruction<TProgram> {
   const instructionType = identifyProofVerifierInstruction(instruction);
   switch (instructionType) {
-    case ProofVerifierInstruction.CheckpointHistory: {
+    case ProofVerifierInstruction.AppendReceiptToCheckpoint: {
       assertIsInstructionWithAccounts(instruction);
       return {
-        instructionType: ProofVerifierInstruction.CheckpointHistory,
-        ...parseCheckpointHistoryInstruction(instruction),
+        instructionType: ProofVerifierInstruction.AppendReceiptToCheckpoint,
+        ...parseAppendReceiptToCheckpointInstruction(instruction),
+      };
+    }
+    case ProofVerifierInstruction.InitializeCheckpoint: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: ProofVerifierInstruction.InitializeCheckpoint,
+        ...parseInitializeCheckpointInstruction(instruction),
       };
     }
     case ProofVerifierInstruction.InitializeHistoryUpdater: {
@@ -257,9 +283,13 @@ export type ProofVerifierPluginAccounts = {
 };
 
 export type ProofVerifierPluginInstructions = {
-  checkpointHistory: (
-    input: CheckpointHistoryAsyncInput,
-  ) => ReturnType<typeof getCheckpointHistoryInstructionAsync> &
+  appendReceiptToCheckpoint: (
+    input: AppendReceiptToCheckpointAsyncInput,
+  ) => ReturnType<typeof getAppendReceiptToCheckpointInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  initializeCheckpoint: (
+    input: InitializeCheckpointAsyncInput,
+  ) => ReturnType<typeof getInitializeCheckpointInstructionAsync> &
     SelfPlanAndSendFunctions;
   initializeHistoryUpdater: (
     input: MakeOptional<InitializeHistoryUpdaterAsyncInput, "payer">,
@@ -276,9 +306,9 @@ export type ProofVerifierPluginInstructions = {
 };
 
 export type ProofVerifierPluginPdas = {
+  historyUpdater: typeof findHistoryUpdaterPda;
   checkpoint: typeof findCheckpointPda;
   latestCheckpoint: typeof findLatestCheckpointPda;
-  historyUpdater: typeof findHistoryUpdaterPda;
   rotateCheckpointCheckpoint: typeof findRotateCheckpointCheckpointPda;
 };
 
@@ -309,10 +339,15 @@ export function proofVerifierProgram() {
           ),
         },
         instructions: {
-          checkpointHistory: (input) =>
+          appendReceiptToCheckpoint: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getCheckpointHistoryInstructionAsync(input),
+              getAppendReceiptToCheckpointInstructionAsync(input),
+            ),
+          initializeCheckpoint: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitializeCheckpointInstructionAsync(input),
             ),
           initializeHistoryUpdater: (input) =>
             addSelfPlanAndSendFunctions(
@@ -334,9 +369,9 @@ export function proofVerifierProgram() {
             ),
         },
         pdas: {
+          historyUpdater: findHistoryUpdaterPda,
           checkpoint: findCheckpointPda,
           latestCheckpoint: findLatestCheckpointPda,
-          historyUpdater: findHistoryUpdaterPda,
           rotateCheckpointCheckpoint: findRotateCheckpointCheckpointPda,
         },
       },

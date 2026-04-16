@@ -311,20 +311,13 @@ describe("trust_substrate protocol flow", () => {
       })
       .rpc();
 
-    const receiptLeaves = [
-      asBuffer(delegatedHandoffReceiptId),
-      asBuffer(completionReceiptId),
-    ];
+    const receiptLeaves = [delegatedReceipt.toBuffer(), receipt.toBuffer()];
     const merkleTree = new OnchainMerkleTree(receiptLeaves);
     const leafCount = receiptLeaves.length;
     const checkpointRoot = Array.from(merkleTree.root);
 
     await proofProgram.methods
-      .checkpointHistory(
-        new anchor.BN(EPOCH_NUMBER),
-        checkpointRoot,
-        new anchor.BN(leafCount)
-      )
+      .initializeCheckpoint(new anchor.BN(EPOCH_NUMBER))
       .accountsStrict({
         authority,
         identity,
@@ -333,6 +326,30 @@ describe("trust_substrate protocol flow", () => {
         historyUpdater,
         identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await proofProgram.methods
+      .appendReceiptToCheckpoint()
+      .accountsStrict({
+        identity,
+        checkpoint,
+        latestCheckpoint,
+        receipt: delegatedReceipt,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
+      })
+      .rpc();
+
+    await proofProgram.methods
+      .appendReceiptToCheckpoint()
+      .accountsStrict({
+        identity,
+        checkpoint,
+        latestCheckpoint,
+        receipt,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
       })
       .rpc();
 
@@ -350,13 +367,8 @@ describe("trust_substrate protocol flow", () => {
       })
       .rpc();
 
-    const rotatedRoot = testBytes32(123);
     await proofProgram.methods
-      .rotateCheckpoint(
-        new anchor.BN(NEXT_EPOCH_NUMBER),
-        rotatedRoot,
-        new anchor.BN(leafCount + 1)
-      )
+      .rotateCheckpoint(new anchor.BN(NEXT_EPOCH_NUMBER))
       .accountsStrict({
         authority,
         identity,
@@ -436,11 +448,13 @@ describe("trust_substrate protocol flow", () => {
     strictEqual(delegationAccount.allowedActions, allowedActions);
     strictEqual(checkpointAccount.leafCount.toNumber(), leafCount);
     strictEqual(rotatedCheckpointAccount.epoch.toNumber(), NEXT_EPOCH_NUMBER);
+    strictEqual(rotatedCheckpointAccount.leafCount.toNumber(), 0);
     ok(
       Buffer.from(rotatedCheckpointAccount.previousRoot).equals(
         Buffer.from(checkpointRoot)
       )
     );
+    ok(Buffer.from(rotatedCheckpointAccount.root).equals(Buffer.alloc(32, 0)));
     strictEqual(reputationAccount.completed.toNumber(), 1);
     strictEqual(reputationAccount.disputed.toNumber(), 0);
     ok(reputationAccount.completionWeight.toNumber() > 0);
@@ -585,8 +599,6 @@ describe("trust_substrate protocol flow", () => {
 
   it("returns specific errors for stale checkpoint rotation", async () => {
     const setup = await createIdentityAndTask(111, 112);
-    const checkpointRoot = testBytes32(113);
-    const initialLeafCount = new anchor.BN(4);
     const [checkpoint] = pda(proofProgram, [
       seed(CHECKPOINT_SEED),
       setup.identity.toBuffer(),
@@ -595,11 +607,7 @@ describe("trust_substrate protocol flow", () => {
     const latestCheckpoint = latestCheckpointPda(setup.identity);
 
     await proofProgram.methods
-      .checkpointHistory(
-        new anchor.BN(EPOCH_NUMBER),
-        checkpointRoot,
-        initialLeafCount
-      )
+      .initializeCheckpoint(new anchor.BN(EPOCH_NUMBER))
       .accountsStrict({
         authority,
         identity: setup.identity,
@@ -619,7 +627,7 @@ describe("trust_substrate protocol flow", () => {
 
     await expectAnchorError(
       proofProgram.methods
-        .rotateCheckpoint(new anchor.BN(3), testBytes32(114), initialLeafCount)
+        .rotateCheckpoint(new anchor.BN(3))
         .accountsStrict({
           authority,
           identity: setup.identity,
@@ -634,31 +642,76 @@ describe("trust_substrate protocol flow", () => {
       "CheckpointEpochNotSequential"
     );
 
-    const [regressedCheckpoint] = pda(proofProgram, [
-      seed(CHECKPOINT_SEED),
+    const firstReceiptId = testBytes32(114);
+    const secondReceiptId = testBytes32(115);
+    const [firstReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
       setup.identity.toBuffer(),
-      u64(NEXT_EPOCH_NUMBER),
+      setup.task.toBuffer(),
+      asBuffer(firstReceiptId),
     ]);
+    const [secondReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      setup.identity.toBuffer(),
+      setup.task.toBuffer(),
+      asBuffer(secondReceiptId),
+    ]);
+
+    await receiptProgram.methods
+      .emitReceipt(
+        firstReceiptId,
+        ASSIGNMENT_RECEIPT_KIND,
+        new anchor.BN(1),
+        testBytes32(105),
+        bytes32(ZERO_BYTE),
+        testBytes32(116)
+      )
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        task: setup.task,
+        receipt: firstReceipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
+
+    await receiptProgram.methods
+      .emitReceipt(
+        secondReceiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(2),
+        testBytes32(105),
+        pubkeyBytes(firstReceipt),
+        testBytes32(117)
+      )
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        task: setup.task,
+        receipt: secondReceipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
 
     await expectAnchorError(
       proofProgram.methods
-        .rotateCheckpoint(
-          new anchor.BN(NEXT_EPOCH_NUMBER),
-          testBytes32(115),
-          new anchor.BN(3)
-        )
+        .appendReceiptToCheckpoint()
         .accountsStrict({
-          authority,
           identity: setup.identity,
-          previousCheckpoint: checkpoint,
-          checkpoint: regressedCheckpoint,
+          checkpoint,
           latestCheckpoint,
+          receipt: secondReceipt,
           historyUpdater,
           identityRegistryProgram: identityProgram.programId,
-          systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "CheckpointLeafCountRegression"
+      "CheckpointOrderingViolation"
     );
 
     const overflowSetup = await createIdentityAndTask(118, 119);
@@ -672,7 +725,7 @@ describe("trust_substrate protocol flow", () => {
     );
 
     await proofProgram.methods
-      .checkpointHistory(MAX_U64, testBytes32(116), new anchor.BN(1))
+      .initializeCheckpoint(MAX_U64)
       .accountsStrict({
         authority,
         identity: overflowSetup.identity,
@@ -692,7 +745,7 @@ describe("trust_substrate protocol flow", () => {
 
     await expectAnchorError(
       proofProgram.methods
-        .rotateCheckpoint(new anchor.BN(0), testBytes32(117), new anchor.BN(1))
+        .rotateCheckpoint(new anchor.BN(0))
         .accountsStrict({
           authority,
           identity: overflowSetup.identity,
@@ -710,11 +763,13 @@ describe("trust_substrate protocol flow", () => {
 
   it("rejects inclusion proofs against stale checkpoints", async () => {
     const setup = await createIdentityAndTask(151, 152);
-    const receiptLeaves = [
-      asBuffer(testBytes32(153)),
-      asBuffer(testBytes32(154)),
-    ];
-    const merkleTree = new OnchainMerkleTree(receiptLeaves);
+    const receiptId = testBytes32(153);
+    const [receipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      setup.identity.toBuffer(),
+      setup.task.toBuffer(),
+      asBuffer(receiptId),
+    ]);
     const [checkpoint] = pda(proofProgram, [
       seed(CHECKPOINT_SEED),
       setup.identity.toBuffer(),
@@ -727,12 +782,29 @@ describe("trust_substrate protocol flow", () => {
     ]);
     const latestCheckpoint = latestCheckpointPda(setup.identity);
 
-    await proofProgram.methods
-      .checkpointHistory(
-        new anchor.BN(EPOCH_NUMBER),
-        Array.from(merkleTree.root),
-        new anchor.BN(receiptLeaves.length)
+    await receiptProgram.methods
+      .emitReceipt(
+        receiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(1),
+        testBytes32(143),
+        bytes32(ZERO_BYTE),
+        testBytes32(154)
       )
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        task: setup.task,
+        receipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
+
+    await proofProgram.methods
+      .initializeCheckpoint(new anchor.BN(EPOCH_NUMBER))
       .accountsStrict({
         authority,
         identity: setup.identity,
@@ -745,11 +817,19 @@ describe("trust_substrate protocol flow", () => {
       .rpc();
 
     await proofProgram.methods
-      .rotateCheckpoint(
-        new anchor.BN(NEXT_EPOCH_NUMBER),
-        testBytes32(155),
-        new anchor.BN(receiptLeaves.length + 1)
-      )
+      .appendReceiptToCheckpoint()
+      .accountsStrict({
+        identity: setup.identity,
+        checkpoint,
+        latestCheckpoint,
+        receipt,
+        historyUpdater,
+        identityRegistryProgram: identityProgram.programId,
+      })
+      .rpc();
+
+    await proofProgram.methods
+      .rotateCheckpoint(new anchor.BN(NEXT_EPOCH_NUMBER))
       .accountsStrict({
         authority,
         identity: setup.identity,
@@ -762,6 +842,8 @@ describe("trust_substrate protocol flow", () => {
       })
       .rpc();
 
+    const receiptLeaves = [receipt.toBuffer()];
+    const merkleTree = new OnchainMerkleTree(receiptLeaves);
     const proof = merkleTree.getProof(0);
     await expectAnchorError(
       proofProgram.methods

@@ -47,17 +47,17 @@ import {
 } from "../pdas";
 import { PROOF_VERIFIER_PROGRAM_ADDRESS } from "../programs";
 
-export const CHECKPOINT_HISTORY_DISCRIMINATOR = new Uint8Array([
-  141, 198, 144, 198, 133, 12, 196, 247,
+export const INITIALIZE_CHECKPOINT_DISCRIMINATOR = new Uint8Array([
+  153, 133, 253, 157, 29, 17, 250, 30,
 ]);
 
-export function getCheckpointHistoryDiscriminatorBytes() {
+export function getInitializeCheckpointDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CHECKPOINT_HISTORY_DISCRIMINATOR,
+    INITIALIZE_CHECKPOINT_DISCRIMINATOR,
   );
 }
 
-export type CheckpointHistoryInstruction<
+export type InitializeCheckpointInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
   TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountAuthority extends string | AccountMeta<string> = string,
@@ -99,51 +99,46 @@ export type CheckpointHistoryInstruction<
     ]
   >;
 
-export type CheckpointHistoryInstructionData = {
+export type InitializeCheckpointInstructionData = {
   discriminator: ReadonlyUint8Array;
   epoch: bigint;
-  root: ReadonlyUint8Array;
-  leafCount: bigint;
 };
 
-export type CheckpointHistoryInstructionDataArgs = {
+export type InitializeCheckpointInstructionDataArgs = {
   epoch: number | bigint;
-  root: ReadonlyUint8Array;
-  leafCount: number | bigint;
 };
 
-export function getCheckpointHistoryInstructionDataEncoder(): FixedSizeEncoder<CheckpointHistoryInstructionDataArgs> {
+export function getInitializeCheckpointInstructionDataEncoder(): FixedSizeEncoder<InitializeCheckpointInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["epoch", getU64Encoder()],
-      ["root", fixEncoderSize(getBytesEncoder(), 32)],
-      ["leafCount", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: CHECKPOINT_HISTORY_DISCRIMINATOR }),
+    (value) => ({
+      ...value,
+      discriminator: INITIALIZE_CHECKPOINT_DISCRIMINATOR,
+    }),
   );
 }
 
-export function getCheckpointHistoryInstructionDataDecoder(): FixedSizeDecoder<CheckpointHistoryInstructionData> {
+export function getInitializeCheckpointInstructionDataDecoder(): FixedSizeDecoder<InitializeCheckpointInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["epoch", getU64Decoder()],
-    ["root", fixDecoderSize(getBytesDecoder(), 32)],
-    ["leafCount", getU64Decoder()],
   ]);
 }
 
-export function getCheckpointHistoryInstructionDataCodec(): FixedSizeCodec<
-  CheckpointHistoryInstructionDataArgs,
-  CheckpointHistoryInstructionData
+export function getInitializeCheckpointInstructionDataCodec(): FixedSizeCodec<
+  InitializeCheckpointInstructionDataArgs,
+  InitializeCheckpointInstructionData
 > {
   return combineCodec(
-    getCheckpointHistoryInstructionDataEncoder(),
-    getCheckpointHistoryInstructionDataDecoder(),
+    getInitializeCheckpointInstructionDataEncoder(),
+    getInitializeCheckpointInstructionDataDecoder(),
   );
 }
 
-export type CheckpointHistoryAsyncInput<
+export type InitializeCheckpointAsyncInput<
   TAccountIdentity extends string = string,
   TAccountAuthority extends string = string,
   TAccountCheckpoint extends string = string,
@@ -159,12 +154,10 @@ export type CheckpointHistoryAsyncInput<
   historyUpdater?: Address<TAccountHistoryUpdater>;
   identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  epoch: CheckpointHistoryInstructionDataArgs["epoch"];
-  root: CheckpointHistoryInstructionDataArgs["root"];
-  leafCount: CheckpointHistoryInstructionDataArgs["leafCount"];
+  epoch: InitializeCheckpointInstructionDataArgs["epoch"];
 };
 
-export async function getCheckpointHistoryInstructionAsync<
+export async function getInitializeCheckpointInstructionAsync<
   TAccountIdentity extends string,
   TAccountAuthority extends string,
   TAccountCheckpoint extends string,
@@ -174,7 +167,7 @@ export async function getCheckpointHistoryInstructionAsync<
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
-  input: CheckpointHistoryAsyncInput<
+  input: InitializeCheckpointAsyncInput<
     TAccountIdentity,
     TAccountAuthority,
     TAccountCheckpoint,
@@ -185,7 +178,7 @@ export async function getCheckpointHistoryInstructionAsync<
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  CheckpointHistoryInstruction<
+  InitializeCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
     TAccountAuthority,
@@ -268,11 +261,11 @@ export async function getCheckpointHistoryInstructionAsync<
       ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getCheckpointHistoryInstructionDataEncoder().encode(
-      args as CheckpointHistoryInstructionDataArgs,
+    data: getInitializeCheckpointInstructionDataEncoder().encode(
+      args as InitializeCheckpointInstructionDataArgs,
     ),
     programAddress,
-  } as CheckpointHistoryInstruction<
+  } as InitializeCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
     TAccountAuthority,
@@ -284,7 +277,7 @@ export async function getCheckpointHistoryInstructionAsync<
   >);
 }
 
-export type CheckpointHistoryInput<
+export type InitializeCheckpointInput<
   TAccountIdentity extends string = string,
   TAccountAuthority extends string = string,
   TAccountCheckpoint extends string = string,
@@ -300,12 +293,10 @@ export type CheckpointHistoryInput<
   historyUpdater: Address<TAccountHistoryUpdater>;
   identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
-  epoch: CheckpointHistoryInstructionDataArgs["epoch"];
-  root: CheckpointHistoryInstructionDataArgs["root"];
-  leafCount: CheckpointHistoryInstructionDataArgs["leafCount"];
+  epoch: InitializeCheckpointInstructionDataArgs["epoch"];
 };
 
-export function getCheckpointHistoryInstruction<
+export function getInitializeCheckpointInstruction<
   TAccountIdentity extends string,
   TAccountAuthority extends string,
   TAccountCheckpoint extends string,
@@ -315,7 +306,7 @@ export function getCheckpointHistoryInstruction<
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
-  input: CheckpointHistoryInput<
+  input: InitializeCheckpointInput<
     TAccountIdentity,
     TAccountAuthority,
     TAccountCheckpoint,
@@ -325,7 +316,7 @@ export function getCheckpointHistoryInstruction<
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): CheckpointHistoryInstruction<
+): InitializeCheckpointInstruction<
   TProgramAddress,
   TAccountIdentity,
   TAccountAuthority,
@@ -387,11 +378,11 @@ export function getCheckpointHistoryInstruction<
       ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getCheckpointHistoryInstructionDataEncoder().encode(
-      args as CheckpointHistoryInstructionDataArgs,
+    data: getInitializeCheckpointInstructionDataEncoder().encode(
+      args as InitializeCheckpointInstructionDataArgs,
     ),
     programAddress,
-  } as CheckpointHistoryInstruction<
+  } as InitializeCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
     TAccountAuthority,
@@ -403,7 +394,7 @@ export function getCheckpointHistoryInstruction<
   >);
 }
 
-export type ParsedCheckpointHistoryInstruction<
+export type ParsedInitializeCheckpointInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
@@ -417,17 +408,17 @@ export type ParsedCheckpointHistoryInstruction<
     identityRegistryProgram: TAccountMetas[5];
     systemProgram: TAccountMetas[6];
   };
-  data: CheckpointHistoryInstructionData;
+  data: InitializeCheckpointInstructionData;
 };
 
-export function parseCheckpointHistoryInstruction<
+export function parseInitializeCheckpointInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedCheckpointHistoryInstruction<TProgram, TAccountMetas> {
+): ParsedInitializeCheckpointInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 7) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
@@ -454,6 +445,8 @@ export function parseCheckpointHistoryInstruction<
       identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
-    data: getCheckpointHistoryInstructionDataDecoder().decode(instruction.data),
+    data: getInitializeCheckpointInstructionDataDecoder().decode(
+      instruction.data,
+    ),
   };
 }

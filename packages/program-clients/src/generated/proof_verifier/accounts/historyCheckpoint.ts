@@ -17,6 +17,8 @@ import {
   fixEncoderSize,
   getAddressDecoder,
   getAddressEncoder,
+  getArrayDecoder,
+  getArrayEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getStructDecoder,
@@ -56,6 +58,10 @@ export type HistoryCheckpoint = {
   root: ReadonlyUint8Array;
   previousRoot: ReadonlyUint8Array;
   leafCount: bigint;
+  latestCommittedReceipt: Address;
+  latestTask: Address;
+  latestSequence: bigint;
+  frontier: Array<ReadonlyUint8Array>;
   bump: number;
 };
 
@@ -65,6 +71,10 @@ export type HistoryCheckpointArgs = {
   root: ReadonlyUint8Array;
   previousRoot: ReadonlyUint8Array;
   leafCount: number | bigint;
+  latestCommittedReceipt: Address;
+  latestTask: Address;
+  latestSequence: number | bigint;
+  frontier: Array<ReadonlyUint8Array>;
   bump: number;
 };
 
@@ -78,6 +88,13 @@ export function getHistoryCheckpointEncoder(): FixedSizeEncoder<HistoryCheckpoin
       ["root", fixEncoderSize(getBytesEncoder(), 32)],
       ["previousRoot", fixEncoderSize(getBytesEncoder(), 32)],
       ["leafCount", getU64Encoder()],
+      ["latestCommittedReceipt", getAddressEncoder()],
+      ["latestTask", getAddressEncoder()],
+      ["latestSequence", getU64Encoder()],
+      [
+        "frontier",
+        getArrayEncoder(fixEncoderSize(getBytesEncoder(), 32), { size: 32 }),
+      ],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: HISTORY_CHECKPOINT_DISCRIMINATOR }),
@@ -93,6 +110,13 @@ export function getHistoryCheckpointDecoder(): FixedSizeDecoder<HistoryCheckpoin
     ["root", fixDecoderSize(getBytesDecoder(), 32)],
     ["previousRoot", fixDecoderSize(getBytesDecoder(), 32)],
     ["leafCount", getU64Decoder()],
+    ["latestCommittedReceipt", getAddressDecoder()],
+    ["latestTask", getAddressDecoder()],
+    ["latestSequence", getU64Decoder()],
+    [
+      "frontier",
+      getArrayDecoder(fixDecoderSize(getBytesDecoder(), 32), { size: 32 }),
+    ],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -172,5 +196,5 @@ export async function fetchAllMaybeHistoryCheckpoint(
 }
 
 export function getHistoryCheckpointSize(): number {
-  return 121;
+  return 1217;
 }

@@ -52,7 +52,7 @@ pub struct VerifyReceiptInclusion<'info> {
         ],
         bump = checkpoint.bump
     )]
-    pub checkpoint: Account<'info, HistoryCheckpoint>,
+    pub checkpoint: Box<Account<'info, HistoryCheckpoint>>,
     #[account(
         seeds = [
             LATEST_CHECKPOINT_SEED,
@@ -61,5 +61,5 @@ pub struct VerifyReceiptInclusion<'info> {
         bump = latest_checkpoint.bump,
         constraint = latest_checkpoint.identity == checkpoint.identity @ TrustSubstrateError::CheckpointIdentityMismatch
     )]
-    pub latest_checkpoint: Account<'info, LatestCheckpoint>,
+    pub latest_checkpoint: Box<Account<'info, LatestCheckpoint>>,
 }

@@ -14,13 +14,10 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
   SolanaError,
   transformEncoder,
   type AccountMeta,
-  type AccountSignerMeta,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -30,45 +27,34 @@ import {
   type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlyUint8Array,
-  type TransactionSigner,
   type WritableAccount,
-  type WritableSignerAccount,
 } from "@solana/kit";
 import {
   getAccountMetaFactory,
-  getAddressFromResolvedInstructionAccount,
-  getNonNullResolvedInstructionInput,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import {
-  findHistoryUpdaterPda,
-  findLatestCheckpointPda,
-  findRotateCheckpointCheckpointPda,
-} from "../pdas";
+import { findHistoryUpdaterPda } from "../pdas";
 import { PROOF_VERIFIER_PROGRAM_ADDRESS } from "../programs";
 
-export const ROTATE_CHECKPOINT_DISCRIMINATOR = new Uint8Array([
-  39, 27, 242, 250, 184, 251, 89, 21,
+export const APPEND_RECEIPT_TO_CHECKPOINT_DISCRIMINATOR = new Uint8Array([
+  130, 181, 242, 230, 217, 44, 160, 54,
 ]);
 
-export function getRotateCheckpointDiscriminatorBytes() {
+export function getAppendReceiptToCheckpointDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    ROTATE_CHECKPOINT_DISCRIMINATOR,
+    APPEND_RECEIPT_TO_CHECKPOINT_DISCRIMINATOR,
   );
 }
 
-export type RotateCheckpointInstruction<
+export type AppendReceiptToCheckpointInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
   TAccountIdentity extends string | AccountMeta<string> = string,
-  TAccountAuthority extends string | AccountMeta<string> = string,
-  TAccountPreviousCheckpoint extends string | AccountMeta<string> = string,
   TAccountCheckpoint extends string | AccountMeta<string> = string,
   TAccountLatestCheckpoint extends string | AccountMeta<string> = string,
+  TAccountReceipt extends string | AccountMeta<string> = string,
   TAccountHistoryUpdater extends string | AccountMeta<string> = string,
   TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
     "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
-  TAccountSystemProgram extends string | AccountMeta<string> =
-    "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -77,120 +63,100 @@ export type RotateCheckpointInstruction<
       TAccountIdentity extends string
         ? WritableAccount<TAccountIdentity>
         : TAccountIdentity,
-      TAccountAuthority extends string
-        ? WritableSignerAccount<TAccountAuthority> &
-            AccountSignerMeta<TAccountAuthority>
-        : TAccountAuthority,
-      TAccountPreviousCheckpoint extends string
-        ? ReadonlyAccount<TAccountPreviousCheckpoint>
-        : TAccountPreviousCheckpoint,
       TAccountCheckpoint extends string
         ? WritableAccount<TAccountCheckpoint>
         : TAccountCheckpoint,
       TAccountLatestCheckpoint extends string
         ? WritableAccount<TAccountLatestCheckpoint>
         : TAccountLatestCheckpoint,
+      TAccountReceipt extends string
+        ? ReadonlyAccount<TAccountReceipt>
+        : TAccountReceipt,
       TAccountHistoryUpdater extends string
         ? ReadonlyAccount<TAccountHistoryUpdater>
         : TAccountHistoryUpdater,
       TAccountIdentityRegistryProgram extends string
         ? ReadonlyAccount<TAccountIdentityRegistryProgram>
         : TAccountIdentityRegistryProgram,
-      TAccountSystemProgram extends string
-        ? ReadonlyAccount<TAccountSystemProgram>
-        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type RotateCheckpointInstructionData = {
+export type AppendReceiptToCheckpointInstructionData = {
   discriminator: ReadonlyUint8Array;
-  newEpoch: bigint;
 };
 
-export type RotateCheckpointInstructionDataArgs = { newEpoch: number | bigint };
+export type AppendReceiptToCheckpointInstructionDataArgs = {};
 
-export function getRotateCheckpointInstructionDataEncoder(): FixedSizeEncoder<RotateCheckpointInstructionDataArgs> {
+export function getAppendReceiptToCheckpointInstructionDataEncoder(): FixedSizeEncoder<AppendReceiptToCheckpointInstructionDataArgs> {
   return transformEncoder(
-    getStructEncoder([
-      ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
-      ["newEpoch", getU64Encoder()],
-    ]),
-    (value) => ({ ...value, discriminator: ROTATE_CHECKPOINT_DISCRIMINATOR }),
+    getStructEncoder([["discriminator", fixEncoderSize(getBytesEncoder(), 8)]]),
+    (value) => ({
+      ...value,
+      discriminator: APPEND_RECEIPT_TO_CHECKPOINT_DISCRIMINATOR,
+    }),
   );
 }
 
-export function getRotateCheckpointInstructionDataDecoder(): FixedSizeDecoder<RotateCheckpointInstructionData> {
+export function getAppendReceiptToCheckpointInstructionDataDecoder(): FixedSizeDecoder<AppendReceiptToCheckpointInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
-    ["newEpoch", getU64Decoder()],
   ]);
 }
 
-export function getRotateCheckpointInstructionDataCodec(): FixedSizeCodec<
-  RotateCheckpointInstructionDataArgs,
-  RotateCheckpointInstructionData
+export function getAppendReceiptToCheckpointInstructionDataCodec(): FixedSizeCodec<
+  AppendReceiptToCheckpointInstructionDataArgs,
+  AppendReceiptToCheckpointInstructionData
 > {
   return combineCodec(
-    getRotateCheckpointInstructionDataEncoder(),
-    getRotateCheckpointInstructionDataDecoder(),
+    getAppendReceiptToCheckpointInstructionDataEncoder(),
+    getAppendReceiptToCheckpointInstructionDataDecoder(),
   );
 }
 
-export type RotateCheckpointAsyncInput<
+export type AppendReceiptToCheckpointAsyncInput<
   TAccountIdentity extends string = string,
-  TAccountAuthority extends string = string,
-  TAccountPreviousCheckpoint extends string = string,
   TAccountCheckpoint extends string = string,
   TAccountLatestCheckpoint extends string = string,
+  TAccountReceipt extends string = string,
   TAccountHistoryUpdater extends string = string,
   TAccountIdentityRegistryProgram extends string = string,
-  TAccountSystemProgram extends string = string,
 > = {
   identity: Address<TAccountIdentity>;
-  authority: TransactionSigner<TAccountAuthority>;
-  previousCheckpoint: Address<TAccountPreviousCheckpoint>;
-  checkpoint?: Address<TAccountCheckpoint>;
-  latestCheckpoint?: Address<TAccountLatestCheckpoint>;
+  checkpoint: Address<TAccountCheckpoint>;
+  latestCheckpoint: Address<TAccountLatestCheckpoint>;
+  receipt: Address<TAccountReceipt>;
   historyUpdater?: Address<TAccountHistoryUpdater>;
   identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  newEpoch: RotateCheckpointInstructionDataArgs["newEpoch"];
 };
 
-export async function getRotateCheckpointInstructionAsync<
+export async function getAppendReceiptToCheckpointInstructionAsync<
   TAccountIdentity extends string,
-  TAccountAuthority extends string,
-  TAccountPreviousCheckpoint extends string,
   TAccountCheckpoint extends string,
   TAccountLatestCheckpoint extends string,
+  TAccountReceipt extends string,
   TAccountHistoryUpdater extends string,
   TAccountIdentityRegistryProgram extends string,
-  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
-  input: RotateCheckpointAsyncInput<
+  input: AppendReceiptToCheckpointAsyncInput<
     TAccountIdentity,
-    TAccountAuthority,
-    TAccountPreviousCheckpoint,
     TAccountCheckpoint,
     TAccountLatestCheckpoint,
+    TAccountReceipt,
     TAccountHistoryUpdater,
-    TAccountIdentityRegistryProgram,
-    TAccountSystemProgram
+    TAccountIdentityRegistryProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  RotateCheckpointInstruction<
+  AppendReceiptToCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
-    TAccountAuthority,
-    TAccountPreviousCheckpoint,
     TAccountCheckpoint,
     TAccountLatestCheckpoint,
+    TAccountReceipt,
     TAccountHistoryUpdater,
-    TAccountIdentityRegistryProgram,
-    TAccountSystemProgram
+    TAccountIdentityRegistryProgram
   >
 > {
   // Program address.
@@ -200,49 +166,24 @@ export async function getRotateCheckpointInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     identity: { value: input.identity ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: true },
-    previousCheckpoint: {
-      value: input.previousCheckpoint ?? null,
-      isWritable: false,
-    },
     checkpoint: { value: input.checkpoint ?? null, isWritable: true },
     latestCheckpoint: {
       value: input.latestCheckpoint ?? null,
       isWritable: true,
     },
+    receipt: { value: input.receipt ?? null, isWritable: false },
     historyUpdater: { value: input.historyUpdater ?? null, isWritable: false },
     identityRegistryProgram: {
       value: input.identityRegistryProgram ?? null,
       isWritable: false,
     },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedInstructionAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   // Resolve default values.
-  if (!accounts.checkpoint.value) {
-    accounts.checkpoint.value = await findRotateCheckpointCheckpointPda({
-      identity: getAddressFromResolvedInstructionAccount(
-        "identity",
-        accounts.identity.value,
-      ),
-      newEpoch: getNonNullResolvedInstructionInput("newEpoch", args.newEpoch),
-    });
-  }
-  if (!accounts.latestCheckpoint.value) {
-    accounts.latestCheckpoint.value = await findLatestCheckpointPda({
-      identity: getAddressFromResolvedInstructionAccount(
-        "identity",
-        accounts.identity.value,
-      ),
-    });
-  }
   if (!accounts.historyUpdater.value) {
     accounts.historyUpdater.value = await findHistoryUpdaterPda();
   }
@@ -250,96 +191,75 @@ export async function getRotateCheckpointInstructionAsync<
     accounts.identityRegistryProgram.value =
       "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
   }
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
-  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta("identity", accounts.identity),
-      getAccountMeta("authority", accounts.authority),
-      getAccountMeta("previousCheckpoint", accounts.previousCheckpoint),
       getAccountMeta("checkpoint", accounts.checkpoint),
       getAccountMeta("latestCheckpoint", accounts.latestCheckpoint),
+      getAccountMeta("receipt", accounts.receipt),
       getAccountMeta("historyUpdater", accounts.historyUpdater),
       getAccountMeta(
         "identityRegistryProgram",
         accounts.identityRegistryProgram,
       ),
-      getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getRotateCheckpointInstructionDataEncoder().encode(
-      args as RotateCheckpointInstructionDataArgs,
-    ),
+    data: getAppendReceiptToCheckpointInstructionDataEncoder().encode({}),
     programAddress,
-  } as RotateCheckpointInstruction<
+  } as AppendReceiptToCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
-    TAccountAuthority,
-    TAccountPreviousCheckpoint,
     TAccountCheckpoint,
     TAccountLatestCheckpoint,
+    TAccountReceipt,
     TAccountHistoryUpdater,
-    TAccountIdentityRegistryProgram,
-    TAccountSystemProgram
+    TAccountIdentityRegistryProgram
   >);
 }
 
-export type RotateCheckpointInput<
+export type AppendReceiptToCheckpointInput<
   TAccountIdentity extends string = string,
-  TAccountAuthority extends string = string,
-  TAccountPreviousCheckpoint extends string = string,
   TAccountCheckpoint extends string = string,
   TAccountLatestCheckpoint extends string = string,
+  TAccountReceipt extends string = string,
   TAccountHistoryUpdater extends string = string,
   TAccountIdentityRegistryProgram extends string = string,
-  TAccountSystemProgram extends string = string,
 > = {
   identity: Address<TAccountIdentity>;
-  authority: TransactionSigner<TAccountAuthority>;
-  previousCheckpoint: Address<TAccountPreviousCheckpoint>;
   checkpoint: Address<TAccountCheckpoint>;
   latestCheckpoint: Address<TAccountLatestCheckpoint>;
+  receipt: Address<TAccountReceipt>;
   historyUpdater: Address<TAccountHistoryUpdater>;
   identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
-  systemProgram?: Address<TAccountSystemProgram>;
-  newEpoch: RotateCheckpointInstructionDataArgs["newEpoch"];
 };
 
-export function getRotateCheckpointInstruction<
+export function getAppendReceiptToCheckpointInstruction<
   TAccountIdentity extends string,
-  TAccountAuthority extends string,
-  TAccountPreviousCheckpoint extends string,
   TAccountCheckpoint extends string,
   TAccountLatestCheckpoint extends string,
+  TAccountReceipt extends string,
   TAccountHistoryUpdater extends string,
   TAccountIdentityRegistryProgram extends string,
-  TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
-  input: RotateCheckpointInput<
+  input: AppendReceiptToCheckpointInput<
     TAccountIdentity,
-    TAccountAuthority,
-    TAccountPreviousCheckpoint,
     TAccountCheckpoint,
     TAccountLatestCheckpoint,
+    TAccountReceipt,
     TAccountHistoryUpdater,
-    TAccountIdentityRegistryProgram,
-    TAccountSystemProgram
+    TAccountIdentityRegistryProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): RotateCheckpointInstruction<
+): AppendReceiptToCheckpointInstruction<
   TProgramAddress,
   TAccountIdentity,
-  TAccountAuthority,
-  TAccountPreviousCheckpoint,
   TAccountCheckpoint,
   TAccountLatestCheckpoint,
+  TAccountReceipt,
   TAccountHistoryUpdater,
-  TAccountIdentityRegistryProgram,
-  TAccountSystemProgram
+  TAccountIdentityRegistryProgram
 > {
   // Program address.
   const programAddress =
@@ -348,105 +268,85 @@ export function getRotateCheckpointInstruction<
   // Original accounts.
   const originalAccounts = {
     identity: { value: input.identity ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: true },
-    previousCheckpoint: {
-      value: input.previousCheckpoint ?? null,
-      isWritable: false,
-    },
     checkpoint: { value: input.checkpoint ?? null, isWritable: true },
     latestCheckpoint: {
       value: input.latestCheckpoint ?? null,
       isWritable: true,
     },
+    receipt: { value: input.receipt ?? null, isWritable: false },
     historyUpdater: { value: input.historyUpdater ?? null, isWritable: false },
     identityRegistryProgram: {
       value: input.identityRegistryProgram ?? null,
       isWritable: false,
     },
-    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedInstructionAccount
   >;
 
-  // Original args.
-  const args = { ...input };
-
   // Resolve default values.
   if (!accounts.identityRegistryProgram.value) {
     accounts.identityRegistryProgram.value =
       "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
-  }
-  if (!accounts.systemProgram.value) {
-    accounts.systemProgram.value =
-      "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta("identity", accounts.identity),
-      getAccountMeta("authority", accounts.authority),
-      getAccountMeta("previousCheckpoint", accounts.previousCheckpoint),
       getAccountMeta("checkpoint", accounts.checkpoint),
       getAccountMeta("latestCheckpoint", accounts.latestCheckpoint),
+      getAccountMeta("receipt", accounts.receipt),
       getAccountMeta("historyUpdater", accounts.historyUpdater),
       getAccountMeta(
         "identityRegistryProgram",
         accounts.identityRegistryProgram,
       ),
-      getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getRotateCheckpointInstructionDataEncoder().encode(
-      args as RotateCheckpointInstructionDataArgs,
-    ),
+    data: getAppendReceiptToCheckpointInstructionDataEncoder().encode({}),
     programAddress,
-  } as RotateCheckpointInstruction<
+  } as AppendReceiptToCheckpointInstruction<
     TProgramAddress,
     TAccountIdentity,
-    TAccountAuthority,
-    TAccountPreviousCheckpoint,
     TAccountCheckpoint,
     TAccountLatestCheckpoint,
+    TAccountReceipt,
     TAccountHistoryUpdater,
-    TAccountIdentityRegistryProgram,
-    TAccountSystemProgram
+    TAccountIdentityRegistryProgram
   >);
 }
 
-export type ParsedRotateCheckpointInstruction<
+export type ParsedAppendReceiptToCheckpointInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
     identity: TAccountMetas[0];
-    authority: TAccountMetas[1];
-    previousCheckpoint: TAccountMetas[2];
-    checkpoint: TAccountMetas[3];
-    latestCheckpoint: TAccountMetas[4];
-    historyUpdater: TAccountMetas[5];
-    identityRegistryProgram: TAccountMetas[6];
-    systemProgram: TAccountMetas[7];
+    checkpoint: TAccountMetas[1];
+    latestCheckpoint: TAccountMetas[2];
+    receipt: TAccountMetas[3];
+    historyUpdater: TAccountMetas[4];
+    identityRegistryProgram: TAccountMetas[5];
   };
-  data: RotateCheckpointInstructionData;
+  data: AppendReceiptToCheckpointInstructionData;
 };
 
-export function parseRotateCheckpointInstruction<
+export function parseAppendReceiptToCheckpointInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedRotateCheckpointInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 8) {
+): ParsedAppendReceiptToCheckpointInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 6) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 8,
+        expectedAccountMetas: 6,
       },
     );
   }
@@ -460,14 +360,14 @@ export function parseRotateCheckpointInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       identity: getNextAccount(),
-      authority: getNextAccount(),
-      previousCheckpoint: getNextAccount(),
       checkpoint: getNextAccount(),
       latestCheckpoint: getNextAccount(),
+      receipt: getNextAccount(),
       historyUpdater: getNextAccount(),
       identityRegistryProgram: getNextAccount(),
-      systemProgram: getNextAccount(),
     },
-    data: getRotateCheckpointInstructionDataDecoder().decode(instruction.data),
+    data: getAppendReceiptToCheckpointInstructionDataDecoder().decode(
+      instruction.data,
+    ),
   };
 }

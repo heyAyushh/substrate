@@ -144,12 +144,11 @@ describe("identity root updates", () => {
     );
   });
 
-  it("syncs history_root via checkpoint_history and rotate_checkpoint", async () => {
+  it("syncs history_root via initialize_checkpoint and rotate_checkpoint", async () => {
     const agentId = bytes32(301);
     const policyRoot = bytes32(302);
     const historyRoot = bytes32(303);
-    const checkpointRoot = bytes32(304);
-    const rotatedRoot = bytes32(305);
+    const emptyRoot = Buffer.alloc(32, 0);
 
     const [identity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
@@ -177,7 +176,7 @@ describe("identity root updates", () => {
     ]);
 
     await proofProgram.methods
-      .checkpointHistory(new anchor.BN(1), checkpointRoot, new anchor.BN(5))
+      .initializeCheckpoint(new anchor.BN(1))
       .accountsStrict({
         authority,
         identity,
@@ -193,9 +192,7 @@ describe("identity root updates", () => {
       identity
     );
     strictEqual(
-      Buffer.from(identityAccount.historyRoot).equals(
-        Buffer.from(checkpointRoot)
-      ),
+      Buffer.from(identityAccount.historyRoot).equals(emptyRoot),
       true
     );
 
@@ -206,7 +203,7 @@ describe("identity root updates", () => {
     ]);
 
     await proofProgram.methods
-      .rotateCheckpoint(new anchor.BN(2), rotatedRoot, new anchor.BN(6))
+      .rotateCheckpoint(new anchor.BN(2))
       .accountsStrict({
         authority,
         identity,
@@ -223,7 +220,7 @@ describe("identity root updates", () => {
       identity
     );
     strictEqual(
-      Buffer.from(identityAccount.historyRoot).equals(Buffer.from(rotatedRoot)),
+      Buffer.from(identityAccount.historyRoot).equals(emptyRoot),
       true
     );
   });

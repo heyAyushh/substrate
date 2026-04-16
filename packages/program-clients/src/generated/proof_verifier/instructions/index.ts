@@ -6,7 +6,8 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./checkpointHistory";
+export * from "./appendReceiptToCheckpoint";
+export * from "./initializeCheckpoint";
 export * from "./initializeHistoryUpdater";
 export * from "./rotateCheckpoint";
 export * from "./verifyReceiptInclusion";

@@ -1,3 +1,4 @@
+use trust_substrate_core::EMPTY_MERKLE_ROOT;
 use anchor_lang::prelude::Pubkey;
 use solana_signer::Signer;
 use trust_substrate_litesvm_tests::*;
@@ -39,8 +40,10 @@ fn records_identity_task_receipt_delegation_checkpoint_and_reputation() -> TestR
         handoff.to_bytes(),
     )?;
 
-    let checkpoint = h.checkpoint_history(&identity, FIRST_EPOCH, bytes32(44), 2)?;
-    h.rotate_checkpoint(&identity, checkpoint, NEXT_EPOCH, bytes32(45), 3)?;
+    let checkpoint = h.initialize_checkpoint(&identity, FIRST_EPOCH)?;
+    h.append_receipt_to_checkpoint(&identity, checkpoint, handoff)?;
+    h.append_receipt_to_checkpoint(&identity, checkpoint, completion)?;
+    h.rotate_checkpoint(&identity, checkpoint, NEXT_EPOCH)?;
 
     let reputation = h.create_reputation_domain(&identity, domain)?;
     h.apply_reputation_receipt(&identity, completion, reputation)?;
@@ -51,7 +54,7 @@ fn records_identity_task_receipt_delegation_checkpoint_and_reputation() -> TestR
     let reputation_record: reputation_accumulator::state::ReputationAccumulator =
         h.account(reputation);
 
-    assert_eq!(identity_record.history_root, bytes32(45));
+    assert_eq!(identity_record.history_root, EMPTY_MERKLE_ROOT);
     assert_eq!(task_record.status, TASK_STATUS_COMPLETED);
     assert_eq!(task_record.last_sequence, SECOND_SEQUENCE);
     assert_eq!(task_record.last_receipt, completion);

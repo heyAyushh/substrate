@@ -10,6 +10,16 @@ pub struct CheckpointCreated {
 }
 
 #[event]
+pub struct CheckpointReceiptAppended {
+    pub identity: Pubkey,
+    pub checkpoint: Pubkey,
+    pub receipt: Pubkey,
+    pub root: [u8; 32],
+    pub leaf_count: u64,
+    pub slot: u64,
+}
+
+#[event]
 pub struct CheckpointRotated {
     pub identity: Pubkey,
     pub epoch: u64,
