@@ -351,4 +351,112 @@ describe("reputation domain catalog", () => {
       })
       .rpc();
   });
+
+  it("allows a third-party caller to apply verified reputation receipts", async () => {
+    const domain = bytes32(230);
+    const outsider = anchor.web3.Keypair.generate();
+
+    const catalog =
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
+    const alreadyRegistered = catalog.domains.some((d: number[]) =>
+      Buffer.from(d).equals(Buffer.from(domain))
+    );
+    if (!alreadyRegistered) {
+      await reputationProgram.methods
+        .registerDomain(domain)
+        .accountsStrict({
+          curator: authority,
+          domainCatalog,
+        })
+        .rpc();
+    }
+
+    const { identity, task } = await createIdentityAndTask(231, 232);
+    const receiptId = bytes32(233);
+    const [receipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      identity.toBuffer(),
+      task.toBuffer(),
+      Buffer.from(receiptId),
+    ]);
+
+    await receiptProgram.methods
+      .emitReceipt(
+        receiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        bytes32(234)
+      )
+      .accountsStrict({
+        authority,
+        identity,
+        task,
+        receipt,
+        cpiAuthority,
+        domainCatalog,
+        taskRegistryProgram: taskProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const [reputation] = pda(reputationProgram, [
+      seed(REPUTATION_SEED),
+      identity.toBuffer(),
+      Buffer.from(domain),
+    ]);
+    const [receiptApplication] = pda(reputationProgram, [
+      Buffer.from("reputation_receipt_application", "utf8"),
+      reputation.toBuffer(),
+      receipt.toBuffer(),
+    ]);
+
+    await reputationProgram.methods
+      .createReputationDomain(
+        domain,
+        new anchor.BN(0),
+        new anchor.BN(0),
+        new anchor.BN(0)
+      )
+      .accountsStrict({
+        authority,
+        identity,
+        reputation,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await fund(outsider.publicKey);
+
+    await reputationProgram.methods
+      .applyReputationReceipt()
+      .accountsStrict({
+        authority: outsider.publicKey,
+        identity,
+        receipt,
+        reputation,
+        receiptApplication,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([outsider])
+      .rpc();
+
+    const reputationAccount =
+      await reputationProgram.account.reputationAccumulator.fetch(reputation);
+    strictEqual(reputationAccount.completed.toNumber(), 1);
+    strictEqual(reputationAccount.disputed.toNumber(), 0);
+  });
+
+  async function fund(publicKey: anchor.web3.PublicKey) {
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(
+        publicKey,
+        2 * anchor.web3.LAMPORTS_PER_SOL
+      )
+    );
+  }
 });
