@@ -60,6 +60,16 @@ pub enum TrustSubstrateError {
     ReceiptAuthorityMismatch,
     #[msg("The signer cannot update this identity policy root")]
     IdentityAuthorityMismatch,
+    #[msg("The requested authority rotation unlock slot is earlier than the protocol cooldown")]
+    AuthorityRotationUnlockTooSoon,
+    #[msg("The authority rotation cooldown cannot be added to the current slot")]
+    AuthorityRotationCooldownOverflow,
+    #[msg("The authority rotation cooldown has not elapsed")]
+    AuthorityRotationCooldownNotElapsed,
+    #[msg("The pending authority rotation does not belong to this identity")]
+    AuthorityRotationIdentityMismatch,
+    #[msg("The pending authority rotation no longer matches the identity's current authority")]
+    AuthorityRotationStateMismatch,
     #[msg("The signer is not the valid history updater PDA")]
     InvalidHistoryUpdater,
     #[msg("The receipt does not extend the task's latest receipt")]

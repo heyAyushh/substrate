@@ -1,6 +1,7 @@
 use solana_sha256_hasher::hashv;
 
 pub const IDENTITY_SEED: &[u8] = b"identity";
+pub const PENDING_ROTATION_SEED: &[u8] = b"pending_rotation";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
@@ -63,7 +64,11 @@ pub const TASK_STATUS_ACTIVE: u8 = 1;
 pub const TASK_STATUS_COMPLETED: u8 = 2;
 pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
+pub const ROTATION_COOLDOWN_SLOTS: u64 = 5;
 pub const STAKE_COOLDOWN_SLOTS: u64 = 5;
+
+pub const AUTHORITY_ROTATION_MODE_NORMAL: u8 = 0;
+pub const AUTHORITY_ROTATION_MODE_EMERGENCY: u8 = 1;
 
 pub const TRUST_MODE_VERDICT: u8 = 0;
 pub const TRUST_MODE_AUTHORITY: u8 = 1;
@@ -90,7 +95,10 @@ pub fn is_valid_trust_mode(trust_mode: u8) -> bool {
 }
 
 pub fn is_valid_verdict_outcome(outcome: u8) -> bool {
-    matches!(outcome, AGENT_WON_OUTCOME | AGENT_LOST_OUTCOME | NO_FAULT_OUTCOME)
+    matches!(
+        outcome,
+        AGENT_WON_OUTCOME | AGENT_LOST_OUTCOME | NO_FAULT_OUTCOME
+    )
 }
 
 pub fn is_self_emittable_receipt_kind(kind: u8) -> bool {

@@ -20,10 +20,10 @@ pub use trust_substrate_core::{
     CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
     COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
     DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED, LATEST_CHECKPOINT_SEED,
-    NO_FAULT_OUTCOME, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED,
-    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED,
-    TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED,
-    TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
+    NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED,
+    REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
+    TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
+    TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -201,6 +201,18 @@ impl Harness {
         Ok(account.lamports)
     }
 
+    pub fn account_exists(&self, address: Pubkey) -> bool {
+        self.svm.get_account(&address).is_some()
+    }
+
+    pub fn current_slot(&self) -> u64 {
+        self.svm.get_sysvar::<Clock>().slot
+    }
+
+    pub fn payer_pubkey(&self) -> Pubkey {
+        self.payer.pubkey()
+    }
+
     pub fn warp_to_slot(&mut self, slot: u64) {
         self.svm.warp_to_slot(slot);
     }
@@ -273,6 +285,49 @@ impl Harness {
         );
         self.send_as_payer(ix)?;
         Ok(delegation)
+    }
+
+    pub fn request_authority_rotation(
+        &mut self,
+        identity: &IdentityFixture,
+        new_authority: Pubkey,
+        unlock_slot: u64,
+    ) -> TestResult<Pubkey> {
+        let pending_rotation = pending_rotation_pda(identity.address);
+        let ix = self.ix_rotate_authority(
+            identity.address,
+            pending_rotation,
+            new_authority,
+            unlock_slot,
+        );
+        self.send_as_payer(ix)?;
+        Ok(pending_rotation)
+    }
+
+    pub fn finalize_authority_rotation(
+        &mut self,
+        identity: &IdentityFixture,
+        caller: &Keypair,
+    ) -> TestResult<()> {
+        let pending_rotation = pending_rotation_pda(identity.address);
+        let ix = self.ix_finalize_authority_rotation(
+            identity.address,
+            pending_rotation,
+            caller.pubkey(),
+        );
+        self.send(ix, &[caller])?;
+        Ok(())
+    }
+
+    pub fn update_policy_root(
+        &mut self,
+        identity: Pubkey,
+        authority: &Keypair,
+        new_root: [u8; 32],
+    ) -> TestResult<()> {
+        let ix = self.ix_update_policy_root(identity, authority.pubkey(), new_root);
+        self.send(ix, &[authority])?;
+        Ok(())
     }
 
     pub fn revoke_delegation(
@@ -1236,6 +1291,62 @@ impl Harness {
         )
     }
 
+    pub fn ix_rotate_authority(
+        &self,
+        identity: Pubkey,
+        pending_rotation: Pubkey,
+        new_authority: Pubkey,
+        unlock_slot: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::RotateAuthority {
+                new_authority,
+                unlock_slot,
+            }
+            .data(),
+            identity_registry::accounts::RotateAuthority {
+                authority: self.payer.pubkey(),
+                identity,
+                pending_rotation,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_finalize_authority_rotation(
+        &self,
+        identity: Pubkey,
+        pending_rotation: Pubkey,
+        caller: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::FinalizeAuthorityRotation {}.data(),
+            identity_registry::accounts::FinalizeAuthorityRotation {
+                caller,
+                identity,
+                pending_rotation,
+            },
+        )
+    }
+
+    pub fn ix_update_policy_root(
+        &self,
+        identity: Pubkey,
+        authority: Pubkey,
+        new_root: [u8; 32],
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::UpdatePolicyRoot { new_root }.data(),
+            identity_registry::accounts::UpdatePolicyRoot {
+                identity,
+                authority,
+            },
+        )
+    }
+
     fn ix_create_task(
         &self,
         identity: Pubkey,
@@ -1505,6 +1616,13 @@ pub fn audit_receipt_pda(
     )
 }
 
+pub fn pending_rotation_pda(identity: Pubkey) -> Pubkey {
+    pda(
+        &[PENDING_ROTATION_SEED, identity.as_ref()],
+        &identity_registry::ID,
+    )
+}
+
 pub fn challenge_response_pda(challenge: Pubkey) -> Pubkey {
     pda(
         &[CHALLENGE_RESPONSE_SEED, challenge.as_ref()],
@@ -1532,7 +1650,10 @@ pub fn treasury_vault_pda() -> Pubkey {
 }
 
 pub fn verdict_pda(dispute_receipt: Pubkey) -> Pubkey {
-    pda(&[VERDICT_SEED, dispute_receipt.as_ref()], &dispute_resolver::ID)
+    pda(
+        &[VERDICT_SEED, dispute_receipt.as_ref()],
+        &dispute_resolver::ID,
+    )
 }
 
 pub fn checkpoint_pda(identity: Pubkey, epoch: u64) -> Pubkey {

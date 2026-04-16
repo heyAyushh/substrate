@@ -6,5 +6,5 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./agentIdentity";
-export * from "./pendingAuthorityRotation";
+export * from "./authorityRotated";
+export * from "./authorityRotationRequested";
