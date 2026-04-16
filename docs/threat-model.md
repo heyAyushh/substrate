@@ -4,11 +4,7 @@ This document maps the 2026-04-14 audit findings to the hardening workstreams.
 It is an accountability index: each finding must point to a concrete protocol,
 SDK, indexer, or documentation task.
 
-Scope tags used in this document:
-
-- **[on-chain]** enforced by programs and account state
-- **[sdk]** enforced by local helper code or submit-time validation
-- **[indexer]** reconstructed or interpreted during replay
+Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Mapping
 
@@ -18,6 +14,8 @@ or tighten instruction, account, or event constraints.
 verification or submit-time boundaries.
 [indexer] Findings that are replay or interpretation problems point at indexer
 workstreams that make those boundaries explicit to downstream consumers.
+[indexer] The W0-W8 labels are retained as design-history names for the
+completed hardening pass, not as live plan phases.
 
 | Finding | Title | Workstreams |
 | --- | --- | --- |

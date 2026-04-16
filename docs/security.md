@@ -1,10 +1,6 @@
 # Security
 
-Scope tags used in this document:
-
-- **[on-chain]** enforced by programs, PDA constraints, and emitted state
-- **[sdk]** enforced by local helpers or submit-time builders
-- **[indexer]** enforced or interpreted during replay and graph reconstruction
+Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Security Model
 

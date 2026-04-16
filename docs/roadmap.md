@@ -26,7 +26,7 @@ The baseline favors correctness, auditability, and test coverage before compute 
 
 ## Phase 1: Identity, Task, And Receipt Flow
 
-Current scope:
+Shipped in the local baseline:
 
 - identity PDA creation
 - cooldown-gated authority rotation
@@ -38,7 +38,7 @@ Current scope:
 - task status transitions derived from receipts through `sync_task_status`
 - local LiteSVM and TypeScript tests
 
-Next:
+Open follow-ups:
 
 - richer task DAG constraints across parent and subtask receipts
 - generated-client adoption in higher-level examples and package consumers
@@ -46,7 +46,7 @@ Next:
 
 ## Phase 2: Delegation And Handoff Chain
 
-Current scope:
+Shipped in the local baseline:
 
 - scoped delegation records
 - empty-scope rejection
@@ -58,18 +58,21 @@ Current scope:
 - local SDK scope assertions
 - handoff-chain reconstruction in the indexer
 
-Next:
+Open follow-ups:
 
 - explicit multi-hop handoff proof chains
 - clearer authority-chain display in the agent simulation
 
 ## Off-Chain Storage
 
-The on-chain programs anchor only what must be globally ordered. Execution records, evidence bundles, and agent-trace exports live off-chain. See `docs/off-chain-storage.md` for the split, supported blob backends, replay model, and the gaming-resistance surface each Wave B/C task addresses.
+The on-chain programs anchor only what must be globally ordered. Execution
+records, evidence bundles, and agent-trace exports live off-chain. See
+`docs/off-chain-storage.md` for the split, supported blob backends, replay
+model, and durability requirements.
 
 ## Phase 3: Compressed History And Proof API
 
-Current scope:
+Shipped in the local baseline:
 
 - Merkle tree construction in Rust and TypeScript model layers
 - shared on-chain/off-chain hashing rules
@@ -78,14 +81,14 @@ Current scope:
 - previous-root tracking during checkpoint rotation
 - local proof tests for valid, forged, stale, and wrong-agent cases
 
-Next:
+Open follow-ups:
 
 - Light Protocol ZK Compression evaluation
 - compressed account integration after the checkpoint model is stable
 
 ## Phase 4: Reputation Derivation
 
-Current scope:
+Shipped in the local baseline:
 
 - domain-specific reputation accumulators
 - configurable completion, dispute, and dispute-resolution weights
@@ -93,14 +96,14 @@ Current scope:
 - permissionless on-chain accumulator projection for CPI consumers
 - deterministic SDK reputation profile derivation from verified history
 
-Next:
+Open follow-ups:
 
 - richer domain-separated vectors
 - stronger model tests for gaming resistance
 
 ## Phase 4B: Stake-Backed Dispute Resolution
 
-Current scope:
+Shipped in the local baseline:
 
 - identity-scoped stake accounts
 - owner-gated staking and cooldown unstaking
@@ -110,14 +113,14 @@ Current scope:
 - local LiteSVM tests for success and rejection paths
 - stake state exposed through SDK and indexer helpers
 
-Next:
+Open follow-ups:
 
 - move slash policy from an authority key into a dedicated dispute-resolution program
 - bind slash amounts to structured verdict accounts instead of private receipt payloads
 
 ## Phase 5: SDK, Indexer, And Agent Integration
 
-Current scope:
+Shipped in the local baseline:
 
 - Codama-generated client layer targeting `@solana/kit`
 - SDK helper package with checkpoint-compatible Merkle primitives
@@ -128,7 +131,7 @@ Current scope:
 - LiteSVM protocol integration suite
 - Surfpool E2E harness
 
-Next:
+Open follow-ups:
 
 - production event ingestion design
 - generated-client use in agent-facing integration flows

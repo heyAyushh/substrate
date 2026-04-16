@@ -33,7 +33,7 @@ The workspace has these deployable Anchor programs:
 
 Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.
 
-## Not In Scope Yet
+## Out of scope for v0.1
 
 - Light Protocol ZK Compression integration
 - remote event streaming or Geyser ingestion
@@ -49,7 +49,7 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - [Testing](docs/testing.md)
 - [Security](docs/security.md)
 - [Roadmap](docs/roadmap.md)
-- [MVP Local Verification](docs/verification/mvp-local-verification.md)
+- [Verification](docs/verification.md)
 - [Agent Instructions](AGENTS.md)
 
 ## Repository Layout

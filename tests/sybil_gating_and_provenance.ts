@@ -19,7 +19,7 @@ const ATTESTER_RECORD_SEED = "attester";
 const COMPLETION_KIND = 3;
 const CHALLENGE_KIND = 6;
 
-describe("hardening W6/W7", () => {
+describe("sybil gating and provenance", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const provider = anchor.AnchorProvider.env();
@@ -75,9 +75,10 @@ describe("hardening W6/W7", () => {
     }
 
     const domain = bytes32(77);
-    const catalog = await reputationProgram.account.reputationDomainCatalog.fetch(
-      domainCatalog
-    );
+    const catalog =
+      await reputationProgram.account.reputationDomainCatalog.fetch(
+        domainCatalog
+      );
     if (
       !catalog.domains.some((value: number[]) =>
         Buffer.from(value).equals(Buffer.from(domain))
@@ -96,7 +97,9 @@ describe("hardening W6/W7", () => {
       seed(ATTESTER_CONFIG_SEED),
     ])[0];
     try {
-      await attesterProgram.account.attesterRegistryConfig.fetch(attesterConfig);
+      await attesterProgram.account.attesterRegistryConfig.fetch(
+        attesterConfig
+      );
     } catch {
       await attesterProgram.methods
         .initializeRegistry()
@@ -198,10 +201,14 @@ describe("hardening W6/W7", () => {
       .rpc();
 
     const runtimeRecord =
-      await identityProgram.account.runtimeAttestation.fetch(runtimeAttestation);
+      await identityProgram.account.runtimeAttestation.fetch(
+        runtimeAttestation
+      );
     strictEqual(runtimeRecord.identity.toBase58(), builderIdentity.toBase58());
     strictEqual(
-      Buffer.from(runtimeRecord.runtimeCommit).equals(Buffer.from(runtimeCommit)),
+      Buffer.from(runtimeRecord.runtimeCommit).equals(
+        Buffer.from(runtimeCommit)
+      ),
       true
     );
 
@@ -295,8 +302,9 @@ describe("hardening W6/W7", () => {
       await identityProgram.account.agentIdentity.fetch(builderIdentity);
     strictEqual(targetIdentityRecord.openChallengeCount, 1);
 
-    const attester =
-      await attesterProgram.account.attesterRecord.fetch(attesterRecord);
+    const attester = await attesterProgram.account.attesterRecord.fetch(
+      attesterRecord
+    );
     strictEqual(attester.effectiveTier, 2);
   });
 });

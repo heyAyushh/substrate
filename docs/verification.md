@@ -1,7 +1,10 @@
-# Trust Substrate MVP Local Verification
+# Verification
 
-This checklist defines the local verification contract for the Trust Substrate MVP.
-It is intentionally local: no network calls or external installs. Some verification tests read workspace metadata and source files to confirm the protocol layout and shared error taxonomy stay consistent.
+This checklist defines the local verification contract for Trust Substrate.
+It is intentionally local: no network calls or external installs. Some
+verification tests read workspace metadata and source files to confirm the
+protocol layout, shared error taxonomy, and public-facing guarantees stay
+consistent.
 
 ## Run Command
 
@@ -33,7 +36,7 @@ Run the local gates in this order:
 - Do not add direct reputation score writes; reputation must stay derived from verified history.
 - Do not require devnet as a verification gate.
 
-## MVP Security Acceptance Criteria
+## Security Acceptance Criteria
 
 Each item below must be covered by an executable local test before it is treated as shipped behavior.
 
@@ -68,7 +71,7 @@ Each item below must be covered by an executable local test before it is treated
   - Reject any path that writes a reputation score directly.
   - Accept only derived reputation outputs computed from verified execution history.
 
-## MVP Local Pass Criteria
+## Local Pass Criteria
 
 - `pnpm test:verification` passes locally.
 - The verification order is package tests, Rust tests, Anchor/LiteSVM protocol tests, verification tests, then Surfpool E2E.

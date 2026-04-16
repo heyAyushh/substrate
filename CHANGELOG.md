@@ -2,12 +2,12 @@
 
 All notable changes to Trust Substrate are documented in this file.
 
-## 2026-04-16
+## [0.1.0] - 2026-04-16
 
 ### Added
 
-- A committed-work TODO snapshot for the hardening plan, covering completed
-  docs, plans, protocol work, and the remaining open follow-ups.
+- An ISC `LICENSE` file so the declared package license is present in the
+  repository.
 - Tiered identities with bonded audit eligibility and guarded bond withdrawal,
   so challenge power is not rent-only and bonded identities cannot exit while
   tasks, stake, or challenge obligations are still open.
@@ -44,16 +44,17 @@ All notable changes to Trust Substrate are documented in this file.
 
 ### Changed
 
+- Prepared the v0.1 release surface by bumping the package version, renaming
+  the verification guide, tightening `.gitignore`, and retitling the README's
+  scope section for the release.
 - Core architecture, program, storage, and security docs now mark which
   guarantees are enforced on-chain, which are local SDK behavior, and which are
   replay/indexer conventions.
-- The hardening plan, committed-work snapshot, and hardening scoreboard now
-  mark W6 sybil gating and W7 provenance as complete instead of leaving those
-  waves open.
+- Folded the finished hardening plan and archive-durability write-up into the
+  durable docs that remain, keeping the design history in architecture and the
+  archive procedure in off-chain storage instead of separate planning files.
 - Added a threat-model document that maps all 23 audit findings to concrete
   hardening workstreams.
-- Hardening plan status now matches the mechanically verified scoreboard for
-  completed W0 through W8 work and the finished nice-to-have follow-ups.
 - Program, security, testing, roadmap, and generated-client docs now reflect
   delegation revocation, handoff grant, domain snapshot, challenge round, and
   verdict-window behavior.
@@ -77,11 +78,5 @@ All notable changes to Trust Substrate are documented in this file.
 - Added validator-backed TypeScript coverage for delegated revocation and
   dispute reputation verdict requirements, plus Surfpool-backed coverage for
   handoff grants and domain-stats snapshots.
-- Expanded the hardening audit lane to cover W5 and the completed W8
-  documentation work.
-- Expanded the hardening scoreboard tests to cover W3 and W4 evidence.
-- Added README truthing and doc-boundary checks so the written guarantees stay
-  aligned with the codebase.
-- Re-ran the local audit lane with `pnpm test:audit` and the end-to-end
-  Surfpool slice for `tests/trust_substrate.ts` and
-  `tests/reputation_domains.ts`.
+- Added README truthing coverage so the written guarantees stay aligned with
+  the codebase.

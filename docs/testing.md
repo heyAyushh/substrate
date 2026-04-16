@@ -74,6 +74,7 @@ The verification layer checks the local acceptance contract, including:
 - no required devnet gate
 - deployable protocol program declarations
 - feature-owned instruction module layout
+- README guarantee checks for slashing and replay language
 
 ## Surfpool Final E2E
 

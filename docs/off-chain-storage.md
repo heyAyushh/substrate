@@ -1,10 +1,6 @@
 # Off-Chain Storage And Threat Model
 
-Scope tags used in this document:
-
-- **[on-chain]** enforced by programs and account state
-- **[sdk]** enforced by local helper code at submit time
-- **[indexer]** reconstructed or interpreted during replay
+Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Purpose
 
@@ -98,7 +94,36 @@ pre-rotation decay policy.
 
 ### Archive durability (task #16)
 
-[indexer] Indexer snapshots and blobs must survive operator churn. The archive rotation script keeps the last N snapshots under `.snapshot/archive/`, and `docs/archive-durability.md` documents how a consumer replays state from chain plus an archived blob store.
+[indexer] Indexer snapshots and blobs must survive operator churn. Use
+`scripts/snapshot.sh` to copy the current local indexer snapshot into a
+timestamped archive.
+
+Defaults:
+
+- source: `examples/agent_loop/.snapshot/indexer.json`
+- archive directory: `examples/agent_loop/.snapshot/archive`
+- retention: `10` archived snapshots
+
+Overrides:
+
+```bash
+TRUST_SUBSTRATE_SNAPSHOT_SOURCE=/path/to/indexer.json \
+TRUST_SUBSTRATE_ARCHIVE_DIR=/path/to/archive \
+TRUST_SUBSTRATE_ARCHIVE_RETENTION=20 \
+bash scripts/snapshot.sh
+```
+
+[indexer] The script only prunes files named `indexer-*.json` inside the
+configured archive directory. A consumer reconstructs the full view from
+on-chain identity, task, receipt, delegation, checkpoint, reputation, and
+stake accounts, archived local indexer snapshots, and off-chain blobs
+referenced by receipt payload hashes.
+
+[indexer] Snapshots are a convenience layer, not a replacement for chain
+replay. Keep at least one archive outside the application host, pin evidence
+blobs before publishing receipts that depend on them, treat missing blobs as
+challengeable instead of neutral, and verify restored snapshots by loading them
+through `LocalDurableIndexer.loadSnapshot`.
 
 ### Stake-backed dispute resolution (tasks #17, #18)
 

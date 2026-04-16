@@ -1,11 +1,12 @@
-.anchor
+.anchor/
 .DS_Store
-target
+target/
+.sc/
 **/*.rs.bk
-node_modules
+node_modules/
 packages/*/dist
 examples/agent_loop/.snapshot
 examples/multi_agent/.snapshot
-test-ledger
+test-ledger/
 .yarn
-.surfpool
+.surfpool/

@@ -6,7 +6,7 @@ import { ok } from "node:assert/strict";
 const REPO_ROOT = join(import.meta.dirname, "..", "..");
 const README = readFileSync(join(REPO_ROOT, "README.md"), "utf8");
 
-test("README truths the current slashing and replay guarantees", () => {
+test("README keeps the current slashing and replay guarantees explicit", () => {
   ok(
     README.includes("Slashing is not automatic."),
     "README must say slashing is not automatic"

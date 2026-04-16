@@ -1,6 +1,6 @@
 {
   "name": "trust-substrate",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "license": "ISC",
   "packageManager": "pnpm@10.33.0",
@@ -10,7 +10,6 @@
     "test:packages": "npm test --prefix packages/program-clients && npm test --prefix packages/sdk && npm test --prefix packages/indexer",
     "test:rust": "cargo test --workspace --exclude trust_substrate_litesvm_tests",
     "test:verification": "node --test --experimental-strip-types tests/verification/*.test.ts",
-    "test:audit": "node --test --experimental-strip-types tests/audit/*.test.ts",
     "test:litesvm": "anchor test --skip-lint --skip-local-validator --skip-deploy",
     "test:anchor": "pnpm test:litesvm",
     "test:surfpool": "./scripts/surfpool-e2e.sh",
