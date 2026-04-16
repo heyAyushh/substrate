@@ -20,7 +20,8 @@ This repository contains a local protocol baseline:
 
 This is not a production deployment. The current goal is a correct local
 baseline that can be hardened before networked indexing, compression
-integrations, or production deployment.
+integrations, or production deployment. The active production-readiness
+checklist is tracked in [Production Readiness To-Do](docs/production-readiness.md).
 
 ## Protocol Programs
 
@@ -44,6 +45,9 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - production RPC orchestration beyond the generated local client package
 - mainnet deployment hardening
 - full multi-hop delegation proof chains
+- automated dispute outcome decisions from private receipt payload text
+- production claims around cross-task and cross-domain ordering until the
+  additional readiness tests land
 
 ## Documentation
 
@@ -52,6 +56,7 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
 - [Security](docs/security.md)
+- [Production Readiness To-Do](docs/production-readiness.md)
 - [Roadmap](docs/roadmap.md)
 - [Agent Instructions](AGENTS.md)
 

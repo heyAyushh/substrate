@@ -66,6 +66,9 @@ These are intentional current boundaries:
 - [on-chain] Richer sequence ordering rules across tasks and domains need more tests before production use.
 - [on-chain] Slashing policy is authority-driven in v1. The program verifies receipt ownership, identity, kind, and replay markers, but it does not parse private dispute evidence or decide outcomes from payload text.
 
+Completion criteria for these items are tracked in
+[Production Readiness To-Do](production-readiness.md).
+
 ## Review Checklist
 
 Before merging protocol behavior, check:
