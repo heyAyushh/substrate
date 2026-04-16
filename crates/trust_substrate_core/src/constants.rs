@@ -4,6 +4,7 @@ pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
+pub const CHALLENGE_RESPONSE_SEED: &[u8] = b"challenge_response";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
@@ -81,10 +82,13 @@ pub fn is_self_emittable_receipt_kind(kind: u8) -> bool {
             | COMPLETION_KIND
             | DISPUTE_KIND
             | DISPUTE_RESOLVED_KIND
-            | CHALLENGE_RESPONSE_KIND
             | COMMIT_KIND
             | REVEAL_KIND
     )
+}
+
+pub fn is_system_emittable_receipt_kind(kind: u8) -> bool {
+    matches!(kind, CHALLENGE_RESPONSE_KIND)
 }
 
 pub fn is_auditable_receipt_kind(kind: u8) -> bool {
@@ -92,7 +96,9 @@ pub fn is_auditable_receipt_kind(kind: u8) -> bool {
 }
 
 pub fn is_valid_receipt_kind(kind: u8) -> bool {
-    is_self_emittable_receipt_kind(kind) || is_auditable_receipt_kind(kind)
+    is_self_emittable_receipt_kind(kind)
+        || is_system_emittable_receipt_kind(kind)
+        || is_auditable_receipt_kind(kind)
 }
 
 pub fn derive_audit_receipt_id(

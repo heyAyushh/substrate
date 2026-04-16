@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use reputation_accumulator::state::ReputationDomainCatalog;
 use trust_substrate_core::{
-    derive_audit_receipt_id, is_auditable_receipt_kind, is_valid_receipt_kind, TrustSubstrateError,
-    AUDIT_RECEIPT_SEED,
+    derive_audit_receipt_id, is_auditable_receipt_kind, is_valid_receipt_kind,
+    TrustSubstrateError, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
 };
 
 use crate::events::AuditReceiptCommitted;
@@ -16,6 +16,7 @@ pub fn handler(
     payload_hash: [u8; 32],
     sequence: u64,
     round: u16,
+    deadline_slot: u64,
 ) -> Result<()> {
     require!(
         is_valid_receipt_kind(kind),
@@ -37,6 +38,17 @@ pub fn handler(
     let auditor_identity_key = ctx.accounts.auditor_identity.key();
     let target_receipt_key = ctx.accounts.target_receipt.key();
     let target_receipt = &ctx.accounts.target_receipt;
+    if kind == CHALLENGE_KIND {
+        require!(
+            deadline_slot > 0,
+            TrustSubstrateError::ChallengeDeadlineMissing
+        );
+    } else {
+        require!(
+            deadline_slot == 0,
+            TrustSubstrateError::ReceiptDeadlineNotSupported
+        );
+    }
 
     require_keys_neq!(
         auditor_identity_key,
@@ -64,6 +76,8 @@ pub fn handler(
     audit_receipt.via_delegation = Pubkey::default();
     audit_receipt.auditor_identity = auditor_identity_key;
     audit_receipt.target_receipt = target_receipt_key;
+    audit_receipt.challenge_receipt = Pubkey::default();
+    audit_receipt.deadline_slot = deadline_slot;
     audit_receipt.round = round;
     audit_receipt.bump = ctx.bumps.audit_receipt;
 
@@ -83,7 +97,7 @@ pub fn handler(
 }
 
 #[derive(Accounts)]
-#[instruction(kind: u8, _domain: [u8; 32], _payload_hash: [u8; 32], _sequence: u64, round: u16)]
+#[instruction(kind: u8, _domain: [u8; 32], _payload_hash: [u8; 32], _sequence: u64, round: u16, _deadline_slot: u64)]
 pub struct EmitAuditReceipt<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,

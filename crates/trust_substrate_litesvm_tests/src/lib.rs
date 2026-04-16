@@ -16,10 +16,11 @@ use std::rc::Rc;
 
 pub use trust_substrate_core::{
     ASSIGNMENT_KIND, ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
-    CHECKPOINT_SEED, COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND,
-    DISPUTE_RESOLVED_KIND, DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED,
-    LATEST_CHECKPOINT_SEED, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED,
-    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
+    CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_SEED, COMPLETION_KIND,
+    COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
+    DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED, LATEST_CHECKPOINT_SEED,
+    RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, SLASH_MARKER_SEED,
+    STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
     TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
 };
 
@@ -321,6 +322,27 @@ impl Harness {
         domain: [u8; 32],
         round: u16,
     ) -> TestResult<Pubkey> {
+        self.emit_audit_receipt_with_deadline(
+            auditor,
+            target_identity,
+            target_receipt,
+            kind,
+            domain,
+            round,
+            0,
+        )
+    }
+
+    pub fn emit_audit_receipt_with_deadline(
+        &mut self,
+        auditor: &IdentityFixture,
+        target_identity: Pubkey,
+        target_receipt: Pubkey,
+        kind: u8,
+        domain: [u8; 32],
+        round: u16,
+        deadline_slot: u64,
+    ) -> TestResult<Pubkey> {
         let audit_receipt = audit_receipt_pda(auditor.address, target_receipt, kind, round);
         let ix = self.ix_emit_audit_receipt(
             auditor,
@@ -330,6 +352,7 @@ impl Harness {
             kind,
             domain,
             round,
+            deadline_slot,
         );
         if auditor.address == identity_pda(self.reviewer.pubkey(), auditor.agent_id) {
             self.send_as_reviewer(ix)?;
@@ -337,6 +360,48 @@ impl Harness {
             self.send_as_payer(ix)?;
         }
         Ok(audit_receipt)
+    }
+
+    pub fn emit_challenge_receipt(
+        &mut self,
+        auditor: &IdentityFixture,
+        target_identity: Pubkey,
+        target_receipt: Pubkey,
+        domain: [u8; 32],
+        round: u16,
+        deadline_slot: u64,
+    ) -> TestResult<Pubkey> {
+        self.emit_audit_receipt_with_deadline(
+            auditor,
+            target_identity,
+            target_receipt,
+            CHALLENGE_KIND,
+            domain,
+            round,
+            deadline_slot,
+        )
+    }
+
+    pub fn emit_challenge_response(
+        &mut self,
+        identity: &IdentityFixture,
+        challenge: Pubkey,
+    ) -> TestResult<Pubkey> {
+        let response = challenge_response_pda(challenge);
+        let ix = self.ix_emit_challenge_response(identity, challenge, response);
+        self.send_as_payer(ix)?;
+        Ok(response)
+    }
+
+    pub fn finalize_unanswered_challenge(
+        &mut self,
+        challenge: Pubkey,
+        target_receipt: Pubkey,
+        audit_receipt: Pubkey,
+    ) -> TestResult {
+        let ix = self.ix_finalize_unanswered_challenge(challenge, target_receipt, audit_receipt);
+        self.send_as_payer(ix)?;
+        Ok(())
     }
 
     pub fn initialize_checkpoint(
@@ -570,6 +635,7 @@ impl Harness {
         kind: u8,
         domain: [u8; 32],
         round: u16,
+        deadline_slot: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         let authority = if auditor.address == identity_pda(self.reviewer.pubkey(), auditor.agent_id)
         {
@@ -585,6 +651,7 @@ impl Harness {
                 payload_hash: bytes32(206),
                 sequence: 0,
                 round,
+                deadline_slot,
             }
             .data(),
             receipt_emitter::accounts::EmitAuditReceipt {
@@ -594,6 +661,48 @@ impl Harness {
                 target_receipt,
                 audit_receipt,
                 domain_catalog: self.domain_catalog,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_emit_challenge_response(
+        &self,
+        identity: &IdentityFixture,
+        challenge: Pubkey,
+        challenge_response: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            receipt_emitter::ID,
+            receipt_emitter::instruction::EmitChallengeResponse {
+                payload_hash: bytes32(207),
+            }
+            .data(),
+            receipt_emitter::accounts::EmitChallengeResponse {
+                authority: self.payer.pubkey(),
+                identity: identity.address,
+                challenge,
+                challenge_response,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_finalize_unanswered_challenge(
+        &self,
+        challenge: Pubkey,
+        target_receipt: Pubkey,
+        audit_receipt: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            receipt_emitter::ID,
+            receipt_emitter::instruction::FinalizeUnansweredChallenge {}.data(),
+            receipt_emitter::accounts::FinalizeUnansweredChallenge {
+                authority: self.payer.pubkey(),
+                challenge,
+                target_receipt,
+                challenge_response: challenge_response_pda(challenge),
+                audit_receipt,
                 system_program: system_program::ID,
             },
         )
@@ -1080,6 +1189,13 @@ pub fn audit_receipt_pda(
             kind.to_le_bytes().as_ref(),
             round.to_le_bytes().as_ref(),
         ],
+        &receipt_emitter::ID,
+    )
+}
+
+pub fn challenge_response_pda(challenge: Pubkey) -> Pubkey {
+    pda(
+        &[CHALLENGE_RESPONSE_SEED, challenge.as_ref()],
         &receipt_emitter::ID,
     )
 }

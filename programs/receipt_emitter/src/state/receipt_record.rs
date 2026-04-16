@@ -15,6 +15,8 @@ pub struct ReceiptRecord {
     pub via_delegation: Pubkey,
     pub auditor_identity: Pubkey,
     pub target_receipt: Pubkey,
+    pub challenge_receipt: Pubkey,
+    pub deadline_slot: u64,
     pub round: u16,
     pub bump: u8,
 }

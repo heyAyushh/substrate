@@ -7,5 +7,6 @@
  */
 
 export * from "./auditReceipt";
+export * from "./challengeResponse";
 export * from "./cpiAuthority";
 export * from "./receipt";

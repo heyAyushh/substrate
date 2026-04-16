@@ -20,8 +20,16 @@ pub mod __client_accounts_emit_audit_receipt {
     pub use crate::instructions::emit_audit_receipt::__client_accounts_emit_audit_receipt::*;
 }
 
+pub mod __client_accounts_emit_challenge_response {
+    pub use crate::instructions::emit_challenge_response::__client_accounts_emit_challenge_response::*;
+}
+
 pub mod __client_accounts_emit_receipt {
     pub use crate::instructions::emit_receipt::__client_accounts_emit_receipt::*;
+}
+
+pub mod __client_accounts_finalize_unanswered_challenge {
+    pub use crate::instructions::finalize_unanswered_challenge::__client_accounts_finalize_unanswered_challenge::*;
 }
 
 pub mod __client_accounts_initialize_cpi_authority {
@@ -39,8 +47,18 @@ pub mod __cpi_client_accounts_emit_audit_receipt {
 }
 
 #[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emit_challenge_response {
+    pub use crate::instructions::emit_challenge_response::__cpi_client_accounts_emit_challenge_response::*;
+}
+
+#[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_emit_receipt {
     pub use crate::instructions::emit_receipt::__cpi_client_accounts_emit_receipt::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_finalize_unanswered_challenge {
+    pub use crate::instructions::finalize_unanswered_challenge::__cpi_client_accounts_finalize_unanswered_challenge::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -107,7 +125,21 @@ pub mod receipt_emitter {
         payload_hash: [u8; 32],
         sequence: u64,
         round: u16,
+        deadline_slot: u64,
     ) -> Result<()> {
-        emit_audit_receipt::handler(ctx, kind, domain, payload_hash, sequence, round)
+        emit_audit_receipt::handler(ctx, kind, domain, payload_hash, sequence, round, deadline_slot)
+    }
+
+    pub fn emit_challenge_response(
+        ctx: Context<EmitChallengeResponse>,
+        payload_hash: [u8; 32],
+    ) -> Result<()> {
+        emit_challenge_response::handler(ctx, payload_hash)
+    }
+
+    pub fn finalize_unanswered_challenge(
+        ctx: Context<FinalizeUnansweredChallenge>,
+    ) -> Result<()> {
+        finalize_unanswered_challenge::handler(ctx)
     }
 }

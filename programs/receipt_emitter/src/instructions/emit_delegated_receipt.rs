@@ -28,6 +28,10 @@ pub fn handler(
         is_self_emittable_receipt_kind(kind),
         TrustSubstrateError::ReceiptKindNotSelfEmittable
     );
+    require!(
+        kind != trust_substrate_core::CHALLENGE_RESPONSE_KIND,
+        TrustSubstrateError::ChallengeResponseMustUseDedicatedInstruction
+    );
 
     let empty_domain = [0u8; 32];
     if domain != empty_domain {
@@ -80,6 +84,8 @@ pub fn handler(
     receipt.via_delegation = delegation.key();
     receipt.auditor_identity = Pubkey::default();
     receipt.target_receipt = Pubkey::default();
+    receipt.challenge_receipt = Pubkey::default();
+    receipt.deadline_slot = 0;
     receipt.round = 0;
     receipt.bump = ctx.bumps.receipt;
 

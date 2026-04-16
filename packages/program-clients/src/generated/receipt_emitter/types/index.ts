@@ -8,6 +8,7 @@
 
 export * from "./agentIdentity";
 export * from "./auditReceiptCommitted";
+export * from "./challengeResponseCommitted";
 export * from "./delegationRecord";
 export * from "./receiptCommitted";
 export * from "./reputationDomainCatalog";

@@ -65,6 +65,8 @@ export type ReceiptRecord = {
   viaDelegation: Address;
   auditorIdentity: Address;
   targetReceipt: Address;
+  challengeReceipt: Address;
+  deadlineSlot: bigint;
   round: number;
   bump: number;
 };
@@ -82,6 +84,8 @@ export type ReceiptRecordArgs = {
   viaDelegation: Address;
   auditorIdentity: Address;
   targetReceipt: Address;
+  challengeReceipt: Address;
+  deadlineSlot: number | bigint;
   round: number;
   bump: number;
 };
@@ -103,6 +107,8 @@ export function getReceiptRecordEncoder(): FixedSizeEncoder<ReceiptRecordArgs> {
       ["viaDelegation", getAddressEncoder()],
       ["auditorIdentity", getAddressEncoder()],
       ["targetReceipt", getAddressEncoder()],
+      ["challengeReceipt", getAddressEncoder()],
+      ["deadlineSlot", getU64Encoder()],
       ["round", getU16Encoder()],
       ["bump", getU8Encoder()],
     ]),
@@ -126,6 +132,8 @@ export function getReceiptRecordDecoder(): FixedSizeDecoder<ReceiptRecord> {
     ["viaDelegation", getAddressDecoder()],
     ["auditorIdentity", getAddressDecoder()],
     ["targetReceipt", getAddressDecoder()],
+    ["challengeReceipt", getAddressDecoder()],
+    ["deadlineSlot", getU64Decoder()],
     ["round", getU16Decoder()],
     ["bump", getU8Decoder()],
   ]);
@@ -197,5 +205,5 @@ export async function fetchAllMaybeReceiptRecord(
 }
 
 export function getReceiptRecordSize(): number {
-  return 340;
+  return 380;
 }

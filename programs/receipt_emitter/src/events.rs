@@ -24,3 +24,13 @@ pub struct AuditReceiptCommitted {
     pub domain: [u8; 32],
     pub round: u16,
 }
+
+#[event]
+pub struct ChallengeResponseCommitted {
+    pub identity: Pubkey,
+    pub task: Pubkey,
+    pub challenge_receipt: Pubkey,
+    pub response_receipt: Pubkey,
+    pub actor: Pubkey,
+    pub domain: [u8; 32],
+}

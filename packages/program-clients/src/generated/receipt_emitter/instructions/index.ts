@@ -7,6 +7,8 @@
  */
 
 export * from "./emitAuditReceipt";
+export * from "./emitChallengeResponse";
 export * from "./emitDelegatedReceipt";
 export * from "./emitReceipt";
+export * from "./finalizeUnansweredChallenge";
 export * from "./initializeCpiAuthority";

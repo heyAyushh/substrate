@@ -42,24 +42,33 @@ import {
 } from "../accounts";
 import {
   getEmitAuditReceiptInstructionAsync,
+  getEmitChallengeResponseInstructionAsync,
   getEmitDelegatedReceiptInstructionAsync,
   getEmitReceiptInstructionAsync,
+  getFinalizeUnansweredChallengeInstructionAsync,
   getInitializeCpiAuthorityInstructionAsync,
   parseEmitAuditReceiptInstruction,
+  parseEmitChallengeResponseInstruction,
   parseEmitDelegatedReceiptInstruction,
   parseEmitReceiptInstruction,
+  parseFinalizeUnansweredChallengeInstruction,
   parseInitializeCpiAuthorityInstruction,
   type EmitAuditReceiptAsyncInput,
+  type EmitChallengeResponseAsyncInput,
   type EmitDelegatedReceiptAsyncInput,
   type EmitReceiptAsyncInput,
+  type FinalizeUnansweredChallengeAsyncInput,
   type InitializeCpiAuthorityAsyncInput,
   type ParsedEmitAuditReceiptInstruction,
+  type ParsedEmitChallengeResponseInstruction,
   type ParsedEmitDelegatedReceiptInstruction,
   type ParsedEmitReceiptInstruction,
+  type ParsedFinalizeUnansweredChallengeInstruction,
   type ParsedInitializeCpiAuthorityInstruction,
 } from "../instructions";
 import {
   findAuditReceiptPda,
+  findChallengeResponsePda,
   findCpiAuthorityPda,
   findReceiptPda,
 } from "../pdas";
@@ -106,8 +115,10 @@ export function identifyReceiptEmitterAccount(
 
 export enum ReceiptEmitterInstruction {
   EmitAuditReceipt,
+  EmitChallengeResponse,
   EmitDelegatedReceipt,
   EmitReceipt,
+  FinalizeUnansweredChallenge,
   InitializeCpiAuthority,
 }
 
@@ -125,6 +136,17 @@ export function identifyReceiptEmitterInstruction(
     )
   ) {
     return ReceiptEmitterInstruction.EmitAuditReceipt;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([124, 138, 179, 95, 168, 8, 103, 166]),
+      ),
+      0,
+    )
+  ) {
+    return ReceiptEmitterInstruction.EmitChallengeResponse;
   }
   if (
     containsBytes(
@@ -152,6 +174,17 @@ export function identifyReceiptEmitterInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([59, 174, 55, 244, 91, 211, 90, 88]),
+      ),
+      0,
+    )
+  ) {
+    return ReceiptEmitterInstruction.FinalizeUnansweredChallenge;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([34, 38, 210, 11, 10, 177, 205, 165]),
       ),
       0,
@@ -172,11 +205,17 @@ export type ParsedReceiptEmitterInstruction<
       instructionType: ReceiptEmitterInstruction.EmitAuditReceipt;
     } & ParsedEmitAuditReceiptInstruction<TProgram>)
   | ({
+      instructionType: ReceiptEmitterInstruction.EmitChallengeResponse;
+    } & ParsedEmitChallengeResponseInstruction<TProgram>)
+  | ({
       instructionType: ReceiptEmitterInstruction.EmitDelegatedReceipt;
     } & ParsedEmitDelegatedReceiptInstruction<TProgram>)
   | ({
       instructionType: ReceiptEmitterInstruction.EmitReceipt;
     } & ParsedEmitReceiptInstruction<TProgram>)
+  | ({
+      instructionType: ReceiptEmitterInstruction.FinalizeUnansweredChallenge;
+    } & ParsedFinalizeUnansweredChallengeInstruction<TProgram>)
   | ({
       instructionType: ReceiptEmitterInstruction.InitializeCpiAuthority;
     } & ParsedInitializeCpiAuthorityInstruction<TProgram>);
@@ -193,6 +232,13 @@ export function parseReceiptEmitterInstruction<TProgram extends string>(
         ...parseEmitAuditReceiptInstruction(instruction),
       };
     }
+    case ReceiptEmitterInstruction.EmitChallengeResponse: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: ReceiptEmitterInstruction.EmitChallengeResponse,
+        ...parseEmitChallengeResponseInstruction(instruction),
+      };
+    }
     case ReceiptEmitterInstruction.EmitDelegatedReceipt: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -205,6 +251,13 @@ export function parseReceiptEmitterInstruction<TProgram extends string>(
       return {
         instructionType: ReceiptEmitterInstruction.EmitReceipt,
         ...parseEmitReceiptInstruction(instruction),
+      };
+    }
+    case ReceiptEmitterInstruction.FinalizeUnansweredChallenge: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: ReceiptEmitterInstruction.FinalizeUnansweredChallenge,
+        ...parseFinalizeUnansweredChallengeInstruction(instruction),
       };
     }
     case ReceiptEmitterInstruction.InitializeCpiAuthority: {
@@ -243,6 +296,10 @@ export type ReceiptEmitterPluginInstructions = {
     input: EmitAuditReceiptAsyncInput,
   ) => ReturnType<typeof getEmitAuditReceiptInstructionAsync> &
     SelfPlanAndSendFunctions;
+  emitChallengeResponse: (
+    input: EmitChallengeResponseAsyncInput,
+  ) => ReturnType<typeof getEmitChallengeResponseInstructionAsync> &
+    SelfPlanAndSendFunctions;
   emitDelegatedReceipt: (
     input: EmitDelegatedReceiptAsyncInput,
   ) => ReturnType<typeof getEmitDelegatedReceiptInstructionAsync> &
@@ -250,6 +307,10 @@ export type ReceiptEmitterPluginInstructions = {
   emitReceipt: (
     input: EmitReceiptAsyncInput,
   ) => ReturnType<typeof getEmitReceiptInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  finalizeUnansweredChallenge: (
+    input: FinalizeUnansweredChallengeAsyncInput,
+  ) => ReturnType<typeof getFinalizeUnansweredChallengeInstructionAsync> &
     SelfPlanAndSendFunctions;
   initializeCpiAuthority: (
     input: MakeOptional<InitializeCpiAuthorityAsyncInput, "payer">,
@@ -259,6 +320,7 @@ export type ReceiptEmitterPluginInstructions = {
 
 export type ReceiptEmitterPluginPdas = {
   auditReceipt: typeof findAuditReceiptPda;
+  challengeResponse: typeof findChallengeResponsePda;
   receipt: typeof findReceiptPda;
   cpiAuthority: typeof findCpiAuthorityPda;
 };
@@ -285,6 +347,11 @@ export function receiptEmitterProgram() {
               client,
               getEmitAuditReceiptInstructionAsync(input),
             ),
+          emitChallengeResponse: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getEmitChallengeResponseInstructionAsync(input),
+            ),
           emitDelegatedReceipt: (input) =>
             addSelfPlanAndSendFunctions(
               client,
@@ -294,6 +361,11 @@ export function receiptEmitterProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getEmitReceiptInstructionAsync(input),
+            ),
+          finalizeUnansweredChallenge: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getFinalizeUnansweredChallengeInstructionAsync(input),
             ),
           initializeCpiAuthority: (input) =>
             addSelfPlanAndSendFunctions(
@@ -306,6 +378,7 @@ export function receiptEmitterProgram() {
         },
         pdas: {
           auditReceipt: findAuditReceiptPda,
+          challengeResponse: findChallengeResponsePda,
           receipt: findReceiptPda,
           cpiAuthority: findCpiAuthorityPda,
         },

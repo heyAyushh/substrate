@@ -14,6 +14,7 @@ const AUDIT_RECEIPT_SEED = "audit_receipt";
 const COMPLETION_KIND = 3;
 const CHALLENGE_KIND = 6;
 const ATTESTATION_KIND = 8;
+const CHALLENGE_DEADLINE_SLOT = 10;
 const ZERO_BYTE = 0;
 const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
@@ -87,7 +88,8 @@ describe("audit_receipts", () => {
         fixture.domain,
         fixture.auditPayloadHash,
         new anchor.BN(0),
-        0
+        0,
+        new anchor.BN(CHALLENGE_DEADLINE_SLOT)
       )
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
@@ -170,7 +172,8 @@ describe("audit_receipts", () => {
           fixture.domain,
           fixture.auditPayloadHash,
           new anchor.BN(0),
-          0
+          0,
+          new anchor.BN(CHALLENGE_DEADLINE_SLOT)
         )
         .accountsStrict({
           authority: builderAuthority,
@@ -229,7 +232,8 @@ describe("audit_receipts", () => {
           fixture.domain,
           fixture.auditPayloadHash,
           new anchor.BN(0),
-          0
+          0,
+          new anchor.BN(0)
         )
         .accountsStrict({
           authority: reviewerAuthority.publicKey,
@@ -343,13 +347,17 @@ describe("audit_receipts", () => {
     kind: number,
     round: number
   ) {
+    const deadlineSlot =
+      kind === CHALLENGE_KIND ? CHALLENGE_DEADLINE_SLOT : 0;
+
     return receiptProgram.methods
       .emitAuditReceipt(
         kind,
         fixture.domain,
         fixture.auditPayloadHash,
         new anchor.BN(0),
-        round
+        round,
+        new anchor.BN(deadlineSlot)
       )
       .accountsStrict({
         authority: reviewerAuthority.publicKey,

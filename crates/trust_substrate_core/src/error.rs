@@ -112,4 +112,26 @@ pub enum TrustSubstrateError {
     DomainAlreadyRegistered,
     #[msg("The domain catalog has reached its maximum capacity")]
     DomainCatalogFull,
+    #[msg("Challenge receipts must include a positive deadline slot")]
+    ChallengeDeadlineMissing,
+    #[msg("The challenge deadline has not elapsed yet")]
+    ChallengeDeadlineNotElapsed,
+    #[msg("The supplied receipt is not a challenge receipt")]
+    ChallengeReceiptKindMismatch,
+    #[msg("The supplied challenge does not target this receipt")]
+    ChallengeTargetReceiptMismatch,
+    #[msg("The supplied challenge response does not answer this challenge")]
+    ChallengeResponseMismatch,
+    #[msg("The supplied receipt is not a challenge response receipt")]
+    ChallengeResponseKindMismatch,
+    #[msg("A valid challenge response already exists")]
+    ChallengeAlreadyResponded,
+    #[msg("The challenge response window has closed")]
+    ChallengeResponseWindowClosed,
+    #[msg("Challenge responses must be emitted through the dedicated instruction")]
+    ChallengeResponseMustUseDedicatedInstruction,
+    #[msg("Non-challenge receipts cannot carry a deadline slot")]
+    ReceiptDeadlineNotSupported,
+    #[msg("Receipt sequence cannot be incremented without overflowing")]
+    ReceiptSequenceOverflow,
 }
