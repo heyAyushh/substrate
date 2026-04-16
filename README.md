@@ -147,6 +147,16 @@ The current local path is:
 
 Receipts are the source of truth. Reputation is derived from that receipt graph.
 
+## Truths
+
+Slashing is not automatic. A slash requires a dispute outcome that the
+protocol can bind to a valid receipt flow, and the roadmap moves that path
+toward explicit verdict-gated adjudication.
+
+Data-availability proofs, commit-reveal payload shaping, and unanswered
+challenge payload helpers are SDK-enforced at submit time. They are useful
+guardrails, not final truth. Agent consumers must re-verify them during replay.
+
 ## Useful Commands
 
 ```bash

@@ -29,6 +29,9 @@ derivation.
 - [ ] W6 sybil gating
 - [ ] W7 AI-era provenance
 - [ ] W8 docs and SDK alignment
+  - [ ] W8.1 rewrite docs to distinguish enforced vs convention
+  - [x] W8.2 mark SDK helpers that are not on-chain equivalents
+  - [x] W8.3 README truthing
 
 ## Invariants we preserve
 
