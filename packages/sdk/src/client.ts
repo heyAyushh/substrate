@@ -59,6 +59,7 @@ export interface IdentityRecord {
 export interface TaskCreateInput {
   readonly identityId: string;
   readonly title: string;
+  readonly domain?: string;
   readonly description?: string;
   readonly subtasks?: ReadonlyArray<string>;
 }
@@ -67,6 +68,7 @@ export interface TaskRecord {
   readonly taskId: string;
   readonly identityId: string;
   readonly title: string;
+  readonly domain: string;
   readonly description?: string;
   readonly subtasks: ReadonlyArray<string>;
 }
@@ -216,15 +218,19 @@ export function createIdentity(input: IdentityCreateInput): IdentityRecord {
 }
 
 export function createTask(input: TaskCreateInput): TaskRecord {
+  const domain = input.domain ?? "general";
+
   return {
     taskId: deriveIdentifier("task", {
       description: input.description ?? "",
+      domain,
       identityId: input.identityId,
       subtasks: [...(input.subtasks ?? [])],
       title: input.title,
     }),
     identityId: input.identityId,
     title: input.title,
+    domain,
     description: input.description,
     subtasks: [...(input.subtasks ?? [])],
   };

@@ -26,6 +26,8 @@ pub enum TrustSubstrateError {
     CheckpointReceiptIdentityMismatch,
     #[msg("The receipt does not belong to the supplied task")]
     ReceiptTaskMismatch,
+    #[msg("The task domain does not match the receipt domain")]
+    TaskDomainMismatch,
     #[msg("The delegation scope contains unsupported action bits")]
     InvalidDelegationScope,
     #[msg("The delegation does not belong to this agent identity")]
@@ -130,6 +132,8 @@ pub enum TrustSubstrateError {
     ReceiptKindNotSelfEmittable,
     #[msg("An audit receipt must target another agent identity's receipt")]
     ReceiptAuditorCannotTargetOwnReceipt,
+    #[msg("The audit receipt domain does not match the target receipt domain")]
+    AuditDomainMismatch,
     #[msg("The domain is not registered in the canonical domain catalog")]
     DomainNotRegistered,
     #[msg("The domain is already registered in the canonical domain catalog")]

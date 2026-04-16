@@ -55,6 +55,10 @@ pub fn handler(
         target_receipt.identity,
         TrustSubstrateError::ReceiptAuditorCannotTargetOwnReceipt
     );
+    require!(
+        domain == target_receipt.domain,
+        TrustSubstrateError::AuditDomainMismatch
+    );
 
     let receipt_id = derive_audit_receipt_id(
         auditor_identity_key.as_ref(),

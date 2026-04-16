@@ -10,7 +10,7 @@ fn records_identity_task_receipt_delegation_checkpoint_and_reputation() -> TestR
     h.register_domain(domain)?;
 
     let identity = h.create_identity(11)?;
-    let task = h.create_task(&identity, 22)?;
+    let task = h.create_task_with_domain(&identity, 22, domain)?;
     let delegate = h.funded_keypair()?;
     let delegation = h.create_delegation(
         &identity,

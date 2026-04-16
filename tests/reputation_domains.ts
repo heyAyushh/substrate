@@ -101,7 +101,8 @@ describe("reputation domain catalog", () => {
 
   async function createIdentityAndTask(
     agentByte: number,
-    taskByte: number
+    taskByte: number,
+    domain: number[] = bytes32(taskByte + 2)
   ): Promise<{
     identity: anchor.web3.PublicKey;
     task: anchor.web3.PublicKey;
@@ -136,7 +137,7 @@ describe("reputation domain catalog", () => {
       await taskProgram.account.taskRecord.fetch(task);
     } catch {
       await taskProgram.methods
-        .createTask(taskId, bytes32(taskByte + 1), 2)
+        .createTask(taskId, bytes32(taskByte + 1), 2, domain)
         .accountsStrict({
           authority,
           identity,
@@ -179,8 +180,12 @@ describe("reputation domain catalog", () => {
   });
 
   it("emitting receipt with unregistered non-empty domain fails", async () => {
-    const { identity, task } = await createIdentityAndTask(210, 211);
     const unregisteredDomain = bytes32(212);
+    const { identity, task } = await createIdentityAndTask(
+      210,
+      211,
+      unregisteredDomain
+    );
     const receiptId = bytes32(213);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -234,7 +239,7 @@ describe("reputation domain catalog", () => {
         .rpc();
     }
 
-    const { identity, task } = await createIdentityAndTask(221, 222);
+    const { identity, task } = await createIdentityAndTask(221, 222, domain);
     const receiptId = bytes32(223);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -288,7 +293,8 @@ describe("reputation domain catalog", () => {
 
     const { identity: identity2, task: task2 } = await createIdentityAndTask(
       225,
-      226
+      226,
+      domain
     );
     const [reputation2] = pda(reputationProgram, [
       seed(REPUTATION_SEED),
@@ -373,7 +379,7 @@ describe("reputation domain catalog", () => {
         .rpc();
     }
 
-    const { identity, task } = await createIdentityAndTask(231, 232);
+    const { identity, task } = await createIdentityAndTask(231, 232, domain);
     const receiptId = bytes32(233);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),

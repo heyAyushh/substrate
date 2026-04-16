@@ -301,7 +301,7 @@ describe("audit_receipts", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, testBytes32(108 + offset), 0)
+      .createTask(taskId, testBytes32(108 + offset), 0, domain)
       .accountsStrict({
         authority: builderAuthority,
         identity: builderIdentity,

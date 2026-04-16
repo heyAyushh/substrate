@@ -56,8 +56,9 @@ pub mod task_registry {
         task_id: [u8; 32],
         subtask_root: [u8; 32],
         subtask_count: u16,
+        domain: [u8; 32],
     ) -> Result<()> {
-        instructions::create_task::handler(ctx, task_id, subtask_root, subtask_count)
+        instructions::create_task::handler(ctx, task_id, subtask_root, subtask_count, domain)
     }
 
     pub fn advance_receipt_chain(

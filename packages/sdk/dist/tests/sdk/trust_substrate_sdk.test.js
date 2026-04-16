@@ -1,5 +1,7 @@
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
+import { resolve } from "node:path";
 import { ReceiptLedger, TrustSubstrateClient, createMerkleTree, deriveReputation, verifyMerkleProof, } from "../../packages/sdk/src/index.js";
 test("creates deterministic identity objects", () => {
     const client = new TrustSubstrateClient();
@@ -28,6 +30,7 @@ test("creates canonical task objects", () => {
     });
     strictEqual(task.identityId, identity.identityId);
     strictEqual(task.title, "Finalize receipts");
+    strictEqual(task.domain, "general");
     deepStrictEqual(task.subtasks, ["collect-proof", "verify-proof"]);
     ok(task.taskId.length > 0);
 });
@@ -40,6 +43,7 @@ test("rejects receipt replay attempts", () => {
     const task = client.task.create({
         identityId: identity.identityId,
         title: "Emit receipts",
+        domain: "ops",
     });
     const receipt = client.receipt.create({
         actorId: identity.identityId,
@@ -63,6 +67,56 @@ test("rejects delegation scope mismatches", () => {
         delegation,
         action: "completion",
     }), /scope/i);
+});
+test("multi-agent simulation emits explicit delegation chain metadata", () => {
+    const scriptPath = resolve(process.cwd(), "../../examples/multi_agent/run.ts");
+    const result = spawnSync("node", ["--experimental-strip-types", scriptPath], {
+        encoding: "utf8",
+    });
+    strictEqual(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    strictEqual(output.delegationChain?.length, 2);
+    deepStrictEqual(output.delegationChain, [
+        {
+            delegatorId: output.identities.planner,
+            delegateId: output.identities.alpha,
+            allowedActions: ["handoff", "completion"],
+            taskId: output.task,
+            domain: "coding",
+            expiresAtSlot: 260,
+        },
+        {
+            delegatorId: output.identities.alpha,
+            delegateId: output.identities.beta,
+            allowedActions: ["handoff", "completion"],
+            taskId: output.task,
+            domain: "coding",
+            expiresAtSlot: 300,
+        },
+    ]);
+    deepStrictEqual(output.delegationAssertions, [
+        {
+            actorId: output.identities.alpha,
+            action: "completion",
+            taskId: output.task,
+            domain: "coding",
+            currentSlot: 150,
+        },
+        {
+            actorId: output.identities.alpha,
+            action: "handoff",
+            taskId: output.task,
+            domain: "coding",
+            currentSlot: 240,
+        },
+        {
+            actorId: output.identities.beta,
+            action: "completion",
+            taskId: output.task,
+            domain: "coding",
+            currentSlot: 260,
+        },
+    ]);
 });
 test("verifies merkle proofs deterministically", () => {
     const leaves = ["receipt-a", "receipt-b", "receipt-c"];
@@ -90,6 +144,7 @@ test("derives deterministic reputation from verified history", () => {
     const task = client.task.create({
         identityId: identity.identityId,
         title: "Track history",
+        domain: "coordination",
     });
     const history = [
         client.receipt.create({

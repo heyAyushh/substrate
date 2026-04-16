@@ -9,6 +9,7 @@ const CORE_ERRORS = readFileSync(
   join(REPO_ROOT, "crates", "trust_substrate_core", "src", "error.rs"),
   "utf8"
 );
+const PROGRAM_DOCS = readFileSync(join(REPO_ROOT, "docs", "programs.md"), "utf8");
 
 const REQUIRED_PROGRAMS = [
   "identity_registry",
@@ -40,6 +41,7 @@ const REQUIRED_ERROR_NAMES = [
   "IdentityAuthorityMismatch",
   "ReceiptChainBroken",
   "ReceiptSequenceNotMonotonic",
+  "TaskDomainMismatch",
   "CheckpointAuthorityMismatch",
   "ReputationAuthorityMismatch",
   "DelegationDelegateMismatch",
@@ -144,4 +146,17 @@ test("instruction modules use one handler naming convention", () => {
       );
     }
   }
+});
+
+test("program docs reflect task-domain enforcement", () => {
+  ok(
+    PROGRAM_DOCS.includes("- `domain: [u8; 32]`"),
+    "docs/programs.md must document TaskRecord.domain"
+  );
+  ok(
+    PROGRAM_DOCS.includes(
+      "- `create_task(ctx, task_id, subtask_root, subtask_count, domain)`"
+    ),
+    "docs/programs.md must document create_task(..., domain)"
+  );
 });

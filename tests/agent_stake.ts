@@ -149,7 +149,7 @@ describe("agent_stake", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, bytes32(78), SUBTASK_COUNT)
+      .createTask(taskId, bytes32(78), SUBTASK_COUNT, domain)
       .accountsStrict({
         authority: owner,
         identity,
@@ -480,7 +480,7 @@ describe("agent_stake", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, bytes32(input.taskId + 20), SUBTASK_COUNT)
+      .createTask(taskId, bytes32(input.taskId + 20), SUBTASK_COUNT, domain)
       .accountsStrict({
         authority: owner,
         identity,

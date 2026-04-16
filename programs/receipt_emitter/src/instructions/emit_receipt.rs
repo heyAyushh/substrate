@@ -41,6 +41,10 @@ pub fn handler(
 
     let task = &ctx.accounts.task;
     require!(
+        domain == task.domain,
+        TrustSubstrateError::TaskDomainMismatch
+    );
+    require!(
         sequence == task.last_sequence + 1,
         TrustSubstrateError::ReceiptSequenceNotMonotonic
     );

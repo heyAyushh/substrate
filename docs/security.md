@@ -35,6 +35,7 @@ The main protected assets are:
 - delegated receipt scope checks by receipt kind
 - delegated receipt attribution through `via_delegation`
 - receipt identity, task, and reputation domain checks
+- task-domain scoping so receipt emission rejects task and receipt domain mismatches
 - reputation identity ownership checks before accumulation
 - stake ownership and slash authority checks
 - stake PDA constraints on stake, unstake, and slash writes
@@ -69,6 +70,7 @@ Before merging protocol behavior, check:
 - duplicate task and reputation receipt applications are rejected
 - stale checkpoints and wrong-agent proofs are rejected in local tests
 - delegation scope, revocation, and expiry expectations are tested
+- receipt emission rejects task-domain mismatches
 - stake, unstake, and slash authority failures are tested
 - slashing binds to a `dispute_resolved` receipt and rejects replay
 - reputation cannot be written directly as a score

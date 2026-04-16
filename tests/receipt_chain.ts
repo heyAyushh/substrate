@@ -372,7 +372,7 @@ describe("receipt_chain", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, testBytes32(taskByte + 1), 0)
+      .createTask(taskId, testBytes32(taskByte + 1), 0, domain)
       .accountsStrict({
         authority,
         identity,

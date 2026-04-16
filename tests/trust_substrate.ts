@@ -235,7 +235,7 @@ describe("trust_substrate protocol flow", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, subtaskRoot, SUBTASK_COUNT)
+      .createTask(taskId, subtaskRoot, SUBTASK_COUNT, domain)
       .accountsStrict({
         authority,
         identity,
@@ -461,10 +461,10 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("returns specific errors for invalid receipt and delegation actions", async () => {
-    const setup = await createIdentityAndTask(101, 102);
-    const otherSetup = await createIdentityAndTask(103, 104);
     const delegateKeypair = anchor.web3.Keypair.generate();
     const domain = testBytes32(105);
+    const setup = await createIdentityAndTask(101, 102, domain);
+    const otherSetup = await createIdentityAndTask(103, 104, domain);
     const previousReceipt = bytes32(ZERO_BYTE);
     const payloadHash = testBytes32(106);
 
@@ -598,7 +598,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("returns specific errors for stale checkpoint rotation", async () => {
-    const setup = await createIdentityAndTask(111, 112);
+    const taskDomain = testBytes32(105);
+    const setup = await createIdentityAndTask(111, 112, taskDomain);
     const [checkpoint] = pda(proofProgram, [
       seed(CHECKPOINT_SEED),
       setup.identity.toBuffer(),
@@ -662,7 +663,7 @@ describe("trust_substrate protocol flow", () => {
         firstReceiptId,
         ASSIGNMENT_RECEIPT_KIND,
         new anchor.BN(1),
-        testBytes32(105),
+        taskDomain,
         bytes32(ZERO_BYTE),
         testBytes32(116)
       )
@@ -683,7 +684,7 @@ describe("trust_substrate protocol flow", () => {
         secondReceiptId,
         COMPLETION_RECEIPT_KIND,
         new anchor.BN(2),
-        testBytes32(105),
+        taskDomain,
         pubkeyBytes(firstReceipt),
         testBytes32(117)
       )
@@ -762,7 +763,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("rejects inclusion proofs against stale checkpoints", async () => {
-    const setup = await createIdentityAndTask(151, 152);
+    const domain = testBytes32(143);
+    const setup = await createIdentityAndTask(151, 152, domain);
     const receiptId = testBytes32(153);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -787,7 +789,7 @@ describe("trust_substrate protocol flow", () => {
         receiptId,
         COMPLETION_RECEIPT_KIND,
         new anchor.BN(1),
-        testBytes32(143),
+        domain,
         bytes32(ZERO_BYTE),
         testBytes32(154)
       )
@@ -862,8 +864,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("rejects duplicate task and reputation receipt applications", async () => {
-    const setup = await createIdentityAndTask(161, 162);
     const domain = testBytes32(163);
+    const setup = await createIdentityAndTask(161, 162, domain);
     const receiptId = testBytes32(164);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -1000,9 +1002,9 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("rejects reputation writes for the wrong agent identity", async () => {
-    const setup = await createIdentityAndTask(121, 122);
-    const otherSetup = await createIdentityAndTask(123, 124);
     const domain = testBytes32(125);
+    const setup = await createIdentityAndTask(121, 122, domain);
+    const otherSetup = await createIdentityAndTask(123, 124, domain);
     const receiptId = testBytes32(126);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -1074,8 +1076,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("rejects receipt kinds that do not affect reputation", async () => {
-    const setup = await createIdentityAndTask(141, 142);
     const domain = testBytes32(143);
+    const setup = await createIdentityAndTask(141, 142, domain);
     const receiptId = testBytes32(144);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -1147,7 +1149,8 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("returns a specific task-state error when resolving without a dispute", async () => {
-    const setup = await createIdentityAndTask(131, 132);
+    const domain = testBytes32(134);
+    const setup = await createIdentityAndTask(131, 132, domain);
     const receiptId = testBytes32(133);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),
@@ -1162,7 +1165,7 @@ describe("trust_substrate protocol flow", () => {
         receiptId,
         DISPUTE_RESOLVED_RECEIPT_KIND,
         new anchor.BN(1),
-        testBytes32(134),
+        domain,
         bytes32(ZERO_BYTE),
         testBytes32(135)
       )
@@ -1194,7 +1197,11 @@ describe("trust_substrate protocol flow", () => {
     );
   });
 
-  async function createIdentityAndTask(agentByte: number, taskByte: number) {
+  async function createIdentityAndTask(
+    agentByte: number,
+    taskByte: number,
+    domain: number[] = testBytes32(ZERO_BYTE)
+  ) {
     const agentId = testBytes32(agentByte);
     const taskId = testBytes32(taskByte);
     const [identity] = pda(identityProgram, [
@@ -1222,7 +1229,7 @@ describe("trust_substrate protocol flow", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, testBytes32(taskByte + 1), SUBTASK_COUNT)
+      .createTask(taskId, testBytes32(taskByte + 1), SUBTASK_COUNT, domain)
       .accountsStrict({
         authority,
         identity,
@@ -1305,9 +1312,9 @@ describe("trust_substrate protocol flow", () => {
   });
 
   it("emits TaskStatusSynced event on receipt application", async () => {
-    const setup = await createIdentityAndTask(601, 602);
     const receiptId = testBytes32(603);
     const domain = testBytes32(604);
+    const setup = await createIdentityAndTask(601, 602, domain);
     const payloadHash = testBytes32(605);
     const [receipt] = pda(receiptProgram, [
       seed(RECEIPT_SEED),

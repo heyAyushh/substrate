@@ -45,6 +45,7 @@ Fields:
 
 - `identity: Pubkey`
 - `task_id: [u8; 32]`
+- `domain: [u8; 32]`
 - `subtask_root: [u8; 32]`
 - `subtask_count: u16`
 - `status: u8`
@@ -312,12 +313,13 @@ Behavior:
 
 Signature:
 
-- `create_task(ctx, task_id, subtask_root, subtask_count)`
+- `create_task(ctx, task_id, subtask_root, subtask_count, domain)`
 
 Behavior:
 
 - requires the signer to match `identity.authority`
 - initializes a task PDA under the identity
+- stores the canonical task domain used by downstream receipts
 - stores pending status and zeroed receipt-derived counters
 
 ### `task_registry.sync_task_status`
@@ -344,6 +346,7 @@ Behavior:
 - validates `kind`
 - requires the signer to match `identity.authority`
 - requires the task to belong to the identity
+- requires `domain` to equal `task.domain` or fails with `TaskDomainMismatch`
 - stores the authority as `actor`
 - stores the default pubkey in `via_delegation`
 - emits `ReceiptCommitted`
@@ -358,6 +361,7 @@ Behavior:
 
 - validates `kind`
 - requires the delegate signer to match the delegation PDA
+- requires `domain` to equal `task.domain` or fails with `TaskDomainMismatch`
 - rejects revoked delegations
 - rejects expired delegations when `expires_at_slot` is non-zero
 - requires the delegation scope bit to allow the receipt kind

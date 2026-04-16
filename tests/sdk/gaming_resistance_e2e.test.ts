@@ -52,6 +52,7 @@ test("E2E #1: DA proof rejects an unreachable blob at submit time", async () => 
   const task = client.task.create({
     identityId: builder.identityId,
     title: "produce-evidence",
+    domain: "research",
   });
   const record = makeRecord(task.taskId, builder.identityId);
 
@@ -93,6 +94,7 @@ test("E2E #2: unanswered challenge turns into a slash via dispute_resolved", () 
   const task = client.task.create({
     identityId: builder.identityId,
     title: "audit-evidence",
+    domain: "research",
   });
   const record = makeRecord(task.taskId, builder.identityId);
 
@@ -177,6 +179,7 @@ test("E2E #3a: commit-reveal happy path does not penalize the committer", () => 
   const task = client.task.create({
     identityId: agent.identityId,
     title: "sealed-bid",
+    domain: "auction",
   });
   const sealed = { bid: 42, memo: "sealed" };
 
@@ -210,6 +213,7 @@ test("E2E #3b: unrevealed commit past deadline is treated as a dispute", () => {
   const task = client.task.create({
     identityId: agent.identityId,
     title: "sealed-bid",
+    domain: "auction",
   });
   const commit = createCommitReceipt({
     actorId: agent.identityId,
@@ -234,6 +238,7 @@ test("E2E #3c: mismatched reveal is rejected at submit time", () => {
   const task = client.task.create({
     identityId: agent.identityId,
     title: "sealed-bid",
+    domain: "auction",
   });
   const commit = createCommitReceipt({
     actorId: agent.identityId,
@@ -268,6 +273,7 @@ test("E2E #4: challenge followed by a response does not produce a dispute", () =
   const task = client.task.create({
     identityId: builder.identityId,
     title: "answer-challenge",
+    domain: "research",
   });
   const record = makeRecord(task.taskId, builder.identityId);
   const completion = createReceiptFromExecution({
@@ -346,6 +352,7 @@ test("E2E #6: dispute receipt binds to the exact step of an execution record", (
   const task = client.task.create({
     identityId: builder.identityId,
     title: "step-binding",
+    domain: "research",
   });
   const record = makeRecord(task.taskId, builder.identityId);
   const completion = createReceiptFromExecution({
@@ -388,6 +395,7 @@ test("E2E #7: delegated receipts are appended only after scope assertions", () =
   const task = client.task.create({
     identityId: planner.identityId,
     title: "delegated-chain",
+    domain: "coding",
   });
   const ledger = new ReceiptLedger();
 

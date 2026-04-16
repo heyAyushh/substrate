@@ -17,7 +17,7 @@ fn enforces_domain_registration_and_reputation_rules() -> TestResult {
     let ix = h.ix_create_reputation_domain(&identity, deprecated_domain);
     h.expect_err_as_payer(ix, "DomainNotRegistered");
 
-    let task = h.create_task(&identity, 112)?;
+    let task = h.create_task_with_domain(&identity, 112, domain)?;
     let receipt = h.emit_receipt(
         &identity,
         &task,
@@ -42,7 +42,7 @@ fn allows_third_party_reputation_application() -> TestResult {
     h.register_domain(domain)?;
 
     let identity = h.create_identity(121)?;
-    let task = h.create_task(&identity, 122)?;
+    let task = h.create_task_with_domain(&identity, 122, domain)?;
     let receipt = h.emit_receipt(
         &identity,
         &task,

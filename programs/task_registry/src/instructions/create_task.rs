@@ -26,6 +26,7 @@ pub fn handler(
     task_id: [u8; 32],
     subtask_root: [u8; 32],
     subtask_count: u16,
+    domain: [u8; 32],
 ) -> Result<()> {
     require_keys_eq!(
         ctx.accounts.identity.authority,
@@ -36,6 +37,7 @@ pub fn handler(
     let task = &mut ctx.accounts.task;
     task.identity = ctx.accounts.identity.key();
     task.task_id = task_id;
+    task.domain = domain;
     task.subtask_root = subtask_root;
     task.subtask_count = subtask_count;
     task.status = TASK_STATUS_PENDING;

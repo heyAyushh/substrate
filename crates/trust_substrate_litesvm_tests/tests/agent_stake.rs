@@ -21,7 +21,7 @@ fn slashes_verdict_mode_stake_only_with_matching_verdict_and_treasury() -> TestR
     )?;
     h.stake(stake, 1_000_000_000)?;
 
-    let task = h.create_task(&builder, 153)?;
+    let task = h.create_task_with_domain(&builder, 153, domain)?;
     let target_receipt = h.emit_receipt(
         &builder,
         &task,
@@ -125,7 +125,7 @@ fn keeps_authority_slashing_as_opt_in_trust_mode() -> TestResult {
     )?;
     h.stake(stake, 1_000_000_000)?;
 
-    let task = h.create_task(&identity, 162)?;
+    let task = h.create_task_with_domain(&identity, 162, domain)?;
     let dispute = h.emit_receipt(
         &identity,
         &task,

@@ -7,7 +7,7 @@ fn verifies_receipt_driven_checkpoint_rotation_and_inclusion_failures() -> TestR
     let mut h = Harness::new()?;
     h.register_domain(bytes32(DOMAIN_BYTE))?;
     let identity = h.create_identity(91)?;
-    let task = h.create_task(&identity, 92)?;
+    let task = h.create_task_with_domain(&identity, 92, bytes32(DOMAIN_BYTE))?;
     let first_receipt = h.emit_receipt(
         &identity,
         &task,
@@ -77,8 +77,8 @@ fn rejects_out_of_order_or_wrong_identity_checkpoint_appends() -> TestResult {
     h.register_domain(bytes32(DOMAIN_BYTE))?;
     let identity = h.create_identity(95)?;
     let other_identity = h.create_identity(96)?;
-    let task = h.create_task(&identity, 97)?;
-    let other_task = h.create_task(&other_identity, 98)?;
+    let task = h.create_task_with_domain(&identity, 97, bytes32(DOMAIN_BYTE))?;
+    let other_task = h.create_task_with_domain(&other_identity, 98, bytes32(DOMAIN_BYTE))?;
     let first_receipt = h.emit_receipt(
         &identity,
         &task,
@@ -163,7 +163,7 @@ fn imports_trusted_checkpoint_roots_only_for_configured_governance() -> TestResu
     assert_eq!(latest_checkpoint.epoch, FIRST_EPOCH);
 
     h.register_domain(bytes32(DOMAIN_BYTE))?;
-    let task = h.create_task(&identity, 104)?;
+    let task = h.create_task_with_domain(&identity, 104, bytes32(DOMAIN_BYTE))?;
     let receipt = h.emit_receipt(
         &identity,
         &task,

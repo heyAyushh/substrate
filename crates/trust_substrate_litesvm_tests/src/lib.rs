@@ -232,13 +232,28 @@ impl Harness {
         })
     }
 
-    pub fn create_task(&mut self, identity: &IdentityFixture, byte: u8) -> TestResult<Pubkey> {
+    pub fn create_task(
+        &mut self,
+        identity: &IdentityFixture,
+        byte: u8,
+        domain: [u8; 32],
+    ) -> TestResult<Pubkey> {
         let task = task_pda(identity.address, bytes32(byte));
-        let ix = self.ix_create_task(identity.address, task, bytes32(byte));
+        let ix = self.ix_create_task(identity.address, task, bytes32(byte), domain);
         self.send_as_payer(ix)?;
         let task_record: task_registry::state::TaskRecord = self.account(task);
         assert_eq!(task_record.status, TASK_STATUS_PENDING);
+        assert_eq!(task_record.domain, domain);
         Ok(task)
+    }
+
+    pub fn create_task_with_domain(
+        &mut self,
+        identity: &IdentityFixture,
+        byte: u8,
+        domain: [u8; 32],
+    ) -> TestResult<Pubkey> {
+        self.create_task(identity, byte, domain)
     }
 
     pub fn create_delegation(
@@ -1226,6 +1241,7 @@ impl Harness {
         identity: Pubkey,
         task: Pubkey,
         task_id: [u8; 32],
+        domain: [u8; 32],
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             task_registry::ID,
@@ -1233,6 +1249,7 @@ impl Harness {
                 task_id,
                 subtask_root: bytes32(203),
                 subtask_count: SUBTASK_COUNT,
+                domain,
             }
             .data(),
             task_registry::accounts::CreateTask {

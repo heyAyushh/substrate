@@ -37,6 +37,7 @@ const builder = client.identity.create({
 const task = client.task.create({
   identityId: planner.identityId,
   title: "Compile weekly research digest",
+  domain: DOMAIN,
   subtasks: ["collect sources", "synthesize findings"],
 });
 

@@ -145,7 +145,7 @@ describe("proof_verifier structured events", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, bytes32(706), SUBTASK_COUNT)
+      .createTask(taskId, bytes32(706), SUBTASK_COUNT, bytes32(0))
       .accountsStrict({
         authority,
         identity,

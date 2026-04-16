@@ -47,6 +47,7 @@ test("creates canonical task objects", () => {
 
   strictEqual(task.identityId, identity.identityId);
   strictEqual(task.title, "Finalize receipts");
+  strictEqual(task.domain, "general");
   deepStrictEqual(task.subtasks, ["collect-proof", "verify-proof"]);
   ok(task.taskId.length > 0);
 });
@@ -60,6 +61,7 @@ test("rejects receipt replay attempts", () => {
   const task = client.task.create({
     identityId: identity.identityId,
     title: "Emit receipts",
+    domain: "ops",
   });
   const receipt = client.receipt.create({
     actorId: identity.identityId,
@@ -202,6 +204,7 @@ test("derives deterministic reputation from verified history", () => {
   const task = client.task.create({
     identityId: identity.identityId,
     title: "Track history",
+    domain: "coordination",
   });
   const history = [
     client.receipt.create({

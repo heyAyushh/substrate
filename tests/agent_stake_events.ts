@@ -156,7 +156,7 @@ describe("agent_stake structured events", () => {
       .rpc();
 
     await taskProgram.methods
-      .createTask(taskId, testBytes32(178), SUBTASK_COUNT)
+      .createTask(taskId, testBytes32(178), SUBTASK_COUNT, domain)
       .accountsStrict({
         authority: owner,
         identity,

@@ -44,6 +44,7 @@ Each persistent account is derived from a fixed PDA seed:
 - `SlashMarker`: `slash_marker`
 
 The agent identity PDA is the root of trust for identity-scoped writes. Authority checks and account constraints keep tasks, receipts, checkpoints, reputation records, and stake accounts tied to the correct identity.
+Each task also carries a canonical domain, and receipts under that task must use the same domain.
 
 ## Receipt History
 

@@ -93,6 +93,7 @@ const reviewer = client.identity.create({
 const task = client.task.create({
   identityId: planner.identityId,
   title: "Refactor logging module",
+  domain: DOMAIN,
   subtasks: ["draft change", "land change", "review change"],
 });
 

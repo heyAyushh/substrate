@@ -34,6 +34,7 @@ import {
 export type TaskRecord = {
   identity: Address;
   taskId: ReadonlyUint8Array;
+  domain: ReadonlyUint8Array;
   subtaskRoot: ReadonlyUint8Array;
   subtaskCount: number;
   status: number;
@@ -48,6 +49,7 @@ export type TaskRecord = {
 export type TaskRecordArgs = {
   identity: Address;
   taskId: ReadonlyUint8Array;
+  domain: ReadonlyUint8Array;
   subtaskRoot: ReadonlyUint8Array;
   subtaskCount: number;
   status: number;
@@ -63,6 +65,7 @@ export function getTaskRecordEncoder(): FixedSizeEncoder<TaskRecordArgs> {
   return getStructEncoder([
     ["identity", getAddressEncoder()],
     ["taskId", fixEncoderSize(getBytesEncoder(), 32)],
+    ["domain", fixEncoderSize(getBytesEncoder(), 32)],
     ["subtaskRoot", fixEncoderSize(getBytesEncoder(), 32)],
     ["subtaskCount", getU16Encoder()],
     ["status", getU8Encoder()],
@@ -79,6 +82,7 @@ export function getTaskRecordDecoder(): FixedSizeDecoder<TaskRecord> {
   return getStructDecoder([
     ["identity", getAddressDecoder()],
     ["taskId", fixDecoderSize(getBytesDecoder(), 32)],
+    ["domain", fixDecoderSize(getBytesDecoder(), 32)],
     ["subtaskRoot", fixDecoderSize(getBytesDecoder(), 32)],
     ["subtaskCount", getU16Decoder()],
     ["status", getU8Decoder()],

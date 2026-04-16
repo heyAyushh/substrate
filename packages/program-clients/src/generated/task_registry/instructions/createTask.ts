@@ -85,12 +85,14 @@ export type CreateTaskInstructionData = {
   taskId: ReadonlyUint8Array;
   subtaskRoot: ReadonlyUint8Array;
   subtaskCount: number;
+  domain: ReadonlyUint8Array;
 };
 
 export type CreateTaskInstructionDataArgs = {
   taskId: ReadonlyUint8Array;
   subtaskRoot: ReadonlyUint8Array;
   subtaskCount: number;
+  domain: ReadonlyUint8Array;
 };
 
 export function getCreateTaskInstructionDataEncoder(): FixedSizeEncoder<CreateTaskInstructionDataArgs> {
@@ -100,6 +102,7 @@ export function getCreateTaskInstructionDataEncoder(): FixedSizeEncoder<CreateTa
       ["taskId", fixEncoderSize(getBytesEncoder(), 32)],
       ["subtaskRoot", fixEncoderSize(getBytesEncoder(), 32)],
       ["subtaskCount", getU16Encoder()],
+      ["domain", fixEncoderSize(getBytesEncoder(), 32)],
     ]),
     (value) => ({ ...value, discriminator: CREATE_TASK_DISCRIMINATOR }),
   );
@@ -111,6 +114,7 @@ export function getCreateTaskInstructionDataDecoder(): FixedSizeDecoder<CreateTa
     ["taskId", fixDecoderSize(getBytesDecoder(), 32)],
     ["subtaskRoot", fixDecoderSize(getBytesDecoder(), 32)],
     ["subtaskCount", getU16Decoder()],
+    ["domain", fixDecoderSize(getBytesDecoder(), 32)],
   ]);
 }
 
@@ -137,6 +141,7 @@ export type CreateTaskAsyncInput<
   taskId: CreateTaskInstructionDataArgs["taskId"];
   subtaskRoot: CreateTaskInstructionDataArgs["subtaskRoot"];
   subtaskCount: CreateTaskInstructionDataArgs["subtaskCount"];
+  domain: CreateTaskInstructionDataArgs["domain"];
 };
 
 export async function getCreateTaskInstructionAsync<
@@ -230,6 +235,7 @@ export type CreateTaskInput<
   taskId: CreateTaskInstructionDataArgs["taskId"];
   subtaskRoot: CreateTaskInstructionDataArgs["subtaskRoot"];
   subtaskCount: CreateTaskInstructionDataArgs["subtaskCount"];
+  domain: CreateTaskInstructionDataArgs["domain"];
 };
 
 export function getCreateTaskInstruction<

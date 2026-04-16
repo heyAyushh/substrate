@@ -9,7 +9,7 @@ fn enforces_delegation_scope_expiry_and_revocation() -> TestResult {
     h.register_domain(domain)?;
 
     let identity = h.create_identity(71)?;
-    let task = h.create_task(&identity, 72)?;
+    let task = h.create_task_with_domain(&identity, 72, domain)?;
     let delegate = h.funded_keypair()?;
     let delegation = h.create_delegation(&identity, delegate.pubkey(), HANDOFF_SCOPE_BIT, 0)?;
 
