@@ -262,6 +262,35 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
   },
   {
     wave: "W8",
+    item: "W8.1 rewrite docs to distinguish enforced vs convention",
+    status: "complete",
+    evidence: [
+      { path: "docs/architecture.md", marker: "Scope tags used in this document:" },
+      {
+        path: "docs/programs.md",
+        marker:
+          "Unless noted otherwise, every account, instruction signature, and behavior guarantee in this document is [on-chain].",
+      },
+      {
+        path: "docs/off-chain-storage.md",
+        marker: "[indexer] A consumer that trusts only the chain reconstructs state as follows:",
+      },
+      {
+        path: "docs/security.md",
+        marker: "[on-chain] Only the identity authority can create identity-scoped state",
+      },
+      {
+        path: "docs/threat-model.md",
+        marker: "| #23 | only `ReceiptCommitted` event emitted | W0.4 |",
+      },
+      {
+        path: "tests/audit/doc_boundaries.test.ts",
+        marker: "threat model maps all 23 findings to workstreams",
+      },
+    ],
+  },
+  {
+    wave: "W8",
     item: "W8.2 mark SDK helpers that are not on-chain equivalents",
     status: "complete",
     evidence: [
@@ -320,6 +349,7 @@ test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once
     "W2:W2.2 restrict caller-supplied root instead of removing it",
     "W5:W5.1 on-chain rotation instruction with emergency path",
     "W5:W5.2 SDK and indexer hooks",
+    "W8:W8.1 rewrite docs to distinguish enforced vs convention",
     "W8:W8.2 mark SDK helpers that are not on-chain equivalents",
     "W8:W8.3 README truthing",
   ]);
@@ -331,6 +361,7 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(PLAN.includes("### W2.1 Incremental checkpoint from actual receipts"));
   ok(PLAN.includes("### W5.1 On-chain rotation instruction (with emergency path)"));
   ok(PLAN.includes("### W5.2 SDK and indexer hooks"));
+  ok(PLAN.includes("### W8.1 Rewrite docs to distinguish enforced vs convention"));
   ok(PLAN.includes("### W8.2 Mark SDK helpers that are NOT on-chain equivalents"));
   ok(PLAN.includes("### W8.3 README truthing"));
 
@@ -340,6 +371,7 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | complete |"));
   ok(SCOREBOARD_DOC.includes("| W5 | W5.1 on-chain rotation instruction with emergency path | complete |"));
   ok(SCOREBOARD_DOC.includes("| W5 | W5.2 SDK and indexer hooks | complete |"));
+  ok(SCOREBOARD_DOC.includes("| W8 | W8.1 rewrite docs to distinguish enforced vs convention | complete |"));
   ok(SCOREBOARD_DOC.includes("| W8 | W8.2 mark SDK helpers that are not on-chain equivalents | complete |"));
   ok(SCOREBOARD_DOC.includes("| W8 | W8.3 README truthing | complete |"));
 });

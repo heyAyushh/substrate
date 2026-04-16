@@ -28,12 +28,13 @@ Status legend:
 | W2 | W2.2 restrict caller-supplied root instead of removing it | complete | `programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs`, `programs/proof_verifier/src/instructions/checkpoint_import.rs`, `programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs`, `crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs` | |
 | W5 | W5.1 on-chain rotation instruction with emergency path | complete | `programs/identity_registry/src/instructions/rotate_authority.rs`, `programs/identity_registry/src/instructions/finalize_authority_rotation.rs`, `programs/identity_registry/src/instructions/initialize_guardian_set.rs`, `programs/identity_registry/src/instructions/emergency_rotate_authority.rs`, `programs/identity_registry/src/state/guardian_set.rs`, `crates/trust_substrate_litesvm_tests/tests/identity_rotation.rs`, `tests/identity_rotation.ts` | |
 | W5 | W5.2 SDK and indexer hooks | complete | `packages/sdk/src/client.ts`, `packages/sdk/src/rotation.ts`, `packages/indexer/src/local-durable-indexer.ts`, `tests/indexer/analytics.test.ts`, `tests/sdk/trust_substrate_sdk.test.ts`, `docs/plans/hardening-plan.md` | |
+| W8 | W8.1 rewrite docs to distinguish enforced vs convention | complete | `docs/architecture.md`, `docs/programs.md`, `docs/off-chain-storage.md`, `docs/security.md`, `docs/threat-model.md`, `tests/audit/doc_boundaries.test.ts` | |
 | W8 | W8.2 mark SDK helpers that are not on-chain equivalents | complete | `packages/sdk/src/challenge.ts`, `packages/sdk/src/commit-reveal.ts`, `packages/sdk/src/data-availability.ts`, `tests/sdk/challenge.test.ts` | |
 | W8 | W8.3 README truthing | complete | `README.md`, `tests/audit/readme_truthing.test.ts` | |
 
 ## Summary
 
-- Completed: 13
+- Completed: 14
 - Missing: 0
 
 The audit lane is intentionally narrow so W0-W2, W5, and the completed W8

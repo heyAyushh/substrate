@@ -1,5 +1,13 @@
 # Trust Substrate Program Interface
 
+Scope tags used in this document:
+
+- **[on-chain]** enforced by deployed Anchor programs and PDA/account constraints
+- **[sdk]** built or validated by local helper code around those programs
+- **[indexer]** reconstructed or interpreted from emitted on-chain state and events
+
+Unless noted otherwise, every account, instruction signature, and behavior guarantee in this document is [on-chain].
+
 ## Program Overview
 
 The workspace exposes deployable Anchor programs in `programs/*`:
