@@ -16,6 +16,7 @@ export interface ReputationDerivationOptions {
   readonly currentSlot?: number;
   readonly authorityRotations?: ReadonlyArray<AuthorityRotationEvent>;
   readonly decayPreRotationFactor?: number;
+  readonly weightByCost?: boolean;
 }
 
 const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
@@ -66,7 +67,8 @@ export function deriveReputation(
   for (const receipt of orderedHistory) {
     const weight =
       KIND_WEIGHTS[receipt.kind] *
-      getReceiptWeightFactor(receipt, latestRotationSequence, preRotationDecay);
+      getReceiptWeightFactor(receipt, latestRotationSequence, preRotationDecay) *
+      getCostWeightFactor(receipt, options.weightByCost ?? false);
     const domain = receipt.domain;
 
     byKind[receipt.kind] += 1;
@@ -143,6 +145,28 @@ function getReceiptWeightFactor(
   return receipt.sequence < latestRotationSequence ? preRotationDecay : 1;
 }
 
+function getCostWeightFactor(
+  receipt: ReceiptRecord,
+  weightByCost: boolean
+): number {
+  if (!weightByCost || receipt.kind !== "completion") {
+    return 1;
+  }
+
+  const cost = receipt.payload.cost;
+  if (!isObject(cost)) {
+    return 1;
+  }
+
+  const tokensIn = asFiniteNumber(cost.tokensIn);
+  const tokensOut = asFiniteNumber(cost.tokensOut);
+  const elapsedMs = asFiniteNumber(cost.elapsedMs);
+  const usdMicros = asFiniteNumber(cost.usdMicros);
+  const totalCostUnits = tokensIn + tokensOut + elapsedMs / 1000 + usdMicros / 1_000_000;
+
+  return totalCostUnits > 0 ? 1 + Math.log10(1 + totalCostUnits) : 1;
+}
+
 function collectExpiredCommitments(
   history: ReadonlyArray<ReceiptRecord>,
   currentSlot?: number
@@ -187,6 +211,14 @@ function isRevealReceipt(receipt: ReceiptRecord): boolean {
     receipt.payload.type === REVEAL_MARKER ||
     receipt.payload.revealMarker === true
   );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function asFiniteNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
 function createEmptyKindVector(): Record<ReceiptKind, number> {

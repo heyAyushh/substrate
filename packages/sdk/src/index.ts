@@ -26,14 +26,28 @@ export {
   canonicalExecutionRecord,
   hashExecutionRecord,
   hashStep,
+  signExecutionStep,
+  verifyExecutionRecord,
 } from "./execution-record.js";
 
 export type {
   ExecutionRecord,
   ExecutionRecordHash,
+  ExecutionRecordVerification,
   ExecutionStep,
   ExecutionStepKind,
+  StepSignature,
 } from "./execution-record.js";
+
+export {
+  appendRuntimeAttestation,
+  resolveRuntimeAtSlot,
+} from "./runtime-attestation.js";
+
+export type {
+  RuntimeAttestationInput,
+  RuntimeAttestationRecord,
+} from "./runtime-attestation.js";
 
 export {
   AGENT_TRACE_VERSION,
