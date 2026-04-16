@@ -79,7 +79,7 @@ Indexer snapshots and blobs must survive operator churn. The archive rotation sc
 
 ### Stake-backed dispute resolution (tasks #17, #18)
 
-An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity, cooldown-gates unstaking, and allows the configured slash authority to slash only against a real `dispute_resolved` receipt for the same identity. The on-chain program binds slashing to the receipt account and a replay marker; the policy decision still lives in the slash authority or future dispute-resolution program because v1 receipt payloads are hash commitments, not parsed verdict accounts.
+An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity, cooldown-gates unstaking, and supports two explicit slash paths: `slash_with_authority` for authority-mode stake against a real `dispute_resolved` receipt, and `slash_with_verdict` for verdict-mode stake against a `dispute_resolver` verdict account bound to a dispute receipt. Both paths write replay markers and route funds into the protocol treasury PDA instead of a caller-chosen account.
 
 ## Threat Model Summary
 

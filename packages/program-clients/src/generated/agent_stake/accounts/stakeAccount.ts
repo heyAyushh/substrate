@@ -54,6 +54,7 @@ export type StakeAccount = {
   identity: Address;
   owner: Address;
   slashAuthority: Address;
+  trustMode: number;
   amount: bigint;
   pendingUnstakeAmount: bigint;
   unstakeUnlocksAt: bigint;
@@ -65,6 +66,7 @@ export type StakeAccountArgs = {
   identity: Address;
   owner: Address;
   slashAuthority: Address;
+  trustMode: number;
   amount: number | bigint;
   pendingUnstakeAmount: number | bigint;
   unstakeUnlocksAt: number | bigint;
@@ -80,6 +82,7 @@ export function getStakeAccountEncoder(): FixedSizeEncoder<StakeAccountArgs> {
       ["identity", getAddressEncoder()],
       ["owner", getAddressEncoder()],
       ["slashAuthority", getAddressEncoder()],
+      ["trustMode", getU8Encoder()],
       ["amount", getU64Encoder()],
       ["pendingUnstakeAmount", getU64Encoder()],
       ["unstakeUnlocksAt", getU64Encoder()],
@@ -97,6 +100,7 @@ export function getStakeAccountDecoder(): FixedSizeDecoder<StakeAccount> {
     ["identity", getAddressDecoder()],
     ["owner", getAddressDecoder()],
     ["slashAuthority", getAddressDecoder()],
+    ["trustMode", getU8Decoder()],
     ["amount", getU64Decoder()],
     ["pendingUnstakeAmount", getU64Decoder()],
     ["unstakeUnlocksAt", getU64Decoder()],
@@ -167,5 +171,5 @@ export async function fetchAllMaybeStakeAccount(
 }
 
 export function getStakeAccountSize(): number {
-  return 137;
+  return 138;
 }

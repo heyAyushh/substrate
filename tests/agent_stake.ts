@@ -2,6 +2,7 @@ import * as anchor from "@anchor-lang/core";
 import { Program } from "@anchor-lang/core";
 import { strictEqual, ok } from "assert";
 import { AgentStake } from "../target/types/agent_stake";
+import { DisputeResolver } from "../target/types/dispute_resolver";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
 import { ReputationAccumulator } from "../target/types/reputation_accumulator";
@@ -12,6 +13,8 @@ const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const STAKE_SEED = "stake";
 const SLASH_MARKER_SEED = "slash_marker";
+const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
+const TREASURY_VAULT_SEED = "treasury";
 const COMPLETION_RECEIPT_KIND = 3;
 const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
 const SUBTASK_COUNT = 0;
@@ -23,6 +26,7 @@ describe("agent_stake", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
   let domainCatalog: anchor.web3.PublicKey;
+  let treasuryVault: anchor.web3.PublicKey;
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
@@ -102,6 +106,8 @@ describe("agent_stake", () => {
   const receiptProgram = anchor.workspace
     .receiptEmitter as Program<ReceiptEmitter>;
   const stakeProgram = anchor.workspace.agentStake as Program<AgentStake>;
+  const disputeProgram = anchor.workspace
+    .disputeResolver as Program<DisputeResolver>;
 
   it("stakes, cooldown-unstakes, and slash-binds to a dispute receipt", async () => {
     const agentId = bytes32(71);
@@ -222,14 +228,16 @@ describe("agent_stake", () => {
       })
       .rpc();
 
+    await ensureTreasuryVault(disputeProgram, owner);
+
     await stakeProgram.methods
-      .slash(SLASH_AMOUNT)
+      .slashWithAuthority(SLASH_AMOUNT)
       .accountsStrict({
         slashAuthority: owner,
         stake,
         disputeReceipt: receipt,
         slashMarker,
-        treasury: owner,
+        treasuryVault,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -248,13 +256,13 @@ describe("agent_stake", () => {
 
     await expectAnchorError(
       stakeProgram.methods
-        .slash(SLASH_AMOUNT)
+        .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
           stake,
           disputeReceipt: receipt,
           slashMarker,
-          treasury: owner,
+          treasuryVault,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -264,7 +272,7 @@ describe("agent_stake", () => {
     await stakeProgram.methods
       .slashAlreadyApplied()
       .accountsStrict({
-        slashAuthority: owner,
+        authority: owner,
         stake,
         disputeReceipt: receipt,
         slashMarker,
@@ -352,15 +360,17 @@ describe("agent_stake", () => {
       })
       .rpc();
 
+    await ensureTreasuryVault(disputeProgram, owner);
+
     await expectAnchorError(
       stakeProgram.methods
-        .slash(SLASH_AMOUNT)
+        .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: wrongSlashAuthority.publicKey,
           stake,
           disputeReceipt: agent.receipt,
           slashMarker: completionSlashMarker,
-          treasury: owner,
+          treasuryVault,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([wrongSlashAuthority])
@@ -370,13 +380,13 @@ describe("agent_stake", () => {
 
     await expectAnchorError(
       stakeProgram.methods
-        .slash(SLASH_AMOUNT)
+        .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
           stake,
           disputeReceipt: agent.receipt,
           slashMarker: completionSlashMarker,
-          treasury: owner,
+          treasuryVault,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -397,13 +407,13 @@ describe("agent_stake", () => {
 
     await expectAnchorError(
       stakeProgram.methods
-        .slash(SLASH_AMOUNT)
+        .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
           stake,
           disputeReceipt: foreignAgent.receipt,
           slashMarker: foreignSlashMarker,
-          treasury: owner,
+          treasuryVault,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -501,6 +511,34 @@ describe("agent_stake", () => {
       .rpc();
 
     return { identity, task, receipt };
+  }
+
+  async function ensureTreasuryVault(
+    program: Program<DisputeResolver>,
+    adjudicator: anchor.web3.PublicKey
+  ) {
+    if (treasuryVault) {
+      return;
+    }
+
+    const [adjudicatorConfig] = pda(program, [seed(ADJUDICATOR_CONFIG_SEED)]);
+    const [treasury] = pda(program, [seed(TREASURY_VAULT_SEED)]);
+
+    try {
+      await program.account.treasuryVault.fetch(treasury);
+    } catch {
+      await program.methods
+        .registerAdjudicator(adjudicator)
+        .accountsStrict({
+          governance: owner,
+          adjudicatorConfig,
+          treasuryVault: treasury,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    treasuryVault = treasury;
   }
 });
 

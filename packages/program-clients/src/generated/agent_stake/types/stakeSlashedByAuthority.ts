@@ -22,48 +22,52 @@ import {
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-export type StakeInitialized = {
+export type StakeSlashedByAuthority = {
   identity: Address;
-  authority: Address;
   slashAuthority: Address;
+  disputeReceipt: Address;
+  amount: bigint;
   trustMode: number;
   slot: bigint;
 };
 
-export type StakeInitializedArgs = {
+export type StakeSlashedByAuthorityArgs = {
   identity: Address;
-  authority: Address;
   slashAuthority: Address;
+  disputeReceipt: Address;
+  amount: number | bigint;
   trustMode: number;
   slot: number | bigint;
 };
 
-export function getStakeInitializedEncoder(): FixedSizeEncoder<StakeInitializedArgs> {
+export function getStakeSlashedByAuthorityEncoder(): FixedSizeEncoder<StakeSlashedByAuthorityArgs> {
   return getStructEncoder([
     ["identity", getAddressEncoder()],
-    ["authority", getAddressEncoder()],
     ["slashAuthority", getAddressEncoder()],
+    ["disputeReceipt", getAddressEncoder()],
+    ["amount", getU64Encoder()],
     ["trustMode", getU8Encoder()],
     ["slot", getU64Encoder()],
   ]);
 }
 
-export function getStakeInitializedDecoder(): FixedSizeDecoder<StakeInitialized> {
+export function getStakeSlashedByAuthorityDecoder(): FixedSizeDecoder<StakeSlashedByAuthority> {
   return getStructDecoder([
     ["identity", getAddressDecoder()],
-    ["authority", getAddressDecoder()],
     ["slashAuthority", getAddressDecoder()],
+    ["disputeReceipt", getAddressDecoder()],
+    ["amount", getU64Decoder()],
     ["trustMode", getU8Decoder()],
     ["slot", getU64Decoder()],
   ]);
 }
 
-export function getStakeInitializedCodec(): FixedSizeCodec<
-  StakeInitializedArgs,
-  StakeInitialized
+export function getStakeSlashedByAuthorityCodec(): FixedSizeCodec<
+  StakeSlashedByAuthorityArgs,
+  StakeSlashedByAuthority
 > {
   return combineCodec(
-    getStakeInitializedEncoder(),
-    getStakeInitializedDecoder(),
+    getStakeSlashedByAuthorityEncoder(),
+    getStakeSlashedByAuthorityDecoder(),
   );
 }

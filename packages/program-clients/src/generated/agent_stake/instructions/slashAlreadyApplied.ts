@@ -51,7 +51,7 @@ export function getSlashAlreadyAppliedDiscriminatorBytes() {
 
 export type SlashAlreadyAppliedInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
-  TAccountSlashAuthority extends string | AccountMeta<string> = string,
+  TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountSlashMarker extends string | AccountMeta<string> = string,
@@ -60,10 +60,10 @@ export type SlashAlreadyAppliedInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
-      TAccountSlashAuthority extends string
-        ? ReadonlySignerAccount<TAccountSlashAuthority> &
-            AccountSignerMeta<TAccountSlashAuthority>
-        : TAccountSlashAuthority,
+      TAccountAuthority extends string
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            AccountSignerMeta<TAccountAuthority>
+        : TAccountAuthority,
       TAccountStake extends string
         ? ReadonlyAccount<TAccountStake>
         : TAccountStake,
@@ -110,26 +110,26 @@ export function getSlashAlreadyAppliedInstructionDataCodec(): FixedSizeCodec<
 }
 
 export type SlashAlreadyAppliedAsyncInput<
-  TAccountSlashAuthority extends string = string,
+  TAccountAuthority extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
 > = {
-  slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  authority: TransactionSigner<TAccountAuthority>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker?: Address<TAccountSlashMarker>;
 };
 
 export async function getSlashAlreadyAppliedInstructionAsync<
-  TAccountSlashAuthority extends string,
+  TAccountAuthority extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashAlreadyAppliedAsyncInput<
-    TAccountSlashAuthority,
+    TAccountAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker
@@ -138,7 +138,7 @@ export async function getSlashAlreadyAppliedInstructionAsync<
 ): Promise<
   SlashAlreadyAppliedInstruction<
     TProgramAddress,
-    TAccountSlashAuthority,
+    TAccountAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker
@@ -149,7 +149,7 @@ export async function getSlashAlreadyAppliedInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
-    slashAuthority: { value: input.slashAuthority ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: false },
     stake: { value: input.stake ?? null, isWritable: false },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: false },
@@ -176,7 +176,7 @@ export async function getSlashAlreadyAppliedInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("authority", accounts.authority),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
@@ -185,7 +185,7 @@ export async function getSlashAlreadyAppliedInstructionAsync<
     programAddress,
   } as SlashAlreadyAppliedInstruction<
     TProgramAddress,
-    TAccountSlashAuthority,
+    TAccountAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker
@@ -193,26 +193,26 @@ export async function getSlashAlreadyAppliedInstructionAsync<
 }
 
 export type SlashAlreadyAppliedInput<
-  TAccountSlashAuthority extends string = string,
+  TAccountAuthority extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
 > = {
-  slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  authority: TransactionSigner<TAccountAuthority>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker: Address<TAccountSlashMarker>;
 };
 
 export function getSlashAlreadyAppliedInstruction<
-  TAccountSlashAuthority extends string,
+  TAccountAuthority extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashAlreadyAppliedInput<
-    TAccountSlashAuthority,
+    TAccountAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker
@@ -220,7 +220,7 @@ export function getSlashAlreadyAppliedInstruction<
   config?: { programAddress?: TProgramAddress },
 ): SlashAlreadyAppliedInstruction<
   TProgramAddress,
-  TAccountSlashAuthority,
+  TAccountAuthority,
   TAccountStake,
   TAccountDisputeReceipt,
   TAccountSlashMarker
@@ -230,7 +230,7 @@ export function getSlashAlreadyAppliedInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    slashAuthority: { value: input.slashAuthority ?? null, isWritable: false },
+    authority: { value: input.authority ?? null, isWritable: false },
     stake: { value: input.stake ?? null, isWritable: false },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: false },
@@ -243,7 +243,7 @@ export function getSlashAlreadyAppliedInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
-      getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("authority", accounts.authority),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
@@ -252,7 +252,7 @@ export function getSlashAlreadyAppliedInstruction<
     programAddress,
   } as SlashAlreadyAppliedInstruction<
     TProgramAddress,
-    TAccountSlashAuthority,
+    TAccountAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker
@@ -265,7 +265,7 @@ export type ParsedSlashAlreadyAppliedInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    slashAuthority: TAccountMetas[0];
+    authority: TAccountMetas[0];
     stake: TAccountMetas[1];
     disputeReceipt: TAccountMetas[2];
     slashMarker: TAccountMetas[3];
@@ -299,7 +299,7 @@ export function parseSlashAlreadyAppliedInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      slashAuthority: getNextAccount(),
+      authority: getNextAccount(),
       stake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       slashMarker: getNextAccount(),

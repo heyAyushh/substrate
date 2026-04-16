@@ -8,7 +8,9 @@
 
 export * from "./finalizeUnstake";
 export * from "./initializeStake";
+export * from "./initializeStakeWithTrustMode";
 export * from "./requestUnstake";
-export * from "./slash";
 export * from "./slashAlreadyApplied";
+export * from "./slashWithAuthority";
+export * from "./slashWithVerdict";
 export * from "./stake";

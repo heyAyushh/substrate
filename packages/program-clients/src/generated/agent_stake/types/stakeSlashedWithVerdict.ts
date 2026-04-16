@@ -14,51 +14,64 @@ import {
   getStructEncoder,
   getU64Decoder,
   getU64Encoder,
+  getU8Decoder,
+  getU8Encoder,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
   type FixedSizeEncoder,
 } from "@solana/kit";
 
-export type StakeSlashed = {
+export type StakeSlashedWithVerdict = {
   identity: Address;
-  authority: Address;
+  adjudicator: Address;
   disputeReceipt: Address;
+  verdict: Address;
   amount: bigint;
+  trustMode: number;
   slot: bigint;
 };
 
-export type StakeSlashedArgs = {
+export type StakeSlashedWithVerdictArgs = {
   identity: Address;
-  authority: Address;
+  adjudicator: Address;
   disputeReceipt: Address;
+  verdict: Address;
   amount: number | bigint;
+  trustMode: number;
   slot: number | bigint;
 };
 
-export function getStakeSlashedEncoder(): FixedSizeEncoder<StakeSlashedArgs> {
+export function getStakeSlashedWithVerdictEncoder(): FixedSizeEncoder<StakeSlashedWithVerdictArgs> {
   return getStructEncoder([
     ["identity", getAddressEncoder()],
-    ["authority", getAddressEncoder()],
+    ["adjudicator", getAddressEncoder()],
     ["disputeReceipt", getAddressEncoder()],
+    ["verdict", getAddressEncoder()],
     ["amount", getU64Encoder()],
+    ["trustMode", getU8Encoder()],
     ["slot", getU64Encoder()],
   ]);
 }
 
-export function getStakeSlashedDecoder(): FixedSizeDecoder<StakeSlashed> {
+export function getStakeSlashedWithVerdictDecoder(): FixedSizeDecoder<StakeSlashedWithVerdict> {
   return getStructDecoder([
     ["identity", getAddressDecoder()],
-    ["authority", getAddressDecoder()],
+    ["adjudicator", getAddressDecoder()],
     ["disputeReceipt", getAddressDecoder()],
+    ["verdict", getAddressDecoder()],
     ["amount", getU64Decoder()],
+    ["trustMode", getU8Decoder()],
     ["slot", getU64Decoder()],
   ]);
 }
 
-export function getStakeSlashedCodec(): FixedSizeCodec<
-  StakeSlashedArgs,
-  StakeSlashed
+export function getStakeSlashedWithVerdictCodec(): FixedSizeCodec<
+  StakeSlashedWithVerdictArgs,
+  StakeSlashedWithVerdict
 > {
-  return combineCodec(getStakeSlashedEncoder(), getStakeSlashedDecoder());
+  return combineCodec(
+    getStakeSlashedWithVerdictEncoder(),
+    getStakeSlashedWithVerdictDecoder(),
+  );
 }

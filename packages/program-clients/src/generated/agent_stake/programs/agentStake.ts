@@ -42,27 +42,35 @@ import {
 import {
   getFinalizeUnstakeInstruction,
   getInitializeStakeInstructionAsync,
+  getInitializeStakeWithTrustModeInstructionAsync,
   getRequestUnstakeInstruction,
   getSlashAlreadyAppliedInstructionAsync,
-  getSlashInstructionAsync,
+  getSlashWithAuthorityInstructionAsync,
+  getSlashWithVerdictInstructionAsync,
   getStakeInstruction,
   parseFinalizeUnstakeInstruction,
   parseInitializeStakeInstruction,
+  parseInitializeStakeWithTrustModeInstruction,
   parseRequestUnstakeInstruction,
   parseSlashAlreadyAppliedInstruction,
-  parseSlashInstruction,
+  parseSlashWithAuthorityInstruction,
+  parseSlashWithVerdictInstruction,
   parseStakeInstruction,
   type FinalizeUnstakeInput,
   type InitializeStakeAsyncInput,
+  type InitializeStakeWithTrustModeAsyncInput,
   type ParsedFinalizeUnstakeInstruction,
   type ParsedInitializeStakeInstruction,
+  type ParsedInitializeStakeWithTrustModeInstruction,
   type ParsedRequestUnstakeInstruction,
   type ParsedSlashAlreadyAppliedInstruction,
-  type ParsedSlashInstruction,
+  type ParsedSlashWithAuthorityInstruction,
+  type ParsedSlashWithVerdictInstruction,
   type ParsedStakeInstruction,
   type RequestUnstakeInput,
   type SlashAlreadyAppliedAsyncInput,
-  type SlashAsyncInput,
+  type SlashWithAuthorityAsyncInput,
+  type SlashWithVerdictAsyncInput,
   type StakeInput,
 } from "../instructions";
 import { findSlashMarkerPda, findStakePda } from "../pdas";
@@ -110,9 +118,11 @@ export function identifyAgentStakeAccount(
 export enum AgentStakeInstruction {
   FinalizeUnstake,
   InitializeStake,
+  InitializeStakeWithTrustMode,
   RequestUnstake,
-  Slash,
   SlashAlreadyApplied,
+  SlashWithAuthority,
+  SlashWithVerdict,
   Stake,
 }
 
@@ -146,6 +156,17 @@ export function identifyAgentStakeInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([63, 104, 162, 26, 233, 79, 249, 218]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.InitializeStakeWithTrustMode;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([44, 154, 110, 253, 160, 202, 54, 34]),
       ),
       0,
@@ -157,23 +178,34 @@ export function identifyAgentStakeInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([204, 141, 18, 161, 8, 177, 92, 142]),
-      ),
-      0,
-    )
-  ) {
-    return AgentStakeInstruction.Slash;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([111, 254, 113, 204, 61, 134, 160, 255]),
       ),
       0,
     )
   ) {
     return AgentStakeInstruction.SlashAlreadyApplied;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([141, 150, 255, 96, 192, 104, 206, 164]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.SlashWithAuthority;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([0, 73, 124, 47, 196, 243, 130, 71]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.SlashWithVerdict;
   }
   if (
     containsBytes(
@@ -202,14 +234,20 @@ export type ParsedAgentStakeInstruction<
       instructionType: AgentStakeInstruction.InitializeStake;
     } & ParsedInitializeStakeInstruction<TProgram>)
   | ({
+      instructionType: AgentStakeInstruction.InitializeStakeWithTrustMode;
+    } & ParsedInitializeStakeWithTrustModeInstruction<TProgram>)
+  | ({
       instructionType: AgentStakeInstruction.RequestUnstake;
     } & ParsedRequestUnstakeInstruction<TProgram>)
   | ({
-      instructionType: AgentStakeInstruction.Slash;
-    } & ParsedSlashInstruction<TProgram>)
-  | ({
       instructionType: AgentStakeInstruction.SlashAlreadyApplied;
     } & ParsedSlashAlreadyAppliedInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.SlashWithAuthority;
+    } & ParsedSlashWithAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.SlashWithVerdict;
+    } & ParsedSlashWithVerdictInstruction<TProgram>)
   | ({
       instructionType: AgentStakeInstruction.Stake;
     } & ParsedStakeInstruction<TProgram>);
@@ -233,6 +271,13 @@ export function parseAgentStakeInstruction<TProgram extends string>(
         ...parseInitializeStakeInstruction(instruction),
       };
     }
+    case AgentStakeInstruction.InitializeStakeWithTrustMode: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.InitializeStakeWithTrustMode,
+        ...parseInitializeStakeWithTrustModeInstruction(instruction),
+      };
+    }
     case AgentStakeInstruction.RequestUnstake: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -240,18 +285,25 @@ export function parseAgentStakeInstruction<TProgram extends string>(
         ...parseRequestUnstakeInstruction(instruction),
       };
     }
-    case AgentStakeInstruction.Slash: {
-      assertIsInstructionWithAccounts(instruction);
-      return {
-        instructionType: AgentStakeInstruction.Slash,
-        ...parseSlashInstruction(instruction),
-      };
-    }
     case AgentStakeInstruction.SlashAlreadyApplied: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: AgentStakeInstruction.SlashAlreadyApplied,
         ...parseSlashAlreadyAppliedInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.SlashWithAuthority: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.SlashWithAuthority,
+        ...parseSlashWithAuthorityInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.SlashWithVerdict: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.SlashWithVerdict,
+        ...parseSlashWithVerdictInstruction(instruction),
       };
     }
     case AgentStakeInstruction.Stake: {
@@ -294,16 +346,25 @@ export type AgentStakePluginInstructions = {
     input: InitializeStakeAsyncInput,
   ) => ReturnType<typeof getInitializeStakeInstructionAsync> &
     SelfPlanAndSendFunctions;
+  initializeStakeWithTrustMode: (
+    input: InitializeStakeWithTrustModeAsyncInput,
+  ) => ReturnType<typeof getInitializeStakeWithTrustModeInstructionAsync> &
+    SelfPlanAndSendFunctions;
   requestUnstake: (
     input: RequestUnstakeInput,
   ) => ReturnType<typeof getRequestUnstakeInstruction> &
     SelfPlanAndSendFunctions;
-  slash: (
-    input: SlashAsyncInput,
-  ) => ReturnType<typeof getSlashInstructionAsync> & SelfPlanAndSendFunctions;
   slashAlreadyApplied: (
     input: SlashAlreadyAppliedAsyncInput,
   ) => ReturnType<typeof getSlashAlreadyAppliedInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  slashWithAuthority: (
+    input: SlashWithAuthorityAsyncInput,
+  ) => ReturnType<typeof getSlashWithAuthorityInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  slashWithVerdict: (
+    input: SlashWithVerdictAsyncInput,
+  ) => ReturnType<typeof getSlashWithVerdictInstructionAsync> &
     SelfPlanAndSendFunctions;
   stake: (
     input: StakeInput,
@@ -341,20 +402,30 @@ export function agentStakeProgram() {
               client,
               getInitializeStakeInstructionAsync(input),
             ),
+          initializeStakeWithTrustMode: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitializeStakeWithTrustModeInstructionAsync(input),
+            ),
           requestUnstake: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getRequestUnstakeInstruction(input),
             ),
-          slash: (input) =>
-            addSelfPlanAndSendFunctions(
-              client,
-              getSlashInstructionAsync(input),
-            ),
           slashAlreadyApplied: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getSlashAlreadyAppliedInstructionAsync(input),
+            ),
+          slashWithAuthority: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSlashWithAuthorityInstructionAsync(input),
+            ),
+          slashWithVerdict: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSlashWithVerdictInstructionAsync(input),
             ),
           stake: (input) =>
             addSelfPlanAndSendFunctions(client, getStakeInstruction(input)),

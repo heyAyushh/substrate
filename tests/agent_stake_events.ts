@@ -3,6 +3,7 @@ import { Program } from "@anchor-lang/core";
 import { ok, strictEqual } from "assert";
 import { createHash } from "crypto";
 import { AgentStake } from "../target/types/agent_stake";
+import { DisputeResolver } from "../target/types/dispute_resolver";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
 import { ReputationAccumulator } from "../target/types/reputation_accumulator";
@@ -13,6 +14,8 @@ const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const STAKE_SEED = "stake";
 const SLASH_MARKER_SEED = "slash_marker";
+const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
+const TREASURY_VAULT_SEED = "treasury";
 const SUBTASK_COUNT = 0;
 const STAKE_AMOUNT = new anchor.BN(1_000_000);
 const UNSTAKE_AMOUNT = new anchor.BN(250_000);
@@ -21,7 +24,7 @@ const STAKE_INITIALIZED_EVENT = "StakeInitialized";
 const STAKE_DEPOSITED_EVENT = "StakeDeposited";
 const STAKE_UNSTAKE_REQUESTED_EVENT = "StakeUnstakeRequested";
 const STAKE_UNSTAKE_FINALIZED_EVENT = "StakeUnstakeFinalized";
-const STAKE_SLASHED_EVENT = "StakeSlashed";
+const STAKE_SLASHED_EVENT = "StakeSlashedByAuthority";
 const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
 const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
@@ -29,6 +32,7 @@ describe("agent_stake structured events", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   let cpiAuthority: anchor.web3.PublicKey;
   let domainCatalog: anchor.web3.PublicKey;
+  let treasuryVault: anchor.web3.PublicKey;
 
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -109,6 +113,8 @@ describe("agent_stake structured events", () => {
   const receiptProgram = anchor.workspace
     .receiptEmitter as Program<ReceiptEmitter>;
   const stakeProgram = anchor.workspace.agentStake as Program<AgentStake>;
+  const disputeProgram = anchor.workspace
+    .disputeResolver as Program<DisputeResolver>;
 
   it("emits structured events for every stake lifecycle state change", async () => {
     const agentId = testBytes32(171);
@@ -178,6 +184,7 @@ describe("agent_stake structured events", () => {
     strictEqual(initialized.identity.toBase58(), identity.toBase58());
     strictEqual(initialized.authority.toBase58(), owner.toBase58());
     strictEqual(initialized.slashAuthority.toBase58(), owner.toBase58());
+    strictEqual(Number(initialized.trustMode), 1);
     ok(Number(initialized.slot.toString()) > 0);
 
     const deposited = await captureEvent(
@@ -265,18 +272,20 @@ describe("agent_stake structured events", () => {
       })
       .rpc();
 
+    treasuryVault = await ensureTreasuryVault(disputeProgram, owner);
+
     const slashed = await captureEvent(
       stakeProgram,
       STAKE_SLASHED_EVENT,
       async () => {
         return await stakeProgram.methods
-          .slash(SLASH_AMOUNT)
+          .slashWithAuthority(SLASH_AMOUNT)
           .accountsStrict({
             slashAuthority: owner,
             stake,
             disputeReceipt: receipt,
             slashMarker,
-            treasury: owner,
+            treasuryVault,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();
@@ -284,12 +293,37 @@ describe("agent_stake structured events", () => {
     );
 
     strictEqual(slashed.identity.toBase58(), identity.toBase58());
-    strictEqual(slashed.authority.toBase58(), owner.toBase58());
+    strictEqual(slashed.slashAuthority.toBase58(), owner.toBase58());
     strictEqual(slashed.amount.toString(), SLASH_AMOUNT.toString());
     strictEqual(slashed.disputeReceipt.toBase58(), receipt.toBase58());
+    strictEqual(Number(slashed.trustMode), 1);
     ok(Number(slashed.slot.toString()) > 0);
   });
 });
+
+async function ensureTreasuryVault(
+  program: Program<DisputeResolver>,
+  owner: anchor.web3.PublicKey
+) {
+  const [adjudicatorConfig] = pda(program, [seed(ADJUDICATOR_CONFIG_SEED)]);
+  const [treasuryVault] = pda(program, [seed(TREASURY_VAULT_SEED)]);
+
+  try {
+    await program.account.treasuryVault.fetch(treasuryVault);
+  } catch {
+    await program.methods
+      .registerAdjudicator(owner)
+      .accountsStrict({
+        governance: owner,
+        adjudicatorConfig,
+        treasuryVault,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+  }
+
+  return treasuryVault;
+}
 
 async function captureEvent(
   program: Program<any>,

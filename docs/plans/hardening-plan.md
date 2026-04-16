@@ -152,7 +152,8 @@ Fixes audit finding #23.
 Add `anchor_lang::emit!` events for:
 
 - `StakeInitialized`, `StakeDeposited`, `StakeUnstakeRequested`,
-  `StakeUnstakeFinalized`, `StakeSlashed` in `agent_stake`.
+  `StakeUnstakeFinalized`, `StakeSlashedByAuthority`,
+  `StakeSlashedWithVerdict` in `agent_stake`.
 - `CheckpointCreated`, `CheckpointRotated`, `InclusionVerified` in
   `proof_verifier`.
 - `DelegationCreated`, `DelegationRevoked` in `delegation_engine`.
@@ -172,7 +173,8 @@ Fixes audit finding #22.
 
 **Files:**
 
-- `programs/agent_stake/src/instructions/slash.rs`
+- `programs/agent_stake/src/instructions/slash_with_authority.rs`
+- `programs/agent_stake/src/instructions/slash_already_applied.rs`
 - `programs/reputation_accumulator/src/instructions/apply_reputation_receipt.rs`
 - `programs/task_registry/src/instructions/sync_task_status.rs`
 
@@ -802,7 +804,7 @@ true breaks are the places where correctness demands them.
 | `TaskRecord` gains `last_receipt`, `last_sequence`, `domain` | W0.1, W4.2 | layout break |
 | `apply_reputation_receipt` signer no longer must be identity authority | W4.1 | soft break (more permissive) |
 | `ReceiptRecord` gains `auditor_identity`, `target_receipt`, `round` | W1.1 | **field-additive**, no split |
-| `agent_stake.slash` gains `slash_with_verdict` / `slash_with_authority` split | W3.2 | additive — old `slash` deprecated, behavior reachable via `slash_with_authority` |
+| `agent_stake` slashing uses `slash_with_verdict` / `slash_with_authority` | W3.2 | additive split — authority mode stays opt-in and verdict mode is explicit |
 | `reputation_accumulator.create_reputation_domain` requires catalog entry | W0.2 | hard break |
 | `AgentIdentity.policy_root` / `history_root` repurposed (not deleted) | W0.3 | **semantic, not layout** |
 | `checkpoint_history` renamed to `checkpoint_import`, governance-gated | W2.2 | rename + access-control |

@@ -7,9 +7,12 @@
  */
 
 export * from "./agentIdentity";
+export * from "./disputeVerdict";
 export * from "./receiptRecord";
 export * from "./stakeDeposited";
 export * from "./stakeInitialized";
-export * from "./stakeSlashed";
+export * from "./stakeSlashedByAuthority";
+export * from "./stakeSlashedWithVerdict";
 export * from "./stakeUnstakeFinalized";
 export * from "./stakeUnstakeRequested";
+export * from "./treasuryVault";

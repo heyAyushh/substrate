@@ -42,21 +42,23 @@ import {
 import { findSlashMarkerPda } from "../pdas";
 import { AGENT_STAKE_PROGRAM_ADDRESS } from "../programs";
 
-export const SLASH_DISCRIMINATOR = new Uint8Array([
-  204, 141, 18, 161, 8, 177, 92, 142,
+export const SLASH_WITH_AUTHORITY_DISCRIMINATOR = new Uint8Array([
+  141, 150, 255, 96, 192, 104, 206, 164,
 ]);
 
-export function getSlashDiscriminatorBytes() {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(SLASH_DISCRIMINATOR);
+export function getSlashWithAuthorityDiscriminatorBytes() {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(
+    SLASH_WITH_AUTHORITY_DISCRIMINATOR,
+  );
 }
 
-export type SlashInstruction<
+export type SlashWithAuthorityInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountSlashAuthority extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountSlashMarker extends string | AccountMeta<string> = string,
-  TAccountTreasury extends string | AccountMeta<string> = string,
+  TAccountTreasuryVault extends string | AccountMeta<string> = string,
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -77,9 +79,9 @@ export type SlashInstruction<
       TAccountSlashMarker extends string
         ? WritableAccount<TAccountSlashMarker>
         : TAccountSlashMarker,
-      TAccountTreasury extends string
-        ? WritableAccount<TAccountTreasury>
-        : TAccountTreasury,
+      TAccountTreasuryVault extends string
+        ? WritableAccount<TAccountTreasuryVault>
+        : TAccountTreasuryVault,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -87,83 +89,86 @@ export type SlashInstruction<
     ]
   >;
 
-export type SlashInstructionData = {
+export type SlashWithAuthorityInstructionData = {
   discriminator: ReadonlyUint8Array;
   amount: bigint;
 };
 
-export type SlashInstructionDataArgs = { amount: number | bigint };
+export type SlashWithAuthorityInstructionDataArgs = { amount: number | bigint };
 
-export function getSlashInstructionDataEncoder(): FixedSizeEncoder<SlashInstructionDataArgs> {
+export function getSlashWithAuthorityInstructionDataEncoder(): FixedSizeEncoder<SlashWithAuthorityInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["amount", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: SLASH_DISCRIMINATOR }),
+    (value) => ({
+      ...value,
+      discriminator: SLASH_WITH_AUTHORITY_DISCRIMINATOR,
+    }),
   );
 }
 
-export function getSlashInstructionDataDecoder(): FixedSizeDecoder<SlashInstructionData> {
+export function getSlashWithAuthorityInstructionDataDecoder(): FixedSizeDecoder<SlashWithAuthorityInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["amount", getU64Decoder()],
   ]);
 }
 
-export function getSlashInstructionDataCodec(): FixedSizeCodec<
-  SlashInstructionDataArgs,
-  SlashInstructionData
+export function getSlashWithAuthorityInstructionDataCodec(): FixedSizeCodec<
+  SlashWithAuthorityInstructionDataArgs,
+  SlashWithAuthorityInstructionData
 > {
   return combineCodec(
-    getSlashInstructionDataEncoder(),
-    getSlashInstructionDataDecoder(),
+    getSlashWithAuthorityInstructionDataEncoder(),
+    getSlashWithAuthorityInstructionDataDecoder(),
   );
 }
 
-export type SlashAsyncInput<
+export type SlashWithAuthorityAsyncInput<
   TAccountSlashAuthority extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
-  TAccountTreasury extends string = string,
+  TAccountTreasuryVault extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker?: Address<TAccountSlashMarker>;
-  treasury: Address<TAccountTreasury>;
+  treasuryVault: Address<TAccountTreasuryVault>;
   systemProgram?: Address<TAccountSystemProgram>;
-  amount: SlashInstructionDataArgs["amount"];
+  amount: SlashWithAuthorityInstructionDataArgs["amount"];
 };
 
-export async function getSlashInstructionAsync<
+export async function getSlashWithAuthorityInstructionAsync<
   TAccountSlashAuthority extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
-  TAccountTreasury extends string,
+  TAccountTreasuryVault extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
-  input: SlashAsyncInput<
+  input: SlashWithAuthorityAsyncInput<
     TAccountSlashAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
-    TAccountTreasury,
+    TAccountTreasuryVault,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): Promise<
-  SlashInstruction<
+  SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
-    TAccountTreasury,
+    TAccountTreasuryVault,
     TAccountSystemProgram
   >
 > {
@@ -176,7 +181,7 @@ export async function getSlashInstructionAsync<
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
-    treasury: { value: input.treasury ?? null, isWritable: true },
+    treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -212,66 +217,66 @@ export async function getSlashInstructionAsync<
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
-      getAccountMeta("treasury", accounts.treasury),
+      getAccountMeta("treasuryVault", accounts.treasuryVault),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getSlashInstructionDataEncoder().encode(
-      args as SlashInstructionDataArgs,
+    data: getSlashWithAuthorityInstructionDataEncoder().encode(
+      args as SlashWithAuthorityInstructionDataArgs,
     ),
     programAddress,
-  } as SlashInstruction<
+  } as SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
-    TAccountTreasury,
+    TAccountTreasuryVault,
     TAccountSystemProgram
   >);
 }
 
-export type SlashInput<
+export type SlashWithAuthorityInput<
   TAccountSlashAuthority extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
-  TAccountTreasury extends string = string,
+  TAccountTreasuryVault extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker: Address<TAccountSlashMarker>;
-  treasury: Address<TAccountTreasury>;
+  treasuryVault: Address<TAccountTreasuryVault>;
   systemProgram?: Address<TAccountSystemProgram>;
-  amount: SlashInstructionDataArgs["amount"];
+  amount: SlashWithAuthorityInstructionDataArgs["amount"];
 };
 
-export function getSlashInstruction<
+export function getSlashWithAuthorityInstruction<
   TAccountSlashAuthority extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
-  TAccountTreasury extends string,
+  TAccountTreasuryVault extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
-  input: SlashInput<
+  input: SlashWithAuthorityInput<
     TAccountSlashAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
-    TAccountTreasury,
+    TAccountTreasuryVault,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
-): SlashInstruction<
+): SlashWithAuthorityInstruction<
   TProgramAddress,
   TAccountSlashAuthority,
   TAccountStake,
   TAccountDisputeReceipt,
   TAccountSlashMarker,
-  TAccountTreasury,
+  TAccountTreasuryVault,
   TAccountSystemProgram
 > {
   // Program address.
@@ -283,7 +288,7 @@ export function getSlashInstruction<
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
-    treasury: { value: input.treasury ?? null, isWritable: true },
+    treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -307,25 +312,25 @@ export function getSlashInstruction<
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
-      getAccountMeta("treasury", accounts.treasury),
+      getAccountMeta("treasuryVault", accounts.treasuryVault),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
-    data: getSlashInstructionDataEncoder().encode(
-      args as SlashInstructionDataArgs,
+    data: getSlashWithAuthorityInstructionDataEncoder().encode(
+      args as SlashWithAuthorityInstructionDataArgs,
     ),
     programAddress,
-  } as SlashInstruction<
+  } as SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
-    TAccountTreasury,
+    TAccountTreasuryVault,
     TAccountSystemProgram
   >);
 }
 
-export type ParsedSlashInstruction<
+export type ParsedSlashWithAuthorityInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
@@ -335,20 +340,20 @@ export type ParsedSlashInstruction<
     stake: TAccountMetas[1];
     disputeReceipt: TAccountMetas[2];
     slashMarker: TAccountMetas[3];
-    treasury: TAccountMetas[4];
+    treasuryVault: TAccountMetas[4];
     systemProgram: TAccountMetas[5];
   };
-  data: SlashInstructionData;
+  data: SlashWithAuthorityInstructionData;
 };
 
-export function parseSlashInstruction<
+export function parseSlashWithAuthorityInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
-): ParsedSlashInstruction<TProgram, TAccountMetas> {
+): ParsedSlashWithAuthorityInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
@@ -371,9 +376,11 @@ export function parseSlashInstruction<
       stake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       slashMarker: getNextAccount(),
-      treasury: getNextAccount(),
+      treasuryVault: getNextAccount(),
       systemProgram: getNextAccount(),
     },
-    data: getSlashInstructionDataDecoder().decode(instruction.data),
+    data: getSlashWithAuthorityInstructionDataDecoder().decode(
+      instruction.data,
+    ),
   };
 }

@@ -12,6 +12,7 @@ The workspace exposes deployable Anchor programs in `programs/*`:
 | `delegation_engine` | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
 | `proof_verifier` | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
 | `reputation_accumulator` | `8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv` |
+| `dispute_resolver` | `9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa` |
 | `agent_stake` | `GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ` |
 
 Shared seeds, constants, errors, and Merkle helpers are defined in `crates/trust_substrate_core`.
@@ -210,6 +211,51 @@ PDA seed:
 - reputation pubkey
 - receipt pubkey
 
+### `AdjudicatorConfig`
+
+Program: `dispute_resolver`
+
+Fields:
+
+- `governance: Pubkey`
+- `adjudicator: Pubkey`
+- `bump: u8`
+
+PDA seed:
+
+- `adjudicator_config`
+
+### `TreasuryVault`
+
+Program: `dispute_resolver`
+
+Fields:
+
+- `bump: u8`
+
+PDA seed:
+
+- `treasury`
+
+### `DisputeVerdict`
+
+Program: `dispute_resolver`
+
+Fields:
+
+- `dispute_receipt: Pubkey`
+- `target_identity: Pubkey`
+- `outcome: u8`
+- `slash_amount: u64`
+- `adjudicator: Pubkey`
+- `created_at_slot: u64`
+- `bump: u8`
+
+PDA seed:
+
+- `verdict`
+- dispute receipt pubkey
+
 ### `StakeAccount`
 
 Program: `agent_stake`
@@ -219,6 +265,7 @@ Fields:
 - `identity: Pubkey`
 - `owner: Pubkey`
 - `slash_authority: Pubkey`
+- `trust_mode: u8`
 - `amount: u64`
 - `pending_unstake_amount: u64`
 - `unstake_unlocks_at: u64`
@@ -238,6 +285,7 @@ Fields:
 
 - `stake: Pubkey`
 - `dispute_receipt: Pubkey`
+- `verdict: Pubkey`
 - `amount: u64`
 - `bump: u8`
 
@@ -459,7 +507,24 @@ Behavior:
 
 - requires the signer to match `identity.authority`
 - initializes the identity-scoped stake PDA
-- stores the stake owner and configured slash authority
+- stores the stake owner, configured slash authority, and defaults the trust mode to authority-controlled slashing
+
+### `agent_stake.initialize_stake_with_trust_mode`
+
+Signature:
+
+- `initialize_stake_with_trust_mode(ctx, slash_authority, trust_mode)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- initializes the identity-scoped stake PDA
+- stores the stake owner, configured slash authority, and selected trust mode
+
+Supported trust modes are defined in `crates/trust_substrate_core/src/constants.rs`:
+
+- `TRUST_MODE_VERDICT = 0`
+- `TRUST_MODE_AUTHORITY = 1`
 
 ### `agent_stake.stake`
 
@@ -500,22 +565,74 @@ Behavior:
 - rejects empty or premature unstake requests
 - transfers the unlocked lamports back to the owner
 
-### `agent_stake.slash`
+### `agent_stake.slash_with_authority`
 
 Signature:
 
-- `slash(ctx, amount)`
+- `slash_with_authority(ctx, amount)`
 
 Behavior:
 
 - rejects zero amounts
 - requires the signer to match the configured slash authority
+- requires `stake.trust_mode == TRUST_MODE_AUTHORITY`
 - constrains the stake PDA by identity and bump
 - requires a receipt account owned by `receipt_emitter`
 - requires the receipt identity to match the stake identity
 - requires `DISPUTE_RESOLVED_KIND`
 - initializes a slash marker keyed by stake and receipt to reject replay
-- transfers slashed lamports to the supplied treasury
+- transfers slashed lamports to the protocol treasury PDA owned by `dispute_resolver`
+
+### `agent_stake.slash_with_verdict`
+
+Signature:
+
+- `slash_with_verdict(ctx)`
+
+Behavior:
+
+- requires `stake.trust_mode == TRUST_MODE_VERDICT`
+- requires a `dispute_resolver` verdict PDA bound to the supplied dispute receipt
+- requires the verdict adjudicator to sign
+- requires `AGENT_LOST_OUTCOME`
+- initializes a slash marker keyed by stake and dispute receipt to reject replay
+- transfers the verdict-defined slash amount to the protocol treasury PDA owned by `dispute_resolver`
+
+### `dispute_resolver.register_adjudicator`
+
+Signature:
+
+- `register_adjudicator(ctx, adjudicator)`
+
+Behavior:
+
+- creates the singleton `AdjudicatorConfig` PDA
+- stores the governance signer and the active adjudicator
+- creates the singleton protocol treasury PDA used by `agent_stake`
+
+### `dispute_resolver.record_verdict`
+
+Signature:
+
+- `record_verdict(ctx, outcome, slash_amount)`
+
+Behavior:
+
+- requires the signer to match the configured adjudicator
+- requires the supplied receipt to be a `DISPUTE_KIND` receipt
+- creates a verdict PDA keyed by the dispute receipt
+- stores the target identity, adjudicator, outcome, and slash amount
+
+### `dispute_resolver.challenge_verdict`
+
+Signature:
+
+- `challenge_verdict(ctx)`
+
+Behavior:
+
+- reserved for a later protocol wave
+- currently rejects with `VerdictChallengeNotImplemented`
 
 ## Receipt Kinds
 
@@ -607,6 +724,16 @@ Defined in `crates/trust_substrate_core/src/error.rs`:
 - `StakeReceiptIdentityMismatch`
 - `StakeReceiptKindMismatch`
 - `StakeSlashAlreadyApplied`
+- `InvalidTrustMode`
+- `StakeTrustModeMismatch`
+- `StakeTreasuryVaultMismatch`
+- `InvalidVerdictOutcome`
+- `VerdictAdjudicatorMismatch`
+- `VerdictReceiptKindMismatch`
+- `VerdictTargetIdentityMismatch`
+- `VerdictDisputeReceiptMismatch`
+- `VerdictOutcomeNotSlashable`
+- `VerdictChallengeNotImplemented`
 
 ## Future Work
 

@@ -53,6 +53,7 @@ export type SlashMarker = {
   discriminator: ReadonlyUint8Array;
   stake: Address;
   disputeReceipt: Address;
+  verdict: Address;
   amount: bigint;
   bump: number;
 };
@@ -60,6 +61,7 @@ export type SlashMarker = {
 export type SlashMarkerArgs = {
   stake: Address;
   disputeReceipt: Address;
+  verdict: Address;
   amount: number | bigint;
   bump: number;
 };
@@ -71,6 +73,7 @@ export function getSlashMarkerEncoder(): FixedSizeEncoder<SlashMarkerArgs> {
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["stake", getAddressEncoder()],
       ["disputeReceipt", getAddressEncoder()],
+      ["verdict", getAddressEncoder()],
       ["amount", getU64Encoder()],
       ["bump", getU8Encoder()],
     ]),
@@ -84,6 +87,7 @@ export function getSlashMarkerDecoder(): FixedSizeDecoder<SlashMarker> {
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["stake", getAddressDecoder()],
     ["disputeReceipt", getAddressDecoder()],
+    ["verdict", getAddressDecoder()],
     ["amount", getU64Decoder()],
     ["bump", getU8Decoder()],
   ]);
@@ -151,5 +155,5 @@ export async function fetchAllMaybeSlashMarker(
 }
 
 export function getSlashMarkerSize(): number {
-  return 81;
+  return 113;
 }

@@ -115,7 +115,14 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
     item: "W0.5 replace init_if_needed with explicit guards",
     status: "complete",
     evidence: [
-      { path: "programs/agent_stake/src/instructions/slash.rs", marker: "already_applied_handler" },
+      {
+        path: "programs/agent_stake/src/instructions/slash_with_authority.rs",
+        marker: "pub struct SlashWithAuthority",
+      },
+      {
+        path: "programs/agent_stake/src/instructions/slash_already_applied.rs",
+        marker: "pub struct SlashAlreadyApplied",
+      },
       {
         path: "programs/reputation_accumulator/src/instructions/apply_reputation_receipt.rs",
         marker: "already_applied_handler",
