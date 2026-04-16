@@ -4,6 +4,7 @@ const { deepStrictEqual, ok, strictEqual } = require("node:assert/strict");
 /**
  * @typedef {Object} VerificationAttempt
  * @property {boolean} signerPresent
+ * @property {boolean} authorityRequired
  * @property {boolean} signerMatchesAuthority
  * @property {boolean} pdaSeedsMatch
  * @property {boolean} replayNonceFresh
@@ -44,8 +45,17 @@ const LOCAL_ONLY_RULES = Object.freeze({
  */
 function evaluateSecurityAttempt(attempt) {
   const failures = [];
+  let signerCheckFailed = false;
 
-  if (!attempt.signerPresent || !attempt.signerMatchesAuthority) {
+  if (!attempt.signerPresent) {
+    signerCheckFailed = true;
+  }
+
+  if (attempt.authorityRequired && !attempt.signerMatchesAuthority) {
+    signerCheckFailed = true;
+  }
+
+  if (signerCheckFailed) {
     failures.push("signer-checks");
   }
 
@@ -83,6 +93,7 @@ function evaluateSecurityAttempt(attempt) {
 function createHappyPath(overrides = {}) {
   return {
     signerPresent: true,
+    authorityRequired: true,
     signerMatchesAuthority: true,
     pdaSeedsMatch: true,
     replayNonceFresh: true,
@@ -144,10 +155,23 @@ test("signer checks reject unsigned or mismatched authority actions", () => {
   deepStrictEqual(
     evaluateSecurityAttempt(
       createHappyPath({
+        authorityRequired: true,
         signerMatchesAuthority: false,
       })
     ),
     ["signer-checks"]
+  );
+});
+
+test("permissionless reputation application does not require authority match", () => {
+  deepStrictEqual(
+    evaluateSecurityAttempt(
+      createHappyPath({
+        authorityRequired: false,
+        signerMatchesAuthority: false,
+      })
+    ),
+    []
   );
 });
 
