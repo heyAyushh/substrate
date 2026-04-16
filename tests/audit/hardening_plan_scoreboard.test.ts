@@ -15,7 +15,7 @@ const SCOREBOARD_PATH = join(
 type ScoreStatus = "complete" | "missing";
 
 type ScoreboardItem = {
-  readonly wave: "W0" | "W1" | "W2" | "W5";
+  readonly wave: "W0" | "W1" | "W2" | "W5" | "W8";
   readonly item: string;
   readonly status: ScoreStatus;
   readonly evidence: readonly { readonly path: string; readonly marker?: string }[];
@@ -260,12 +260,53 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
       { path: "docs/plans/hardening-plan.md", marker: "identity.emergencyRotateAuthority" },
     ],
   },
+  {
+    wave: "W8",
+    item: "W8.2 mark SDK helpers that are not on-chain equivalents",
+    status: "complete",
+    evidence: [
+      {
+        path: "packages/sdk/src/challenge.ts",
+        marker: "[sdk] This module builds receipt payloads.",
+      },
+      {
+        path: "packages/sdk/src/commit-reveal.ts",
+        marker: "[sdk] This module builds receipt payloads.",
+      },
+      {
+        path: "packages/sdk/src/data-availability.ts",
+        marker: "[sdk] This module builds receipt payloads.",
+      },
+      {
+        path: "packages/sdk/src/challenge.ts",
+        marker: "@deprecated Use buildUnansweredChallengePayload",
+      },
+      {
+        path: "tests/sdk/challenge.test.ts",
+        marker: "createUnansweredChallengeDispute",
+      },
+    ],
+  },
+  {
+    wave: "W8",
+    item: "W8.3 README truthing",
+    status: "complete",
+    evidence: [
+      { path: "README.md", marker: "Slashing is not automatic." },
+      { path: "README.md", marker: "SDK-enforced at submit time" },
+      { path: "README.md", marker: "must re-verify them during replay" },
+      {
+        path: "tests/audit/readme_truthing.test.ts",
+        marker: "README truths the current slashing and replay guarantees",
+      },
+    ],
+  },
 ] as const;
 
 const PLAN = readFileSync(PLAN_PATH, "utf8");
 const SCOREBOARD_DOC = readFileSync(SCOREBOARD_PATH, "utf8");
 
-test("hardening scoreboard covers W0-W2 and W5 exactly once", () => {
+test("hardening scoreboard covers W0-W2, W5, and completed W8 items exactly once", () => {
   const items = SCOREBOARD.map((entry) => `${entry.wave}:${entry.item}`);
   deepStrictEqual(items, [
     "W0:W0.1 validate receipt chain on-chain",
@@ -279,6 +320,8 @@ test("hardening scoreboard covers W0-W2 and W5 exactly once", () => {
     "W2:W2.2 restrict caller-supplied root instead of removing it",
     "W5:W5.1 on-chain rotation instruction with emergency path",
     "W5:W5.2 SDK and indexer hooks",
+    "W8:W8.2 mark SDK helpers that are not on-chain equivalents",
+    "W8:W8.3 README truthing",
   ]);
 });
 
@@ -288,6 +331,8 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(PLAN.includes("### W2.1 Incremental checkpoint from actual receipts"));
   ok(PLAN.includes("### W5.1 On-chain rotation instruction (with emergency path)"));
   ok(PLAN.includes("### W5.2 SDK and indexer hooks"));
+  ok(PLAN.includes("### W8.2 Mark SDK helpers that are NOT on-chain equivalents"));
+  ok(PLAN.includes("### W8.3 README truthing"));
 
   ok(SCOREBOARD_DOC.includes("# Hardening Plan Scoreboard"));
   ok(SCOREBOARD_DOC.includes("| W0 | W0.1 validate receipt chain on-chain | complete |"));
@@ -295,6 +340,8 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | complete |"));
   ok(SCOREBOARD_DOC.includes("| W5 | W5.1 on-chain rotation instruction with emergency path | complete |"));
   ok(SCOREBOARD_DOC.includes("| W5 | W5.2 SDK and indexer hooks | complete |"));
+  ok(SCOREBOARD_DOC.includes("| W8 | W8.2 mark SDK helpers that are not on-chain equivalents | complete |"));
+  ok(SCOREBOARD_DOC.includes("| W8 | W8.3 README truthing | complete |"));
 });
 
 test("completed scoreboard rows have concrete file evidence", () => {
