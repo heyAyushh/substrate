@@ -518,6 +518,22 @@ impl Harness {
         Ok(())
     }
 
+    pub fn apply_reputation_receipt_as_reviewer(
+        &mut self,
+        identity: &IdentityFixture,
+        receipt: Pubkey,
+        reputation: Pubkey,
+    ) -> TestResult {
+        let ix = self.ix_apply_reputation_receipt_with_authority(
+            identity,
+            receipt,
+            reputation,
+            self.reviewer.pubkey(),
+        );
+        self.send_as_reviewer(ix)?;
+        Ok(())
+    }
+
     pub fn sync_task_status(
         &mut self,
         identity: &IdentityFixture,
@@ -913,12 +929,27 @@ impl Harness {
         receipt: Pubkey,
         reputation: Pubkey,
     ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_apply_reputation_receipt_with_authority(
+            identity,
+            receipt,
+            reputation,
+            self.payer.pubkey(),
+        )
+    }
+
+    pub fn ix_apply_reputation_receipt_with_authority(
+        &self,
+        identity: &IdentityFixture,
+        receipt: Pubkey,
+        reputation: Pubkey,
+        authority: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             reputation_accumulator::ID,
             reputation_accumulator::instruction::ApplyReputationReceipt {}.data(),
             reputation_accumulator::accounts::ApplyReputationReceipt {
                 identity: identity.address,
-                authority: self.payer.pubkey(),
+                authority,
                 receipt,
                 reputation,
                 receipt_application: reputation_receipt_application_pda(reputation, receipt),

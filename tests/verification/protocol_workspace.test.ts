@@ -17,6 +17,7 @@ const REQUIRED_PROGRAMS = [
   "delegation_engine",
   "reputation_accumulator",
   "proof_verifier",
+  "dispute_resolver",
   "agent_stake",
 ];
 
@@ -51,6 +52,16 @@ const REQUIRED_ERROR_NAMES = [
   "StakeReceiptIdentityMismatch",
   "StakeReceiptKindMismatch",
   "StakeSlashAlreadyApplied",
+  "InvalidTrustMode",
+  "StakeTrustModeMismatch",
+  "StakeTreasuryVaultMismatch",
+  "InvalidVerdictOutcome",
+  "VerdictAdjudicatorMismatch",
+  "VerdictReceiptKindMismatch",
+  "VerdictTargetIdentityMismatch",
+  "VerdictDisputeReceiptMismatch",
+  "VerdictOutcomeNotSlashable",
+  "VerdictChallengeNotImplemented",
 ];
 
 test("workspace declares the deployable protocol programs", () => {

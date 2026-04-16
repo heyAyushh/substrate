@@ -45,7 +45,7 @@ A consumer that trusts only the chain reconstructs state as follows:
 2. For each receipt, fetch the blob referenced by `payload.storage.uri` and verify `hashCanonical(blob) == receipt.payload_hash`.
 3. Rebuild execution records, handoff chains, and task status transitions from the verified payloads.
 4. Verify any checkpoint with an on-chain `LatestCheckpoint` pointer and a Merkle proof against the checkpoint root.
-5. Derive reputation from the verified receipt history. There is no direct score-write path.
+5. Derive reputation from the verified receipt history. The on-chain accumulator is only a permissionless cache/projection, not the source of truth.
 
 Blobs that are unreachable or mismatched are treated as missing receipts for replay purposes and flagged as availability faults.
 

@@ -11,11 +11,6 @@ use trust_substrate_core::{
 
 pub fn handler(ctx: Context<ApplyReputationReceipt>) -> Result<()> {
     require_keys_eq!(
-        ctx.accounts.identity.authority,
-        ctx.accounts.authority.key(),
-        TrustSubstrateError::ReputationAuthorityMismatch
-    );
-    require_keys_eq!(
         ctx.accounts.receipt.identity,
         ctx.accounts.identity.key(),
         TrustSubstrateError::ReceiptIdentityMismatch

@@ -489,13 +489,14 @@ Signature:
 
 Behavior:
 
-- requires the signer to match `identity.authority`
+- any signer may call it
 - requires the receipt to belong to the identity
 - requires the reputation account to belong to the identity
 - requires the reputation domain to match the receipt domain
 - initializes a reputation receipt application marker to reject duplicate application
 - applies completion, dispute, and dispute-resolution receipt effects
 - rejects receipt kinds that do not affect reputation
+- acts as a permissionless cache/projection over the verified receipt graph
 
 ### `agent_stake.initialize_stake`
 

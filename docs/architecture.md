@@ -89,7 +89,7 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 
 ## Reputation
 
-Reputation is derived from receipts. The on-chain accumulator stores domain-specific counters and weights:
+Reputation is derived from receipts. The on-chain accumulator is a permissionless cache/projection over verified history and stores domain-specific counters and weights:
 
 - completed
 - disputed
@@ -98,7 +98,7 @@ Reputation is derived from receipts. The on-chain accumulator stores domain-spec
 - dispute weight
 - dispute-resolved weight
 
-There is no direct score-write instruction. The SDK can derive richer local profiles from the verified graph.
+There is no direct score-write instruction. The SDK can derive richer local profiles from the verified graph, and those derived values are the source of truth when they disagree with the cached projection.
 
 ## Stake-Backed Disputes
 

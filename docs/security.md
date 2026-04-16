@@ -24,7 +24,8 @@ The main protected assets are:
 
 ## Current Controls
 
-- authority checks for task, receipt, delegation, checkpoint, and reputation writes
+- authority checks for task, receipt, delegation, and checkpoint writes
+- permissionless reputation application with identity, domain, and replay checks
 - PDA seed constraints for protocol account types
 - receipt kind validation
 - task ownership checks during receipt emission
@@ -71,6 +72,7 @@ Before merging protocol behavior, check:
 - stake, unstake, and slash authority failures are tested
 - slashing binds to a `dispute_resolved` receipt and rejects replay
 - reputation cannot be written directly as a score
+- the on-chain reputation accumulator is treated as a cache/projection over verified history
 - SDK and indexer behavior matches the on-chain account model
 
 ## Off-Chain Storage

@@ -34,3 +34,32 @@ fn enforces_domain_registration_and_reputation_rules() -> TestResult {
 
     Ok(())
 }
+
+#[test]
+fn allows_third_party_reputation_application() -> TestResult {
+    let mut h = Harness::new()?;
+    let domain = bytes32(SECOND_DOMAIN_BYTE);
+    h.register_domain(domain)?;
+
+    let identity = h.create_identity(121)?;
+    let task = h.create_task(&identity, 122)?;
+    let receipt = h.emit_receipt(
+        &identity,
+        &task,
+        123,
+        COMPLETION_KIND,
+        FIRST_SEQUENCE,
+        domain,
+        Pubkey::default().to_bytes(),
+    )?;
+    let reputation = h.create_reputation_domain(&identity, domain)?;
+
+    h.apply_reputation_receipt_as_reviewer(&identity, receipt, reputation)?;
+
+    let reputation_record: reputation_accumulator::state::ReputationAccumulator =
+        h.account(reputation);
+    assert_eq!(reputation_record.completed, 1);
+    assert_eq!(reputation_record.disputed, 0);
+
+    Ok(())
+}

@@ -86,8 +86,8 @@ Current scope:
 - domain-specific reputation accumulators
 - configurable completion, dispute, and dispute-resolution weights
 - completion, dispute, and resolution counters derived from receipts
-- no direct score-write path
-- deterministic SDK reputation profile derivation
+- permissionless on-chain accumulator projection for CPI consumers
+- deterministic SDK reputation profile derivation from verified history
 
 Next:
 
