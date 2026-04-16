@@ -5,8 +5,7 @@ use crate::{events::IdentityChallengeCountAdjusted, state::AgentIdentity};
 
 const CPI_AUTHORITY_SEED: &[u8] = b"cpi_authority";
 #[allow(unused_imports)]
-const RECEIPT_EMITTER_PROGRAM_ID: Pubkey =
-    pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
+const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
 
 pub fn handler(ctx: Context<AdjustOpenChallengeCount>, delta: i8) -> Result<()> {
     let expected_authority =

@@ -316,6 +316,59 @@ fn rejects_expired_performance_verdicts_for_slashing() -> TestResult {
 }
 
 #[test]
+fn challenge_verdict_closes_expired_non_safety_verdicts() -> TestResult {
+    let mut h = Harness::new()?;
+    let domain = bytes32(DOMAIN_BYTE);
+    h.register_domain(domain)?;
+
+    let builder = h.create_identity(186)?;
+    let reviewer = h.create_reviewer_identity(187)?;
+    let governance = h.funded_keypair()?;
+    let adjudicator = h.funded_keypair()?;
+    let challenger = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
+
+    let task = h.create_task_with_domain(&builder, 188, domain)?;
+    let target_receipt = h.emit_receipt(
+        &builder,
+        &task,
+        189,
+        COMPLETION_KIND,
+        FIRST_SEQUENCE,
+        domain,
+        Pubkey::default().to_bytes(),
+    )?;
+    let dispute = h.emit_audit_receipt(
+        &reviewer,
+        builder.address,
+        target_receipt,
+        DISPUTE_KIND,
+        domain,
+        FIRST_AUDIT_ROUND,
+    )?;
+
+    h.register_adjudicator(governance.as_ref(), adjudicator.pubkey())?;
+
+    let verdict = verdict_pda(dispute);
+    let stale_after_slot = h.current_slot() + 1;
+    h.record_verdict_with_class(
+        adjudicator.as_ref(),
+        dispute,
+        verdict,
+        AGENT_LOST_OUTCOME,
+        100_000_000,
+        VERDICT_CLASS_PERFORMANCE,
+        stale_after_slot,
+    )?;
+
+    h.warp_to_slot(stale_after_slot + 1);
+    h.challenge_verdict(challenger.as_ref(), verdict)?;
+
+    assert!(!h.account_exists(verdict));
+    Ok(())
+}
+
+#[test]
 fn keeps_safety_verdicts_slashable_after_time_passes() -> TestResult {
     let mut h = Harness::new()?;
     let domain = bytes32(DOMAIN_BYTE);

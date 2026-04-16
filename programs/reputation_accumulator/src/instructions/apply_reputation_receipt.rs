@@ -1,10 +1,10 @@
 use crate::{
-    identity_registry::state::AgentIdentity,
-    receipt_emitter::state::ReceiptRecord,
     state::{AppliedReputationReceipt, ReputationAccumulator},
     TrustSubstrateError,
 };
 use anchor_lang::prelude::*;
+use identity_registry::state::AgentIdentity;
+use trust_substrate_core::ReceiptRecordAccount;
 use trust_substrate_core::{
     AGENT_LOST_OUTCOME, COMPLETION_KIND, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
     REPUTATION_RECEIPT_APPLICATION_SEED, VERDICT_SEED,
@@ -131,7 +131,7 @@ pub struct ApplyReputationReceipt<'info> {
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut)]
     pub authority: Signer<'info>,
-    pub receipt: Account<'info, ReceiptRecord>,
+    pub receipt: Account<'info, ReceiptRecordAccount>,
     #[account(mut, constraint = reputation.identity == identity.key() @ TrustSubstrateError::ReputationIdentityMismatch)]
     pub reputation: Account<'info, ReputationAccumulator>,
     #[account(
@@ -153,7 +153,7 @@ pub struct ApplyReputationReceipt<'info> {
 pub struct ReputationReceiptAlreadyApplied<'info> {
     pub identity: Account<'info, AgentIdentity>,
     pub authority: Signer<'info>,
-    pub receipt: Account<'info, ReceiptRecord>,
+    pub receipt: Account<'info, ReceiptRecordAccount>,
     #[account(constraint = reputation.identity == identity.key() @ TrustSubstrateError::ReputationIdentityMismatch)]
     pub reputation: Account<'info, ReputationAccumulator>,
     #[account(

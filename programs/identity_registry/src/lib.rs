@@ -148,10 +148,7 @@ pub mod identity_registry {
         instructions::withdraw_identity_bond::handler(ctx)
     }
 
-    pub fn adjust_open_task_count(
-        ctx: Context<AdjustOpenTaskCount>,
-        delta: i8,
-    ) -> Result<()> {
+    pub fn adjust_open_task_count(ctx: Context<AdjustOpenTaskCount>, delta: i8) -> Result<()> {
         instructions::adjust_open_task_count::handler(ctx, delta)
     }
 

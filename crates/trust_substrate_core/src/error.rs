@@ -156,8 +156,10 @@ pub enum TrustSubstrateError {
     VerdictStale,
     #[msg("Only AGENT_LOST verdicts can slash stake")]
     VerdictOutcomeNotSlashable,
-    #[msg("Verdict challenges are reserved for a later protocol wave")]
-    VerdictChallengeNotImplemented,
+    #[msg("Safety verdicts cannot be retired through the stale-window challenge path")]
+    VerdictChallengeUnsupported,
+    #[msg("The verdict stale window is still open")]
+    VerdictChallengeWindowOpen,
     #[msg("The receipt kind cannot be emitted as an audit receipt")]
     ReceiptKindNotAuditable,
     #[msg("The receipt kind cannot be emitted as a self-receipt")]

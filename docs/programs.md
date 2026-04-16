@@ -693,8 +693,9 @@ Signature:
 
 Behavior:
 
-- reserved for a later protocol wave
-- currently rejects with `VerdictChallengeNotImplemented`
+- only applies to non-safety verdicts with a positive stale window
+- requires the current slot to be past `stale_after_slot`
+- closes the expired verdict PDA and refunds its rent to the challenger
 
 ## Core Constants And Errors
 

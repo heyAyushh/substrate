@@ -158,7 +158,10 @@ pub struct EmitAuditReceipt<'info> {
     pub system_program: Program<'info, System>,
 }
 
-fn require_bonded_auditor(identity_bond: &UncheckedAccount<'_>, auditor_identity: Pubkey) -> Result<()> {
+fn require_bonded_auditor(
+    identity_bond: &UncheckedAccount<'_>,
+    auditor_identity: Pubkey,
+) -> Result<()> {
     let (expected_bond, _) = Pubkey::find_program_address(
         &[IDENTITY_BOND_SEED, auditor_identity.as_ref()],
         &identity_registry::ID,

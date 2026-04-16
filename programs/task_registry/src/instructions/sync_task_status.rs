@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
+use trust_substrate_core::ReceiptRecordAccount;
 use trust_substrate_core::{
     TrustSubstrateError, ASSIGNMENT_KIND, COMPLETION_KIND, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
     HANDOFF_KIND, TASK_RECEIPT_APPLICATION_SEED, TASK_STATUS_ACTIVE, TASK_STATUS_COMPLETED,
@@ -7,7 +8,6 @@ use trust_substrate_core::{
 };
 
 use crate::events::TaskStatusSynced;
-use crate::receipt_emitter::state::ReceiptRecord;
 use crate::state::{AppliedTaskReceipt, TaskRecord};
 
 pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
@@ -115,7 +115,7 @@ pub struct SyncTaskStatus<'info> {
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut, constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
     pub task: Account<'info, TaskRecord>,
-    pub receipt: Account<'info, ReceiptRecord>,
+    pub receipt: Account<'info, ReceiptRecordAccount>,
     #[account(
         init,
         payer = authority,
@@ -138,7 +138,7 @@ pub struct TaskReceiptAlreadyApplied<'info> {
     pub identity: Account<'info, AgentIdentity>,
     #[account(constraint = task.identity == identity.key() @ TrustSubstrateError::TaskIdentityMismatch)]
     pub task: Account<'info, TaskRecord>,
-    pub receipt: Account<'info, ReceiptRecord>,
+    pub receipt: Account<'info, ReceiptRecordAccount>,
     #[account(
         seeds = [
             TASK_RECEIPT_APPLICATION_SEED,

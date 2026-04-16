@@ -1,8 +1,9 @@
 use crate::{
-    identity_registry::state::AgentIdentity, state::ReputationAccumulator,
-    state::ReputationDomainCatalog, TrustSubstrateError, REPUTATION_SEED,
+    state::ReputationAccumulator, state::ReputationDomainCatalog, TrustSubstrateError,
+    REPUTATION_SEED,
 };
 use anchor_lang::prelude::*;
+use identity_registry::state::AgentIdentity;
 use trust_substrate_core::{
     DEFAULT_COMPLETION_WEIGHT, DEFAULT_DISPUTE_RESOLVED_WEIGHT, DEFAULT_DISPUTE_WEIGHT,
 };

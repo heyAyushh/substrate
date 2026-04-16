@@ -1,9 +1,9 @@
 use crate::{
-    identity_registry::state::AgentIdentity,
     state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
     CheckpointCreated, TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
+use identity_registry::state::AgentIdentity;
 use trust_substrate_core::{empty_frontier, EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED};
 
 pub fn handler(ctx: Context<InitializeCheckpoint>, epoch: u64) -> Result<()> {

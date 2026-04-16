@@ -28,9 +28,9 @@ pub const ATTESTER_RECORD_SEED: &[u8] = b"attester";
 
 pub const EMPTY_SCOPE_BITMAP: u8 = 0;
 
-pub const IDENTITY_TIER0: u8 = 0;
-pub const IDENTITY_TIER1: u8 = 1;
-pub const MAX_ATTESTER_TIER: u8 = 3;
+pub const IDENTITY_TIER_UNBONDED: u8 = 0;
+pub const IDENTITY_TIER_BONDED: u8 = 1;
+pub const MAX_ATTESTER_EFFECTIVE_TIER: u8 = 3;
 pub const MAX_ATTESTER_CATEGORY_LEN: usize = 32;
 pub const IDENTITY_BOND_LAMPORTS: u64 = 100_000_000;
 pub const ATTESTER_BOND_LAMPORTS: u64 = 200_000_000;
@@ -53,10 +53,10 @@ pub const DISPUTE_SCOPE_BIT: u8 = 1 << 3;
 pub const DISPUTE_RESOLVED_SCOPE_BIT: u8 = 1 << 4;
 pub const CHALLENGE_SCOPE_BIT: u8 = 1 << 5;
 pub const CHALLENGE_RESPONSE_SCOPE_BIT: u8 = 1 << 6;
-pub const ATTESTATION_SCOPE_BIT: u8 = 1 << 7;
 
-// The audit receipt flow is not live yet, so delegation scopes only authorize
-// receipt kinds that can currently be emitted onchain.
+// Delegation scopes only cover the receipt kinds with explicit delegate-authorized
+// paths. Audit receipts and the commit/reveal helpers do not currently have their
+// own delegation bits.
 pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
     | HANDOFF_SCOPE_BIT
     | COMPLETION_SCOPE_BIT
@@ -68,9 +68,6 @@ pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
 pub const DEFAULT_COMPLETION_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_RESOLVED_WEIGHT: u64 = 1;
-
-pub const COMPLETION_CREDIT: u64 = DEFAULT_COMPLETION_WEIGHT;
-pub const DISPUTE_CREDIT: u64 = DEFAULT_DISPUTE_WEIGHT;
 
 pub const TASK_STATUS_PENDING: u8 = 0;
 pub const TASK_STATUS_ACTIVE: u8 = 1;
@@ -104,6 +101,9 @@ pub fn scope_bit_for_kind(kind: u8) -> Option<u8> {
         DISPUTE_RESOLVED_KIND => Some(DISPUTE_RESOLVED_SCOPE_BIT),
         CHALLENGE_KIND => Some(CHALLENGE_SCOPE_BIT),
         CHALLENGE_RESPONSE_KIND => Some(CHALLENGE_RESPONSE_SCOPE_BIT),
+        // These kinds are valid protocol receipts, but there is no delegation
+        // bitmap slot for them in the current on-chain delegation surface.
+        ATTESTATION_KIND | COMMIT_KIND | REVEAL_KIND => None,
         _ => None,
     }
 }

@@ -50,7 +50,8 @@ const REQUIRED_ERROR_NAMES = [
   "VerdictTargetIdentityMismatch",
   "VerdictDisputeReceiptMismatch",
   "VerdictOutcomeNotSlashable",
-  "VerdictChallengeNotImplemented",
+  "VerdictChallengeUnsupported",
+  "VerdictChallengeWindowOpen",
 ];
 
 test("canonical error taxonomy includes program-scoped failures", () => {

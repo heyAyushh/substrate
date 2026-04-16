@@ -42,10 +42,7 @@ pub mod attester_registry {
         instructions::register_attester::handler(ctx, category, self_declared_tier)
     }
 
-    pub fn set_attester_tier(
-        ctx: Context<SetAttesterTier>,
-        effective_tier: u8,
-    ) -> Result<()> {
+    pub fn set_attester_tier(ctx: Context<SetAttesterTier>, effective_tier: u8) -> Result<()> {
         instructions::set_attester_tier::handler(ctx, effective_tier)
     }
 

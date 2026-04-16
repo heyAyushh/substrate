@@ -1,9 +1,9 @@
 use crate::{
-    identity_registry::state::AgentIdentity,
     state::{CheckpointImporter, HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
     CheckpointImported, TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
+use identity_registry::state::AgentIdentity;
 use trust_substrate_core::{
     empty_frontier, CHECKPOINT_IMPORTER_SEED, EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED,
 };

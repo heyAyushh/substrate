@@ -2,10 +2,13 @@ use anchor_lang::{prelude::*, system_program};
 use identity_registry::state::{AgentIdentity, IdentityBond};
 use trust_substrate_core::{
     TrustSubstrateError, ATTESTER_BOND_LAMPORTS, ATTESTER_CONFIG_SEED, ATTESTER_RECORD_SEED,
-    IDENTITY_BOND_SEED, MAX_ATTESTER_CATEGORY_LEN, MAX_ATTESTER_TIER,
+    IDENTITY_BOND_SEED, MAX_ATTESTER_CATEGORY_LEN, MAX_ATTESTER_EFFECTIVE_TIER,
 };
 
-use crate::{events::AttesterRegistered, state::{AttesterRecord, AttesterRegistryConfig}};
+use crate::{
+    events::AttesterRegistered,
+    state::{AttesterRecord, AttesterRegistryConfig},
+};
 
 pub fn handler(
     ctx: Context<RegisterAttester>,
@@ -17,7 +20,7 @@ pub fn handler(
         TrustSubstrateError::AttesterCategoryInvalid
     );
     require!(
-        self_declared_tier <= MAX_ATTESTER_TIER,
+        self_declared_tier <= MAX_ATTESTER_EFFECTIVE_TIER,
         TrustSubstrateError::AttesterTierInvalid
     );
     require_keys_eq!(

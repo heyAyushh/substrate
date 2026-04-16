@@ -19,3 +19,12 @@ pub struct VerdictRecorded {
     pub adjudicator: Pubkey,
     pub slot: u64,
 }
+
+#[event]
+pub struct VerdictChallenged {
+    pub verdict: Pubkey,
+    pub dispute_receipt: Pubkey,
+    pub challenger: Pubkey,
+    pub adjudicator: Pubkey,
+    pub slot: u64,
+}

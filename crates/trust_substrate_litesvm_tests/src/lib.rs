@@ -21,9 +21,9 @@ pub use trust_substrate_core::{
     CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED, COMPLETION_KIND, COMPLETION_SCOPE_BIT,
     DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND, DOMAIN_CATALOG_SEED, DOMAIN_STATS_SEED,
     GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_BOND_SEED, IDENTITY_SEED,
-    LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, RUNTIME_ATTESTATION_SEED,
-    PENDING_ROTATION_SEED, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED,
-    ROTATION_COOLDOWN_SLOTS, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
+    LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
+    REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
+    RUNTIME_ATTESTATION_SEED, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
     TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
     TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE,
     VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY, VERDICT_SEED,
@@ -742,12 +742,12 @@ impl Harness {
         self_declared_tier: u8,
     ) -> TestResult<Pubkey> {
         let attester = attester_record_pda(identity.address);
-        let authority = if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id)
-        {
-            self.reviewer.clone()
-        } else {
-            self.payer.clone()
-        };
+        let authority =
+            if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id) {
+                self.reviewer.clone()
+            } else {
+                self.payer.clone()
+            };
         let ix = self.ix_register_attester(
             identity.address,
             authority.pubkey(),
@@ -771,12 +771,12 @@ impl Harness {
         runtime_authority: Pubkey,
     ) -> TestResult<Pubkey> {
         let runtime_attestation = runtime_attestation_pda(identity.address, runtime_commit);
-        let authority = if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id)
-        {
-            self.reviewer.clone()
-        } else {
-            self.payer.clone()
-        };
+        let authority =
+            if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id) {
+                self.reviewer.clone()
+            } else {
+                self.payer.clone()
+            };
         let ix = self.ix_append_runtime_attestation(
             identity.address,
             authority.pubkey(),
@@ -954,6 +954,12 @@ impl Harness {
             adjudicator.pubkey(),
         );
         self.send(ix, &[adjudicator])?;
+        Ok(())
+    }
+
+    pub fn challenge_verdict(&mut self, challenger: &Keypair, verdict: Pubkey) -> TestResult {
+        let ix = self.ix_challenge_verdict(challenger.pubkey(), verdict);
+        self.send(ix, &[challenger])?;
         Ok(())
     }
 
@@ -1552,6 +1558,21 @@ impl Harness {
         )
     }
 
+    pub fn ix_challenge_verdict(
+        &self,
+        challenger: Pubkey,
+        verdict: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            dispute_resolver::ID,
+            dispute_resolver::instruction::ChallengeVerdict {}.data(),
+            dispute_resolver::accounts::ChallengeVerdict {
+                challenger,
+                verdict,
+            },
+        )
+    }
+
     fn ix_initialize_checkpoint_importer(
         &self,
         authority: Pubkey,
@@ -2096,12 +2117,19 @@ fn identity_pda(authority: Pubkey, agent_id: [u8; 32]) -> Pubkey {
 }
 
 pub fn identity_bond_pda(identity: Pubkey) -> Pubkey {
-    pda(&[IDENTITY_BOND_SEED, identity.as_ref()], &identity_registry::ID)
+    pda(
+        &[IDENTITY_BOND_SEED, identity.as_ref()],
+        &identity_registry::ID,
+    )
 }
 
 pub fn runtime_attestation_pda(identity: Pubkey, runtime_commit: [u8; 32]) -> Pubkey {
     pda(
-        &[RUNTIME_ATTESTATION_SEED, identity.as_ref(), runtime_commit.as_ref()],
+        &[
+            RUNTIME_ATTESTATION_SEED,
+            identity.as_ref(),
+            runtime_commit.as_ref(),
+        ],
         &identity_registry::ID,
     )
 }
@@ -2111,7 +2139,10 @@ pub fn attester_registry_config_pda() -> Pubkey {
 }
 
 pub fn attester_record_pda(identity: Pubkey) -> Pubkey {
-    pda(&[ATTESTER_RECORD_SEED, identity.as_ref()], &attester_registry::ID)
+    pda(
+        &[ATTESTER_RECORD_SEED, identity.as_ref()],
+        &attester_registry::ID,
+    )
 }
 
 pub fn task_pda(identity: Pubkey, task_id: [u8; 32]) -> Pubkey {

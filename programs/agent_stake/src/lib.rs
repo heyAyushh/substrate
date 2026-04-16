@@ -1,8 +1,10 @@
+pub mod events;
 pub mod instructions;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
+pub use events::*;
 pub use instructions::*;
 pub use state::*;
 pub use trust_substrate_core::{
@@ -65,62 +67,6 @@ pub mod __cpi_client_accounts_stake {
 }
 
 declare_id!("GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ");
-
-#[event]
-pub struct StakeInitialized {
-    pub identity: Pubkey,
-    pub authority: Pubkey,
-    pub slash_authority: Pubkey,
-    pub trust_mode: u8,
-    pub slot: u64,
-}
-
-#[event]
-pub struct StakeDeposited {
-    pub identity: Pubkey,
-    pub authority: Pubkey,
-    pub amount: u64,
-    pub slot: u64,
-}
-
-#[event]
-pub struct StakeUnstakeRequested {
-    pub identity: Pubkey,
-    pub authority: Pubkey,
-    pub amount: u64,
-    pub pending_unstake_amount: u64,
-    pub unlocks_at_slot: u64,
-    pub slot: u64,
-}
-
-#[event]
-pub struct StakeUnstakeFinalized {
-    pub identity: Pubkey,
-    pub authority: Pubkey,
-    pub amount: u64,
-    pub slot: u64,
-}
-
-#[event]
-pub struct StakeSlashedWithVerdict {
-    pub identity: Pubkey,
-    pub adjudicator: Pubkey,
-    pub dispute_receipt: Pubkey,
-    pub verdict: Pubkey,
-    pub amount: u64,
-    pub trust_mode: u8,
-    pub slot: u64,
-}
-
-#[event]
-pub struct StakeSlashedByAuthority {
-    pub identity: Pubkey,
-    pub slash_authority: Pubkey,
-    pub dispute_receipt: Pubkey,
-    pub amount: u64,
-    pub trust_mode: u8,
-    pub slot: u64,
-}
 
 #[program]
 pub mod agent_stake {

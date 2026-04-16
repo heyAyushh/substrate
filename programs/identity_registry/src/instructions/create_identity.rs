@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use trust_substrate_core::IDENTITY_TIER0;
+use trust_substrate_core::IDENTITY_TIER_UNBONDED;
 
 use crate::state::AgentIdentity;
 
@@ -30,7 +30,7 @@ pub fn handler(
     identity.agent_id = agent_id;
     identity.policy_root = policy_root;
     identity.history_root = history_root;
-    identity.tier = IDENTITY_TIER0;
+    identity.tier = IDENTITY_TIER_UNBONDED;
     identity.open_task_count = 0;
     identity.open_challenge_count = 0;
     identity.active_stake = false;

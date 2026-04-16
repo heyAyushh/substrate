@@ -1,7 +1,5 @@
 pub mod events;
-pub mod identity_registry;
 pub mod instructions;
-pub mod receipt_emitter;
 pub mod state;
 
 use anchor_lang::prelude::*;

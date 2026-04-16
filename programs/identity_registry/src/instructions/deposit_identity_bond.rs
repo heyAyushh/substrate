@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, system_program};
 use trust_substrate_core::{
-    TrustSubstrateError, IDENTITY_BOND_LAMPORTS, IDENTITY_BOND_SEED, IDENTITY_TIER1,
+    TrustSubstrateError, IDENTITY_BOND_LAMPORTS, IDENTITY_BOND_SEED, IDENTITY_TIER_BONDED,
 };
 
 use crate::{
@@ -36,7 +36,7 @@ pub fn handler(ctx: Context<DepositIdentityBond>) -> Result<()> {
     bond.amount = IDENTITY_BOND_LAMPORTS;
     bond.bump = ctx.bumps.identity_bond;
 
-    ctx.accounts.identity.tier = IDENTITY_TIER1;
+    ctx.accounts.identity.tier = IDENTITY_TIER_BONDED;
 
     emit!(IdentityBondDeposited {
         identity: ctx.accounts.identity.key(),

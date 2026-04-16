@@ -1,8 +1,10 @@
+pub mod account_types;
 pub mod constants;
 pub mod error;
 pub mod merkle;
 pub mod model;
 
+pub use account_types::ReceiptRecordAccount;
 pub use constants::*;
 pub use error::*;
 pub use merkle::{

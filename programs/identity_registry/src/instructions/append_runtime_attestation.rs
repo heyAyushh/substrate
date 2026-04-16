@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use trust_substrate_core::{RUNTIME_ATTESTATION_SEED, TrustSubstrateError};
+use trust_substrate_core::{TrustSubstrateError, RUNTIME_ATTESTATION_SEED};
 
 use crate::{
     events::RuntimeAttestationAppended,

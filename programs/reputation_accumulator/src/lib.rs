@@ -1,16 +1,11 @@
-pub mod identity_registry;
 pub mod instructions;
-pub mod receipt_emitter;
 pub mod state;
 
 use anchor_lang::prelude::*;
 
 pub use instructions::*;
 pub use state::*;
-pub use trust_substrate_core::{
-    TrustSubstrateError, COMPLETION_CREDIT, COMPLETION_KIND, DISPUTE_CREDIT, DISPUTE_KIND,
-    REPUTATION_SEED,
-};
+pub use trust_substrate_core::{TrustSubstrateError, REPUTATION_SEED};
 
 pub mod __client_accounts_apply_reputation_receipt {
     pub use crate::instructions::apply_reputation_receipt::__client_accounts_apply_reputation_receipt::*;

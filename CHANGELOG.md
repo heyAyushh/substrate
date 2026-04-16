@@ -54,6 +54,10 @@ All notable changes to Trust Substrate are documented in this file.
   durable docs that remain, keeping the archive procedure in off-chain storage
   and the historical hardening record in the changelog and threat model instead
   of separate planning files.
+- Replaced the hand-copied receipt and identity account mirrors in
+  `proof_verifier`, `reputation_accumulator`, and `task_registry` with shared
+  source account views, and renamed the tier/scope constants so the remaining
+  names match the live protocol surface.
 - Added a threat-model document that maps all 23 audit findings to concrete
   hardening workstreams.
 - Program, security, testing, roadmap, and generated-client docs now reflect
@@ -74,6 +78,10 @@ All notable changes to Trust Substrate are documented in this file.
   `dist/index.js`, aligned the private package versions with the `0.1.0`
   release, and updated the example entrypoints to resolve through workspace
   package roots.
+- `challenge_verdict` now closes expired non-safety verdict PDAs instead of
+  rejecting every verdict challenge, and `agent_stake` now keeps its events in
+  a dedicated `events.rs` module with one consolidated validator-backed test
+  file for the stake lifecycle.
 
 ### Verified
 
@@ -93,3 +101,6 @@ All notable changes to Trust Substrate are documented in this file.
 - Added validator-backed TypeScript coverage for delegated revocation and
   dispute reputation verdict requirements, plus Surfpool-backed coverage for
   handoff grants and domain-stats snapshots.
+- Added Surfpool stake lifecycle event coverage and LiteSVM stale-verdict
+  challenge coverage, and updated the shared protocol error taxonomy for the
+  verdict-challenge cleanup path.

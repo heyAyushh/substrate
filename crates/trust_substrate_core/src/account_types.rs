@@ -1,12 +1,15 @@
+// Cyclic receipt_emitter consumers use this shared account view instead of
+// hand-copying the ReceiptRecord layout into each program crate.
 use anchor_lang::prelude::*;
 use std::io::Write;
-use trust_substrate_core::TrustSubstrateError;
+
+use crate::TrustSubstrateError;
 
 const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
 const RECEIPT_RECORD_DISCRIMINATOR: [u8; 8] = [51, 97, 207, 106, 28, 85, 70, 40];
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq)]
-pub struct ReceiptRecord {
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq, InitSpace)]
+pub struct ReceiptRecordAccount {
     pub identity: Pubkey,
     pub task: Pubkey,
     pub receipt_id: [u8; 32],
@@ -17,17 +20,22 @@ pub struct ReceiptRecord {
     pub previous_receipt: [u8; 32],
     pub payload_hash: [u8; 32],
     pub via_delegation: Pubkey,
+    pub auditor_identity: Pubkey,
+    pub target_receipt: Pubkey,
+    pub challenge_receipt: Pubkey,
+    pub deadline_slot: u64,
+    pub round: u16,
     pub bump: u8,
 }
 
-impl AccountSerialize for ReceiptRecord {
+impl AccountSerialize for ReceiptRecordAccount {
     fn try_serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
         writer.write_all(Self::DISCRIMINATOR)?;
         self.serialize(writer).map_err(Into::into)
     }
 }
 
-impl AccountDeserialize for ReceiptRecord {
+impl AccountDeserialize for ReceiptRecordAccount {
     fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
         let bytes = *buf;
         if bytes.len() < Self::DISCRIMINATOR.len()
@@ -47,11 +55,11 @@ impl AccountDeserialize for ReceiptRecord {
     }
 }
 
-impl Discriminator for ReceiptRecord {
+impl Discriminator for ReceiptRecordAccount {
     const DISCRIMINATOR: &'static [u8] = &RECEIPT_RECORD_DISCRIMINATOR;
 }
 
-impl Owner for ReceiptRecord {
+impl Owner for ReceiptRecordAccount {
     fn owner() -> Pubkey {
         RECEIPT_EMITTER_PROGRAM_ID
     }

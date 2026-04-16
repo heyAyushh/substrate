@@ -1974,6 +1974,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "identity_registry",
+ "receipt_emitter",
  "trust_substrate_core",
 ]
 
@@ -2138,6 +2139,7 @@ name = "reputation_accumulator"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "identity_registry",
  "trust_substrate_core",
 ]
 

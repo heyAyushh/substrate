@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
-use trust_substrate_core::{
-    TrustSubstrateError, IDENTITY_BOND_SEED, IDENTITY_TIER0,
-};
+use trust_substrate_core::{TrustSubstrateError, IDENTITY_BOND_SEED, IDENTITY_TIER_UNBONDED};
 
 use crate::{
     events::IdentityBondWithdrawn,
@@ -29,7 +27,7 @@ pub fn handler(ctx: Context<WithdrawIdentityBond>) -> Result<()> {
 
     let amount = ctx.accounts.identity_bond.amount;
     require!(amount > 0, TrustSubstrateError::IdentityNotBonded);
-    ctx.accounts.identity.tier = IDENTITY_TIER0;
+    ctx.accounts.identity.tier = IDENTITY_TIER_UNBONDED;
 
     emit!(IdentityBondWithdrawn {
         identity: ctx.accounts.identity.key(),

@@ -1,11 +1,11 @@
 use crate::{
     events::CheckpointReceiptAppended,
-    identity_registry::state::AgentIdentity,
-    receipt_emitter,
     state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
     TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
+use identity_registry::state::AgentIdentity;
+use receipt_emitter::state::ReceiptRecord;
 use std::cmp::Ordering;
 use trust_substrate_core::{append_leaf, frontier_root, LATEST_CHECKPOINT_SEED};
 
@@ -86,10 +86,7 @@ pub fn handler(ctx: Context<AppendReceiptToCheckpoint>) -> Result<()> {
     Ok(())
 }
 
-fn receipt_position_after(
-    checkpoint: &HistoryCheckpoint,
-    receipt: &receipt_emitter::state::ReceiptRecord,
-) -> bool {
+fn receipt_position_after(checkpoint: &HistoryCheckpoint, receipt: &ReceiptRecord) -> bool {
     if checkpoint.leaf_count == 0 {
         return receipt.sequence == 1;
     }
@@ -129,7 +126,7 @@ pub struct AppendReceiptToCheckpoint<'info> {
         constraint = latest_checkpoint.identity == checkpoint.identity @ TrustSubstrateError::CheckpointIdentityMismatch
     )]
     pub latest_checkpoint: Box<Account<'info, LatestCheckpoint>>,
-    pub receipt: Account<'info, receipt_emitter::state::ReceiptRecord>,
+    pub receipt: Account<'info, ReceiptRecord>,
     #[account(
         seeds = [b"history_updater"],
         bump

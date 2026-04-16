@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
-use trust_substrate_core::{TrustSubstrateError, ATTESTER_CONFIG_SEED, MAX_ATTESTER_TIER};
+use trust_substrate_core::{
+    TrustSubstrateError, ATTESTER_CONFIG_SEED, MAX_ATTESTER_EFFECTIVE_TIER,
+};
 
 use crate::{
     events::AttesterTierUpdated,
@@ -8,7 +10,7 @@ use crate::{
 
 pub fn handler(ctx: Context<SetAttesterTier>, effective_tier: u8) -> Result<()> {
     require!(
-        effective_tier <= MAX_ATTESTER_TIER,
+        effective_tier <= MAX_ATTESTER_EFFECTIVE_TIER,
         TrustSubstrateError::AttesterTierInvalid
     );
     require_keys_eq!(

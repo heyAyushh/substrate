@@ -29,22 +29,15 @@ fn runtime_attestations_append_versioned_history() -> TestResult {
     let mut h = Harness::new()?;
     let identity = h.create_identity(251)?;
 
-    let first_runtime = h.append_runtime_attestation(
-        &identity,
-        bytes32(252),
-        h.payer_pubkey(),
-    )?;
+    let first_runtime = h.append_runtime_attestation(&identity, bytes32(252), h.payer_pubkey())?;
     let first_record: identity_registry::state::RuntimeAttestation = h.account(first_runtime);
     assert_eq!(first_record.identity, identity.address);
     assert_eq!(first_record.runtime_commit, bytes32(252));
 
     h.advance_slots(1);
 
-    let second_runtime = h.append_runtime_attestation(
-        &identity,
-        bytes32(253),
-        h.reviewer_pubkey(),
-    )?;
+    let second_runtime =
+        h.append_runtime_attestation(&identity, bytes32(253), h.reviewer_pubkey())?;
     let second_record: identity_registry::state::RuntimeAttestation = h.account(second_runtime);
     assert_eq!(second_record.runtime_authority, h.reviewer_pubkey());
     assert!(second_record.valid_from_slot > first_record.valid_from_slot);

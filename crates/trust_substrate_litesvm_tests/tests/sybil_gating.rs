@@ -24,7 +24,12 @@ fn tier0_identities_cannot_emit_audit_receipts_until_bonded() -> TestResult {
         &reviewer,
         builder.address,
         target_receipt,
-        audit_receipt_pda(reviewer.address, target_receipt, CHALLENGE_KIND, FIRST_AUDIT_ROUND),
+        audit_receipt_pda(
+            reviewer.address,
+            target_receipt,
+            CHALLENGE_KIND,
+            FIRST_AUDIT_ROUND,
+        ),
         CHALLENGE_KIND,
         domain,
         FIRST_AUDIT_ROUND,
@@ -90,4 +95,3 @@ fn identity_bond_withdraw_requires_settled_identity_state() -> TestResult {
 
     Ok(())
 }
-
