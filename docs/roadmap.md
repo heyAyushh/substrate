@@ -9,11 +9,19 @@ later.
 The execution graph is the record. Scores, profiles, and trust views are
 derived from that graph.
 
+## Production Readiness To-Do
+
+The active checklist for current production boundaries lives in
+[Production Readiness To-Do](production-readiness.md)
+(`docs/production-readiness.md`). Keep that file in sync with the security
+known-gaps list before claiming a gap is closed.
+
 ## Phase 1: Identity, Task, And Receipt Flow
 
 Open follow-ups:
 
 - richer task DAG constraints across parent and subtask receipts
+- richer sequence ordering tests across interleaved tasks and domains
 - generated-client adoption in higher-level examples and package consumers
 - broader authority-transition examples beyond the protocol tests
 
@@ -22,6 +30,7 @@ Open follow-ups:
 Open follow-ups:
 
 - explicit multi-hop handoff proof chains
+- on-chain proof constraints for handoff chains beyond local reconstruction
 - clearer authority-chain display in the agent simulation
 
 ## Off-Chain Storage
@@ -51,10 +60,13 @@ Open follow-ups:
 
 - move slash policy from an authority key into a dedicated dispute-resolution program
 - bind slash amounts to structured verdict accounts instead of private receipt payloads
+- decide whether v1 authority/adjudicator slashing is the accepted production policy
 
 ## Phase 5: SDK, Indexer, And Agent Integration
 
 Open follow-ups:
 
+- production RPC orchestration through generated `@solana/kit` clients
 - production event ingestion design
+- networked event pipeline with backfill, reconnect, and replay handling
 - generated-client use in agent-facing integration flows
