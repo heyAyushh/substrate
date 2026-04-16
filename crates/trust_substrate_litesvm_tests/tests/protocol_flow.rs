@@ -1,6 +1,6 @@
-use trust_substrate_core::EMPTY_MERKLE_ROOT;
 use anchor_lang::prelude::Pubkey;
 use solana_signer::Signer;
+use trust_substrate_core::EMPTY_MERKLE_ROOT;
 use trust_substrate_litesvm_tests::*;
 
 #[test]

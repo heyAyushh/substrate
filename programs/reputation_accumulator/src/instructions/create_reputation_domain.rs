@@ -1,6 +1,6 @@
 use crate::{
-    identity_registry::state::AgentIdentity, state::ReputationAccumulator, state::ReputationDomainCatalog, TrustSubstrateError,
-    REPUTATION_SEED,
+    identity_registry::state::AgentIdentity, state::ReputationAccumulator,
+    state::ReputationDomainCatalog, TrustSubstrateError, REPUTATION_SEED,
 };
 use anchor_lang::prelude::*;
 use trust_substrate_core::{

@@ -7,5 +7,6 @@
  */
 
 export * from "./appliedReputationReceipt";
+export * from "./domainStatsSnapshot";
 export * from "./reputationAccumulator";
 export * from "./reputationDomainCatalog";

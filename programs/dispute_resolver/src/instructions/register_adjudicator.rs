@@ -1,4 +1,7 @@
-use crate::{AdjudicatorRegistered, state::{AdjudicatorConfig, TreasuryVault}};
+use crate::{
+    state::{AdjudicatorConfig, TreasuryVault},
+    AdjudicatorRegistered,
+};
 use anchor_lang::prelude::*;
 use trust_substrate_core::{ADJUDICATOR_CONFIG_SEED, TREASURY_VAULT_SEED};
 

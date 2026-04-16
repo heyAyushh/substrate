@@ -58,6 +58,6 @@ export function getDelegationRevokedCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getDelegationRevokedEncoder(),
-    getDelegationRevokedDecoder()
+    getDelegationRevokedDecoder(),
   );
 }

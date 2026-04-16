@@ -49,7 +49,7 @@ export const HISTORY_CHECKPOINT_DISCRIMINATOR = new Uint8Array([
 
 export function getHistoryCheckpointDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    HISTORY_CHECKPOINT_DISCRIMINATOR
+    HISTORY_CHECKPOINT_DISCRIMINATOR,
   );
 }
 
@@ -102,7 +102,7 @@ export function getHistoryCheckpointEncoder(): FixedSizeEncoder<HistoryCheckpoin
       ],
       ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: HISTORY_CHECKPOINT_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: HISTORY_CHECKPOINT_DISCRIMINATOR }),
   );
 }
 
@@ -134,31 +134,31 @@ export function getHistoryCheckpointCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getHistoryCheckpointEncoder(),
-    getHistoryCheckpointDecoder()
+    getHistoryCheckpointDecoder(),
   );
 }
 
 export function decodeHistoryCheckpoint<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<HistoryCheckpoint, TAddress>;
 export function decodeHistoryCheckpoint<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<HistoryCheckpoint, TAddress>;
 export function decodeHistoryCheckpoint<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ):
   | Account<HistoryCheckpoint, TAddress>
   | MaybeAccount<HistoryCheckpoint, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getHistoryCheckpointDecoder()
+    getHistoryCheckpointDecoder(),
   );
 }
 
 export async function fetchHistoryCheckpoint<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<HistoryCheckpoint, TAddress>> {
   const maybeAccount = await fetchMaybeHistoryCheckpoint(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -166,11 +166,11 @@ export async function fetchHistoryCheckpoint<TAddress extends string = string>(
 }
 
 export async function fetchMaybeHistoryCheckpoint<
-  TAddress extends string = string
+  TAddress extends string = string,
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<HistoryCheckpoint, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeHistoryCheckpoint(maybeAccount);
@@ -179,12 +179,12 @@ export async function fetchMaybeHistoryCheckpoint<
 export async function fetchAllHistoryCheckpoint(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<HistoryCheckpoint>[]> {
   const maybeAccounts = await fetchAllMaybeHistoryCheckpoint(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -193,11 +193,11 @@ export async function fetchAllHistoryCheckpoint(
 export async function fetchAllMaybeHistoryCheckpoint(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<HistoryCheckpoint>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeHistoryCheckpoint(maybeAccount)
+    decodeHistoryCheckpoint(maybeAccount),
   );
 }
 

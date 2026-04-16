@@ -20,6 +20,7 @@ pub const LATEST_CHECKPOINT_SEED: &[u8] = b"latest_checkpoint";
 pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
 pub const REPUTATION_RECEIPT_APPLICATION_SEED: &[u8] = b"reputation_receipt_application";
 pub const DOMAIN_CATALOG_SEED: &[u8] = b"domain_catalog";
+pub const DOMAIN_STATS_SEED: &[u8] = b"domain_stats";
 
 pub const EMPTY_SCOPE_BITMAP: u8 = 0;
 

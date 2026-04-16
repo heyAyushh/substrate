@@ -9,6 +9,7 @@
 export * from "./emitAuditReceipt";
 export * from "./emitChallengeResponse";
 export * from "./emitDelegatedReceipt";
+export * from "./emitHandoffGrant";
 export * from "./emitReceipt";
 export * from "./finalizeUnansweredChallenge";
 export * from "./initializeCpiAuthority";

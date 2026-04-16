@@ -12,6 +12,7 @@ const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const REPUTATION_SEED = "reputation";
 const DOMAIN_CATALOG_SEED = "domain_catalog";
+const DOMAIN_STATS_SEED = "domain_stats";
 const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
 const AUDIT_RECEIPT_SEED = "audit_receipt";
 const VERDICT_SEED = "verdict";
@@ -32,6 +33,10 @@ function u16Le(value: number): Buffer {
   const buffer = Buffer.alloc(2);
   buffer.writeUInt16LE(value);
   return buffer;
+}
+
+function u64Le(value: number): Buffer {
+  return new anchor.BN(value).toArrayLike(Buffer, "le", 8);
 }
 
 function pda<T>(
@@ -641,6 +646,59 @@ describe("reputation domain catalog", () => {
     const reputationAccount =
       await reputationProgram.account.reputationAccumulator.fetch(reputation);
     strictEqual(reputationAccount.disputed.toNumber(), 1);
+  });
+
+  it("writes signed domain stats snapshots for registered domains", async () => {
+    const domain = bytes32(250);
+    const snapshotSlot = 251;
+    const receiptCount = 12;
+    const taskCount = 4;
+    const agentCount = 3;
+    const payloadHash = bytes32(252);
+
+    await ensureDomainRegistered(domain);
+
+    const [domainStatsSnapshot] = pda(reputationProgram, [
+      seed(DOMAIN_STATS_SEED),
+      Buffer.from(domain),
+      authority.toBuffer(),
+      u64Le(snapshotSlot),
+    ]);
+
+    await reputationProgram.methods
+      .writeDomainStatsSnapshot(
+        domain,
+        new anchor.BN(receiptCount),
+        new anchor.BN(taskCount),
+        new anchor.BN(agentCount),
+        new anchor.BN(snapshotSlot),
+        payloadHash
+      )
+      .accountsStrict({
+        operator: authority,
+        domainCatalog,
+        domainStatsSnapshot,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const snapshot = await reputationProgram.account.domainStatsSnapshot.fetch(
+      domainStatsSnapshot
+    );
+
+    strictEqual(
+      Buffer.from(snapshot.domain).toString("hex"),
+      Buffer.from(domain).toString("hex")
+    );
+    strictEqual(snapshot.operator.toBase58(), authority.toBase58());
+    strictEqual(snapshot.receiptCount.toNumber(), receiptCount);
+    strictEqual(snapshot.taskCount.toNumber(), taskCount);
+    strictEqual(snapshot.agentCount.toNumber(), agentCount);
+    strictEqual(snapshot.snapshotSlot.toNumber(), snapshotSlot);
+    strictEqual(
+      Buffer.from(snapshot.payloadHash).toString("hex"),
+      Buffer.from(payloadHash).toString("hex")
+    );
   });
 
   async function fund(publicKey: anchor.web3.PublicKey) {

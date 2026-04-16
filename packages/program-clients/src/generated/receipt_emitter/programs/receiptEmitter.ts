@@ -44,24 +44,28 @@ import {
   getEmitAuditReceiptInstructionAsync,
   getEmitChallengeResponseInstructionAsync,
   getEmitDelegatedReceiptInstructionAsync,
+  getEmitHandoffGrantInstructionAsync,
   getEmitReceiptInstructionAsync,
   getFinalizeUnansweredChallengeInstructionAsync,
   getInitializeCpiAuthorityInstructionAsync,
   parseEmitAuditReceiptInstruction,
   parseEmitChallengeResponseInstruction,
   parseEmitDelegatedReceiptInstruction,
+  parseEmitHandoffGrantInstruction,
   parseEmitReceiptInstruction,
   parseFinalizeUnansweredChallengeInstruction,
   parseInitializeCpiAuthorityInstruction,
   type EmitAuditReceiptAsyncInput,
   type EmitChallengeResponseAsyncInput,
   type EmitDelegatedReceiptAsyncInput,
+  type EmitHandoffGrantAsyncInput,
   type EmitReceiptAsyncInput,
   type FinalizeUnansweredChallengeAsyncInput,
   type InitializeCpiAuthorityAsyncInput,
   type ParsedEmitAuditReceiptInstruction,
   type ParsedEmitChallengeResponseInstruction,
   type ParsedEmitDelegatedReceiptInstruction,
+  type ParsedEmitHandoffGrantInstruction,
   type ParsedEmitReceiptInstruction,
   type ParsedFinalizeUnansweredChallengeInstruction,
   type ParsedInitializeCpiAuthorityInstruction,
@@ -117,6 +121,7 @@ export enum ReceiptEmitterInstruction {
   EmitAuditReceipt,
   EmitChallengeResponse,
   EmitDelegatedReceipt,
+  EmitHandoffGrant,
   EmitReceipt,
   FinalizeUnansweredChallenge,
   InitializeCpiAuthority,
@@ -158,6 +163,17 @@ export function identifyReceiptEmitterInstruction(
     )
   ) {
     return ReceiptEmitterInstruction.EmitDelegatedReceipt;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([62, 80, 4, 222, 5, 37, 175, 127]),
+      ),
+      0,
+    )
+  ) {
+    return ReceiptEmitterInstruction.EmitHandoffGrant;
   }
   if (
     containsBytes(
@@ -211,6 +227,9 @@ export type ParsedReceiptEmitterInstruction<
       instructionType: ReceiptEmitterInstruction.EmitDelegatedReceipt;
     } & ParsedEmitDelegatedReceiptInstruction<TProgram>)
   | ({
+      instructionType: ReceiptEmitterInstruction.EmitHandoffGrant;
+    } & ParsedEmitHandoffGrantInstruction<TProgram>)
+  | ({
       instructionType: ReceiptEmitterInstruction.EmitReceipt;
     } & ParsedEmitReceiptInstruction<TProgram>)
   | ({
@@ -244,6 +263,13 @@ export function parseReceiptEmitterInstruction<TProgram extends string>(
       return {
         instructionType: ReceiptEmitterInstruction.EmitDelegatedReceipt,
         ...parseEmitDelegatedReceiptInstruction(instruction),
+      };
+    }
+    case ReceiptEmitterInstruction.EmitHandoffGrant: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: ReceiptEmitterInstruction.EmitHandoffGrant,
+        ...parseEmitHandoffGrantInstruction(instruction),
       };
     }
     case ReceiptEmitterInstruction.EmitReceipt: {
@@ -304,6 +330,10 @@ export type ReceiptEmitterPluginInstructions = {
     input: EmitDelegatedReceiptAsyncInput,
   ) => ReturnType<typeof getEmitDelegatedReceiptInstructionAsync> &
     SelfPlanAndSendFunctions;
+  emitHandoffGrant: (
+    input: EmitHandoffGrantAsyncInput,
+  ) => ReturnType<typeof getEmitHandoffGrantInstructionAsync> &
+    SelfPlanAndSendFunctions;
   emitReceipt: (
     input: EmitReceiptAsyncInput,
   ) => ReturnType<typeof getEmitReceiptInstructionAsync> &
@@ -356,6 +386,11 @@ export function receiptEmitterProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getEmitDelegatedReceiptInstructionAsync(input),
+            ),
+          emitHandoffGrant: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getEmitHandoffGrantInstructionAsync(input),
             ),
           emitReceipt: (input) =>
             addSelfPlanAndSendFunctions(

@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::state::HistoryUpdater;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 pub struct InitializeHistoryUpdater<'info> {

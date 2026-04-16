@@ -36,6 +36,10 @@ pub mod __client_accounts_deprecate_domain {
     pub use crate::instructions::deprecate_domain::__client_accounts_deprecate_domain::*;
 }
 
+pub mod __client_accounts_write_domain_stats_snapshot {
+    pub use crate::instructions::write_domain_stats_snapshot::__client_accounts_write_domain_stats_snapshot::*;
+}
+
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_apply_reputation_receipt {
     pub use crate::instructions::apply_reputation_receipt::__cpi_client_accounts_apply_reputation_receipt::*;
@@ -64,6 +68,11 @@ pub mod __cpi_client_accounts_register_domain {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_deprecate_domain {
     pub use crate::instructions::deprecate_domain::__cpi_client_accounts_deprecate_domain::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_write_domain_stats_snapshot {
+    pub use crate::instructions::write_domain_stats_snapshot::__cpi_client_accounts_write_domain_stats_snapshot::*;
 }
 
 declare_id!("8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv");
@@ -104,7 +113,29 @@ pub mod reputation_accumulator {
         instructions::apply_reputation_receipt::handler(ctx)
     }
 
-    pub fn reputation_receipt_already_applied(ctx: Context<ReputationReceiptAlreadyApplied>) -> Result<()> {
+    pub fn reputation_receipt_already_applied(
+        ctx: Context<ReputationReceiptAlreadyApplied>,
+    ) -> Result<()> {
         instructions::apply_reputation_receipt::already_applied_handler(ctx)
+    }
+
+    pub fn write_domain_stats_snapshot(
+        ctx: Context<WriteDomainStatsSnapshot>,
+        domain: [u8; 32],
+        receipt_count: u64,
+        task_count: u64,
+        agent_count: u64,
+        snapshot_slot: u64,
+        payload_hash: [u8; 32],
+    ) -> Result<()> {
+        instructions::write_domain_stats_snapshot::handler(
+            ctx,
+            domain,
+            receipt_count,
+            task_count,
+            agent_count,
+            snapshot_slot,
+            payload_hash,
+        )
     }
 }

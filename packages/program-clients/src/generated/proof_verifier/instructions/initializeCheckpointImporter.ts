@@ -47,7 +47,7 @@ export const INITIALIZE_CHECKPOINT_IMPORTER_DISCRIMINATOR = new Uint8Array([
 
 export function getInitializeCheckpointImporterDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    INITIALIZE_CHECKPOINT_IMPORTER_DISCRIMINATOR
+    INITIALIZE_CHECKPOINT_IMPORTER_DISCRIMINATOR,
   );
 }
 
@@ -55,10 +55,9 @@ export type InitializeCheckpointImporterInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
   TAccountPayer extends string | AccountMeta<string> = string,
   TAccountCheckpointImporter extends string | AccountMeta<string> = string,
-  TAccountSystemProgram extends
-    | string
-    | AccountMeta<string> = "11111111111111111111111111111111",
-  TRemainingAccounts extends readonly AccountMeta<string>[] = []
+  TAccountSystemProgram extends string | AccountMeta<string> =
+    "11111111111111111111111111111111",
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -73,7 +72,7 @@ export type InitializeCheckpointImporterInstruction<
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -95,7 +94,7 @@ export function getInitializeCheckpointImporterInstructionDataEncoder(): FixedSi
     (value) => ({
       ...value,
       discriminator: INITIALIZE_CHECKPOINT_IMPORTER_DISCRIMINATOR,
-    })
+    }),
   );
 }
 
@@ -112,14 +111,14 @@ export function getInitializeCheckpointImporterInstructionDataCodec(): FixedSize
 > {
   return combineCodec(
     getInitializeCheckpointImporterInstructionDataEncoder(),
-    getInitializeCheckpointImporterInstructionDataDecoder()
+    getInitializeCheckpointImporterInstructionDataDecoder(),
   );
 }
 
 export type InitializeCheckpointImporterAsyncInput<
   TAccountPayer extends string = string,
   TAccountCheckpointImporter extends string = string,
-  TAccountSystemProgram extends string = string
+  TAccountSystemProgram extends string = string,
 > = {
   payer: TransactionSigner<TAccountPayer>;
   checkpointImporter?: Address<TAccountCheckpointImporter>;
@@ -131,14 +130,14 @@ export async function getInitializeCheckpointImporterInstructionAsync<
   TAccountPayer extends string,
   TAccountCheckpointImporter extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS
+  TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
   input: InitializeCheckpointImporterAsyncInput<
     TAccountPayer,
     TAccountCheckpointImporter,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): Promise<
   InitializeCheckpointImporterInstruction<
     TProgramAddress,
@@ -185,16 +184,21 @@ export async function getInitializeCheckpointImporterInstructionAsync<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getInitializeCheckpointImporterInstructionDataEncoder().encode(
-      args as InitializeCheckpointImporterInstructionDataArgs
+      args as InitializeCheckpointImporterInstructionDataArgs,
     ),
     programAddress,
-  } as InitializeCheckpointImporterInstruction<TProgramAddress, TAccountPayer, TAccountCheckpointImporter, TAccountSystemProgram>);
+  } as InitializeCheckpointImporterInstruction<
+    TProgramAddress,
+    TAccountPayer,
+    TAccountCheckpointImporter,
+    TAccountSystemProgram
+  >);
 }
 
 export type InitializeCheckpointImporterInput<
   TAccountPayer extends string = string,
   TAccountCheckpointImporter extends string = string,
-  TAccountSystemProgram extends string = string
+  TAccountSystemProgram extends string = string,
 > = {
   payer: TransactionSigner<TAccountPayer>;
   checkpointImporter: Address<TAccountCheckpointImporter>;
@@ -206,14 +210,14 @@ export function getInitializeCheckpointImporterInstruction<
   TAccountPayer extends string,
   TAccountCheckpointImporter extends string,
   TAccountSystemProgram extends string,
-  TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS
+  TProgramAddress extends Address = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
 >(
   input: InitializeCheckpointImporterInput<
     TAccountPayer,
     TAccountCheckpointImporter,
     TAccountSystemProgram
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): InitializeCheckpointImporterInstruction<
   TProgramAddress,
   TAccountPayer,
@@ -255,15 +259,20 @@ export function getInitializeCheckpointImporterInstruction<
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getInitializeCheckpointImporterInstructionDataEncoder().encode(
-      args as InitializeCheckpointImporterInstructionDataArgs
+      args as InitializeCheckpointImporterInstructionDataArgs,
     ),
     programAddress,
-  } as InitializeCheckpointImporterInstruction<TProgramAddress, TAccountPayer, TAccountCheckpointImporter, TAccountSystemProgram>);
+  } as InitializeCheckpointImporterInstruction<
+    TProgramAddress,
+    TAccountPayer,
+    TAccountCheckpointImporter,
+    TAccountSystemProgram
+  >);
 }
 
 export type ParsedInitializeCheckpointImporterInstruction<
   TProgram extends string = typeof PROOF_VERIFIER_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -276,11 +285,11 @@ export type ParsedInitializeCheckpointImporterInstruction<
 
 export function parseInitializeCheckpointImporterInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeCheckpointImporterInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     throw new SolanaError(
@@ -288,7 +297,7 @@ export function parseInitializeCheckpointImporterInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 3,
-      }
+      },
     );
   }
   let accountIndex = 0;
@@ -305,7 +314,7 @@ export function parseInitializeCheckpointImporterInstruction<
       systemProgram: getNextAccount(),
     },
     data: getInitializeCheckpointImporterInstructionDataDecoder().decode(
-      instruction.data
+      instruction.data,
     ),
   };
 }

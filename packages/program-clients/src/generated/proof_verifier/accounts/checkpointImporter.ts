@@ -43,7 +43,7 @@ export const CHECKPOINT_IMPORTER_DISCRIMINATOR = new Uint8Array([
 
 export function getCheckpointImporterDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    CHECKPOINT_IMPORTER_DISCRIMINATOR
+    CHECKPOINT_IMPORTER_DISCRIMINATOR,
   );
 }
 
@@ -63,7 +63,7 @@ export function getCheckpointImporterEncoder(): FixedSizeEncoder<CheckpointImpor
       ["authority", getAddressEncoder()],
       ["bump", getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: CHECKPOINT_IMPORTER_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: CHECKPOINT_IMPORTER_DISCRIMINATOR }),
   );
 }
 
@@ -83,31 +83,31 @@ export function getCheckpointImporterCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCheckpointImporterEncoder(),
-    getCheckpointImporterDecoder()
+    getCheckpointImporterDecoder(),
   );
 }
 
 export function decodeCheckpointImporter<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress>,
 ): Account<CheckpointImporter, TAddress>;
 export function decodeCheckpointImporter<TAddress extends string = string>(
-  encodedAccount: MaybeEncodedAccount<TAddress>
+  encodedAccount: MaybeEncodedAccount<TAddress>,
 ): MaybeAccount<CheckpointImporter, TAddress>;
 export function decodeCheckpointImporter<TAddress extends string = string>(
-  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>
+  encodedAccount: EncodedAccount<TAddress> | MaybeEncodedAccount<TAddress>,
 ):
   | Account<CheckpointImporter, TAddress>
   | MaybeAccount<CheckpointImporter, TAddress> {
   return decodeAccount(
     encodedAccount as MaybeEncodedAccount<TAddress>,
-    getCheckpointImporterDecoder()
+    getCheckpointImporterDecoder(),
   );
 }
 
 export async function fetchCheckpointImporter<TAddress extends string = string>(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<Account<CheckpointImporter, TAddress>> {
   const maybeAccount = await fetchMaybeCheckpointImporter(rpc, address, config);
   assertAccountExists(maybeAccount);
@@ -115,11 +115,11 @@ export async function fetchCheckpointImporter<TAddress extends string = string>(
 }
 
 export async function fetchMaybeCheckpointImporter<
-  TAddress extends string = string
+  TAddress extends string = string,
 >(
   rpc: Parameters<typeof fetchEncodedAccount>[0],
   address: Address<TAddress>,
-  config?: FetchAccountConfig
+  config?: FetchAccountConfig,
 ): Promise<MaybeAccount<CheckpointImporter, TAddress>> {
   const maybeAccount = await fetchEncodedAccount(rpc, address, config);
   return decodeCheckpointImporter(maybeAccount);
@@ -128,12 +128,12 @@ export async function fetchMaybeCheckpointImporter<
 export async function fetchAllCheckpointImporter(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<Account<CheckpointImporter>[]> {
   const maybeAccounts = await fetchAllMaybeCheckpointImporter(
     rpc,
     addresses,
-    config
+    config,
   );
   assertAccountsExist(maybeAccounts);
   return maybeAccounts;
@@ -142,11 +142,11 @@ export async function fetchAllCheckpointImporter(
 export async function fetchAllMaybeCheckpointImporter(
   rpc: Parameters<typeof fetchEncodedAccounts>[0],
   addresses: Array<Address>,
-  config?: FetchAccountsConfig
+  config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<CheckpointImporter>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) =>
-    decodeCheckpointImporter(maybeAccount)
+    decodeCheckpointImporter(maybeAccount),
   );
 }
 

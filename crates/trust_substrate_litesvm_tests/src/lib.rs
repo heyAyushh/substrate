@@ -19,8 +19,8 @@ pub use trust_substrate_core::{
     ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
     CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
     COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
-    DOMAIN_CATALOG_SEED, GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED,
-    LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
+    DOMAIN_CATALOG_SEED, DOMAIN_STATS_SEED, GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT,
+    IDENTITY_SEED, LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
     REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
     SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
     TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
@@ -440,6 +440,38 @@ impl Harness {
         Ok(receipt)
     }
 
+    pub fn emit_handoff_grant(
+        &mut self,
+        identity: &IdentityFixture,
+        task: Pubkey,
+        delegate: Pubkey,
+        receipt_byte: u8,
+        sequence: u64,
+        domain: [u8; 32],
+        previous_receipt: [u8; 32],
+        allowed_actions: u8,
+        expires_at_slot: u64,
+    ) -> TestResult<(Pubkey, Pubkey)> {
+        let receipt_id = bytes32(receipt_byte);
+        let receipt = receipt_pda(identity.address, task, receipt_id);
+        let delegation = delegation_pda(identity.address, delegate);
+        let ix = self.ix_emit_handoff_grant(
+            identity,
+            task,
+            delegate,
+            receipt,
+            delegation,
+            receipt_id,
+            sequence,
+            domain,
+            previous_receipt,
+            allowed_actions,
+            expires_at_slot,
+        );
+        self.send_as_payer(ix)?;
+        Ok((receipt, delegation))
+    }
+
     pub fn emit_audit_receipt(
         &mut self,
         auditor: &IdentityFixture,
@@ -671,6 +703,31 @@ impl Harness {
         Ok(())
     }
 
+    pub fn write_domain_stats_snapshot(
+        &mut self,
+        operator: &Keypair,
+        domain: [u8; 32],
+        receipt_count: u64,
+        task_count: u64,
+        agent_count: u64,
+        snapshot_slot: u64,
+        payload_hash: [u8; 32],
+    ) -> TestResult<Pubkey> {
+        let domain_stats_snapshot =
+            domain_stats_snapshot_pda(domain, operator.pubkey(), snapshot_slot);
+        let ix = self.ix_write_domain_stats_snapshot(
+            operator.pubkey(),
+            domain,
+            receipt_count,
+            task_count,
+            agent_count,
+            snapshot_slot,
+            payload_hash,
+        );
+        self.send(ix, &[operator])?;
+        Ok(domain_stats_snapshot)
+    }
+
     pub fn initialize_stake(
         &mut self,
         identity: &IdentityFixture,
@@ -884,6 +941,48 @@ impl Harness {
                 domain_catalog: self.domain_catalog,
                 cpi_authority: self.cpi_authority,
                 task_registry_program: task_registry::ID,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_emit_handoff_grant(
+        &self,
+        identity: &IdentityFixture,
+        task: Pubkey,
+        delegate: Pubkey,
+        receipt: Pubkey,
+        delegation: Pubkey,
+        receipt_id: [u8; 32],
+        sequence: u64,
+        domain: [u8; 32],
+        previous_receipt: [u8; 32],
+        allowed_actions: u8,
+        expires_at_slot: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            receipt_emitter::ID,
+            receipt_emitter::instruction::EmitHandoffGrant {
+                receipt_id,
+                sequence,
+                domain,
+                previous_receipt,
+                payload_hash: bytes32(208),
+                allowed_actions,
+                expires_at_slot,
+            }
+            .data(),
+            receipt_emitter::accounts::EmitHandoffGrant {
+                authority: self.payer.pubkey(),
+                identity: identity.address,
+                delegate,
+                task,
+                receipt,
+                delegation,
+                domain_catalog: self.domain_catalog,
+                cpi_authority: self.cpi_authority,
+                task_registry_program: task_registry::ID,
+                delegation_engine_program: delegation_engine::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1379,6 +1478,36 @@ impl Harness {
         )
     }
 
+    pub fn ix_write_domain_stats_snapshot(
+        &self,
+        operator: Pubkey,
+        domain: [u8; 32],
+        receipt_count: u64,
+        task_count: u64,
+        agent_count: u64,
+        snapshot_slot: u64,
+        payload_hash: [u8; 32],
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            reputation_accumulator::ID,
+            reputation_accumulator::instruction::WriteDomainStatsSnapshot {
+                domain,
+                receipt_count,
+                task_count,
+                agent_count,
+                snapshot_slot,
+                payload_hash,
+            }
+            .data(),
+            reputation_accumulator::accounts::WriteDomainStatsSnapshot {
+                operator,
+                domain_catalog: self.domain_catalog,
+                domain_stats_snapshot: domain_stats_snapshot_pda(domain, operator, snapshot_slot),
+                system_program: system_program::ID,
+            },
+        )
+    }
+
     fn ix_create_identity(
         &self,
         authority: Pubkey,
@@ -1860,6 +1989,18 @@ pub fn latest_checkpoint_pda(identity: Pubkey) -> Pubkey {
 pub fn reputation_pda(identity: Pubkey, domain: [u8; 32]) -> Pubkey {
     pda(
         &[REPUTATION_SEED, identity.as_ref(), domain.as_ref()],
+        &reputation_accumulator::ID,
+    )
+}
+
+pub fn domain_stats_snapshot_pda(domain: [u8; 32], operator: Pubkey, snapshot_slot: u64) -> Pubkey {
+    pda(
+        &[
+            DOMAIN_STATS_SEED,
+            domain.as_ref(),
+            operator.as_ref(),
+            &snapshot_slot.to_le_bytes(),
+        ],
         &reputation_accumulator::ID,
     )
 }

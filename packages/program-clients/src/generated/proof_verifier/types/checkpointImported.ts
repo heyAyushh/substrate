@@ -67,6 +67,6 @@ export function getCheckpointImportedCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getCheckpointImportedEncoder(),
-    getCheckpointImportedDecoder()
+    getCheckpointImportedDecoder(),
   );
 }

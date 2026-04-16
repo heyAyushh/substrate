@@ -1,7 +1,5 @@
 use anchor_lang::prelude::*;
-use trust_substrate_core::{
-    TrustSubstrateError, GUARDIAN_SET_SEED, MAX_GUARDIANS,
-};
+use trust_substrate_core::{TrustSubstrateError, GUARDIAN_SET_SEED, MAX_GUARDIANS};
 
 use crate::{
     events::GuardianSetInitialized,

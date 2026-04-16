@@ -1,8 +1,8 @@
 use anchor_lang::prelude::*;
 use receipt_emitter::state::ReceiptRecord;
 use trust_substrate_core::{
-    is_valid_trust_mode, TrustSubstrateError, DISPUTE_RESOLVED_KIND, SLASH_MARKER_SEED,
-    STAKE_SEED, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
+    is_valid_trust_mode, TrustSubstrateError, DISPUTE_RESOLVED_KIND, SLASH_MARKER_SEED, STAKE_SEED,
+    TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
 };
 
 use crate::state::{SlashMarker, StakeAccount};

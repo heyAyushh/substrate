@@ -762,6 +762,112 @@ describe("trust_substrate protocol flow", () => {
     );
   });
 
+  it("grants task-scoped delegation through a handoff receipt", async () => {
+    const domain = testBytes32(604);
+    const setup = await createIdentityAndTask(612, 613, domain);
+    const delegateKeypair = anchor.web3.Keypair.generate();
+    const handoffReceiptId = testBytes32(614);
+    const completionReceiptId = testBytes32(615);
+    const handoffPayloadHash = testBytes32(616);
+    const completionPayloadHash = testBytes32(617);
+    const allowedActions = HANDOFF_ACTION_MASK | COMPLETION_ACTION_MASK;
+
+    await fund(delegateKeypair.publicKey);
+
+    const [handoffReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      setup.identity.toBuffer(),
+      setup.task.toBuffer(),
+      asBuffer(handoffReceiptId),
+    ]);
+    const [delegation] = pda(delegationProgram, [
+      seed(DELEGATION_SEED),
+      setup.identity.toBuffer(),
+      delegateKeypair.publicKey.toBuffer(),
+    ]);
+    const [delegatedCompletionReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      setup.identity.toBuffer(),
+      setup.task.toBuffer(),
+      asBuffer(completionReceiptId),
+    ]);
+
+    await receiptProgram.methods
+      .emitHandoffGrant(
+        handoffReceiptId,
+        new anchor.BN(1),
+        domain,
+        bytes32(ZERO_BYTE),
+        handoffPayloadHash,
+        allowedActions,
+        new anchor.BN(0)
+      )
+      .accountsStrict({
+        authority,
+        identity: setup.identity,
+        delegate: delegateKeypair.publicKey,
+        task: setup.task,
+        receipt: handoffReceipt,
+        delegation,
+        domainCatalog,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+        delegationEngineProgram: delegationProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await receiptProgram.methods
+      .emitDelegatedReceipt(
+        completionReceiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(2),
+        domain,
+        pubkeyBytes(handoffReceipt),
+        completionPayloadHash
+      )
+      .accountsStrict({
+        delegate: delegateKeypair.publicKey,
+        identity: setup.identity,
+        delegation,
+        task: setup.task,
+        receipt: delegatedCompletionReceipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .signers([delegateKeypair])
+      .rpc();
+
+    const delegationAccount =
+      await delegationProgram.account.delegationRecord.fetch(delegation);
+    const handoffReceiptAccount =
+      await receiptProgram.account.receiptRecord.fetch(handoffReceipt);
+    const completionReceiptAccount =
+      await receiptProgram.account.receiptRecord.fetch(
+        delegatedCompletionReceipt
+      );
+    const taskAccount = await taskProgram.account.taskRecord.fetch(setup.task);
+
+    strictEqual(delegationAccount.allowedActions, allowedActions);
+    strictEqual(handoffReceiptAccount.kind, HANDOFF_RECEIPT_KIND);
+    strictEqual(
+      handoffReceiptAccount.viaDelegation.toBase58(),
+      delegation.toBase58()
+    );
+    strictEqual(completionReceiptAccount.kind, COMPLETION_RECEIPT_KIND);
+    strictEqual(
+      completionReceiptAccount.actor.toBase58(),
+      delegateKeypair.publicKey.toBase58()
+    );
+    strictEqual(taskAccount.lastSequence.toNumber(), 2);
+    strictEqual(
+      taskAccount.lastReceipt.toBase58(),
+      delegatedCompletionReceipt.toBase58()
+    );
+  });
+
   it("rejects inclusion proofs against stale checkpoints", async () => {
     const domain = testBytes32(143);
     const setup = await createIdentityAndTask(151, 152, domain);

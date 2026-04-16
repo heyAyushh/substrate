@@ -14,7 +14,7 @@ import {
 } from "@solana/kit";
 
 export async function findCheckpointImporterPda(
-  config: { programAddress?: Address | undefined } = {}
+  config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
     programAddress = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi" as Address<"4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi">,
@@ -26,7 +26,7 @@ export async function findCheckpointImporterPda(
         new Uint8Array([
           99, 104, 101, 99, 107, 112, 111, 105, 110, 116, 95, 105, 109, 112,
           111, 114, 116, 101, 114,
-        ])
+        ]),
       ),
     ],
   });

@@ -30,6 +30,8 @@ export type DisputeVerdict = {
   adjudicator: Address;
   createdAtSlot: bigint;
   bump: number;
+  class: number;
+  staleAfterSlot: bigint;
 };
 
 export type DisputeVerdictArgs = {
@@ -40,6 +42,8 @@ export type DisputeVerdictArgs = {
   adjudicator: Address;
   createdAtSlot: number | bigint;
   bump: number;
+  class: number;
+  staleAfterSlot: number | bigint;
 };
 
 export function getDisputeVerdictEncoder(): FixedSizeEncoder<DisputeVerdictArgs> {
@@ -51,6 +55,8 @@ export function getDisputeVerdictEncoder(): FixedSizeEncoder<DisputeVerdictArgs>
     ["adjudicator", getAddressEncoder()],
     ["createdAtSlot", getU64Encoder()],
     ["bump", getU8Encoder()],
+    ["class", getU8Encoder()],
+    ["staleAfterSlot", getU64Encoder()],
   ]);
 }
 
@@ -63,6 +69,8 @@ export function getDisputeVerdictDecoder(): FixedSizeDecoder<DisputeVerdict> {
     ["adjudicator", getAddressDecoder()],
     ["createdAtSlot", getU64Decoder()],
     ["bump", getU8Decoder()],
+    ["class", getU8Decoder()],
+    ["staleAfterSlot", getU64Decoder()],
   ]);
 }
 

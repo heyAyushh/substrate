@@ -2,8 +2,8 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 use reputation_accumulator::state::ReputationDomainCatalog;
 use trust_substrate_core::{
-    derive_audit_receipt_id, is_auditable_receipt_kind, is_valid_receipt_kind,
-    TrustSubstrateError, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
+    derive_audit_receipt_id, is_auditable_receipt_kind, is_valid_receipt_kind, TrustSubstrateError,
+    AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
 };
 
 use crate::events::AuditReceiptCommitted;

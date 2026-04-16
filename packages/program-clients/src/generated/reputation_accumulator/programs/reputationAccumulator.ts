@@ -33,10 +33,13 @@ import {
 } from "@solana/kit/program-client-core";
 import {
   getAppliedReputationReceiptCodec,
+  getDomainStatsSnapshotCodec,
   getReputationAccumulatorCodec,
   getReputationDomainCatalogCodec,
   type AppliedReputationReceipt,
   type AppliedReputationReceiptArgs,
+  type DomainStatsSnapshot,
+  type DomainStatsSnapshotArgs,
   type ReputationAccumulator,
   type ReputationAccumulatorArgs,
   type ReputationDomainCatalog,
@@ -49,12 +52,14 @@ import {
   getInitializeDomainCatalogInstructionAsync,
   getRegisterDomainInstructionAsync,
   getReputationReceiptAlreadyAppliedInstructionAsync,
+  getWriteDomainStatsSnapshotInstructionAsync,
   parseApplyReputationReceiptInstruction,
   parseCreateReputationDomainInstruction,
   parseDeprecateDomainInstruction,
   parseInitializeDomainCatalogInstruction,
   parseRegisterDomainInstruction,
   parseReputationReceiptAlreadyAppliedInstruction,
+  parseWriteDomainStatsSnapshotInstruction,
   type ApplyReputationReceiptAsyncInput,
   type CreateReputationDomainAsyncInput,
   type DeprecateDomainAsyncInput,
@@ -65,11 +70,14 @@ import {
   type ParsedInitializeDomainCatalogInstruction,
   type ParsedRegisterDomainInstruction,
   type ParsedReputationReceiptAlreadyAppliedInstruction,
+  type ParsedWriteDomainStatsSnapshotInstruction,
   type RegisterDomainAsyncInput,
   type ReputationReceiptAlreadyAppliedAsyncInput,
+  type WriteDomainStatsSnapshotAsyncInput,
 } from "../instructions";
 import {
   findDomainCatalogPda,
+  findDomainStatsSnapshotPda,
   findReceiptApplicationPda,
   findReputationPda,
 } from "../pdas";
@@ -79,6 +87,7 @@ export const REPUTATION_ACCUMULATOR_PROGRAM_ADDRESS =
 
 export enum ReputationAccumulatorAccount {
   AppliedReputationReceipt,
+  DomainStatsSnapshot,
   ReputationAccumulator,
   ReputationDomainCatalog,
 }
@@ -97,6 +106,17 @@ export function identifyReputationAccumulatorAccount(
     )
   ) {
     return ReputationAccumulatorAccount.AppliedReputationReceipt;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([174, 251, 199, 17, 194, 53, 72, 233]),
+      ),
+      0,
+    )
+  ) {
+    return ReputationAccumulatorAccount.DomainStatsSnapshot;
   }
   if (
     containsBytes(
@@ -133,6 +153,7 @@ export enum ReputationAccumulatorInstruction {
   InitializeDomainCatalog,
   RegisterDomain,
   ReputationReceiptAlreadyApplied,
+  WriteDomainStatsSnapshot,
 }
 
 export function identifyReputationAccumulatorInstruction(
@@ -205,6 +226,17 @@ export function identifyReputationAccumulatorInstruction(
   ) {
     return ReputationAccumulatorInstruction.ReputationReceiptAlreadyApplied;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([255, 100, 116, 219, 120, 131, 157, 113]),
+      ),
+      0,
+    )
+  ) {
+    return ReputationAccumulatorInstruction.WriteDomainStatsSnapshot;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "reputationAccumulator" },
@@ -231,7 +263,10 @@ export type ParsedReputationAccumulatorInstruction<
     } & ParsedRegisterDomainInstruction<TProgram>)
   | ({
       instructionType: ReputationAccumulatorInstruction.ReputationReceiptAlreadyApplied;
-    } & ParsedReputationReceiptAlreadyAppliedInstruction<TProgram>);
+    } & ParsedReputationReceiptAlreadyAppliedInstruction<TProgram>)
+  | ({
+      instructionType: ReputationAccumulatorInstruction.WriteDomainStatsSnapshot;
+    } & ParsedWriteDomainStatsSnapshotInstruction<TProgram>);
 
 export function parseReputationAccumulatorInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -284,6 +319,14 @@ export function parseReputationAccumulatorInstruction<TProgram extends string>(
         ...parseReputationReceiptAlreadyAppliedInstruction(instruction),
       };
     }
+    case ReputationAccumulatorInstruction.WriteDomainStatsSnapshot: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType:
+          ReputationAccumulatorInstruction.WriteDomainStatsSnapshot,
+        ...parseWriteDomainStatsSnapshotInstruction(instruction),
+      };
+    }
     default:
       throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
@@ -306,6 +349,8 @@ export type ReputationAccumulatorPluginAccounts = {
     typeof getAppliedReputationReceiptCodec
   > &
     SelfFetchFunctions<AppliedReputationReceiptArgs, AppliedReputationReceipt>;
+  domainStatsSnapshot: ReturnType<typeof getDomainStatsSnapshotCodec> &
+    SelfFetchFunctions<DomainStatsSnapshotArgs, DomainStatsSnapshot>;
   reputationAccumulator: ReturnType<typeof getReputationAccumulatorCodec> &
     SelfFetchFunctions<ReputationAccumulatorArgs, ReputationAccumulator>;
   reputationDomainCatalog: ReturnType<typeof getReputationDomainCatalogCodec> &
@@ -337,12 +382,17 @@ export type ReputationAccumulatorPluginInstructions = {
     input: ReputationReceiptAlreadyAppliedAsyncInput,
   ) => ReturnType<typeof getReputationReceiptAlreadyAppliedInstructionAsync> &
     SelfPlanAndSendFunctions;
+  writeDomainStatsSnapshot: (
+    input: WriteDomainStatsSnapshotAsyncInput,
+  ) => ReturnType<typeof getWriteDomainStatsSnapshotInstructionAsync> &
+    SelfPlanAndSendFunctions;
 };
 
 export type ReputationAccumulatorPluginPdas = {
   receiptApplication: typeof findReceiptApplicationPda;
   reputation: typeof findReputationPda;
   domainCatalog: typeof findDomainCatalogPda;
+  domainStatsSnapshot: typeof findDomainStatsSnapshotPda;
 };
 
 export type ReputationAccumulatorPluginRequirements = ClientWithRpc<
@@ -360,6 +410,10 @@ export function reputationAccumulatorProgram() {
           appliedReputationReceipt: addSelfFetchFunctions(
             client,
             getAppliedReputationReceiptCodec(),
+          ),
+          domainStatsSnapshot: addSelfFetchFunctions(
+            client,
+            getDomainStatsSnapshotCodec(),
           ),
           reputationAccumulator: addSelfFetchFunctions(
             client,
@@ -401,11 +455,17 @@ export function reputationAccumulatorProgram() {
               client,
               getReputationReceiptAlreadyAppliedInstructionAsync(input),
             ),
+          writeDomainStatsSnapshot: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getWriteDomainStatsSnapshotInstructionAsync(input),
+            ),
         },
         pdas: {
           receiptApplication: findReceiptApplicationPda,
           reputation: findReputationPda,
           domainCatalog: findDomainCatalogPda,
+          domainStatsSnapshot: findDomainStatsSnapshotPda,
         },
       },
     };

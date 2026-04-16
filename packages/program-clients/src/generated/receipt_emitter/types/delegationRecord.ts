@@ -74,6 +74,6 @@ export function getDelegationRecordCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getDelegationRecordEncoder(),
-    getDelegationRecordDecoder()
+    getDelegationRecordDecoder(),
   );
 }

@@ -88,7 +88,11 @@ fn emergency_rotation_requires_guardian_threshold() -> TestResult {
 
     h.initialize_guardian_set(
         &identity,
-        &[guardian_a.pubkey(), guardian_b.pubkey(), guardian_c.pubkey()],
+        &[
+            guardian_a.pubkey(),
+            guardian_b.pubkey(),
+            guardian_c.pubkey(),
+        ],
         2,
     )?;
 
@@ -135,7 +139,11 @@ fn emergency_rotation_swaps_authority_and_clears_pending_rotation() -> TestResul
 
     h.initialize_guardian_set(
         &identity,
-        &[guardian_a.pubkey(), guardian_b.pubkey(), guardian_c.pubkey()],
+        &[
+            guardian_a.pubkey(),
+            guardian_b.pubkey(),
+            guardian_c.pubkey(),
+        ],
         2,
     )?;
 

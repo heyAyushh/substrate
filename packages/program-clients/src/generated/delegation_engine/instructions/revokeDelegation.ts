@@ -46,7 +46,7 @@ export const REVOKE_DELEGATION_DISCRIMINATOR = new Uint8Array([
 
 export function getRevokeDelegationDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(
-    REVOKE_DELEGATION_DISCRIMINATOR
+    REVOKE_DELEGATION_DISCRIMINATOR,
   );
 }
 
@@ -55,7 +55,7 @@ export type RevokeDelegationInstruction<
   TAccountAuthority extends string | AccountMeta<string> = string,
   TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountDelegation extends string | AccountMeta<string> = string,
-  TRemainingAccounts extends readonly AccountMeta<string>[] = []
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
@@ -70,7 +70,7 @@ export type RevokeDelegationInstruction<
       TAccountDelegation extends string
         ? WritableAccount<TAccountDelegation>
         : TAccountDelegation,
-      ...TRemainingAccounts
+      ...TRemainingAccounts,
     ]
   >;
 
@@ -89,7 +89,7 @@ export function getRevokeDelegationInstructionDataEncoder(): FixedSizeEncoder<Re
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["revokeAtSlot", getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: REVOKE_DELEGATION_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: REVOKE_DELEGATION_DISCRIMINATOR }),
   );
 }
 
@@ -106,14 +106,14 @@ export function getRevokeDelegationInstructionDataCodec(): FixedSizeCodec<
 > {
   return combineCodec(
     getRevokeDelegationInstructionDataEncoder(),
-    getRevokeDelegationInstructionDataDecoder()
+    getRevokeDelegationInstructionDataDecoder(),
   );
 }
 
 export type RevokeDelegationInput<
   TAccountAuthority extends string = string,
   TAccountIdentity extends string = string,
-  TAccountDelegation extends string = string
+  TAccountDelegation extends string = string,
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
@@ -125,14 +125,14 @@ export function getRevokeDelegationInstruction<
   TAccountAuthority extends string,
   TAccountIdentity extends string,
   TAccountDelegation extends string,
-  TProgramAddress extends Address = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS
+  TProgramAddress extends Address = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS,
 >(
   input: RevokeDelegationInput<
     TAccountAuthority,
     TAccountIdentity,
     TAccountDelegation
   >,
-  config?: { programAddress?: TProgramAddress }
+  config?: { programAddress?: TProgramAddress },
 ): RevokeDelegationInstruction<
   TProgramAddress,
   TAccountAuthority,
@@ -165,15 +165,20 @@ export function getRevokeDelegationInstruction<
       getAccountMeta("delegation", accounts.delegation),
     ],
     data: getRevokeDelegationInstructionDataEncoder().encode(
-      args as RevokeDelegationInstructionDataArgs
+      args as RevokeDelegationInstructionDataArgs,
     ),
     programAddress,
-  } as RevokeDelegationInstruction<TProgramAddress, TAccountAuthority, TAccountIdentity, TAccountDelegation>);
+  } as RevokeDelegationInstruction<
+    TProgramAddress,
+    TAccountAuthority,
+    TAccountIdentity,
+    TAccountDelegation
+  >);
 }
 
 export type ParsedRevokeDelegationInstruction<
   TProgram extends string = typeof DELEGATION_ENGINE_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -186,11 +191,11 @@ export type ParsedRevokeDelegationInstruction<
 
 export function parseRevokeDelegationInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly AccountMeta[]
+  TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
-    InstructionWithData<ReadonlyUint8Array>
+    InstructionWithData<ReadonlyUint8Array>,
 ): ParsedRevokeDelegationInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 3) {
     throw new SolanaError(
@@ -198,7 +203,7 @@ export function parseRevokeDelegationInstruction<
       {
         actualAccountMetas: instruction.accounts.length,
         expectedAccountMetas: 3,
-      }
+      },
     );
   }
   let accountIndex = 0;

@@ -7,10 +7,7 @@ use trust_substrate_core::{
 use crate::events::ChallengeResponseCommitted;
 use crate::state::ReceiptRecord;
 
-pub fn handler(
-    ctx: Context<EmitChallengeResponse>,
-    payload_hash: [u8; 32],
-) -> Result<()> {
+pub fn handler(ctx: Context<EmitChallengeResponse>, payload_hash: [u8; 32]) -> Result<()> {
     let challenge = &ctx.accounts.challenge;
     require!(
         challenge.kind == CHALLENGE_KIND,

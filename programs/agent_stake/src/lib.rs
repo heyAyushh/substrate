@@ -6,9 +6,9 @@ use anchor_lang::prelude::*;
 pub use instructions::*;
 pub use state::*;
 pub use trust_substrate_core::{
-    AGENT_LOST_OUTCOME, AGENT_WON_OUTCOME, NO_FAULT_OUTCOME, TrustSubstrateError,
-    SLASH_MARKER_SEED, STAKE_SEED, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
-    TRUST_MODE_VERDICT, VERDICT_SEED,
+    TrustSubstrateError, AGENT_LOST_OUTCOME, AGENT_WON_OUTCOME, NO_FAULT_OUTCOME,
+    SLASH_MARKER_SEED, STAKE_SEED, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT,
+    VERDICT_SEED,
 };
 
 pub mod __client_accounts_finalize_unstake {
@@ -146,11 +146,7 @@ pub mod agent_stake {
     use super::*;
 
     pub fn initialize_stake(ctx: Context<InitializeStake>, slash_authority: Pubkey) -> Result<()> {
-        instructions::initialize_stake::handler(
-            ctx,
-            slash_authority,
-            TRUST_MODE_AUTHORITY,
-        )
+        instructions::initialize_stake::handler(ctx, slash_authority, TRUST_MODE_AUTHORITY)
     }
 
     pub fn initialize_stake_with_trust_mode(

@@ -95,16 +95,16 @@ export enum ProofVerifierAccount {
 }
 
 export function identifyProofVerifierAccount(
-  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  account: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): ProofVerifierAccount {
   const data = "data" in account ? account.data : account;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([158, 184, 145, 24, 179, 27, 175, 110])
+        new Uint8Array([158, 184, 145, 24, 179, 27, 175, 110]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierAccount.CheckpointImporter;
@@ -113,9 +113,9 @@ export function identifyProofVerifierAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([199, 167, 157, 116, 216, 134, 177, 9])
+        new Uint8Array([199, 167, 157, 116, 216, 134, 177, 9]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierAccount.HistoryCheckpoint;
@@ -124,9 +124,9 @@ export function identifyProofVerifierAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([114, 11, 211, 233, 231, 23, 176, 178])
+        new Uint8Array([114, 11, 211, 233, 231, 23, 176, 178]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierAccount.HistoryUpdater;
@@ -135,16 +135,16 @@ export function identifyProofVerifierAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([168, 23, 243, 88, 191, 114, 220, 102])
+        new Uint8Array([168, 23, 243, 88, 191, 114, 220, 102]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierAccount.LatestCheckpoint;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
-    { accountData: data, programName: "proofVerifier" }
+    { accountData: data, programName: "proofVerifier" },
   );
 }
 
@@ -159,16 +159,16 @@ export enum ProofVerifierInstruction {
 }
 
 export function identifyProofVerifierInstruction(
-  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
+  instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array,
 ): ProofVerifierInstruction {
   const data = "data" in instruction ? instruction.data : instruction;
   if (
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([130, 181, 242, 230, 217, 44, 160, 54])
+        new Uint8Array([130, 181, 242, 230, 217, 44, 160, 54]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.AppendReceiptToCheckpoint;
@@ -177,9 +177,9 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([107, 28, 51, 92, 122, 193, 117, 1])
+        new Uint8Array([107, 28, 51, 92, 122, 193, 117, 1]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.CheckpointImport;
@@ -188,9 +188,9 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([153, 133, 253, 157, 29, 17, 250, 30])
+        new Uint8Array([153, 133, 253, 157, 29, 17, 250, 30]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.InitializeCheckpoint;
@@ -199,9 +199,9 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([74, 232, 198, 100, 88, 99, 165, 146])
+        new Uint8Array([74, 232, 198, 100, 88, 99, 165, 146]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.InitializeCheckpointImporter;
@@ -210,9 +210,9 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([51, 186, 92, 155, 29, 217, 177, 178])
+        new Uint8Array([51, 186, 92, 155, 29, 217, 177, 178]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.InitializeHistoryUpdater;
@@ -221,9 +221,9 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([39, 27, 242, 250, 184, 251, 89, 21])
+        new Uint8Array([39, 27, 242, 250, 184, 251, 89, 21]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.RotateCheckpoint;
@@ -232,21 +232,21 @@ export function identifyProofVerifierInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([13, 137, 24, 74, 36, 232, 151, 103])
+        new Uint8Array([13, 137, 24, 74, 36, 232, 151, 103]),
       ),
-      0
+      0,
     )
   ) {
     return ProofVerifierInstruction.VerifyReceiptInclusion;
   }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
-    { instructionData: data, programName: "proofVerifier" }
+    { instructionData: data, programName: "proofVerifier" },
   );
 }
 
 export type ParsedProofVerifierInstruction<
-  TProgram extends string = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi"
+  TProgram extends string = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi",
 > =
   | ({
       instructionType: ProofVerifierInstruction.AppendReceiptToCheckpoint;
@@ -271,7 +271,7 @@ export type ParsedProofVerifierInstruction<
     } & ParsedVerifyReceiptInclusionInstruction<TProgram>);
 
 export function parseProofVerifierInstruction<TProgram extends string>(
-  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>
+  instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
 ): ParsedProofVerifierInstruction<TProgram> {
   const instructionType = identifyProofVerifierInstruction(instruction);
   switch (instructionType) {
@@ -330,7 +330,7 @@ export function parseProofVerifierInstruction<TProgram extends string>(
         {
           instructionType: instructionType as string,
           programName: "proofVerifier",
-        }
+        },
       );
   }
 }
@@ -354,31 +354,31 @@ export type ProofVerifierPluginAccounts = {
 
 export type ProofVerifierPluginInstructions = {
   appendReceiptToCheckpoint: (
-    input: AppendReceiptToCheckpointAsyncInput
+    input: AppendReceiptToCheckpointAsyncInput,
   ) => ReturnType<typeof getAppendReceiptToCheckpointInstructionAsync> &
     SelfPlanAndSendFunctions;
   checkpointImport: (
-    input: CheckpointImportAsyncInput
+    input: CheckpointImportAsyncInput,
   ) => ReturnType<typeof getCheckpointImportInstructionAsync> &
     SelfPlanAndSendFunctions;
   initializeCheckpoint: (
-    input: InitializeCheckpointAsyncInput
+    input: InitializeCheckpointAsyncInput,
   ) => ReturnType<typeof getInitializeCheckpointInstructionAsync> &
     SelfPlanAndSendFunctions;
   initializeCheckpointImporter: (
-    input: MakeOptional<InitializeCheckpointImporterAsyncInput, "payer">
+    input: MakeOptional<InitializeCheckpointImporterAsyncInput, "payer">,
   ) => ReturnType<typeof getInitializeCheckpointImporterInstructionAsync> &
     SelfPlanAndSendFunctions;
   initializeHistoryUpdater: (
-    input: MakeOptional<InitializeHistoryUpdaterAsyncInput, "payer">
+    input: MakeOptional<InitializeHistoryUpdaterAsyncInput, "payer">,
   ) => ReturnType<typeof getInitializeHistoryUpdaterInstructionAsync> &
     SelfPlanAndSendFunctions;
   rotateCheckpoint: (
-    input: RotateCheckpointAsyncInput
+    input: RotateCheckpointAsyncInput,
   ) => ReturnType<typeof getRotateCheckpointInstructionAsync> &
     SelfPlanAndSendFunctions;
   verifyReceiptInclusion: (
-    input: VerifyReceiptInclusionInput
+    input: VerifyReceiptInclusionInput,
   ) => ReturnType<typeof getVerifyReceiptInclusionInstruction> &
     SelfPlanAndSendFunctions;
 };
@@ -406,36 +406,36 @@ export function proofVerifierProgram() {
         accounts: {
           checkpointImporter: addSelfFetchFunctions(
             client,
-            getCheckpointImporterCodec()
+            getCheckpointImporterCodec(),
           ),
           historyCheckpoint: addSelfFetchFunctions(
             client,
-            getHistoryCheckpointCodec()
+            getHistoryCheckpointCodec(),
           ),
           historyUpdater: addSelfFetchFunctions(
             client,
-            getHistoryUpdaterCodec()
+            getHistoryUpdaterCodec(),
           ),
           latestCheckpoint: addSelfFetchFunctions(
             client,
-            getLatestCheckpointCodec()
+            getLatestCheckpointCodec(),
           ),
         },
         instructions: {
           appendReceiptToCheckpoint: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getAppendReceiptToCheckpointInstructionAsync(input)
+              getAppendReceiptToCheckpointInstructionAsync(input),
             ),
           checkpointImport: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getCheckpointImportInstructionAsync(input)
+              getCheckpointImportInstructionAsync(input),
             ),
           initializeCheckpoint: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getInitializeCheckpointInstructionAsync(input)
+              getInitializeCheckpointInstructionAsync(input),
             ),
           initializeCheckpointImporter: (input) =>
             addSelfPlanAndSendFunctions(
@@ -443,7 +443,7 @@ export function proofVerifierProgram() {
               getInitializeCheckpointImporterInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
-              })
+              }),
             ),
           initializeHistoryUpdater: (input) =>
             addSelfPlanAndSendFunctions(
@@ -451,17 +451,17 @@ export function proofVerifierProgram() {
               getInitializeHistoryUpdaterInstructionAsync({
                 ...input,
                 payer: input.payer ?? client.payer,
-              })
+              }),
             ),
           rotateCheckpoint: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getRotateCheckpointInstructionAsync(input)
+              getRotateCheckpointInstructionAsync(input),
             ),
           verifyReceiptInclusion: (input) =>
             addSelfPlanAndSendFunctions(
               client,
-              getVerifyReceiptInclusionInstruction(input)
+              getVerifyReceiptInclusionInstruction(input),
             ),
         },
         pdas: {

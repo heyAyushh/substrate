@@ -73,7 +73,10 @@ fn validate_guardian_signatures(
     let mut approved_guardians = Vec::with_capacity(remaining_accounts.len());
 
     for account in remaining_accounts {
-        require!(account.is_signer, TrustSubstrateError::GuardianSignatureMissing);
+        require!(
+            account.is_signer,
+            TrustSubstrateError::GuardianSignatureMissing
+        );
         require!(
             configured_guardians.contains(account.key),
             TrustSubstrateError::GuardianSignerNotAuthorized

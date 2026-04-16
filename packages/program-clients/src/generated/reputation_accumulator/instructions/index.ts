@@ -12,3 +12,4 @@ export * from "./deprecateDomain";
 export * from "./initializeDomainCatalog";
 export * from "./registerDomain";
 export * from "./reputationReceiptAlreadyApplied";
+export * from "./writeDomainStatsSnapshot";

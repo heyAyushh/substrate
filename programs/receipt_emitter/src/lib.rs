@@ -16,6 +16,10 @@ pub mod __client_accounts_emit_delegated_receipt {
     pub use crate::instructions::emit_delegated_receipt::__client_accounts_emit_delegated_receipt::*;
 }
 
+pub mod __client_accounts_emit_handoff_grant {
+    pub use crate::instructions::emit_handoff_grant::__client_accounts_emit_handoff_grant::*;
+}
+
 pub mod __client_accounts_emit_audit_receipt {
     pub use crate::instructions::emit_audit_receipt::__client_accounts_emit_audit_receipt::*;
 }
@@ -39,6 +43,11 @@ pub mod __client_accounts_initialize_cpi_authority {
 #[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_emit_delegated_receipt {
     pub use crate::instructions::emit_delegated_receipt::__cpi_client_accounts_emit_delegated_receipt::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emit_handoff_grant {
+    pub use crate::instructions::emit_handoff_grant::__cpi_client_accounts_emit_handoff_grant::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -118,6 +127,28 @@ pub mod receipt_emitter {
         )
     }
 
+    pub fn emit_handoff_grant(
+        ctx: Context<EmitHandoffGrant>,
+        receipt_id: [u8; 32],
+        sequence: u64,
+        domain: [u8; 32],
+        previous_receipt: [u8; 32],
+        payload_hash: [u8; 32],
+        allowed_actions: u8,
+        expires_at_slot: u64,
+    ) -> Result<()> {
+        emit_handoff_grant::handler(
+            ctx,
+            receipt_id,
+            sequence,
+            domain,
+            previous_receipt,
+            payload_hash,
+            allowed_actions,
+            expires_at_slot,
+        )
+    }
+
     pub fn emit_audit_receipt(
         ctx: Context<EmitAuditReceipt>,
         kind: u8,
@@ -127,7 +158,15 @@ pub mod receipt_emitter {
         round: u16,
         deadline_slot: u64,
     ) -> Result<()> {
-        emit_audit_receipt::handler(ctx, kind, domain, payload_hash, sequence, round, deadline_slot)
+        emit_audit_receipt::handler(
+            ctx,
+            kind,
+            domain,
+            payload_hash,
+            sequence,
+            round,
+            deadline_slot,
+        )
     }
 
     pub fn emit_challenge_response(
@@ -137,9 +176,7 @@ pub mod receipt_emitter {
         emit_challenge_response::handler(ctx, payload_hash)
     }
 
-    pub fn finalize_unanswered_challenge(
-        ctx: Context<FinalizeUnansweredChallenge>,
-    ) -> Result<()> {
+    pub fn finalize_unanswered_challenge(ctx: Context<FinalizeUnansweredChallenge>) -> Result<()> {
         finalize_unanswered_challenge::handler(ctx)
     }
 }

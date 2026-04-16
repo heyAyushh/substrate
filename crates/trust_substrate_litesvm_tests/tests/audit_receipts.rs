@@ -119,7 +119,12 @@ fn finalize_unanswered_challenge_requires_elapsed_deadline() -> TestResult {
         FIRST_AUDIT_ROUND,
         20,
     )?;
-    let dispute = audit_receipt_pda(reviewer.address, target_receipt, DISPUTE_KIND, FIRST_AUDIT_ROUND);
+    let dispute = audit_receipt_pda(
+        reviewer.address,
+        target_receipt,
+        DISPUTE_KIND,
+        FIRST_AUDIT_ROUND,
+    );
 
     let ix = h.ix_finalize_unanswered_challenge(challenge, target_receipt, dispute);
     h.expect_err_as_payer(ix, "ChallengeDeadlineNotElapsed");
@@ -166,7 +171,12 @@ fn finalize_unanswered_challenge_rejects_matching_response() -> TestResult {
         30,
     )?;
     let response = h.emit_challenge_response(&builder, challenge)?;
-    let dispute = audit_receipt_pda(reviewer.address, target_receipt, DISPUTE_KIND, FIRST_AUDIT_ROUND);
+    let dispute = audit_receipt_pda(
+        reviewer.address,
+        target_receipt,
+        DISPUTE_KIND,
+        FIRST_AUDIT_ROUND,
+    );
 
     h.warp_to_slot(31);
     let ix = h.ix_finalize_unanswered_challenge(challenge, target_receipt, dispute);
