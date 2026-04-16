@@ -138,24 +138,37 @@ Uncommitted worktree changes are not counted here.
 - [x] N1 delegation revocation grace windows are implemented with an effective
       revoke slot, LiteSVM coverage, validator-backed TypeScript coverage, and
       updated program, security, testing, architecture, and roadmap docs.
+- [x] N2 re-challenge rounds are implemented through audit-receipt round
+      seeding and indexer challenge-round views with local package coverage.
 - [x] N3 evergreen versus time-boxed dispute classes are implemented with
       verdict class validation, stale-window slashing checks, and LiteSVM
       coverage for missing, expired, and evergreen windows.
+- [x] N4 handoff-as-capability-grant is implemented through
+      `emit_handoff_grant`, delegation-engine CPI, LiteSVM coverage, and
+      validator-backed TypeScript coverage.
+- [x] N5 Tier-0 leaderboard opt-in is implemented in the local durable
+      indexer so unbonded identities remain hidden by default and are exposed
+      only when a consumer opts in.
+- [x] N6 domain stats aggregation accounts are implemented with signed
+      snapshot writes and local Rust plus validator-backed TypeScript
+      coverage.
 
-## Nice-To-Have Follow-Ups Still Open
+## Nice-To-Have Follow-Ups
 
-- [ ] N2 re-challenge rounds.
-- [ ] N4 handoff as capability grant.
-- [ ] N5 Tier-0 leaderboard opt-in.
-- [ ] N6 domain stats aggregation account.
+- [x] N1 delegation revocation grace window.
+- [x] N2 re-challenge rounds.
+- [x] N3 evergreen versus time-boxed dispute classes.
+- [x] N4 handoff as capability grant.
+- [x] N5 Tier-0 leaderboard opt-in.
+- [x] N6 domain stats aggregation account.
 
 ## Verification Checklist For Updating This File
 
-- [ ] Check `docs/plans/hardening-plan.md` top-level TODO status.
-- [ ] Check `docs/verification/hardening-plan-scoreboard.md` for mechanically
+- [x] Check `docs/plans/hardening-plan.md` top-level TODO status.
+- [x] Check `docs/verification/hardening-plan-scoreboard.md` for mechanically
       verified complete rows.
-- [ ] Check `CHANGELOG.md` for user-facing changes since the last snapshot.
-- [ ] Check `git log --oneline` for committed work that docs may not yet
+- [x] Check `CHANGELOG.md` for user-facing changes since the last snapshot.
+- [x] Check `git log --oneline` for committed work that docs may not yet
       summarize.
-- [ ] Run `pnpm test:audit` after changing hardening-plan or guarantee-status
+- [x] Run `pnpm test:audit` after changing hardening-plan or guarantee-status
       documentation.

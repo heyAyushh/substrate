@@ -10,6 +10,14 @@ All notable changes to Trust Substrate are documented in this file.
   docs, plans, protocol work, and the remaining open follow-ups.
 - Delegation revocation grace windows, so revocation can take effect
   immediately or at a scheduled future slot.
+- Audit-receipt round views in the local durable indexer, so challenge rounds
+  against the same target receipt can be replayed and inspected chronologically.
+- Handoff-as-capability-grant, so a handoff receipt can mint a scoped
+  delegation and immediately authorize the next delegated step on the same task.
+- Tier-0 leaderboard opt-in, so unbonded identities stay hidden by default and
+  are only surfaced when a consumer explicitly asks for them.
+- Signed domain-stats snapshot accounts, so operator snapshots for a canonical
+  domain can be written on-chain without scanning the full receipt history.
 - Verdict classes and stale windows for dispute slashing, separating evergreen
   safety verdicts from time-boxed performance and policy verdicts.
 - Verdict-gated dispute reputation degradation, so dispute receipts only reduce
@@ -27,22 +35,32 @@ All notable changes to Trust Substrate are documented in this file.
 - Core architecture, program, storage, and security docs now mark which
   guarantees are enforced on-chain, which are local SDK behavior, and which are
   replay/indexer conventions.
+- The hardening plan and committed-work snapshot now mark all six nice-to-have
+  follow-ups as complete while keeping W6 sybil gating and W7 provenance open.
 - Added a threat-model document that maps all 23 audit findings to concrete
   hardening workstreams.
 - Hardening plan status now matches the mechanically verified scoreboard for
   completed W0 through W5 work, completed W8 documentation alignment, and the
-  finished N1 and N3 follow-ups.
+  finished nice-to-have follow-ups.
 - Program, security, testing, roadmap, and generated-client docs now reflect
-  the delegation revocation and verdict-window behavior.
+  delegation revocation, handoff grant, domain snapshot, challenge round, and
+  verdict-window behavior.
+- Codama-generated program clients now expose `emitHandoffGrant` and
+  `writeDomainStatsSnapshot` alongside the earlier hardening surfaces.
 
 ### Verified
 
 - Added LiteSVM coverage for delegation revocation grace windows, verdict stale
-  windows, safety verdicts, and verdict-gated reputation degradation.
+  windows, safety verdicts, verdict-gated reputation degradation, handoff
+  grants, and domain-stats snapshots.
 - Added validator-backed TypeScript coverage for delegated revocation and
-  dispute reputation verdict requirements.
+  dispute reputation verdict requirements, plus Surfpool-backed coverage for
+  handoff grants and domain-stats snapshots.
 - Expanded the hardening audit lane to cover W5 and the completed W8
   documentation work.
 - Expanded the hardening scoreboard tests to cover W3 and W4 evidence.
 - Added README truthing and doc-boundary checks so the written guarantees stay
   aligned with the codebase.
+- Re-ran the local audit lane with `pnpm test:audit` and the end-to-end
+  Surfpool slice for `tests/trust_substrate.ts` and
+  `tests/reputation_domains.ts`.

@@ -760,6 +760,8 @@ the delegation is revoked and `Clock::get()?.slot >= revoke_at_slot`.
 
 **Wave:** companion to W1.1.
 
+**Status:** complete.
+
 The `round: u16` field is already in the `AuditReceipt` seed (see W1.1
 refinement). After a verdict reversal or appeal, a second round can
 produce a fresh challenge of the same kind on the same target without
@@ -790,6 +792,8 @@ granularity rather than a single hard-coded window.
 
 **Wave:** companion to W1 / W5.
 
+**Status:** complete.
+
 Today `handoff` is a marker receipt with no on-chain effect. Wrap it as
 a thin primitive that CPIs into `delegation_engine.create_delegation`,
 so the receiving agent gains a scoped delegation on the same task. The
@@ -804,6 +808,8 @@ a rotation analogy.
 
 **Wave:** companion to W6.1.
 
+**Status:** complete.
+
 `getAgentLeaderboard({ tier0: true })` includes unbonded identities but
 surfaces them with a distinct badge. Makes the tier visible without
 forcing it on consumers.
@@ -811,6 +817,8 @@ forcing it on consumers.
 ### N6 — DomainStats aggregation account
 
 **Wave:** companion to W0.2.
+
+**Status:** complete.
 
 A per-domain aggregation PDA that any ingester can write into with a
 signed snapshot of domain-wide stats. Cheap for leaderboards that don't
