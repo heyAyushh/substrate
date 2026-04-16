@@ -15,8 +15,16 @@ pub mod __client_accounts_append_receipt_to_checkpoint {
     pub use crate::instructions::append_receipt_to_checkpoint::__client_accounts_append_receipt_to_checkpoint::*;
 }
 
+pub mod __client_accounts_checkpoint_import {
+    pub use crate::instructions::checkpoint_import::__client_accounts_checkpoint_import::*;
+}
+
 pub mod __client_accounts_initialize_checkpoint {
     pub use crate::instructions::initialize_checkpoint::__client_accounts_initialize_checkpoint::*;
+}
+
+pub mod __client_accounts_initialize_checkpoint_importer {
+    pub use crate::instructions::initialize_checkpoint_importer::__client_accounts_initialize_checkpoint_importer::*;
 }
 
 pub mod __client_accounts_initialize_history_updater {
@@ -37,8 +45,18 @@ pub mod __cpi_client_accounts_append_receipt_to_checkpoint {
 }
 
 #[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_checkpoint_import {
+    pub use crate::instructions::checkpoint_import::__cpi_client_accounts_checkpoint_import::*;
+}
+
+#[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_initialize_checkpoint {
     pub use crate::instructions::initialize_checkpoint::__cpi_client_accounts_initialize_checkpoint::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_initialize_checkpoint_importer {
+    pub use crate::instructions::initialize_checkpoint_importer::__cpi_client_accounts_initialize_checkpoint_importer::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -68,6 +86,22 @@ pub mod proof_verifier {
 
     pub fn initialize_checkpoint(ctx: Context<InitializeCheckpoint>, epoch: u64) -> Result<()> {
         instructions::initialize_checkpoint::handler(ctx, epoch)
+    }
+
+    pub fn initialize_checkpoint_importer(
+        ctx: Context<InitializeCheckpointImporter>,
+        authority: Pubkey,
+    ) -> Result<()> {
+        instructions::initialize_checkpoint_importer::handler(ctx, authority)
+    }
+
+    pub fn checkpoint_import(
+        ctx: Context<CheckpointImport>,
+        epoch: u64,
+        root: [u8; 32],
+        leaf_count: u64,
+    ) -> Result<()> {
+        instructions::checkpoint_import::handler(ctx, epoch, root, leaf_count)
     }
 
     pub fn append_receipt_to_checkpoint(ctx: Context<AppendReceiptToCheckpoint>) -> Result<()> {

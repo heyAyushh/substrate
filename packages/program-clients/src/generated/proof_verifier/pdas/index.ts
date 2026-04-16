@@ -7,6 +7,7 @@
  */
 
 export * from "./checkpoint";
+export * from "./checkpointImporter";
 export * from "./historyUpdater";
 export * from "./latestCheckpoint";
 export * from "./rotateCheckpointCheckpoint";

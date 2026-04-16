@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./checkpointImporter";
 export * from "./historyCheckpoint";
 export * from "./historyUpdater";
 export * from "./latestCheckpoint";

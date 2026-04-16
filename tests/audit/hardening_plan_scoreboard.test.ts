@@ -188,9 +188,16 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
   {
     wave: "W2",
     item: "W2.2 restrict caller-supplied root instead of removing it",
-    status: "missing",
-    evidence: [],
-    gap: "No restricted caller-supplied root path or governance-gated checkpoint_import instruction exists yet.",
+    status: "complete",
+    evidence: [
+      { path: "programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs", marker: "CHECKPOINT_IMPORTER_SEED" },
+      { path: "programs/proof_verifier/src/instructions/checkpoint_import.rs", marker: "CheckpointImportAuthorityMismatch" },
+      { path: "programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs", marker: "CheckpointImportedIsReadOnly" },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs",
+        marker: "imports_trusted_checkpoint_roots_only_for_configured_governance",
+      },
+    ],
   },
 ] as const;
 
@@ -220,7 +227,7 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(SCOREBOARD_DOC.includes("# Hardening Plan Scoreboard"));
   ok(SCOREBOARD_DOC.includes("| W0 | W0.1 validate receipt chain on-chain | complete |"));
   ok(SCOREBOARD_DOC.includes("| W1 | W1.2 response window + timeout primitive | complete |"));
-  ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | missing |"));
+  ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | complete |"));
 });
 
 test("completed scoreboard rows have concrete file evidence", () => {
@@ -238,7 +245,7 @@ test("completed scoreboard rows have concrete file evidence", () => {
 test("missing scoreboard rows declare explicit gaps", () => {
   const missing = SCOREBOARD.filter((item) => item.status === "missing");
 
-  strictEqual(missing.length, 1);
+  strictEqual(missing.length, 0);
   for (const item of missing) {
     ok(item.gap && item.gap.length > 0, `${item.item} gap missing`);
     strictEqual(item.evidence.length, 0);

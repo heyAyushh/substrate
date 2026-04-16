@@ -24,13 +24,12 @@ Status legend:
 | W1 | W1.1 split self-emit vs audit-emit | complete | `programs/receipt_emitter/src/instructions/emit_receipt.rs`, `programs/receipt_emitter/src/instructions/emit_delegated_receipt.rs`, `programs/receipt_emitter/src/instructions/emit_audit_receipt.rs`, `programs/receipt_emitter/src/state/receipt_record.rs`, `programs/receipt_emitter/src/events.rs`, `crates/trust_substrate_litesvm_tests/tests/audit_receipts.rs`, `tests/audit_receipts.ts` | |
 | W1 | W1.2 response window + timeout primitive | complete | `programs/receipt_emitter/src/instructions/emit_audit_receipt.rs`, `programs/receipt_emitter/src/instructions/emit_challenge_response.rs`, `programs/receipt_emitter/src/instructions/finalize_unanswered_challenge.rs`, `programs/receipt_emitter/src/state/receipt_record.rs`, `crates/trust_substrate_litesvm_tests/tests/audit_receipts.rs` | |
 | W2 | W2.1 incremental checkpoint from actual receipts | complete | `programs/proof_verifier/src/instructions/initialize_checkpoint.rs`, `programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs`, `programs/proof_verifier/src/instructions/rotate_checkpoint.rs`, `programs/proof_verifier/src/instructions/verify_receipt_inclusion.rs`, `crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs`, `crates/trust_substrate_litesvm_tests/tests/protocol_flow.rs`, `tests/proof_verifier_events.ts`, `tests/trust_substrate.ts` | |
-| W2 | W2.2 restrict caller-supplied root instead of removing it | missing | | `No restricted caller-supplied root path or governance-gated checkpoint_import instruction exists yet.` |
+| W2 | W2.2 restrict caller-supplied root instead of removing it | complete | `programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs`, `programs/proof_verifier/src/instructions/checkpoint_import.rs`, `programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs`, `crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs` | |
 
 ## Summary
 
-- Completed: 8
-- Missing: 1
+- Completed: 9
+- Missing: 0
 
-The audit lane treats the missing rows as the next actionable gaps. The
-scoreboard is intentionally narrow so W0-W2 can be checked mechanically before
-the later waves are expanded.
+The audit lane is intentionally narrow so W0-W2 can be checked mechanically
+before the later waves are expanded.

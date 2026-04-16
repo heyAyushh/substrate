@@ -1,7 +1,7 @@
 use crate::{
     events::CheckpointReceiptAppended,
-    receipt_emitter,
     identity_registry::state::AgentIdentity,
+    receipt_emitter,
     state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
     TrustSubstrateError, CHECKPOINT_SEED,
 };
@@ -24,6 +24,10 @@ pub fn handler(ctx: Context<AppendReceiptToCheckpoint>) -> Result<()> {
         ctx.accounts.latest_checkpoint.checkpoint,
         ctx.accounts.checkpoint.key(),
         TrustSubstrateError::StaleCheckpoint
+    );
+    require!(
+        !ctx.accounts.checkpoint.imported,
+        TrustSubstrateError::CheckpointImportedIsReadOnly
     );
 
     let checkpoint = &mut ctx.accounts.checkpoint;
@@ -90,7 +94,11 @@ fn receipt_position_after(
         return receipt.sequence == 1;
     }
 
-    match receipt.task.to_bytes().cmp(&checkpoint.latest_task.to_bytes()) {
+    match receipt
+        .task
+        .to_bytes()
+        .cmp(&checkpoint.latest_task.to_bytes())
+    {
         Ordering::Greater => receipt.sequence == 1,
         Ordering::Equal => receipt.sequence == checkpoint.latest_sequence.saturating_add(1),
         Ordering::Less => false,

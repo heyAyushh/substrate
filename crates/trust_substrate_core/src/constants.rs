@@ -7,6 +7,7 @@ pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
 pub const CHALLENGE_RESPONSE_SEED: &[u8] = b"challenge_response";
 pub const DELEGATION_SEED: &[u8] = b"delegation";
 pub const CHECKPOINT_SEED: &[u8] = b"checkpoint";
+pub const CHECKPOINT_IMPORTER_SEED: &[u8] = b"checkpoint_importer";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
 pub const STAKE_SEED: &[u8] = b"stake";
 pub const SLASH_MARKER_SEED: &[u8] = b"slash_marker";

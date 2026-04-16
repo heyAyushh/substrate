@@ -16,8 +16,8 @@ use std::rc::Rc;
 
 pub use trust_substrate_core::{
     ASSIGNMENT_KIND, ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
-    CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_SEED, COMPLETION_KIND,
-    COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
+    CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
+    COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
     DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED, LATEST_CHECKPOINT_SEED,
     RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, SLASH_MARKER_SEED,
     STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED,
@@ -413,6 +413,33 @@ impl Harness {
         let ix = self.ix_initialize_checkpoint(identity, checkpoint, epoch);
         self.send_as_payer(ix)?;
         Ok(checkpoint)
+    }
+
+    pub fn initialize_checkpoint_importer(&mut self, authority: Pubkey) -> TestResult {
+        let ix = self.ix_initialize_checkpoint_importer(authority);
+        self.send_as_payer(ix)?;
+        Ok(())
+    }
+
+    pub fn checkpoint_import(
+        &mut self,
+        identity: &IdentityFixture,
+        authority: &Keypair,
+        checkpoint: Pubkey,
+        epoch: u64,
+        root: [u8; 32],
+        leaf_count: u64,
+    ) -> TestResult {
+        let ix = self.ix_checkpoint_import_with_authority(
+            identity,
+            authority.pubkey(),
+            checkpoint,
+            epoch,
+            root,
+            leaf_count,
+        );
+        self.send(ix, &[authority])?;
+        Ok(())
     }
 
     pub fn append_receipt_to_checkpoint(
@@ -916,6 +943,21 @@ impl Harness {
         )
     }
 
+    fn ix_initialize_checkpoint_importer(
+        &self,
+        authority: Pubkey,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            proof_verifier::ID,
+            proof_verifier::instruction::InitializeCheckpointImporter { authority }.data(),
+            proof_verifier::accounts::InitializeCheckpointImporter {
+                payer: self.payer.pubkey(),
+                checkpoint_importer: checkpoint_importer_pda(),
+                system_program: system_program::ID,
+            },
+        )
+    }
+
     fn ix_initialize_domain_catalog(
         &self,
     ) -> anchor_lang::solana_program::instruction::Instruction {
@@ -1056,6 +1098,54 @@ impl Harness {
             proof_verifier::accounts::InitializeCheckpoint {
                 identity: identity.address,
                 authority: self.payer.pubkey(),
+                checkpoint,
+                latest_checkpoint: latest_checkpoint_pda(identity.address),
+                history_updater: self.history_updater,
+                identity_registry_program: identity_registry::ID,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_checkpoint_import(
+        &self,
+        identity: &IdentityFixture,
+        checkpoint: Pubkey,
+        epoch: u64,
+        root: [u8; 32],
+        leaf_count: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_checkpoint_import_with_authority(
+            identity,
+            self.payer.pubkey(),
+            checkpoint,
+            epoch,
+            root,
+            leaf_count,
+        )
+    }
+
+    fn ix_checkpoint_import_with_authority(
+        &self,
+        identity: &IdentityFixture,
+        authority: Pubkey,
+        checkpoint: Pubkey,
+        epoch: u64,
+        root: [u8; 32],
+        leaf_count: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            proof_verifier::ID,
+            proof_verifier::instruction::CheckpointImport {
+                epoch,
+                root,
+                leaf_count,
+            }
+            .data(),
+            proof_verifier::accounts::CheckpointImport {
+                identity: identity.address,
+                authority,
+                checkpoint_importer: checkpoint_importer_pda(),
                 checkpoint,
                 latest_checkpoint: latest_checkpoint_pda(identity.address),
                 history_updater: self.history_updater,
@@ -1207,7 +1297,11 @@ fn delegation_pda(identity: Pubkey, delegate: Pubkey) -> Pubkey {
     )
 }
 
-fn checkpoint_pda(identity: Pubkey, epoch: u64) -> Pubkey {
+fn checkpoint_importer_pda() -> Pubkey {
+    pda(&[CHECKPOINT_IMPORTER_SEED], &proof_verifier::ID)
+}
+
+pub fn checkpoint_pda(identity: Pubkey, epoch: u64) -> Pubkey {
     pda(
         &[
             CHECKPOINT_SEED,
@@ -1218,7 +1312,7 @@ fn checkpoint_pda(identity: Pubkey, epoch: u64) -> Pubkey {
     )
 }
 
-fn latest_checkpoint_pda(identity: Pubkey) -> Pubkey {
+pub fn latest_checkpoint_pda(identity: Pubkey) -> Pubkey {
     pda(
         &[LATEST_CHECKPOINT_SEED, identity.as_ref()],
         &proof_verifier::ID,

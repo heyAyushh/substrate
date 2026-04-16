@@ -110,9 +110,14 @@ Fields:
 
 - `identity: Pubkey`
 - `epoch: u64`
+- `imported: bool`
 - `root: [u8; 32]`
 - `previous_root: [u8; 32]`
 - `leaf_count: u64`
+- `latest_committed_receipt: Pubkey`
+- `latest_task: Pubkey`
+- `latest_sequence: u64`
+- `frontier: [[u8; 32]; MERKLE_FRONTIER_HEIGHT]`
 - `bump: u8`
 
 PDA seed:
@@ -137,6 +142,19 @@ PDA seed:
 
 - `latest_checkpoint`
 - identity pubkey
+
+### `CheckpointImporter`
+
+Program: `proof_verifier`
+
+Fields:
+
+- `authority: Pubkey`
+- `bump: u8`
+
+PDA seed:
+
+- `checkpoint_importer`
 
 ### `ReputationAccumulator`
 
@@ -323,24 +341,64 @@ Behavior:
 - requires the signer to match `identity.authority`
 - marks the delegation as revoked
 
-### `proof_verifier.checkpoint_history`
+### `proof_verifier.initialize_checkpoint`
 
 Signature:
 
-- `checkpoint_history(ctx, epoch, root, leaf_count)`
+- `initialize_checkpoint(ctx, epoch)`
 
 Behavior:
 
 - requires the signer to match `identity.authority`
 - initializes a checkpoint PDA for the identity and epoch
 - initializes the latest checkpoint PDA for the identity
-- stores the root, empty previous root, leaf count, and bump
+- starts with an empty root, zero leaves, and an empty Merkle frontier
+- updates the identity history root through the history updater PDA
+
+### `proof_verifier.initialize_checkpoint_importer`
+
+Signature:
+
+- `initialize_checkpoint_importer(ctx, authority)`
+
+Behavior:
+
+- initializes the singleton checkpoint importer PDA
+- stores the governance authority allowed to import trusted roots
+
+### `proof_verifier.checkpoint_import`
+
+Signature:
+
+- `checkpoint_import(ctx, epoch, root, leaf_count)`
+
+Behavior:
+
+- requires the signer to match the configured checkpoint importer authority
+- initializes a checkpoint PDA with the supplied trusted root and leaf count
+- marks the checkpoint as imported so direct receipt appends are rejected
+- initializes the latest checkpoint PDA for the identity
+- updates the identity history root through the history updater PDA
+
+### `proof_verifier.append_receipt_to_checkpoint`
+
+Signature:
+
+- `append_receipt_to_checkpoint(ctx)`
+
+Behavior:
+
+- requires the receipt identity to match the checkpoint identity
+- requires the checkpoint to be the latest checkpoint for the identity
+- rejects imported checkpoints
+- appends the receipt leaf in canonical task and sequence order
+- updates the latest checkpoint root and identity history root
 
 ### `proof_verifier.rotate_checkpoint`
 
 Signature:
 
-- `rotate_checkpoint(ctx, new_epoch, new_root, new_leaf_count)`
+- `rotate_checkpoint(ctx, new_epoch)`
 
 Behavior:
 
@@ -348,8 +406,7 @@ Behavior:
 - requires the previous checkpoint to belong to the identity
 - requires the previous checkpoint to be the latest checkpoint
 - requires `new_epoch` to equal the previous epoch plus one
-- requires the leaf count to stay the same or increase
-- stores the new root and previous checkpoint root
+- opens an empty checkpoint and stores the previous checkpoint root
 - updates the latest checkpoint pointer
 
 ### `proof_verifier.verify_receipt_inclusion`
@@ -538,6 +595,8 @@ Defined in `crates/trust_substrate_core/src/error.rs`:
 - `DelegationAuthorityMismatch`
 - `ReceiptAuthorityMismatch`
 - `CheckpointAuthorityMismatch`
+- `CheckpointImportAuthorityMismatch`
+- `CheckpointImportedIsReadOnly`
 - `ReputationAuthorityMismatch`
 - `StakeAuthorityMismatch`
 - `StakeSlashAuthorityMismatch`

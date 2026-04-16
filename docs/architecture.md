@@ -79,7 +79,9 @@ The proof verifier stores per-identity history checkpoints with:
 - previous root
 - leaf count
 
-Checkpoint rotation requires the next epoch and a non-decreasing leaf count. Inclusion verification checks Merkle proofs against the checkpoint root using the shared core hashing rules.
+Normal checkpoints start empty and append receipt leaves in canonical task and sequence order. Checkpoint rotation requires the next epoch and carries the previous root forward. Inclusion verification checks Merkle proofs against the checkpoint root using the shared core hashing rules.
+
+`checkpoint_import` is the only caller-supplied root path. It is marked as imported, gated by the `checkpoint_importer` governance authority, and intended for migration or recovery rather than routine receipt history.
 
 This is the local checkpoint model. Light Protocol ZK Compression is future work, not part of the current local baseline.
 

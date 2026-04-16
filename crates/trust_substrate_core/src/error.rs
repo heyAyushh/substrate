@@ -66,6 +66,8 @@ pub enum TrustSubstrateError {
     ReceiptSequenceNotMonotonic,
     #[msg("The signer cannot checkpoint history for this agent identity")]
     CheckpointAuthorityMismatch,
+    #[msg("The signer is not the configured checkpoint import authority")]
+    CheckpointImportAuthorityMismatch,
     #[msg("Checkpoint receipts must be appended in canonical task and sequence order")]
     CheckpointOrderingViolation,
     #[msg("This receipt has already been appended to the checkpoint")]
@@ -82,6 +84,8 @@ pub enum TrustSubstrateError {
     ReceiptAlreadyAppliedToReputation,
     #[msg("The checkpoint is no longer the latest checkpoint for this agent identity")]
     StaleCheckpoint,
+    #[msg("Imported checkpoints cannot accept direct receipt appends")]
+    CheckpointImportedIsReadOnly,
     #[msg("The signer cannot mutate this stake account")]
     StakeAuthorityMismatch,
     #[msg("The signer cannot slash this stake account")]

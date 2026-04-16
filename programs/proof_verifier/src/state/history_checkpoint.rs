@@ -6,6 +6,7 @@ use trust_substrate_core::MERKLE_FRONTIER_HEIGHT;
 pub struct HistoryCheckpoint {
     pub identity: Pubkey,
     pub epoch: u64,
+    pub imported: bool,
     pub root: [u8; 32],
     pub previous_root: [u8; 32],
     pub leaf_count: u64,

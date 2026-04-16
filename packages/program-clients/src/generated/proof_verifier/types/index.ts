@@ -8,6 +8,7 @@
 
 export * from "./agentIdentity";
 export * from "./checkpointCreated";
+export * from "./checkpointImported";
 export * from "./checkpointReceiptAppended";
 export * from "./checkpointRotated";
 export * from "./inclusionVerified";

@@ -1,25 +1,32 @@
 use crate::{
     identity_registry::state::AgentIdentity,
-    state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
-    CheckpointCreated, TrustSubstrateError, CHECKPOINT_SEED,
+    state::{CheckpointImporter, HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
+    CheckpointImported, TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
-use trust_substrate_core::{empty_frontier, EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED};
+use trust_substrate_core::{
+    empty_frontier, CHECKPOINT_IMPORTER_SEED, EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED,
+};
 
-pub fn handler(ctx: Context<InitializeCheckpoint>, epoch: u64) -> Result<()> {
+pub fn handler(
+    ctx: Context<CheckpointImport>,
+    epoch: u64,
+    root: [u8; 32],
+    leaf_count: u64,
+) -> Result<()> {
     require_keys_eq!(
-        ctx.accounts.identity.authority,
+        ctx.accounts.checkpoint_importer.authority,
         ctx.accounts.authority.key(),
-        TrustSubstrateError::CheckpointAuthorityMismatch
+        TrustSubstrateError::CheckpointImportAuthorityMismatch
     );
 
     let checkpoint = &mut ctx.accounts.checkpoint;
     checkpoint.identity = ctx.accounts.identity.key();
     checkpoint.epoch = epoch;
-    checkpoint.imported = false;
-    checkpoint.root = EMPTY_MERKLE_ROOT;
+    checkpoint.imported = true;
+    checkpoint.root = root;
     checkpoint.previous_root = EMPTY_MERKLE_ROOT;
-    checkpoint.leaf_count = 0;
+    checkpoint.leaf_count = leaf_count;
     checkpoint.latest_committed_receipt = Pubkey::default();
     checkpoint.latest_task = Pubkey::default();
     checkpoint.latest_sequence = 0;
@@ -30,14 +37,14 @@ pub fn handler(ctx: Context<InitializeCheckpoint>, epoch: u64) -> Result<()> {
     latest_checkpoint.identity = ctx.accounts.identity.key();
     latest_checkpoint.checkpoint = checkpoint.key();
     latest_checkpoint.epoch = epoch;
-    latest_checkpoint.root = EMPTY_MERKLE_ROOT;
+    latest_checkpoint.root = root;
     latest_checkpoint.bump = ctx.bumps.latest_checkpoint;
 
-    emit!(CheckpointCreated {
+    emit!(CheckpointImported {
         identity: checkpoint.identity,
         epoch,
-        root: checkpoint.root,
-        leaf_count: checkpoint.leaf_count,
+        root,
+        leaf_count,
         slot: Clock::get()?.slot,
     });
 
@@ -51,18 +58,23 @@ pub fn handler(ctx: Context<InitializeCheckpoint>, epoch: u64) -> Result<()> {
         cpi_accounts,
         signer_seeds,
     );
-    ::identity_registry::cpi::update_history_root(cpi_ctx, checkpoint.root)?;
+    ::identity_registry::cpi::update_history_root(cpi_ctx, root)?;
 
     Ok(())
 }
 
 #[derive(Accounts)]
 #[instruction(epoch: u64)]
-pub struct InitializeCheckpoint<'info> {
+pub struct CheckpointImport<'info> {
     #[account(mut)]
     pub identity: Account<'info, AgentIdentity>,
     #[account(mut)]
     pub authority: Signer<'info>,
+    #[account(
+        seeds = [CHECKPOINT_IMPORTER_SEED],
+        bump = checkpoint_importer.bump
+    )]
+    pub checkpoint_importer: Account<'info, CheckpointImporter>,
     #[account(
         init,
         payer = authority,

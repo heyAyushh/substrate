@@ -1,8 +1,7 @@
 use crate::{
     identity_registry::state::AgentIdentity,
     state::{HistoryCheckpoint, HistoryUpdater, LatestCheckpoint},
-    CheckpointRotated,
-    TrustSubstrateError, CHECKPOINT_SEED,
+    CheckpointRotated, TrustSubstrateError, CHECKPOINT_SEED,
 };
 use anchor_lang::prelude::*;
 use trust_substrate_core::{empty_frontier, EMPTY_MERKLE_ROOT, LATEST_CHECKPOINT_SEED};
@@ -37,6 +36,7 @@ pub fn handler(ctx: Context<RotateCheckpoint>, new_epoch: u64) -> Result<()> {
     let checkpoint = &mut ctx.accounts.checkpoint;
     checkpoint.identity = ctx.accounts.identity.key();
     checkpoint.epoch = new_epoch;
+    checkpoint.imported = false;
     checkpoint.root = EMPTY_MERKLE_ROOT;
     checkpoint.previous_root = ctx.accounts.previous_checkpoint.root;
     checkpoint.leaf_count = 0;

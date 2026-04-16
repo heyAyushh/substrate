@@ -7,7 +7,9 @@
  */
 
 export * from "./appendReceiptToCheckpoint";
+export * from "./checkpointImport";
 export * from "./initializeCheckpoint";
+export * from "./initializeCheckpointImporter";
 export * from "./initializeHistoryUpdater";
 export * from "./rotateCheckpoint";
 export * from "./verifyReceiptInclusion";

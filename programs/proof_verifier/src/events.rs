@@ -30,6 +30,15 @@ pub struct CheckpointRotated {
 }
 
 #[event]
+pub struct CheckpointImported {
+    pub identity: Pubkey,
+    pub epoch: u64,
+    pub root: [u8; 32],
+    pub leaf_count: u64,
+    pub slot: u64,
+}
+
+#[event]
 pub struct InclusionVerified {
     pub identity: Pubkey,
     pub checkpoint: Pubkey,
