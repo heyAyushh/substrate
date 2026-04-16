@@ -17,3 +17,11 @@ pub struct AuthorityRotated {
     pub slot: u64,
     pub mode: u8,
 }
+
+#[event]
+pub struct GuardianSetInitialized {
+    pub identity: Pubkey,
+    pub guardians: Vec<Pubkey>,
+    pub threshold: u8,
+    pub slot: u64,
+}

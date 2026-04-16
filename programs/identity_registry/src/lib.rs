@@ -12,8 +12,16 @@ pub mod __client_accounts_create_identity {
     pub use crate::instructions::create_identity::__client_accounts_create_identity::*;
 }
 
+pub mod __client_accounts_emergency_rotate_authority {
+    pub use crate::instructions::emergency_rotate_authority::__client_accounts_emergency_rotate_authority::*;
+}
+
 pub mod __client_accounts_finalize_authority_rotation {
     pub use crate::instructions::finalize_authority_rotation::__client_accounts_finalize_authority_rotation::*;
+}
+
+pub mod __client_accounts_initialize_guardian_set {
+    pub use crate::instructions::initialize_guardian_set::__client_accounts_initialize_guardian_set::*;
 }
 
 pub mod __client_accounts_rotate_authority {
@@ -34,8 +42,18 @@ pub mod __cpi_client_accounts_create_identity {
 }
 
 #[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_emergency_rotate_authority {
+    pub use crate::instructions::emergency_rotate_authority::__cpi_client_accounts_emergency_rotate_authority::*;
+}
+
+#[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_finalize_authority_rotation {
     pub use crate::instructions::finalize_authority_rotation::__cpi_client_accounts_finalize_authority_rotation::*;
+}
+
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_initialize_guardian_set {
+    pub use crate::instructions::initialize_guardian_set::__cpi_client_accounts_initialize_guardian_set::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -74,6 +92,21 @@ pub mod identity_registry {
         unlock_slot: u64,
     ) -> Result<()> {
         instructions::rotate_authority::handler(ctx, new_authority, unlock_slot)
+    }
+
+    pub fn initialize_guardian_set(
+        ctx: Context<InitializeGuardianSet>,
+        guardians: Vec<Pubkey>,
+        threshold: u8,
+    ) -> Result<()> {
+        instructions::initialize_guardian_set::handler(ctx, guardians, threshold)
+    }
+
+    pub fn emergency_rotate_authority(
+        ctx: Context<EmergencyRotateAuthority>,
+        new_authority: Pubkey,
+    ) -> Result<()> {
+        instructions::emergency_rotate_authority::handler(ctx, new_authority)
     }
 
     pub fn finalize_authority_rotation(ctx: Context<FinalizeAuthorityRotation>) -> Result<()> {

@@ -263,6 +263,86 @@ test("models authority rotation with sdk identity helpers", () => {
   strictEqual(finalized.rotation.sequence, 3);
 });
 
+test("models emergency guardian rotation with sdk identity helpers", () => {
+  const client = new TrustSubstrateClient();
+  const identity = client.identity.create({
+    authority: "Authority1111111111111111111111111111111111",
+    label: "incident-agent",
+  });
+  const guardianSet = client.identity.configureGuardianSet({
+    identity,
+    guardians: [
+      "Guardian11111111111111111111111111111111111",
+      "Guardian22222222222222222222222222222222222",
+      "Guardian33333333333333333333333333333333333",
+    ],
+    threshold: 2,
+  });
+
+  const finalized = client.identity.emergencyRotateAuthority({
+    identity,
+    guardianSet,
+    approvedGuardians: [
+      "Guardian11111111111111111111111111111111111",
+      "Guardian22222222222222222222222222222222222",
+    ],
+    newAuthority: "Authority9999999999999999999999999999999999",
+    finalizedSlot: 44,
+    sequence: 4,
+  });
+
+  strictEqual(
+    finalized.identity.authority,
+    "Authority9999999999999999999999999999999999"
+  );
+  strictEqual(finalized.rotation.mode, "emergency");
+  strictEqual(finalized.rotation.sequence, 4);
+});
+
+test("rejects emergency rotation approvals that do not satisfy guardian policy", () => {
+  const client = new TrustSubstrateClient();
+  const identity = client.identity.create({
+    authority: "Authority1111111111111111111111111111111111",
+    label: "guarded-agent",
+  });
+  const guardianSet = client.identity.configureGuardianSet({
+    identity,
+    guardians: [
+      "Guardian11111111111111111111111111111111111",
+      "Guardian22222222222222222222222222222222222",
+      "Guardian33333333333333333333333333333333333",
+    ],
+    threshold: 2,
+  });
+
+  throws(
+    () =>
+      client.identity.emergencyRotateAuthority({
+        identity,
+        guardianSet,
+        approvedGuardians: ["Guardian11111111111111111111111111111111111"],
+        newAuthority: "Authority9999999999999999999999999999999999",
+        finalizedSlot: 45,
+      }),
+    /threshold/i
+  );
+
+  throws(
+    () =>
+      client.identity.emergencyRotateAuthority({
+        identity,
+        guardianSet,
+        approvedGuardians: [
+          "Guardian11111111111111111111111111111111111",
+          "Guardian44444444444444444444444444444444444",
+        ],
+        newAuthority: "Authority9999999999999999999999999999999999",
+        finalizedSlot: 46,
+      }),
+    /not configured/i
+  );
+});
+
 test("applies rotation decay to receipts that predate the latest authority change", () => {
   const client = new TrustSubstrateClient();
   const identity = client.identity.create({

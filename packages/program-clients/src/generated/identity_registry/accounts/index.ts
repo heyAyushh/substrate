@@ -7,4 +7,5 @@
  */
 
 export * from "./agentIdentity";
+export * from "./guardianSet";
 export * from "./pendingAuthorityRotation";

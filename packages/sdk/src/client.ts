@@ -12,9 +12,14 @@ import {
   extractStakeEventsFromReceipt,
 } from "./stake.js";
 import {
+  configureGuardianSet,
+  emergencyRotateAuthority,
   finalizeAuthorityRotation,
   requestAuthorityRotation,
+  type ConfigureGuardianSetInput,
   type FinalizeAuthorityRotationInput,
+  type EmergencyRotateAuthorityInput,
+  type GuardianSet,
   type PendingAuthorityRotation,
   type RotateAuthorityInput,
 } from "./rotation.js";
@@ -170,8 +175,12 @@ export class TrustSubstrateClient {
   readonly identity = {
     create: (input: IdentityCreateInput): IdentityRecord =>
       createIdentity(input),
+    configureGuardianSet: (input: ConfigureGuardianSetInput): GuardianSet =>
+      configureGuardianSet(input),
     rotateAuthority: (input: RotateAuthorityInput): PendingAuthorityRotation =>
       requestAuthorityRotation(input),
+    emergencyRotateAuthority: (input: EmergencyRotateAuthorityInput) =>
+      emergencyRotateAuthority(input),
     finalizeRotation: (input: FinalizeAuthorityRotationInput) =>
       finalizeAuthorityRotation(input),
   };

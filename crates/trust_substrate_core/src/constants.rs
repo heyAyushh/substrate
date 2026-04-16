@@ -2,6 +2,7 @@ use solana_sha256_hasher::hashv;
 
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const PENDING_ROTATION_SEED: &[u8] = b"pending_rotation";
+pub const GUARDIAN_SET_SEED: &[u8] = b"guardian_set";
 pub const TASK_SEED: &[u8] = b"task";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
@@ -64,6 +65,7 @@ pub const TASK_STATUS_ACTIVE: u8 = 1;
 pub const TASK_STATUS_COMPLETED: u8 = 2;
 pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
+pub const MAX_GUARDIANS: usize = 5;
 pub const ROTATION_COOLDOWN_SLOTS: u64 = 5;
 pub const STAKE_COOLDOWN_SLOTS: u64 = 5;
 

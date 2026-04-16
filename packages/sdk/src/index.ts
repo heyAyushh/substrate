@@ -91,8 +91,11 @@ export {
 
 export {
   AUTHORITY_ROTATED_MARKER,
+  configureGuardianSet,
   createAuthorityRotationEvent,
+  emergencyRotateAuthority,
   finalizeAuthorityRotation,
+  MAX_GUARDIAN_APPROVERS,
   requestAuthorityRotation,
 } from "./rotation.js";
 
@@ -150,7 +153,10 @@ export type {
   AuthorityRotationEvent,
   AuthorityRotationEventInput,
   AuthorityRotationMode,
+  ConfigureGuardianSetInput,
+  EmergencyRotateAuthorityInput,
   FinalizeAuthorityRotationInput,
+  GuardianSet,
   PendingAuthorityRotation,
   RotateAuthorityInput,
 } from "./rotation.js";

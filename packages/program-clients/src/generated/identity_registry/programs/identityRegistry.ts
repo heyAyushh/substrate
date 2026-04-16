@@ -33,27 +33,38 @@ import {
 } from "@solana/kit/program-client-core";
 import {
   getAgentIdentityCodec,
+  getGuardianSetCodec,
   getPendingAuthorityRotationCodec,
   type AgentIdentity,
   type AgentIdentityArgs,
+  type GuardianSet,
+  type GuardianSetArgs,
   type PendingAuthorityRotation,
   type PendingAuthorityRotationArgs,
 } from "../accounts";
 import {
   getCreateIdentityInstructionAsync,
+  getEmergencyRotateAuthorityInstruction,
   getFinalizeAuthorityRotationInstructionAsync,
+  getInitializeGuardianSetInstructionAsync,
   getRotateAuthorityInstructionAsync,
   getUpdateHistoryRootInstruction,
   getUpdatePolicyRootInstruction,
   parseCreateIdentityInstruction,
+  parseEmergencyRotateAuthorityInstruction,
   parseFinalizeAuthorityRotationInstruction,
+  parseInitializeGuardianSetInstruction,
   parseRotateAuthorityInstruction,
   parseUpdateHistoryRootInstruction,
   parseUpdatePolicyRootInstruction,
   type CreateIdentityAsyncInput,
+  type EmergencyRotateAuthorityInput,
   type FinalizeAuthorityRotationAsyncInput,
+  type InitializeGuardianSetAsyncInput,
   type ParsedCreateIdentityInstruction,
+  type ParsedEmergencyRotateAuthorityInstruction,
   type ParsedFinalizeAuthorityRotationInstruction,
+  type ParsedInitializeGuardianSetInstruction,
   type ParsedRotateAuthorityInstruction,
   type ParsedUpdateHistoryRootInstruction,
   type ParsedUpdatePolicyRootInstruction,
@@ -61,13 +72,18 @@ import {
   type UpdateHistoryRootInput,
   type UpdatePolicyRootInput,
 } from "../instructions";
-import { findIdentityPda, findPendingRotationPda } from "../pdas";
+import {
+  findGuardianSetPda,
+  findIdentityPda,
+  findPendingRotationPda,
+} from "../pdas";
 
 export const IDENTITY_REGISTRY_PROGRAM_ADDRESS =
   "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
 
 export enum IdentityRegistryAccount {
   AgentIdentity,
+  GuardianSet,
   PendingAuthorityRotation,
 }
 
@@ -90,6 +106,17 @@ export function identifyIdentityRegistryAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([120, 77, 74, 98, 34, 83, 96, 125]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryAccount.GuardianSet;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([228, 102, 208, 113, 133, 243, 39, 18]),
       ),
       0,
@@ -105,7 +132,9 @@ export function identifyIdentityRegistryAccount(
 
 export enum IdentityRegistryInstruction {
   CreateIdentity,
+  EmergencyRotateAuthority,
   FinalizeAuthorityRotation,
+  InitializeGuardianSet,
   RotateAuthority,
   UpdateHistoryRoot,
   UpdatePolicyRoot,
@@ -130,12 +159,34 @@ export function identifyIdentityRegistryInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([135, 157, 169, 19, 74, 59, 146, 68]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.EmergencyRotateAuthority;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([136, 245, 112, 52, 74, 191, 74, 57]),
       ),
       0,
     )
   ) {
     return IdentityRegistryInstruction.FinalizeAuthorityRotation;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([54, 1, 142, 249, 150, 135, 55, 127]),
+      ),
+      0,
+    )
+  ) {
+    return IdentityRegistryInstruction.InitializeGuardianSet;
   }
   if (
     containsBytes(
@@ -183,8 +234,14 @@ export type ParsedIdentityRegistryInstruction<
       instructionType: IdentityRegistryInstruction.CreateIdentity;
     } & ParsedCreateIdentityInstruction<TProgram>)
   | ({
+      instructionType: IdentityRegistryInstruction.EmergencyRotateAuthority;
+    } & ParsedEmergencyRotateAuthorityInstruction<TProgram>)
+  | ({
       instructionType: IdentityRegistryInstruction.FinalizeAuthorityRotation;
     } & ParsedFinalizeAuthorityRotationInstruction<TProgram>)
+  | ({
+      instructionType: IdentityRegistryInstruction.InitializeGuardianSet;
+    } & ParsedInitializeGuardianSetInstruction<TProgram>)
   | ({
       instructionType: IdentityRegistryInstruction.RotateAuthority;
     } & ParsedRotateAuthorityInstruction<TProgram>)
@@ -207,11 +264,25 @@ export function parseIdentityRegistryInstruction<TProgram extends string>(
         ...parseCreateIdentityInstruction(instruction),
       };
     }
+    case IdentityRegistryInstruction.EmergencyRotateAuthority: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.EmergencyRotateAuthority,
+        ...parseEmergencyRotateAuthorityInstruction(instruction),
+      };
+    }
     case IdentityRegistryInstruction.FinalizeAuthorityRotation: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: IdentityRegistryInstruction.FinalizeAuthorityRotation,
         ...parseFinalizeAuthorityRotationInstruction(instruction),
+      };
+    }
+    case IdentityRegistryInstruction.InitializeGuardianSet: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: IdentityRegistryInstruction.InitializeGuardianSet,
+        ...parseInitializeGuardianSetInstruction(instruction),
       };
     }
     case IdentityRegistryInstruction.RotateAuthority: {
@@ -255,6 +326,8 @@ export type IdentityRegistryPlugin = {
 export type IdentityRegistryPluginAccounts = {
   agentIdentity: ReturnType<typeof getAgentIdentityCodec> &
     SelfFetchFunctions<AgentIdentityArgs, AgentIdentity>;
+  guardianSet: ReturnType<typeof getGuardianSetCodec> &
+    SelfFetchFunctions<GuardianSetArgs, GuardianSet>;
   pendingAuthorityRotation: ReturnType<
     typeof getPendingAuthorityRotationCodec
   > &
@@ -266,9 +339,17 @@ export type IdentityRegistryPluginInstructions = {
     input: CreateIdentityAsyncInput,
   ) => ReturnType<typeof getCreateIdentityInstructionAsync> &
     SelfPlanAndSendFunctions;
+  emergencyRotateAuthority: (
+    input: EmergencyRotateAuthorityInput,
+  ) => ReturnType<typeof getEmergencyRotateAuthorityInstruction> &
+    SelfPlanAndSendFunctions;
   finalizeAuthorityRotation: (
     input: FinalizeAuthorityRotationAsyncInput,
   ) => ReturnType<typeof getFinalizeAuthorityRotationInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  initializeGuardianSet: (
+    input: InitializeGuardianSetAsyncInput,
+  ) => ReturnType<typeof getInitializeGuardianSetInstructionAsync> &
     SelfPlanAndSendFunctions;
   rotateAuthority: (
     input: RotateAuthorityAsyncInput,
@@ -287,6 +368,7 @@ export type IdentityRegistryPluginInstructions = {
 export type IdentityRegistryPluginPdas = {
   identity: typeof findIdentityPda;
   pendingRotation: typeof findPendingRotationPda;
+  guardianSet: typeof findGuardianSetPda;
 };
 
 export type IdentityRegistryPluginRequirements = ClientWithRpc<
@@ -302,6 +384,7 @@ export function identityRegistryProgram() {
       identityRegistry: <IdentityRegistryPlugin>{
         accounts: {
           agentIdentity: addSelfFetchFunctions(client, getAgentIdentityCodec()),
+          guardianSet: addSelfFetchFunctions(client, getGuardianSetCodec()),
           pendingAuthorityRotation: addSelfFetchFunctions(
             client,
             getPendingAuthorityRotationCodec(),
@@ -313,10 +396,20 @@ export function identityRegistryProgram() {
               client,
               getCreateIdentityInstructionAsync(input),
             ),
+          emergencyRotateAuthority: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getEmergencyRotateAuthorityInstruction(input),
+            ),
           finalizeAuthorityRotation: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getFinalizeAuthorityRotationInstructionAsync(input),
+            ),
+          initializeGuardianSet: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitializeGuardianSetInstructionAsync(input),
             ),
           rotateAuthority: (input) =>
             addSelfPlanAndSendFunctions(
@@ -337,6 +430,7 @@ export function identityRegistryProgram() {
         pdas: {
           identity: findIdentityPda,
           pendingRotation: findPendingRotationPda,
+          guardianSet: findGuardianSetPda,
         },
       },
     };

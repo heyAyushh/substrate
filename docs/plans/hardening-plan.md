@@ -14,6 +14,22 @@ SDK shape. It changes instruction surfaces, adds two new programs, and
 replaces the "identity applies its own reputation" model with a permissionless
 derivation.
 
+## TODO status
+
+- [ ] W0 protocol hygiene
+- [ ] W1 permissionless receipts
+- [ ] W2 real checkpoints
+- [ ] W3 verdict program
+- [ ] W4 reputation as view
+- [ ] W5 authority rotation
+  - [x] cooldown-gated on-chain authority rotation
+  - [x] guardian-gated emergency authority rotation
+  - [x] SDK and indexer authority-history hooks
+  - [ ] sweep remaining W5 docs/examples for consistency
+- [ ] W6 sybil gating
+- [ ] W7 AI-era provenance
+- [ ] W8 docs and SDK alignment
+
 ## Invariants we preserve
 
 - receipts remain append-only evidence

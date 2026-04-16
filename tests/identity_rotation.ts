@@ -4,9 +4,10 @@ import { strictEqual } from "assert";
 import { IdentityRegistry } from "../target/types/identity_registry";
 
 const IDENTITY_SEED = "identity";
+const GUARDIAN_SET_SEED = "guardian_set";
 const PENDING_ROTATION_SEED = "pending_rotation";
 const ROTATION_COOLDOWN_SLOTS = 5;
-const ROTATION_SLOT_BUFFER = 2;
+const ROTATION_SLOT_BUFFER = 10;
 const SLOT_ADVANCE_MAX_ATTEMPTS = 60;
 const SLOT_ADVANCE_POLL_MS = 250;
 
@@ -112,15 +113,22 @@ describe("identity authority rotation", () => {
 
     await advanceToSlot(unlockSlot);
 
-    await identityProgram.methods
-      .finalizeAuthorityRotation()
-      .accountsStrict({
-        caller: finalizeCaller.publicKey,
-        identity,
-        pendingRotation,
-      })
-      .signers([finalizeCaller])
-      .rpc();
+    try {
+      await identityProgram.methods
+        .finalizeAuthorityRotation()
+        .accountsStrict({
+          caller: finalizeCaller.publicKey,
+          identity,
+          pendingRotation,
+        })
+        .signers([finalizeCaller])
+        .rpc();
+    } catch (error: any) {
+      const message = String(error?.message ?? error);
+      if (!message.includes("TransactionExpiredTimeoutError")) {
+        throw error;
+      }
+    }
 
     const identityAccount = await identityProgram.account.agentIdentity.fetch(
       identity
@@ -155,6 +163,218 @@ describe("identity authority rotation", () => {
 
     await identityProgram.methods
       .updatePolicyRoot(bytes32(235))
+      .accountsStrict({
+        identity,
+        authority: newAuthority.publicKey,
+      })
+      .signers([newAuthority])
+      .rpc();
+  });
+
+  it("requires guardian threshold and authorized signers for emergency rotation", async () => {
+    const agentId = bytes32(241);
+    const [identity] = pda(identityProgram, [
+      seed(IDENTITY_SEED),
+      authority.toBuffer(),
+      asBuffer(agentId),
+    ]);
+    const [guardianSet] = pda(identityProgram, [
+      seed(GUARDIAN_SET_SEED),
+      identity.toBuffer(),
+    ]);
+    const newAuthority = anchor.web3.Keypair.generate();
+    const refundRecipient = anchor.web3.Keypair.generate();
+    const guardianA = anchor.web3.Keypair.generate();
+    const guardianB = anchor.web3.Keypair.generate();
+    const guardianC = anchor.web3.Keypair.generate();
+    const unauthorizedGuardian = anchor.web3.Keypair.generate();
+
+    await Promise.all([
+      fund(newAuthority.publicKey),
+      fund(refundRecipient.publicKey),
+      fund(guardianA.publicKey),
+      fund(guardianB.publicKey),
+      fund(guardianC.publicKey),
+      fund(unauthorizedGuardian.publicKey),
+    ]);
+
+    await identityProgram.methods
+      .createIdentity(agentId, bytes32(242), bytes32(243))
+      .accountsStrict({
+        identity,
+        authority,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await identityProgram.methods
+      .initializeGuardianSet(
+        [guardianA.publicKey, guardianB.publicKey, guardianC.publicKey],
+        2
+      )
+      .accountsStrict({
+        authority,
+        identity,
+        guardianSet,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await expectAnchorError(
+      identityProgram.methods
+        .emergencyRotateAuthority(newAuthority.publicKey)
+        .accountsPartial({
+          identity,
+          guardianSet,
+          refundRecipient: refundRecipient.publicKey,
+          pendingRotation: null,
+        })
+        .remainingAccounts([signerMeta(guardianA.publicKey)])
+        .signers([guardianA])
+        .rpc(),
+      "GuardianSignatureThresholdNotMet"
+    );
+
+    await expectAnchorError(
+      identityProgram.methods
+        .emergencyRotateAuthority(newAuthority.publicKey)
+        .accountsPartial({
+          identity,
+          guardianSet,
+          refundRecipient: refundRecipient.publicKey,
+          pendingRotation: null,
+        })
+        .remainingAccounts([
+          signerMeta(guardianA.publicKey),
+          signerMeta(unauthorizedGuardian.publicKey),
+        ])
+        .signers([guardianA, unauthorizedGuardian])
+        .rpc(),
+      "GuardianSignerNotAuthorized"
+    );
+  });
+
+  it("emergency rotation swaps authority immediately and closes pending rotation", async () => {
+    const agentId = bytes32(251);
+    const [identity] = pda(identityProgram, [
+      seed(IDENTITY_SEED),
+      authority.toBuffer(),
+      asBuffer(agentId),
+    ]);
+    const [guardianSet] = pda(identityProgram, [
+      seed(GUARDIAN_SET_SEED),
+      identity.toBuffer(),
+    ]);
+    const [pendingRotation] = pda(identityProgram, [
+      seed(PENDING_ROTATION_SEED),
+      identity.toBuffer(),
+    ]);
+    const stagedAuthority = anchor.web3.Keypair.generate();
+    const newAuthority = anchor.web3.Keypair.generate();
+    const refundRecipient = anchor.web3.Keypair.generate();
+    const guardianA = anchor.web3.Keypair.generate();
+    const guardianB = anchor.web3.Keypair.generate();
+    const guardianC = anchor.web3.Keypair.generate();
+
+    await Promise.all([
+      fund(stagedAuthority.publicKey),
+      fund(newAuthority.publicKey),
+      fund(refundRecipient.publicKey),
+      fund(guardianA.publicKey),
+      fund(guardianB.publicKey),
+      fund(guardianC.publicKey),
+    ]);
+
+    await identityProgram.methods
+      .createIdentity(agentId, bytes32(252), bytes32(253))
+      .accountsStrict({
+        identity,
+        authority,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await identityProgram.methods
+      .initializeGuardianSet(
+        [guardianA.publicKey, guardianB.publicKey, guardianC.publicKey],
+        2
+      )
+      .accountsStrict({
+        authority,
+        identity,
+        guardianSet,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const requestSlot = await provider.connection.getSlot("confirmed");
+    const unlockSlot =
+      requestSlot + ROTATION_COOLDOWN_SLOTS + ROTATION_SLOT_BUFFER;
+    await identityProgram.methods
+      .rotateAuthority(stagedAuthority.publicKey, new anchor.BN(unlockSlot))
+      .accountsStrict({
+        authority,
+        identity,
+        pendingRotation,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    try {
+      await identityProgram.methods
+        .emergencyRotateAuthority(newAuthority.publicKey)
+        .accountsPartial({
+          identity,
+          guardianSet,
+          refundRecipient: refundRecipient.publicKey,
+          pendingRotation,
+        })
+        .remainingAccounts([
+          signerMeta(guardianA.publicKey),
+          signerMeta(guardianB.publicKey),
+        ])
+        .signers([guardianA, guardianB])
+        .rpc();
+    } catch (error: any) {
+      const message = String(error?.message ?? error);
+      if (!message.includes("TransactionExpiredTimeoutError")) {
+        throw error;
+      }
+    }
+
+    const identityAccount = await identityProgram.account.agentIdentity.fetch(
+      identity
+    );
+    strictEqual(
+      identityAccount.authority.toBase58(),
+      newAuthority.publicKey.toBase58()
+    );
+
+    try {
+      await identityProgram.account.pendingAuthorityRotation.fetch(
+        pendingRotation
+      );
+      throw new Error("pending rotation should be closed");
+    } catch (error: any) {
+      const message = String(error?.message ?? error);
+      if (!message.includes("Account does not exist")) {
+        throw error;
+      }
+    }
+
+    await expectAnchorError(
+      identityProgram.methods
+        .updatePolicyRoot(bytes32(254))
+        .accountsStrict({
+          identity,
+          authority,
+        })
+        .rpc(),
+      "IdentityAuthorityMismatch"
+    );
+
+    await identityProgram.methods
+      .updatePolicyRoot(bytes32(255))
       .accountsStrict({
         identity,
         authority: newAuthority.publicKey,
@@ -215,8 +435,25 @@ async function expectAnchorError(
     const actualCode =
       error?.error?.errorCode?.code ?? error?.errorCode?.code ?? error?.code;
     if (actualCode === expectedCode) return;
-    const msg = error?.message ?? "";
+    const logLines = [
+      ...(error?.logs ?? []),
+      ...(error?.error?.logs ?? []),
+      ...(error?.simulationResponse?.logs ?? []),
+      ...(error?.simulationResponse?.value?.logs ?? []),
+      ...(error?.transactionLogs ?? []),
+    ]
+      .filter((line: unknown): line is string => typeof line === "string")
+      .join("\n");
+    const serializedError = JSON.stringify(
+      error,
+      Object.getOwnPropertyNames(error ?? {}),
+      2
+    );
+    const msg = [error?.message ?? "", logLines]
+      .filter((entry) => entry.length > 0)
+      .join("\n");
     if (msg.includes(expectedCode)) return;
+    if (serializedError.includes(expectedCode)) return;
     strictEqual(actualCode, expectedCode);
     return;
   }
@@ -226,4 +463,12 @@ async function expectAnchorError(
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function signerMeta(pubkey: anchor.web3.PublicKey) {
+  return {
+    pubkey,
+    isSigner: true,
+    isWritable: false,
+  };
 }

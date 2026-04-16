@@ -19,11 +19,12 @@ pub use trust_substrate_core::{
     ASSIGNMENT_SCOPE_BIT, ATTESTATION_KIND, AUDIT_RECEIPT_SEED, CHALLENGE_KIND,
     CHALLENGE_RESPONSE_KIND, CHALLENGE_RESPONSE_SEED, CHECKPOINT_IMPORTER_SEED, CHECKPOINT_SEED,
     COMPLETION_KIND, COMPLETION_SCOPE_BIT, DELEGATION_SEED, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
-    DOMAIN_CATALOG_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED, LATEST_CHECKPOINT_SEED,
-    NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED, REPUTATION_RECEIPT_APPLICATION_SEED,
-    REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
-    TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
-    TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
+    DOMAIN_CATALOG_SEED, GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_SEED,
+    LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
+    REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
+    SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED,
+    TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED,
+    TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -316,6 +317,42 @@ impl Harness {
             caller.pubkey(),
         );
         self.send(ix, &[caller])?;
+        Ok(())
+    }
+
+    pub fn initialize_guardian_set(
+        &mut self,
+        identity: &IdentityFixture,
+        guardians: &[Pubkey],
+        threshold: u8,
+    ) -> TestResult<Pubkey> {
+        let guardian_set = guardian_set_pda(identity.address);
+        let ix = self.ix_initialize_guardian_set(identity.address, guardian_set, guardians, threshold);
+        self.send_as_payer(ix)?;
+        Ok(guardian_set)
+    }
+
+    pub fn emergency_rotate_authority(
+        &mut self,
+        identity: &IdentityFixture,
+        new_authority: Pubkey,
+        refund_recipient: Pubkey,
+        guardians: &[&Keypair],
+    ) -> TestResult<()> {
+        let guardian_set = guardian_set_pda(identity.address);
+        let pending_rotation = pending_rotation_pda(identity.address);
+        let ix = self.ix_emergency_rotate_authority(
+            identity.address,
+            Some(guardian_set),
+            new_authority,
+            refund_recipient,
+            Some(pending_rotation),
+            &guardians
+                .iter()
+                .map(|guardian| guardian.pubkey())
+                .collect::<Vec<_>>(),
+        );
+        self.send(ix, guardians)?;
         Ok(())
     }
 
@@ -1331,6 +1368,59 @@ impl Harness {
         )
     }
 
+    pub fn ix_initialize_guardian_set(
+        &self,
+        identity: Pubkey,
+        guardian_set: Pubkey,
+        guardians: &[Pubkey],
+        threshold: u8,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            identity_registry::ID,
+            identity_registry::instruction::InitializeGuardianSet {
+                guardians: guardians.to_vec(),
+                threshold,
+            }
+            .data(),
+            identity_registry::accounts::InitializeGuardianSet {
+                authority: self.payer.pubkey(),
+                identity,
+                guardian_set,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_emergency_rotate_authority(
+        &self,
+        identity: Pubkey,
+        guardian_set: Option<Pubkey>,
+        new_authority: Pubkey,
+        refund_recipient: Pubkey,
+        pending_rotation: Option<Pubkey>,
+        guardian_signers: &[Pubkey],
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        let guardian_signers = guardian_signers
+            .iter()
+            .map(|guardian| AccountMeta {
+                pubkey: *guardian,
+                is_signer: true,
+                is_writable: false,
+            })
+            .collect();
+        instruction_with_remaining_accounts(
+            identity_registry::ID,
+            identity_registry::instruction::EmergencyRotateAuthority { new_authority }.data(),
+            identity_registry::accounts::EmergencyRotateAuthority {
+                identity,
+                guardian_set,
+                refund_recipient,
+                pending_rotation,
+            },
+            guardian_signers,
+        )
+    }
+
     pub fn ix_update_policy_root(
         &self,
         identity: Pubkey,
@@ -1526,17 +1616,29 @@ fn instruction<A: ToAccountMetas>(
     data: Vec<u8>,
     accounts: A,
 ) -> anchor_lang::solana_program::instruction::Instruction {
+    instruction_with_remaining_accounts(program_id, data, accounts, Vec::new())
+}
+
+fn instruction_with_remaining_accounts<A: ToAccountMetas>(
+    program_id: Pubkey,
+    data: Vec<u8>,
+    accounts: A,
+    remaining_accounts: Vec<AccountMeta>,
+) -> anchor_lang::solana_program::instruction::Instruction {
+    let mut account_metas = accounts
+        .to_account_metas(None)
+        .into_iter()
+        .map(|meta| AccountMeta {
+            pubkey: meta.pubkey,
+            is_signer: meta.is_signer,
+            is_writable: meta.is_writable,
+        })
+        .collect::<Vec<_>>();
+    account_metas.extend(remaining_accounts);
+
     anchor_lang::solana_program::instruction::Instruction {
         program_id,
-        accounts: accounts
-            .to_account_metas(None)
-            .into_iter()
-            .map(|meta| AccountMeta {
-                pubkey: meta.pubkey,
-                is_signer: meta.is_signer,
-                is_writable: meta.is_writable,
-            })
-            .collect(),
+        accounts: account_metas,
         data,
     }
 }
@@ -1619,6 +1721,13 @@ pub fn audit_receipt_pda(
 pub fn pending_rotation_pda(identity: Pubkey) -> Pubkey {
     pda(
         &[PENDING_ROTATION_SEED, identity.as_ref()],
+        &identity_registry::ID,
+    )
+}
+
+pub fn guardian_set_pda(identity: Pubkey) -> Pubkey {
+    pda(
+        &[GUARDIAN_SET_SEED, identity.as_ref()],
         &identity_registry::ID,
     )
 }

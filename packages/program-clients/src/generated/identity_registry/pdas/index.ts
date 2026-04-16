@@ -6,5 +6,6 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from "./guardianSet";
 export * from "./identity";
 export * from "./pendingRotation";

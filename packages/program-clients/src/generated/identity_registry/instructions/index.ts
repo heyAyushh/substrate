@@ -7,7 +7,9 @@
  */
 
 export * from "./createIdentity";
+export * from "./emergencyRotateAuthority";
 export * from "./finalizeAuthorityRotation";
+export * from "./initializeGuardianSet";
 export * from "./rotateAuthority";
 export * from "./updateHistoryRoot";
 export * from "./updatePolicyRoot";

@@ -8,3 +8,4 @@
 
 export * from "./authorityRotated";
 export * from "./authorityRotationRequested";
+export * from "./guardianSetInitialized";

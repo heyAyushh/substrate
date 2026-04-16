@@ -70,6 +70,22 @@ pub enum TrustSubstrateError {
     AuthorityRotationIdentityMismatch,
     #[msg("The pending authority rotation no longer matches the identity's current authority")]
     AuthorityRotationStateMismatch,
+    #[msg("Guardian sets must contain between one and the protocol maximum number of guardians")]
+    GuardianSetSizeInvalid,
+    #[msg("Guardian threshold must be between one and the number of configured guardians")]
+    GuardianThresholdInvalid,
+    #[msg("Guardian sets cannot contain the same guardian more than once")]
+    GuardianSetDuplicateMember,
+    #[msg("This identity has not configured an emergency guardian set")]
+    GuardianSetNotConfigured,
+    #[msg("Emergency rotation requires more distinct guardian signatures")]
+    GuardianSignatureThresholdNotMet,
+    #[msg("Emergency rotation can only count configured guardian signers")]
+    GuardianSignerNotAuthorized,
+    #[msg("Each guardian may only approve an emergency rotation once")]
+    GuardianSignerDuplicated,
+    #[msg("Emergency rotation approvals must come from signer accounts")]
+    GuardianSignatureMissing,
     #[msg("The signer is not the valid history updater PDA")]
     InvalidHistoryUpdater,
     #[msg("The receipt does not extend the task's latest receipt")]
