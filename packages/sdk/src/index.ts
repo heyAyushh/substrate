@@ -89,6 +89,13 @@ export {
   REVEAL_MARKER,
 } from "./commit-reveal.js";
 
+export {
+  AUTHORITY_ROTATED_MARKER,
+  createAuthorityRotationEvent,
+  finalizeAuthorityRotation,
+  requestAuthorityRotation,
+} from "./rotation.js";
+
 export type {
   CommitReceiptInput,
   RevealReceiptInput,
@@ -138,3 +145,12 @@ export type {
   ReputationDerivationOptions,
   ReputationProfile,
 } from "./reputation.js";
+
+export type {
+  AuthorityRotationEvent,
+  AuthorityRotationEventInput,
+  AuthorityRotationMode,
+  FinalizeAuthorityRotationInput,
+  PendingAuthorityRotation,
+  RotateAuthorityInput,
+} from "./rotation.js";

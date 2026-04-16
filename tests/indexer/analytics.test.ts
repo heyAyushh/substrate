@@ -171,18 +171,6 @@ test("getAuthorityHistory returns ordered rotation markers", () => {
   indexer.ingest([
     receipt({
       receiptId: "r1",
-      slot: 3,
-      taskId: "t1",
-      actorId: "agent-a",
-      kind: "handoff",
-      payload: {
-        type: "trust-substrate.authority_rotated",
-        previousAuthority: "old-authority",
-        newAuthority: "new-authority",
-      },
-    }),
-    receipt({
-      receiptId: "r2",
       slot: 1,
       taskId: "t1",
       actorId: "agent-a",
@@ -190,13 +178,36 @@ test("getAuthorityHistory returns ordered rotation markers", () => {
       payload: { note: "not a rotation" },
     }),
   ]);
+  indexer.ingestAuthorityRotations([
+    {
+      eventId: "rotation-2",
+      slot: 3,
+      agentId: "agent-a",
+      previousAuthority: "old-authority",
+      newAuthority: "new-authority",
+      mode: "normal",
+    },
+    {
+      eventId: "rotation-1",
+      slot: 2,
+      agentId: "agent-a",
+      previousAuthority: "older-authority",
+      newAuthority: "old-authority",
+      mode: "emergency",
+    },
+  ]);
 
   const history = indexer.getAuthorityHistory("agent-a");
 
-  strictEqual(history.length, 1);
-  strictEqual(history[0].receiptId, "r1");
-  strictEqual(history[0].previousAuthority, "old-authority");
-  strictEqual(history[0].newAuthority, "new-authority");
+  strictEqual(history.length, 2);
+  strictEqual(history[0].eventId, "rotation-1");
+  strictEqual(history[0].previousAuthority, "older-authority");
+  strictEqual(history[0].newAuthority, "old-authority");
+  strictEqual(history[0].mode, "emergency");
+  strictEqual(history[1].eventId, "rotation-2");
+  strictEqual(history[1].previousAuthority, "old-authority");
+  strictEqual(history[1].newAuthority, "new-authority");
+  strictEqual(history[1].mode, "normal");
 });
 
 test("getToolQualityStats computes per-tool success rate", () => {

@@ -1,6 +1,7 @@
 import { hashCanonical } from "./canonical.js";
 import type { ReceiptRecord, ReceiptKind } from "./client.js";
 import { COMMIT_MARKER, REVEAL_MARKER } from "./commit-reveal.js";
+import type { AuthorityRotationEvent } from "./rotation.js";
 
 export interface ReputationProfile {
   readonly identityId: string;
@@ -13,6 +14,8 @@ export interface ReputationProfile {
 
 export interface ReputationDerivationOptions {
   readonly currentSlot?: number;
+  readonly authorityRotations?: ReadonlyArray<AuthorityRotationEvent>;
+  readonly decayPreRotationFactor?: number;
 }
 
 const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
@@ -54,9 +57,16 @@ export function deriveReputation(
     orderedHistory,
     options.currentSlot
   );
+  const preRotationDecay = getPreRotationDecay(options);
+  const latestRotationSequence = getLatestRotationSequence(
+    options.authorityRotations,
+    identityId
+  );
 
   for (const receipt of orderedHistory) {
-    const weight = KIND_WEIGHTS[receipt.kind];
+    const weight =
+      KIND_WEIGHTS[receipt.kind] *
+      getReceiptWeightFactor(receipt, latestRotationSequence, preRotationDecay);
     const domain = receipt.domain;
 
     byKind[receipt.kind] += 1;
@@ -90,6 +100,47 @@ export function deriveReputation(
       }))
     ),
   };
+}
+
+function getPreRotationDecay(options: ReputationDerivationOptions): number {
+  const factor = options.decayPreRotationFactor ?? 1;
+  if (factor <= 0 || factor > 1) {
+    throw new Error(
+      "rotation decay factor must be greater than 0 and at most 1"
+    );
+  }
+  return factor;
+}
+
+function getLatestRotationSequence(
+  rotations: ReadonlyArray<AuthorityRotationEvent> | undefined,
+  identityId: string
+): number | undefined {
+  if (!rotations || rotations.length === 0) {
+    return undefined;
+  }
+
+  let latestSequence: number | undefined;
+  for (const rotation of rotations) {
+    if (rotation.agentId !== identityId || rotation.sequence === undefined) {
+      continue;
+    }
+    if (latestSequence === undefined || rotation.sequence > latestSequence) {
+      latestSequence = rotation.sequence;
+    }
+  }
+  return latestSequence;
+}
+
+function getReceiptWeightFactor(
+  receipt: ReceiptRecord,
+  latestRotationSequence: number | undefined,
+  preRotationDecay: number
+): number {
+  if (latestRotationSequence === undefined || preRotationDecay === 1) {
+    return 1;
+  }
+  return receipt.sequence < latestRotationSequence ? preRotationDecay : 1;
 }
 
 function collectExpiredCommitments(

@@ -8,6 +8,7 @@ export type {
   AgentProfile,
   AgentTraceExportBundle,
   AgentTraceExportEdit,
+  AuthorityRotationEvent,
   AuthorityRotation,
   ChallengeStatus,
   CommitmentStatus,

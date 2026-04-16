@@ -41,16 +41,31 @@ const sampleReceipts = (): LocalReceiptRecord[] => [
 test("snapshot round-trip preserves execution graph", () => {
   const original = new LocalDurableIndexer();
   original.ingest(sampleReceipts());
+  original.ingestAuthorityRotations([
+    {
+      eventId: "rotation-a",
+      slot: 25,
+      agentId: "agent-a",
+      previousAuthority: "old-authority",
+      newAuthority: "new-authority",
+      mode: "normal",
+    },
+  ]);
 
   const snapshot = original.snapshot();
   strictEqual(snapshot.version, 1);
   strictEqual(snapshot.receipts.length, 3);
+  strictEqual(snapshot.authorityRotations?.length, 1);
 
   const restored = LocalDurableIndexer.fromSnapshot(snapshot);
   deepStrictEqual(restored.getExecutionGraph(), original.getExecutionGraph());
   deepStrictEqual(
     restored.getHandoffChain("task-1"),
     original.getHandoffChain("task-1")
+  );
+  deepStrictEqual(
+    restored.getAuthorityHistory("agent-a"),
+    original.getAuthorityHistory("agent-a")
   );
 });
 

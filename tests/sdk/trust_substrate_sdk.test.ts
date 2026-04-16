@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import {
   ReceiptLedger,
   TrustSubstrateClient,
+  createAuthorityRotationEvent,
   createMerkleTree,
   deriveReputation,
   verifyMerkleProof,
@@ -232,4 +233,86 @@ test("derives deterministic reputation from verified history", () => {
     reputationB.domains.coordination
   );
   ok(reputationA.overall > 0);
+});
+
+test("models authority rotation with sdk identity helpers", () => {
+  const client = new TrustSubstrateClient();
+  const identity = client.identity.create({
+    authority: "Authority1111111111111111111111111111111111",
+    label: "rotation-agent",
+  });
+
+  const pendingRotation = client.identity.rotateAuthority({
+    identity,
+    newAuthority: "Authority2222222222222222222222222222222222",
+    unlockSlot: 125,
+  });
+  const finalized = client.identity.finalizeRotation({
+    identity,
+    pendingRotation,
+    finalizedSlot: 125,
+    sequence: 3,
+  });
+
+  strictEqual(
+    finalized.identity.authority,
+    "Authority2222222222222222222222222222222222"
+  );
+  strictEqual(finalized.rotation.agentId, identity.identityId);
+  strictEqual(finalized.rotation.mode, "normal");
+  strictEqual(finalized.rotation.sequence, 3);
+});
+
+test("applies rotation decay to receipts that predate the latest authority change", () => {
+  const client = new TrustSubstrateClient();
+  const identity = client.identity.create({
+    authority: "Authority1111111111111111111111111111111111",
+    label: "decay-agent",
+  });
+  const task = client.task.create({
+    identityId: identity.identityId,
+    title: "Track rotation decay",
+    domain: "coordination",
+  });
+  const history = [
+    client.receipt.create({
+      actorId: identity.identityId,
+      kind: "assignment",
+      taskId: task.taskId,
+      payload: { domain: "coordination" },
+      sequence: 1,
+    }),
+    client.receipt.create({
+      actorId: identity.identityId,
+      kind: "completion",
+      taskId: task.taskId,
+      payload: { domain: "coordination" },
+      sequence: 2,
+    }),
+    client.receipt.create({
+      actorId: identity.identityId,
+      kind: "handoff",
+      taskId: task.taskId,
+      payload: { domain: "coordination" },
+      sequence: 4,
+    }),
+  ];
+  const rotation = createAuthorityRotationEvent({
+    agentId: identity.identityId,
+    previousAuthority: identity.authority,
+    newAuthority: "Authority3333333333333333333333333333333333",
+    slot: 50,
+    sequence: 3,
+    mode: "normal",
+  });
+
+  const withoutDecay = deriveReputation(history);
+  const withDecay = deriveReputation(history, {
+    authorityRotations: [rotation],
+    decayPreRotationFactor: 0.5,
+  });
+
+  strictEqual(withoutDecay.overall, 8);
+  strictEqual(withDecay.overall, 5);
+  strictEqual(withDecay.domains.coordination, 5);
 });

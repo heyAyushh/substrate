@@ -11,6 +11,13 @@ import {
   deriveStakeState,
   extractStakeEventsFromReceipt,
 } from "./stake.js";
+import {
+  finalizeAuthorityRotation,
+  requestAuthorityRotation,
+  type FinalizeAuthorityRotationInput,
+  type PendingAuthorityRotation,
+  type RotateAuthorityInput,
+} from "./rotation.js";
 
 export type ReceiptKind =
   | "assignment"
@@ -163,6 +170,10 @@ export class TrustSubstrateClient {
   readonly identity = {
     create: (input: IdentityCreateInput): IdentityRecord =>
       createIdentity(input),
+    rotateAuthority: (input: RotateAuthorityInput): PendingAuthorityRotation =>
+      requestAuthorityRotation(input),
+    finalizeRotation: (input: FinalizeAuthorityRotationInput) =>
+      finalizeAuthorityRotation(input),
   };
 
   readonly task = {

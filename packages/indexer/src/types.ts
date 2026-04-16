@@ -105,13 +105,24 @@ export interface AgentAttestation {
   evidenceHash?: string;
 }
 
-export interface AuthorityRotation {
-  receiptId: string;
+export interface AuthorityRotationEvent {
+  eventId: string;
   slot: number;
-  taskId: string;
   agentId: string;
-  previousAuthority?: string;
-  newAuthority?: string;
+  previousAuthority: string;
+  newAuthority: string;
+  mode?: string;
+  sequence?: number;
+}
+
+export interface AuthorityRotation {
+  eventId: string;
+  slot: number;
+  agentId: string;
+  previousAuthority: string;
+  newAuthority: string;
+  mode?: string;
+  sequence?: number;
 }
 
 export interface ToolQualityStat {

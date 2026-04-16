@@ -6,6 +6,7 @@ import {
   type AgentProfile,
   type AgentTraceExportBundle,
   type AgentTraceExportEdit,
+  type AuthorityRotationEvent,
   type AuthorityRotation,
   type ChallengeStatus,
   type CommitmentStatus,
@@ -37,10 +38,14 @@ const CHALLENGE_KIND = "challenge";
 const CHALLENGE_RESPONSE_KIND = "challenge_response";
 const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
-const AUTHORITY_ROTATED_MARKER = "trust-substrate.authority_rotated";
 const STAKE_EVENT_MARKER = "trust-substrate.stake_event";
 
 const SNAPSHOT_VERSION = 1 as const;
+
+interface StoredAuthorityRotation {
+  event: AuthorityRotationEvent;
+  canonical: string;
+}
 
 interface StoredReceipt {
   receipt: IndexedReceipt;
@@ -50,6 +55,7 @@ interface StoredReceipt {
 export interface IndexerSnapshot {
   readonly version: typeof SNAPSHOT_VERSION;
   readonly receipts: ReadonlyArray<IndexedReceipt>;
+  readonly authorityRotations?: ReadonlyArray<AuthorityRotationEvent>;
 }
 
 const createDedupeKey = (receipt: LocalReceiptRecord): string =>
@@ -108,6 +114,18 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const cloneAuthorityRotation = (
+  event: AuthorityRotationEvent
+): AuthorityRotationEvent => ({
+  eventId: event.eventId,
+  slot: event.slot,
+  agentId: event.agentId,
+  previousAuthority: event.previousAuthority,
+  newAuthority: event.newAuthority,
+  mode: event.mode,
+  sequence: event.sequence,
+});
 
 type StakeEventKind =
   | "initialized"
@@ -304,6 +322,10 @@ const freezeStakeState = (state: MutableStakeState): StakeStateView => ({
 
 export class LocalDurableIndexer {
   private readonly receiptsByKey = new Map<string, StoredReceipt>();
+  private readonly authorityRotationsByKey = new Map<
+    string,
+    StoredAuthorityRotation
+  >();
 
   snapshot(): IndexerSnapshot {
     return {
@@ -312,6 +334,9 @@ export class LocalDurableIndexer {
         ...receipt,
         payload: { ...receipt.payload },
       })),
+      authorityRotations: this.sortedAuthorityRotations().map((event) =>
+        cloneAuthorityRotation(event)
+      ),
     };
   }
 
@@ -336,6 +361,9 @@ export class LocalDurableIndexer {
         payload: { ...indexed.payload },
       };
       indexer.ingest([record]);
+    }
+    if (snapshot.authorityRotations) {
+      indexer.ingestAuthorityRotations(snapshot.authorityRotations);
     }
     return indexer;
   }
@@ -374,6 +402,38 @@ export class LocalDurableIndexer {
 
       this.receiptsByKey.set(dedupeKey, {
         receipt: cloneReceipt(receipt, this.receiptsByKey.size),
+        canonical,
+      });
+      accepted += 1;
+    }
+
+    return { accepted, duplicates };
+  }
+
+  ingestAuthorityRotations(
+    authorityRotations: readonly AuthorityRotationEvent[]
+  ): IngestResult {
+    let accepted = 0;
+    let duplicates = 0;
+
+    for (const event of authorityRotations) {
+      const dedupeKey = `${event.eventId}:${event.slot}`;
+      const canonical = stableStringify(event);
+      const existing = this.authorityRotationsByKey.get(dedupeKey);
+
+      if (existing) {
+        if (existing.canonical !== canonical) {
+          throw new Error(
+            `duplicate authority rotation conflict for ${dedupeKey}`
+          );
+        }
+
+        duplicates += 1;
+        continue;
+      }
+
+      this.authorityRotationsByKey.set(dedupeKey, {
+        event: cloneAuthorityRotation(event),
         canonical,
       });
       accepted += 1;
@@ -765,20 +825,16 @@ export class LocalDurableIndexer {
   }
 
   getAuthorityHistory(agentId: string): AuthorityRotation[] {
-    return this.sortedReceipts()
-      .filter(
-        (receipt) =>
-          receipt.actorId === agentId &&
-          (receipt.kind === "authority_rotated" ||
-            receipt.payload.type === AUTHORITY_ROTATED_MARKER)
-      )
-      .map((receipt) => ({
-        receiptId: receipt.receiptId,
-        slot: receipt.slot,
-        taskId: receipt.taskId,
-        agentId: receipt.actorId,
-        previousAuthority: asString(receipt.payload.previousAuthority),
-        newAuthority: asString(receipt.payload.newAuthority),
+    return this.sortedAuthorityRotations()
+      .filter((event) => event.agentId === agentId)
+      .map((event) => ({
+        eventId: event.eventId,
+        slot: event.slot,
+        agentId: event.agentId,
+        previousAuthority: event.previousAuthority,
+        newAuthority: event.newAuthority,
+        mode: event.mode,
+        sequence: event.sequence,
       }));
   }
 
@@ -931,4 +987,21 @@ export class LocalDurableIndexer {
       .map(({ receipt }) => receipt)
       .sort(compareBySlotThenReceiptId);
   }
+
+  private sortedAuthorityRotations(): AuthorityRotationEvent[] {
+    return [...this.authorityRotationsByKey.values()]
+      .map(({ event }) => cloneAuthorityRotation(event))
+      .sort(compareAuthorityRotations);
+  }
 }
+
+const compareAuthorityRotations = (
+  left: AuthorityRotationEvent,
+  right: AuthorityRotationEvent
+): number => {
+  if (left.slot !== right.slot) {
+    return left.slot - right.slot;
+  }
+
+  return left.eventId.localeCompare(right.eventId);
+};
