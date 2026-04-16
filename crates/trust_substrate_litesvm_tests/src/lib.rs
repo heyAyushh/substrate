@@ -1994,7 +1994,7 @@ impl Harness {
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             agent_stake::ID,
-            agent_stake::instruction::InitializeStakeWithTrustMode {
+            agent_stake::instruction::InitializeStake {
                 slash_authority,
                 trust_mode,
             }

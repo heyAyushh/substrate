@@ -75,6 +75,7 @@ fn requires_a_verdict_before_a_dispute_can_degrade_reputation() -> TestResult {
     let reviewer = h.create_reviewer_identity(132)?;
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let task = h.create_task_with_domain(&builder, 133, domain)?;
     let completion = h.emit_receipt(

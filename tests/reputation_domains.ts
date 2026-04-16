@@ -1,6 +1,7 @@
 import * as anchor from "@anchor-lang/core";
 import { Program } from "@anchor-lang/core";
 import { strictEqual } from "assert";
+import { createHash } from "crypto";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
 import { ReputationAccumulator } from "../target/types/reputation_accumulator";
@@ -8,6 +9,7 @@ import { TaskRegistry } from "../target/types/task_registry";
 import { DisputeResolver } from "../target/types/dispute_resolver";
 
 const IDENTITY_SEED = "identity";
+const IDENTITY_BOND_SEED = "identity_bond";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const REPUTATION_SEED = "reputation";
@@ -20,9 +22,18 @@ const COMPLETION_RECEIPT_KIND = 3;
 const DISPUTE_RECEIPT_KIND = 4;
 const AGENT_LOST_OUTCOME = 1;
 const VERDICT_CLASS_SAFETY = 0;
+const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
 function bytes32(value: number): number[] {
   return Array.from(Buffer.alloc(32, value));
+}
+
+function scopedBytes32(label: string): number[] {
+  return Array.from(
+    createHash("sha256")
+      .update(`reputation_domains:${TEST_RUN_NAMESPACE}:${label}`)
+      .digest()
+  );
 }
 
 function seed(value: string): Buffer {
@@ -148,8 +159,8 @@ describe("reputation domain catalog", () => {
     identity: anchor.web3.PublicKey;
     task: anchor.web3.PublicKey;
   }> {
-    const agentId = bytes32(agentByte);
-    const taskId = bytes32(taskByte);
+    const agentId = scopedBytes32(`agent:${agentByte}`);
+    const taskId = scopedBytes32(`task:${taskByte}`);
     const [identity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
       authority.toBuffer(),
@@ -165,7 +176,11 @@ describe("reputation domain catalog", () => {
       await identityProgram.account.agentIdentity.fetch(identity);
     } catch {
       await identityProgram.methods
-        .createIdentity(agentId, bytes32(agentByte + 1), bytes32(agentByte + 2))
+        .createIdentity(
+          agentId,
+          scopedBytes32(`policy:${agentByte}`),
+          scopedBytes32(`history:${agentByte}`)
+        )
         .accountsStrict({
           identity,
           authority,
@@ -178,11 +193,12 @@ describe("reputation domain catalog", () => {
       await taskProgram.account.taskRecord.fetch(task);
     } catch {
       await taskProgram.methods
-        .createTask(taskId, bytes32(taskByte + 1), 2, domain)
+        .createTask(taskId, scopedBytes32(`subtasks:${taskByte}`), 2, domain)
         .accountsStrict({
           authority,
           identity,
           task,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
@@ -470,7 +486,7 @@ describe("reputation domain catalog", () => {
     const domain = bytes32(240);
     await ensureDomainRegistered(domain);
     const builder = await createIdentityAndTask(241, 242, domain);
-    const reviewerAgentId = bytes32(243);
+    const reviewerAgentId = scopedBytes32("reviewer:243");
     const [reviewerIdentity] = pda(identityProgram, [
       seed(IDENTITY_SEED),
       authority.toBuffer(),
@@ -481,7 +497,11 @@ describe("reputation domain catalog", () => {
       await identityProgram.account.agentIdentity.fetch(reviewerIdentity);
     } catch {
       await identityProgram.methods
-        .createIdentity(reviewerAgentId, bytes32(244), bytes32(245))
+        .createIdentity(
+          reviewerAgentId,
+          scopedBytes32("reviewer-policy:244"),
+          scopedBytes32("reviewer-history:245")
+        )
         .accountsStrict({
           identity: reviewerIdentity,
           authority,
@@ -526,6 +546,24 @@ describe("reputation domain catalog", () => {
       Buffer.from([DISPUTE_RECEIPT_KIND]),
       u16Le(0),
     ]);
+    const [reviewerBond] = pda(identityProgram, [
+      seed(IDENTITY_BOND_SEED),
+      reviewerIdentity.toBuffer(),
+    ]);
+
+    try {
+      await identityProgram.account.identityBond.fetch(reviewerBond);
+    } catch {
+      await identityProgram.methods
+        .depositIdentityBond()
+        .accountsStrict({
+          authority,
+          identity: reviewerIdentity,
+          identityBond: reviewerBond,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
 
     await receiptProgram.methods
       .emitAuditReceipt(
@@ -539,10 +577,13 @@ describe("reputation domain catalog", () => {
       .accountsStrict({
         authority,
         auditorIdentity: reviewerIdentity,
+        identityBond: reviewerBond,
         targetIdentity: builder.identity,
         targetReceipt: completionReceipt,
         auditReceipt: disputeReceipt,
         domainCatalog,
+        cpiAuthority,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();

@@ -573,19 +573,7 @@ Behavior:
 
 Signature:
 
-- `initialize_stake(ctx, slash_authority)`
-
-Behavior:
-
-- requires the signer to match `identity.authority`
-- initializes the identity-scoped stake PDA
-- stores the stake owner, configured slash authority, and defaults the trust mode to authority-controlled slashing
-
-### `agent_stake.initialize_stake_with_trust_mode`
-
-Signature:
-
-- `initialize_stake_with_trust_mode(ctx, slash_authority, trust_mode)`
+- `initialize_stake(ctx, slash_authority, trust_mode)`
 
 Behavior:
 

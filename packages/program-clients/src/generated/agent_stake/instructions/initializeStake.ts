@@ -16,6 +16,8 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU8Decoder,
+  getU8Encoder,
   SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
   SolanaError,
   transformEncoder,
@@ -84,15 +86,20 @@ export type InitializeStakeInstruction<
 export type InitializeStakeInstructionData = {
   discriminator: ReadonlyUint8Array;
   slashAuthority: Address;
+  trustMode: number;
 };
 
-export type InitializeStakeInstructionDataArgs = { slashAuthority: Address };
+export type InitializeStakeInstructionDataArgs = {
+  slashAuthority: Address;
+  trustMode: number;
+};
 
 export function getInitializeStakeInstructionDataEncoder(): FixedSizeEncoder<InitializeStakeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
       ["slashAuthority", getAddressEncoder()],
+      ["trustMode", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INITIALIZE_STAKE_DISCRIMINATOR }),
   );
@@ -102,6 +109,7 @@ export function getInitializeStakeInstructionDataDecoder(): FixedSizeDecoder<Ini
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
     ["slashAuthority", getAddressDecoder()],
+    ["trustMode", getU8Decoder()],
   ]);
 }
 
@@ -126,6 +134,7 @@ export type InitializeStakeAsyncInput<
   stake?: Address<TAccountStake>;
   systemProgram?: Address<TAccountSystemProgram>;
   slashAuthority: InitializeStakeInstructionDataArgs["slashAuthority"];
+  trustMode: InitializeStakeInstructionDataArgs["trustMode"];
 };
 
 export async function getInitializeStakeInstructionAsync<
@@ -215,6 +224,7 @@ export type InitializeStakeInput<
   stake: Address<TAccountStake>;
   systemProgram?: Address<TAccountSystemProgram>;
   slashAuthority: InitializeStakeInstructionDataArgs["slashAuthority"];
+  trustMode: InitializeStakeInstructionDataArgs["trustMode"];
 };
 
 export function getInitializeStakeInstruction<

@@ -49,7 +49,6 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - [Testing](docs/testing.md)
 - [Security](docs/security.md)
 - [Roadmap](docs/roadmap.md)
-- [Verification](docs/verification.md)
 - [Agent Instructions](AGENTS.md)
 
 ## Repository Layout

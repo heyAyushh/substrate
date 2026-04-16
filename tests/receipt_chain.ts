@@ -377,6 +377,7 @@ describe("receipt_chain", () => {
         authority,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();

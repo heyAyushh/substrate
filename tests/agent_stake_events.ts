@@ -20,6 +20,7 @@ const SUBTASK_COUNT = 0;
 const STAKE_AMOUNT = new anchor.BN(1_000_000);
 const UNSTAKE_AMOUNT = new anchor.BN(250_000);
 const SLASH_AMOUNT = new anchor.BN(100_000);
+const TRUST_MODE_AUTHORITY = 1;
 const STAKE_INITIALIZED_EVENT = "StakeInitialized";
 const STAKE_DEPOSITED_EVENT = "StakeDeposited";
 const STAKE_UNSTAKE_REQUESTED_EVENT = "StakeUnstakeRequested";
@@ -161,6 +162,7 @@ describe("agent_stake structured events", () => {
         authority: owner,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -170,7 +172,7 @@ describe("agent_stake structured events", () => {
       STAKE_INITIALIZED_EVENT,
       async () => {
         return await stakeProgram.methods
-          .initializeStake(owner)
+          .initializeStake(owner, TRUST_MODE_AUTHORITY)
           .accountsStrict({
             owner,
             identity,

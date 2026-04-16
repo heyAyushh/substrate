@@ -9,6 +9,8 @@ fn tracks_audit_receipts_without_advancing_the_task_chain() -> TestResult {
 
     let builder = h.create_identity(131)?;
     let reviewer = h.create_reviewer_identity(132)?;
+    h.deposit_identity_bond(&builder)?;
+    h.deposit_identity_bond(&reviewer)?;
     let task = h.create_task_with_domain(&builder, 133, domain)?;
     let target_receipt = h.emit_receipt(
         &builder,
@@ -101,6 +103,7 @@ fn finalize_unanswered_challenge_requires_elapsed_deadline() -> TestResult {
 
     let builder = h.create_identity(141)?;
     let reviewer = h.create_reviewer_identity(142)?;
+    h.deposit_identity_bond(&reviewer)?;
     let task = h.create_task_with_domain(&builder, 143, domain)?;
     let target_receipt = h.emit_receipt(
         &builder,
@@ -152,6 +155,7 @@ fn finalize_unanswered_challenge_rejects_matching_response() -> TestResult {
 
     let builder = h.create_identity(151)?;
     let reviewer = h.create_reviewer_identity(152)?;
+    h.deposit_identity_bond(&reviewer)?;
     let task = h.create_task_with_domain(&builder, 153, domain)?;
     let target_receipt = h.emit_receipt(
         &builder,

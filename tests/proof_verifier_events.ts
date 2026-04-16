@@ -150,6 +150,7 @@ describe("proof_verifier structured events", () => {
         authority,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();

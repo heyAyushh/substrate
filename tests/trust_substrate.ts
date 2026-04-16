@@ -240,6 +240,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -307,6 +308,7 @@ describe("trust_substrate protocol flow", () => {
         task,
         receipt,
         receiptApplication: taskReceiptApplication,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -1022,6 +1024,7 @@ describe("trust_substrate protocol flow", () => {
         task: setup.task,
         receipt,
         receiptApplication: taskReceiptApplication,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -1035,6 +1038,7 @@ describe("trust_substrate protocol flow", () => {
           task: setup.task,
           receipt,
           receiptApplication: taskReceiptApplication,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -1296,6 +1300,7 @@ describe("trust_substrate protocol flow", () => {
           task: setup.task,
           receipt,
           receiptApplication,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -1340,6 +1345,7 @@ describe("trust_substrate protocol flow", () => {
         authority,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -1467,6 +1473,7 @@ describe("trust_substrate protocol flow", () => {
             task: setup.task,
             receipt,
             receiptApplication: taskReceiptApplication,
+            identityRegistryProgram: identityProgram.programId,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();

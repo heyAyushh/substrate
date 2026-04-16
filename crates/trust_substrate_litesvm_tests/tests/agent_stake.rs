@@ -13,6 +13,7 @@ fn slashes_verdict_mode_stake_only_with_matching_verdict_and_treasury() -> TestR
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
     let slash_authority = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let stake = h.initialize_stake(&builder, slash_authority.pubkey(), TRUST_MODE_VERDICT)?;
     h.stake(stake, 1_000_000_000)?;
@@ -178,6 +179,7 @@ fn rejects_time_boxed_verdicts_without_stale_window() -> TestResult {
     let reviewer = h.create_reviewer_identity(172)?;
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let task = h.create_task_with_domain(&builder, 173, domain)?;
     let target_receipt = h.emit_receipt(
@@ -244,6 +246,7 @@ fn rejects_expired_performance_verdicts_for_slashing() -> TestResult {
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
     let slash_authority = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let stake = h.initialize_stake(&builder, slash_authority.pubkey(), TRUST_MODE_VERDICT)?;
     h.stake(stake, 1_000_000_000)?;
@@ -323,6 +326,7 @@ fn keeps_safety_verdicts_slashable_after_time_passes() -> TestResult {
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
     let slash_authority = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let stake = h.initialize_stake(&builder, slash_authority.pubkey(), TRUST_MODE_VERDICT)?;
     h.stake(stake, 1_000_000_000)?;
@@ -385,6 +389,7 @@ fn records_verdict_class_metadata() -> TestResult {
     let reviewer = h.create_reviewer_identity(202)?;
     let governance = h.funded_keypair()?;
     let adjudicator = h.funded_keypair()?;
+    h.deposit_identity_bond(&reviewer)?;
 
     let task = h.create_task_with_domain(&builder, 203, domain)?;
     let target_receipt = h.emit_receipt(

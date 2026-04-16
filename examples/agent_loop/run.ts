@@ -7,15 +7,15 @@ import {
   TrustSubstrateClient,
   hashLeafBytes,
   verifyOnchainInclusion,
-} from "../../packages/sdk/dist/packages/sdk/src/index.js";
+} from "../../packages/sdk/dist/index.js";
 import type {
   ReceiptKind,
   ReceiptRecord,
-} from "../../packages/sdk/dist/packages/sdk/src/index.js";
+} from "../../packages/sdk/dist/index.js";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
-} from "../../packages/indexer/dist/packages/indexer/src/index.js";
+} from "../../packages/indexer/dist/index.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");

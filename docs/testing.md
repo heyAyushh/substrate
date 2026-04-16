@@ -67,14 +67,11 @@ The pure Rust command intentionally excludes `trust_substrate_litesvm_tests`, be
 
 `pnpm test:verification` runs every file under `tests/verification/*.test.ts`.
 
-The verification layer checks the local acceptance contract, including:
+These checks keep the lightweight repo-consistency lane honest. They cover:
 
-- required local command order
-- Surfpool as the final gate
-- no required devnet gate
-- deployable protocol program declarations
-- feature-owned instruction module layout
-- README guarantee checks for slashing and replay language
+- the archive snapshot script behavior
+- the committed Codama generation surface
+- the shared protocol error taxonomy
 
 ## Surfpool Final E2E
 
@@ -103,4 +100,5 @@ The harness intentionally lets Surfpool own local program deployment, then runs 
 4. `pnpm test:verification`
 5. `pnpm test:surfpool`
 
-The verification contract explicitly keeps devnet out of the required gate.
+Keep Surfpool as the final local gate. Devnet is not the required release gate
+for this repository.

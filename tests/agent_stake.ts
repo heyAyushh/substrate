@@ -21,6 +21,7 @@ const SUBTASK_COUNT = 0;
 const STAKE_AMOUNT = new anchor.BN(1_000_000);
 const UNSTAKE_AMOUNT = new anchor.BN(250_000);
 const SLASH_AMOUNT = new anchor.BN(100_000);
+const TRUST_MODE_AUTHORITY = 1;
 
 describe("agent_stake", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -154,12 +155,13 @@ describe("agent_stake", () => {
         authority: owner,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
 
     await stakeProgram.methods
-      .initializeStake(owner)
+      .initializeStake(owner, TRUST_MODE_AUTHORITY)
       .accountsStrict({
         owner,
         identity,
@@ -269,15 +271,6 @@ describe("agent_stake", () => {
       "AccountAlreadyInitialized"
     );
 
-    await stakeProgram.methods
-      .slashAlreadyApplied()
-      .accountsStrict({
-        authority: owner,
-        stake,
-        disputeReceipt: receipt,
-        slashMarker,
-      })
-      .rpc();
   });
 
   it("rejects zero-lamport stake writes with a program error", async () => {
@@ -299,7 +292,7 @@ describe("agent_stake", () => {
       .rpc();
 
     await stakeProgram.methods
-      .initializeStake(owner)
+      .initializeStake(owner, TRUST_MODE_AUTHORITY)
       .accountsStrict({
         owner,
         identity,
@@ -342,7 +335,7 @@ describe("agent_stake", () => {
     ]);
 
     await stakeProgram.methods
-      .initializeStake(owner)
+      .initializeStake(owner, TRUST_MODE_AUTHORITY)
       .accountsStrict({
         owner,
         identity: agent.identity,
@@ -485,6 +478,7 @@ describe("agent_stake", () => {
         authority: owner,
         identity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();

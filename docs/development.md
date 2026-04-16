@@ -55,4 +55,4 @@ Repository pins:
 4. Re-run the focused test.
 5. Run the relevant package, Rust, LiteSVM/Anchor, and Surfpool checks before moving on.
 
-The local verification contract is defined in `docs/verification.md`.
+The local verification order and command guidance live in `docs/testing.md`.

@@ -132,15 +132,7 @@ through `LocalDurableIndexer.loadSnapshot`.
 
 ## Threat Model Summary
 
-| Threat                                  | Defence                                 | Task |
-| --------------------------------------- | --------------------------------------- | ---- |
-| Off-chain payload withheld at submit    | DA proof (`verifyPayloadAvailable`)     | #11  |
-| Off-chain payload deleted after submit  | Availability challenge                  | #12  |
-| Early payload disclosure                | Commit-reveal                           | #13  |
-| Reputation resold with identity         | Authority-rotation history              | #14  |
-| Sybil identity farming                  | Attestation filter                      | #15  |
-| Snapshot loss                           | Archive rotation                        | #16  |
-| Disputes without skin in the game       | Stake + slashing bound to receipts      | #17, #18 |
+The authoritative finding-to-defense mapping lives in [Threat Model](threat-model.md).
 
 ## Review Checklist
 

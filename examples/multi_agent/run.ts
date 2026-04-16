@@ -20,12 +20,12 @@ import {
   type ExecutionStep,
   type ExecutionStepKind,
   type ReceiptRecord,
-} from "../../packages/sdk/dist/packages/sdk/src/index.js";
-import { hashCanonical } from "../../packages/sdk/dist/packages/sdk/src/canonical.js";
+} from "../../packages/sdk/dist/index.js";
+import { hashCanonical } from "../../packages/sdk/dist/canonical.js";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
-} from "../../packages/indexer/dist/packages/indexer/src/index.js";
+} from "../../packages/indexer/dist/index.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");

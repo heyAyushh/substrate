@@ -8,6 +8,7 @@ import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 
 const IDENTITY_SEED = "identity";
+const IDENTITY_BOND_SEED = "identity_bond";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const AUDIT_RECEIPT_SEED = "audit_receipt";
@@ -94,10 +95,13 @@ describe("audit_receipts", () => {
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
         auditorIdentity: fixture.reviewerIdentity,
+        identityBond: fixture.reviewerBond,
         targetIdentity: fixture.builderIdentity,
         targetReceipt: fixture.targetReceipt,
         auditReceipt,
         domainCatalog,
+        cpiAuthority,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .signers([reviewerAuthority])
@@ -178,10 +182,13 @@ describe("audit_receipts", () => {
         .accountsStrict({
           authority: builderAuthority,
           auditorIdentity: fixture.builderIdentity,
+          identityBond: fixture.builderBond,
           targetIdentity: fixture.builderIdentity,
           targetReceipt: fixture.targetReceipt,
           auditReceipt,
           domainCatalog,
+          cpiAuthority,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -238,10 +245,13 @@ describe("audit_receipts", () => {
         .accountsStrict({
           authority: reviewerAuthority.publicKey,
           auditorIdentity: fixture.reviewerIdentity,
+          identityBond: fixture.reviewerBond,
           targetIdentity: fixture.builderIdentity,
           targetReceipt: missingTarget,
           auditReceipt,
           domainCatalog,
+          cpiAuthority,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([reviewerAuthority])
@@ -280,6 +290,14 @@ describe("audit_receipts", () => {
       task.toBuffer(),
       asBuffer(receiptId),
     ]);
+    const [builderBond] = pda(identityProgram, [
+      seed(IDENTITY_BOND_SEED),
+      builderIdentity.toBuffer(),
+    ]);
+    const [reviewerBond] = pda(identityProgram, [
+      seed(IDENTITY_BOND_SEED),
+      reviewerIdentity.toBuffer(),
+    ]);
 
     await identityProgram.methods
       .createIdentity(builderAgentId, testBytes32(106 + offset), bytes32(0))
@@ -300,12 +318,42 @@ describe("audit_receipts", () => {
       .signers([reviewerAuthority])
       .rpc();
 
+    try {
+      await identityProgram.account.identityBond.fetch(builderBond);
+    } catch {
+      await identityProgram.methods
+        .depositIdentityBond()
+        .accountsStrict({
+          authority: builderAuthority,
+          identity: builderIdentity,
+          identityBond: builderBond,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    try {
+      await identityProgram.account.identityBond.fetch(reviewerBond);
+    } catch {
+      await identityProgram.methods
+        .depositIdentityBond()
+        .accountsStrict({
+          authority: reviewerAuthority.publicKey,
+          identity: reviewerIdentity,
+          identityBond: reviewerBond,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([reviewerAuthority])
+        .rpc();
+    }
+
     await taskProgram.methods
       .createTask(taskId, testBytes32(108 + offset), 0, domain)
       .accountsStrict({
         authority: builderAuthority,
         identity: builderIdentity,
         task,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -333,7 +381,9 @@ describe("audit_receipts", () => {
 
     return {
       builderIdentity,
+      builderBond,
       reviewerIdentity,
+      reviewerBond,
       task,
       targetReceipt,
       domain,
@@ -362,10 +412,13 @@ describe("audit_receipts", () => {
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
         auditorIdentity: fixture.reviewerIdentity,
+        identityBond: fixture.reviewerBond,
         targetIdentity: fixture.builderIdentity,
         targetReceipt: fixture.targetReceipt,
         auditReceipt,
         domainCatalog,
+        cpiAuthority,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .signers([reviewerAuthority])

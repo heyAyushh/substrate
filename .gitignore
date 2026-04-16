@@ -1,10 +1,12 @@
 .anchor/
+.mcp.json
 .DS_Store
 target/
 .sc/
 **/*.rs.bk
 node_modules/
 packages/*/dist
+packages/*/dist-tests
 examples/agent_loop/.snapshot
 examples/multi_agent/.snapshot
 test-ledger/

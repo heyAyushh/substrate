@@ -109,7 +109,7 @@ Update docs when behavior changes:
 - instruction and account changes go in `docs/programs.md`
 - workflow changes go in `docs/development.md`
 - command or verification changes go in `docs/testing.md`
-- acceptance and security criteria go in `docs/verification.md` or `docs/security.md`
+- acceptance and security criteria go in `docs/testing.md` or `docs/security.md`
 - roadmap and phase changes go in `docs/roadmap.md`
 
 Keep docs factual. Mark future work clearly instead of describing it as implemented.
