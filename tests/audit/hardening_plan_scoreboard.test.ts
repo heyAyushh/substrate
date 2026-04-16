@@ -15,7 +15,7 @@ const SCOREBOARD_PATH = join(
 type ScoreStatus = "complete" | "missing";
 
 type ScoreboardItem = {
-  readonly wave: "W0" | "W1" | "W2";
+  readonly wave: "W0" | "W1" | "W2" | "W5";
   readonly item: string;
   readonly status: ScoreStatus;
   readonly evidence: readonly { readonly path: string; readonly marker?: string }[];
@@ -206,12 +206,66 @@ const SCOREBOARD: readonly ScoreboardItem[] = [
       },
     ],
   },
+  {
+    wave: "W5",
+    item: "W5.1 on-chain rotation instruction with emergency path",
+    status: "complete",
+    evidence: [
+      {
+        path: "programs/identity_registry/src/instructions/rotate_authority.rs",
+        marker: "AuthorityRotationUnlockTooSoon",
+      },
+      {
+        path: "programs/identity_registry/src/instructions/finalize_authority_rotation.rs",
+        marker: "AUTHORITY_ROTATION_MODE_NORMAL",
+      },
+      {
+        path: "programs/identity_registry/src/instructions/initialize_guardian_set.rs",
+        marker: "GuardianSetInitialized",
+      },
+      {
+        path: "programs/identity_registry/src/instructions/emergency_rotate_authority.rs",
+        marker: "AUTHORITY_ROTATION_MODE_EMERGENCY",
+      },
+      {
+        path: "programs/identity_registry/src/state/guardian_set.rs",
+        marker: "pub struct GuardianSet",
+      },
+      {
+        path: "crates/trust_substrate_litesvm_tests/tests/identity_rotation.rs",
+        marker: "emergency_rotation_swaps_authority_and_clears_pending_rotation",
+      },
+      {
+        path: "tests/identity_rotation.ts",
+        marker: "requires guardian threshold and authorized signers for emergency rotation",
+      },
+    ],
+  },
+  {
+    wave: "W5",
+    item: "W5.2 SDK and indexer hooks",
+    status: "complete",
+    evidence: [
+      { path: "packages/sdk/src/client.ts", marker: "emergencyRotateAuthority" },
+      { path: "packages/sdk/src/rotation.ts", marker: "configureGuardianSet" },
+      { path: "packages/indexer/src/local-durable-indexer.ts", marker: "getAuthorityHistory" },
+      {
+        path: "tests/indexer/analytics.test.ts",
+        marker: "getAuthorityHistory returns ordered rotation markers",
+      },
+      {
+        path: "tests/sdk/trust_substrate_sdk.test.ts",
+        marker: "models emergency guardian rotation with sdk identity helpers",
+      },
+      { path: "docs/plans/hardening-plan.md", marker: "identity.emergencyRotateAuthority" },
+    ],
+  },
 ] as const;
 
 const PLAN = readFileSync(PLAN_PATH, "utf8");
 const SCOREBOARD_DOC = readFileSync(SCOREBOARD_PATH, "utf8");
 
-test("hardening scoreboard covers W0-W2 exactly once", () => {
+test("hardening scoreboard covers W0-W2 and W5 exactly once", () => {
   const items = SCOREBOARD.map((entry) => `${entry.wave}:${entry.item}`);
   deepStrictEqual(items, [
     "W0:W0.1 validate receipt chain on-chain",
@@ -223,6 +277,8 @@ test("hardening scoreboard covers W0-W2 exactly once", () => {
     "W1:W1.2 response window + timeout primitive",
     "W2:W2.1 incremental checkpoint from actual receipts",
     "W2:W2.2 restrict caller-supplied root instead of removing it",
+    "W5:W5.1 on-chain rotation instruction with emergency path",
+    "W5:W5.2 SDK and indexer hooks",
   ]);
 });
 
@@ -230,11 +286,15 @@ test("hardening scoreboard is readable in docs and anchored to the plan", () => 
   ok(PLAN.includes("### W0.1 Validate receipt chain on-chain"));
   ok(PLAN.includes("### W1.1 Split receipt emission into self-emit vs audit-emit"));
   ok(PLAN.includes("### W2.1 Incremental checkpoint from actual receipts"));
+  ok(PLAN.includes("### W5.1 On-chain rotation instruction (with emergency path)"));
+  ok(PLAN.includes("### W5.2 SDK and indexer hooks"));
 
   ok(SCOREBOARD_DOC.includes("# Hardening Plan Scoreboard"));
   ok(SCOREBOARD_DOC.includes("| W0 | W0.1 validate receipt chain on-chain | complete |"));
   ok(SCOREBOARD_DOC.includes("| W1 | W1.2 response window + timeout primitive | complete |"));
   ok(SCOREBOARD_DOC.includes("| W2 | W2.2 restrict caller-supplied root instead of removing it | complete |"));
+  ok(SCOREBOARD_DOC.includes("| W5 | W5.1 on-chain rotation instruction with emergency path | complete |"));
+  ok(SCOREBOARD_DOC.includes("| W5 | W5.2 SDK and indexer hooks | complete |"));
 });
 
 test("completed scoreboard rows have concrete file evidence", () => {

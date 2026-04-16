@@ -21,7 +21,7 @@ derivation.
 - [ ] W2 real checkpoints
 - [ ] W3 verdict program
 - [ ] W4 reputation as view
-- [ ] W5 authority rotation
+- [x] W5 authority rotation
   - [x] cooldown-gated on-chain authority rotation
   - [x] guardian-gated emergency authority rotation
   - [x] SDK and indexer authority-history hooks

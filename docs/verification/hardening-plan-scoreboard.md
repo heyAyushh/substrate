@@ -1,6 +1,6 @@
 # Hardening Plan Scoreboard
 
-This scoreboard tracks W0-W2 of the hardening plan as an executable audit lane.
+This scoreboard tracks W0-W2 and W5 of the hardening plan as an executable audit lane.
 Run it with:
 
 ```bash
@@ -12,7 +12,7 @@ Status legend:
 - `complete` means the repo contains the expected on-chain or test evidence.
 - `missing` means the plan item still has a concrete gap.
 
-## W0-W2 Scoreboard
+## W0-W2 and W5 Scoreboard
 
 | Wave | Item | Status | Evidence | Gap |
 | --- | --- | --- | --- | --- |
@@ -25,11 +25,13 @@ Status legend:
 | W1 | W1.2 response window + timeout primitive | complete | `programs/receipt_emitter/src/instructions/emit_audit_receipt.rs`, `programs/receipt_emitter/src/instructions/emit_challenge_response.rs`, `programs/receipt_emitter/src/instructions/finalize_unanswered_challenge.rs`, `programs/receipt_emitter/src/state/receipt_record.rs`, `crates/trust_substrate_litesvm_tests/tests/audit_receipts.rs` | |
 | W2 | W2.1 incremental checkpoint from actual receipts | complete | `programs/proof_verifier/src/instructions/initialize_checkpoint.rs`, `programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs`, `programs/proof_verifier/src/instructions/rotate_checkpoint.rs`, `programs/proof_verifier/src/instructions/verify_receipt_inclusion.rs`, `crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs`, `crates/trust_substrate_litesvm_tests/tests/protocol_flow.rs`, `tests/proof_verifier_events.ts`, `tests/trust_substrate.ts` | |
 | W2 | W2.2 restrict caller-supplied root instead of removing it | complete | `programs/proof_verifier/src/instructions/initialize_checkpoint_importer.rs`, `programs/proof_verifier/src/instructions/checkpoint_import.rs`, `programs/proof_verifier/src/instructions/append_receipt_to_checkpoint.rs`, `crates/trust_substrate_litesvm_tests/tests/proof_verifier.rs` | |
+| W5 | W5.1 on-chain rotation instruction with emergency path | complete | `programs/identity_registry/src/instructions/rotate_authority.rs`, `programs/identity_registry/src/instructions/finalize_authority_rotation.rs`, `programs/identity_registry/src/instructions/initialize_guardian_set.rs`, `programs/identity_registry/src/instructions/emergency_rotate_authority.rs`, `programs/identity_registry/src/state/guardian_set.rs`, `crates/trust_substrate_litesvm_tests/tests/identity_rotation.rs`, `tests/identity_rotation.ts` | |
+| W5 | W5.2 SDK and indexer hooks | complete | `packages/sdk/src/client.ts`, `packages/sdk/src/rotation.ts`, `packages/indexer/src/local-durable-indexer.ts`, `tests/indexer/analytics.test.ts`, `tests/sdk/trust_substrate_sdk.test.ts`, `docs/plans/hardening-plan.md` | |
 
 ## Summary
 
-- Completed: 9
+- Completed: 11
 - Missing: 0
 
-The audit lane is intentionally narrow so W0-W2 can be checked mechanically
-before the later waves are expanded.
+The audit lane is intentionally narrow so W0-W2 and W5 can be checked
+mechanically before the later waves are expanded.
