@@ -9,7 +9,7 @@ import { TaskRegistry } from "../target/types/task_registry";
 import { DisputeResolver } from "../target/types/dispute_resolver";
 
 const IDENTITY_SEED = "identity";
-const IDENTITY_BOND_SEED = "identity_bond";
+const IDENTITY_BOND_SEED = "bond";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const REPUTATION_SEED = "reputation";

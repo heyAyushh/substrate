@@ -8,7 +8,7 @@ import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 
 const IDENTITY_SEED = "identity";
-const IDENTITY_BOND_SEED = "identity_bond";
+const IDENTITY_BOND_SEED = "bond";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const AUDIT_RECEIPT_SEED = "audit_receipt";

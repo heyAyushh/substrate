@@ -17,7 +17,7 @@ readonly SURFPOOL_STUDIO_PORT="${SURFPOOL_STUDIO_PORT:-18488}"
 readonly SURFPOOL_RPC_URL="${SURFPOOL_RPC_URL:-http://${SURFPOOL_HOST}:${SURFPOOL_PORT}}"
 readonly SURFPOOL_LOG_DIR="${SURFPOOL_LOG_DIR:-${REPO_ROOT}/.surfpool/logs}"
 readonly SURFPOOL_STARTUP_WAIT_SECONDS="${SURFPOOL_STARTUP_WAIT_SECONDS:-60}"
-readonly SUBSTRATE_E2E_KEYPAIR_PATH="${SUBSTRATE_E2E_KEYPAIR_PATH:-/tmp/pi-e2e-key.json}"
+readonly SUBSTRATE_E2E_KEYPAIR_PATH="${SUBSTRATE_E2E_KEYPAIR_PATH:-${ANCHOR_WALLET_PATH}}"
 readonly SUBSTRATE_E2E_TEST_PATH="${SUBSTRATE_E2E_TEST_PATH:-tests/surfpool/pi_extension_e2e.test.ts}"
 readonly SUBSTRATE_E2E_RPC_SUBSCRIPTIONS_URL="${SUBSTRATE_E2E_RPC_SUBSCRIPTIONS_URL:-ws://${SURFPOOL_HOST}:${SURFPOOL_WS_PORT}}"
 
@@ -122,6 +122,11 @@ start_surfpool() {
 
 prepare_pi_extension_e2e() {
   local funded_pubkey
+
+  if [[ "${SUBSTRATE_E2E_KEYPAIR_PATH}" == "${ANCHOR_WALLET_PATH}" ]]; then
+    log "using Anchor wallet for pi extension e2e keypair at ${SUBSTRATE_E2E_KEYPAIR_PATH}"
+    return
+  fi
 
   log "creating pi extension e2e keypair at ${SUBSTRATE_E2E_KEYPAIR_PATH}"
   solana-keygen new \

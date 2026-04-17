@@ -1,6 +1,7 @@
 import * as anchor from "@anchor-lang/core";
 import { Program } from "@anchor-lang/core";
 import { strictEqual } from "assert";
+import { createHash } from "crypto";
 import { AttesterRegistry } from "../target/types/attester_registry";
 import { IdentityRegistry } from "../target/types/identity_registry";
 import { ReceiptEmitter } from "../target/types/receipt_emitter";
@@ -18,6 +19,7 @@ const ATTESTER_CONFIG_SEED = "attester_config";
 const ATTESTER_RECORD_SEED = "attester";
 const COMPLETION_KIND = 3;
 const CHALLENGE_KIND = 6;
+const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
 
 describe("sybil gating and provenance", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -397,7 +399,9 @@ function bytes32(byte: number) {
 }
 
 function testBytes32(byte: number) {
-  return bytes32(byte & 0xff);
+  return createHash("sha256")
+    .update(`sybil_gating:${TEST_RUN_NAMESPACE}:${byte}`)
+    .digest();
 }
 
 async function fund(recipient: anchor.web3.PublicKey) {
