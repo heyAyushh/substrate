@@ -1,0 +1,207 @@
+{
+  "identities": {
+    "planner": "identity_04f28170b7bec977b23a8813ad0947e4",
+    "alpha": "identity_2a05399cc0b41740299e0bb594684eb5",
+    "beta": "identity_77be69bebd6665a862a528dc9b2eaa16",
+    "reviewer": "identity_4755dfe727471350bc6b86c17e272a68"
+  },
+  "task": "task_0a770fdae2a85d48110e17be5b0820d4",
+  "alphaSubmitRejected": "unreachable: payload unreachable at memory://alpha-blob: blob not pinned",
+  "delegationChain": [
+    {
+      "delegatorId": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "delegateId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "allowedActions": [
+        "handoff",
+        "completion"
+      ],
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "domain": "coding",
+      "expiresAtSlot": 260
+    },
+    {
+      "delegatorId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "delegateId": "identity_77be69bebd6665a862a528dc9b2eaa16",
+      "allowedActions": [
+        "handoff",
+        "completion"
+      ],
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "domain": "coding",
+      "expiresAtSlot": 300
+    }
+  ],
+  "delegationAssertions": [
+    {
+      "actorId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "action": "completion",
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "domain": "coding",
+      "currentSlot": 150
+    },
+    {
+      "actorId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "action": "handoff",
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "domain": "coding",
+      "currentSlot": 240
+    },
+    {
+      "actorId": "identity_77be69bebd6665a862a528dc9b2eaa16",
+      "action": "completion",
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "domain": "coding",
+      "currentSlot": 260
+    }
+  ],
+  "executionRecordRoots": {
+    "alpha": "41d9f7ef3fd112ab13bd98c72dd50ffa96e63a4bda42a40c7afbe41d6f3bcdbb",
+    "beta": "068179f19beac85f76077ab2d403838bc7a19b1fd32f4817758feed8e1de36d0"
+  },
+  "receiptTimeline": [
+    {
+      "slot": 100,
+      "actor": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "kind": "assignment",
+      "receiptId": "receipt_f820d782983cc652704e4a84abfd0f2b"
+    },
+    {
+      "slot": 110,
+      "actor": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "kind": "handoff",
+      "receiptId": "receipt_970560e648650dfe4b845151bdc66a3b"
+    },
+    {
+      "slot": 150,
+      "actor": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "kind": "completion",
+      "receiptId": "receipt_86b966b5c9e21444e59b8e9dd3c37405"
+    },
+    {
+      "slot": 160,
+      "actor": "identity_4755dfe727471350bc6b86c17e272a68",
+      "kind": "challenge",
+      "receiptId": "receipt_9ab933effdb8f43744527399446835ea"
+    },
+    {
+      "slot": 215,
+      "actor": "identity_4755dfe727471350bc6b86c17e272a68",
+      "kind": "dispute",
+      "receiptId": "receipt_5f8b01b4fd72600c8bac93497f84ecf6"
+    },
+    {
+      "slot": 220,
+      "actor": "identity_4755dfe727471350bc6b86c17e272a68",
+      "kind": "dispute_resolved",
+      "receiptId": "receipt_630fb87537b0a4b471963658fcc35d29"
+    },
+    {
+      "slot": 240,
+      "actor": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "kind": "handoff",
+      "receiptId": "receipt_0119075a156c92eea535f1778ebe6ed1"
+    },
+    {
+      "slot": 260,
+      "actor": "identity_77be69bebd6665a862a528dc9b2eaa16",
+      "kind": "completion",
+      "receiptId": "receipt_0c8f75f648b3e293905105e89b553f88"
+    },
+    {
+      "slot": 270,
+      "actor": "identity_4755dfe727471350bc6b86c17e272a68",
+      "kind": "attestation",
+      "receiptId": "receipt_c73ba7789a9dc9e6b48730382af1e9fd"
+    }
+  ],
+  "handoffChain": [
+    {
+      "receiptId": "receipt_970560e648650dfe4b845151bdc66a3b",
+      "slot": 110,
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "fromAgentId": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "toAgentId": "identity_2a05399cc0b41740299e0bb594684eb5"
+    },
+    {
+      "receiptId": "receipt_0119075a156c92eea535f1778ebe6ed1",
+      "slot": 240,
+      "taskId": "task_0a770fdae2a85d48110e17be5b0820d4",
+      "fromAgentId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "toAgentId": "identity_77be69bebd6665a862a528dc9b2eaa16"
+    }
+  ],
+  "leaderboard": {
+    "all": [
+      {
+        "agentId": "identity_2a05399cc0b41740299e0bb594684eb5",
+        "score": 7,
+        "receiptCount": 2,
+        "domain": "coding",
+        "attestations": 0,
+        "tier": "bonded"
+      },
+      {
+        "agentId": "identity_77be69bebd6665a862a528dc9b2eaa16",
+        "score": 5,
+        "receiptCount": 1,
+        "domain": "coding",
+        "attestations": 0,
+        "tier": "bonded"
+      },
+      {
+        "agentId": "identity_04f28170b7bec977b23a8813ad0947e4",
+        "score": 3,
+        "receiptCount": 2,
+        "domain": "coding",
+        "attestations": 0,
+        "tier": "bonded"
+      }
+    ],
+    "attestedOnly": []
+  },
+  "stake": {
+    "planner": {
+      "identityId": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "activeLamports": "500000",
+      "pendingUnstakeLamports": "0",
+      "slashedLamports": "0",
+      "slashReceiptIds": []
+    },
+    "alpha": {
+      "identityId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "activeLamports": "600000",
+      "pendingUnstakeLamports": "0",
+      "slashedLamports": "400000",
+      "slashReceiptIds": [
+        "receipt_630fb87537b0a4b471963658fcc35d29"
+      ]
+    },
+    "beta": {
+      "identityId": "identity_77be69bebd6665a862a528dc9b2eaa16",
+      "activeLamports": "1000000",
+      "pendingUnstakeLamports": "0",
+      "slashedLamports": "0",
+      "slashReceiptIds": []
+    }
+  },
+  "reputation": {
+    "identityId": "identity_04f28170b7bec977b23a8813ad0947e4",
+    "overall": 19,
+    "domains": {
+      "coding": 19
+    },
+    "byKind": {
+      "assignment": 1,
+      "handoff": 2,
+      "completion": 3,
+      "dispute": 1,
+      "dispute_resolved": 1,
+      "challenge": 1,
+      "challenge_response": 0
+    },
+    "receiptCount": 9,
+    "historyHash": "3c4c91946fa3d3618ffddab2a8e7800b98dc630540dcb4c62452eb85f475a08a"
+  },
+  "executionGraphReceiptCount": 9,
+  "snapshotPath": "/Users/ay/Documents/codes/substrate/trust_substrate/examples/multi_agent/.snapshot/indexer.json"
+}

@@ -140,7 +140,7 @@
   --chart-5:
     oklch(0.269 0 0);
   --radius:
-    0.625rem;
+    0.5rem;
   --sidebar:
     oklch(0.985 0 0);
   --sidebar-foreground:
@@ -162,7 +162,7 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0a0a0a;
+  background: #0c0c0d;
   color: #fafafa;
   font-family: var(--font-sans);
   font-synthesis: none;
@@ -188,41 +188,41 @@ textarea {
 
 .dark {
   --background:
-    oklch(0.145 0 0);
+    oklch(0.13 0 0);
   --foreground:
-    oklch(0.985 0 0);
+    oklch(0.93 0 0);
   --card:
-    oklch(0.205 0 0);
+    oklch(0.165 0 0);
   --card-foreground:
-    oklch(0.985 0 0);
+    oklch(0.93 0 0);
   --popover:
-    oklch(0.205 0 0);
+    oklch(0.165 0 0);
   --popover-foreground:
-    oklch(0.985 0 0);
+    oklch(0.93 0 0);
   --primary:
-    oklch(0.922 0 0);
+    oklch(0.86 0 0);
   --primary-foreground:
     oklch(0.205 0 0);
   --secondary:
-    oklch(0.269 0 0);
+    oklch(0.2 0 0);
   --secondary-foreground:
-    oklch(0.985 0 0);
+    oklch(0.9 0 0);
   --muted:
-    oklch(0.269 0 0);
+    oklch(0.18 0 0);
   --muted-foreground:
-    oklch(0.708 0 0);
+    oklch(0.62 0 0);
   --accent:
-    oklch(0.269 0 0);
+    oklch(0.2 0 0);
   --accent-foreground:
-    oklch(0.985 0 0);
+    oklch(0.9 0 0);
   --destructive:
     oklch(0.704 0.191 22.216);
   --border:
-    oklch(1 0 0 / 10%);
+    oklch(1 0 0 / 6%);
   --input:
-    oklch(1 0 0 / 15%);
+    oklch(1 0 0 / 8%);
   --ring:
-    oklch(0.556 0 0);
+    oklch(0.77 0.07 162);
   --chart-1:
     oklch(0.87 0 0);
   --chart-2:
@@ -238,9 +238,9 @@ textarea {
   --sidebar-foreground:
     oklch(0.985 0 0);
   --sidebar-primary:
-    oklch(0.488 0.243 264.376);
+    oklch(0.77 0.07 162);
   --sidebar-primary-foreground:
-    oklch(0.985 0 0);
+    oklch(0.205 0 0);
   --sidebar-accent:
     oklch(0.269 0 0);
   --sidebar-accent-foreground:
@@ -255,10 +255,63 @@ textarea {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
-    @apply font-sans;
+    @apply bg-background font-sans;
   }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+.pi-console-app {
+  background: #0a0a0b;
+}
+
+.pi-chat-shell agent-interface > div {
+  background: transparent;
+}
+
+.pi-chat-shell agent-interface .overflow-y-auto {
+  padding-top: 3.5rem;
+}
+
+.pi-chat-shell agent-interface .max-w-3xl {
+  max-width: 48rem;
+}
+
+.pi-chat-shell message-editor > div {
+  border-radius: 8px;
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+.pi-chat-shell textarea {
+  padding-top: 0.9rem;
+  padding-bottom: 0.85rem;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.pi-chat-shell .user-message-container {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: none;
+}
+
+.pi-chat-shell assistant-message .px-4,
+.pi-chat-shell streaming-message-container .px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.pi-chat-shell assistant-message strong,
+.pi-chat-shell user-message strong {
+  font-weight: 500;
 }
