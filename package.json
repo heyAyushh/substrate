@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "sync:data": "node ./scripts/sync-data.mjs",
-    "dev": "pnpm run sync:data && vite",
+    "dev": "pnpm run sync:data && vite --host",
     "build": "pnpm run sync:data && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
