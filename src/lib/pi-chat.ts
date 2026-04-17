@@ -55,6 +55,7 @@ export interface PiModelPreference {
 }
 
 export interface CreatePiConsoleAgentInput {
+  sessionId?: string;
   systemPrompt: string;
   messages?: AgentMessage[];
   preferredModel?: PiModelPreference | null;
@@ -78,12 +79,12 @@ export async function createPiConsoleAgent(
     resolvePreferredModel(runtime, input.preferredModel) ?? pickDefaultModel(runtime);
 
   const agent = new Agent({
-    sessionId: PI_CONSOLE_SESSION_ID,
+    sessionId: input.sessionId ?? PI_CONSOLE_SESSION_ID,
     initialState: {
       systemPrompt: input.systemPrompt,
       model,
       thinkingLevel: input.thinkingLevel ?? "off",
-      messages: input.messages ?? [],
+      messages: input.messages ? [...input.messages] : [],
       tools: createPiConsoleTools(),
     },
     convertToLlm: defaultConvertToLlm,
