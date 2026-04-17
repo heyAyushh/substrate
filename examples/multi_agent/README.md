@@ -1,11 +1,15 @@
 # Multi-agent coding simulation
 
-A local walkthrough of how multiple coding agents — modelled on the minimal
-read/write/edit/bash tool surface of
-[`@mariozechner/pi-coding-agent`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent) —
-cooperate under Trust Substrate's trust layer.
+A pure-TypeScript walkthrough of four coding agents cooperating under
+Trust Substrate. Each agent runs the minimal read/write/edit/bash tool
+surface of
+[`@mariozechner/pi-coding-agent`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent),
+and every tool call flows through the SDK's canonical hashing rules so
+receipt roots match what the `receipt_emitter` program would anchor
+on-chain. The script never opens an RPC connection and never submits a
+transaction — it is an offline choreography of SDK APIs.
 
-Four identities drive the scenario:
+## Identities
 
 - `planner` — assigns work and routes handoffs.
 - `builder-alpha` — receives the first handoff and misbehaves.
@@ -18,23 +22,25 @@ Four identities drive the scenario:
    `read` + `bash` tool calls, and seeds identity-scoped stake events on the
    same receipt.
 2. `planner` hands off to `builder-alpha`, seeding alpha's stake.
-3. `builder-alpha` attempts a completion with a blob that is not pinned. The
-   SDK's DA-proof helper rejects it at submit time; the rejection reason is
-   captured in the output.
+3. `builder-alpha` tries to emit a completion whose blob is not pinned.
+   The SDK's DA-proof helper rejects the submission; the rejection is
+   captured in the transcript.
 4. `builder-alpha` emits a completion without DA verification (the
-   misbehaviour). `reviewer` challenges the completion with a deadline slot.
-5. Because the challenge is unanswered past the deadline, the reviewer
-   emits an `unanswered_challenge` dispute and a `dispute_resolved` with
-   `agent_lost`, slashing 400_000 lamports from alpha's stake.
-6. `planner` hands off to `builder-beta`, who submits a completion with a
-   verified blob.
+   misbehaviour). `reviewer` challenges that completion with a deadline
+   slot.
+5. The challenge goes unanswered past the deadline, so `reviewer`
+   emits an `unanswered_challenge` dispute followed by a
+   `dispute_resolved` receipt with `agent_lost`, slashing 400_000 lamports
+   from alpha's stake.
+6. `planner` hands off to `builder-beta`, who submits a completion with
+   a verified blob.
 7. `reviewer` attests to `builder-beta` with a `review` attestation.
-8. The indexer computes the execution graph, a domain leaderboard, the
-   attestation-filtered leaderboard, stake state per identity, and a
-   reputation profile — and writes a JSON snapshot to
+8. The indexer derives the execution graph, the domain leaderboard, the
+   attestation-filtered leaderboard, per-identity stake state, and a
+   reputation profile, then writes a JSON snapshot to
    `examples/multi_agent/.snapshot/`.
 
-The output surfaces:
+The transcript surfaces:
 
 - which receipts landed and in what order
 - the handoff chain across the three builders
@@ -50,29 +56,35 @@ pnpm --filter @trust-substrate/indexer build
 node --experimental-strip-types examples/multi_agent/run.ts
 ```
 
-The simulation is pure TypeScript and requires no Solana RPC. It reuses the
-on-chain canonical hashing rules, so the execution-record roots it prints are
-the same `payload_hash` values the `receipt_emitter` program would anchor.
-
-For a live Solana hook-up, use the SDK bridge path instead of this demo-only
-script:
-
-- `adaptPiToolCalls` / `adaptAndSignPiToolCalls` in `packages/sdk/src/pi-adapter.ts`
-- `TrustSubstrateOnchainClient` in `packages/sdk/src/onchain-client.ts`
-- `PiToolStreamBridge` in `packages/sdk/src/pi-bridge.ts`
-
 ## Tool mapping
 
-Pi-mono's coding agent exposes four default tools: `read`, `write`, `edit`,
-`bash`. The simulation maps each invocation into an `ExecutionStep` kind:
-
-| Tool    | Step kind   |
-| ------- | ----------- |
-| `read`  | `tool_call` |
-| `write` | `file_edit` |
-| `edit`  | `file_edit` |
-| `bash`  | `command`   |
+| Pi tool | `ExecutionStep.kind` |
+| ------- | -------------------- |
+| `read`  | `tool_call`          |
+| `write` | `file_edit`          |
+| `edit`  | `file_edit`          |
+| `bash`  | `command`            |
 
 Each step's hash contributes to the Merkle root that becomes the receipt's
-`payload_hash`, so a dispute can bind to a single tool invocation inside an
-agent's run.
+`payload_hash`, so a dispute can bind to a single tool invocation inside
+an agent's run.
+
+## Connecting a live pi-coding-agent session
+
+This directory is demo-only. To let a real `pi-coding-agent` CLI session
+emit receipts onto Surfpool or devnet, install the extension package
+instead:
+
+- `packages/pi-extension/src/substrate-extension.ts` — `createSubstrateExtension`
+  loads a keypair, bootstraps identity/task PDAs, and commits a
+  `completion` receipt at every `turn_end`.
+- `packages/pi-extension/src/config.ts` — environment variables:
+  `SUBSTRATE_KEYPAIR`, `SUBSTRATE_RPC_URL`, `SUBSTRATE_RPC_SUBSCRIPTIONS_URL`,
+  `SUBSTRATE_DOMAIN`, `SUBSTRATE_IDENTITY_LABEL`, `SUBSTRATE_TASK_TITLE`,
+  `SUBSTRATE_BLOB_DIR`, `SUBSTRATE_AUTO_PROVISION_IDENTITY`,
+  `SUBSTRATE_SURFPOOL_STUDIO_URL`, `SUBSTRATE_RUN_DASHBOARD_URL`.
+- `packages/pi-extension/src/slash-commands.ts` — `/substrate-status`,
+  `/substrate-dashboard`, `/substrate-stake`, `/substrate-challenge`,
+  `/substrate-dispute`.
+- `packages/pi-extension/src/delegation-gate.ts` — gates tool calls
+  against a `DelegationRecord` scope.
