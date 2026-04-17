@@ -12,13 +12,17 @@ export const DEFAULT_SNAPSHOT_URL = "/dashboard-data.json";
 export const DEFAULT_STUDIO_URL =
   import.meta.env.VITE_SURFPOOL_STUDIO_URL ??
   `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_STUDIO_PORT}`;
+export const DEFAULT_STUDIO_ACCOUNTS_URL = `${DEFAULT_STUDIO_URL}/accounts`;
+export const DEFAULT_STUDIO_SCENARIOS_URL = `${DEFAULT_STUDIO_URL}/scenarios`;
 export const DEFAULT_CANVAS_URL =
   import.meta.env.VITE_RUN_CANVAS_URL ??
   `http://${DEFAULT_HOST}:${DEFAULT_CANVAS_PORT}/examples/multi_agent/dashboard/index.html`;
-const DEFAULT_SURFPOOL_RPC_URL = `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_RPC_PORT}`;
+export const DEFAULT_SURFPOOL_RPC_URL =
+  import.meta.env.VITE_SURFPOOL_RPC_URL ??
+  `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_RPC_PORT}`;
 
 const surfpoolRpc = createSolanaRpc(
-  import.meta.env.VITE_SURFPOOL_RPC_URL ?? DEFAULT_SURFPOOL_RPC_URL,
+  DEFAULT_SURFPOOL_RPC_URL,
 );
 
 export interface DashboardSnapshot {
@@ -142,4 +146,23 @@ export function formatTimestamp(value: number): string {
     minute: "2-digit",
     second: "2-digit",
   }).format(value);
+}
+
+export function buildStudioAccountsUrl(query?: string | null): string {
+  return appendSearch(DEFAULT_STUDIO_ACCOUNTS_URL, query);
+}
+
+export function buildStudioScenariosUrl(query?: string | null): string {
+  return appendSearch(DEFAULT_STUDIO_SCENARIOS_URL, query);
+}
+
+function appendSearch(baseUrl: string, query?: string | null): string {
+  const trimmedQuery = query?.trim();
+  if (!trimmedQuery) {
+    return baseUrl;
+  }
+
+  const url = new URL(baseUrl);
+  url.searchParams.set("search", trimmedQuery);
+  return url.toString();
 }

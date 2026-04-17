@@ -6,9 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
+  buildStudioScenariosUrl,
   type DashboardSnapshot,
   DEFAULT_CANVAS_URL,
   DEFAULT_SNAPSHOT_URL,
+  DEFAULT_STUDIO_ACCOUNTS_URL,
+  DEFAULT_STUDIO_SCENARIOS_URL,
+  DEFAULT_SURFPOOL_RPC_URL,
   DEFAULT_STUDIO_URL,
   formatLamports,
   formatTimestamp,
@@ -147,6 +151,38 @@ function App() {
         return `${identityLabelsById.get(entry.delegatorId) ?? truncateMiddle(entry.delegatorId)} -> ${identityLabelsById.get(entry.delegateId) ?? truncateMiddle(entry.delegateId)}`;
       })
     : [];
+  const headerLinks = [
+    {
+      href: DEFAULT_STUDIO_URL,
+      label: "Surfpool Studio",
+      variant: "outline" as const,
+    },
+    {
+      href: DEFAULT_STUDIO_ACCOUNTS_URL,
+      label: "Accounts",
+      variant: "outline" as const,
+    },
+    {
+      href: DEFAULT_STUDIO_SCENARIOS_URL,
+      label: "Scenarios",
+      variant: "outline" as const,
+    },
+    {
+      href: DEFAULT_SURFPOOL_RPC_URL,
+      label: "RPC",
+      variant: "outline" as const,
+    },
+    {
+      href: DEFAULT_CANVAS_URL,
+      label: "Run dashboard",
+      variant: "outline" as const,
+    },
+    {
+      href: DEFAULT_SNAPSHOT_URL,
+      label: "Snapshot JSON",
+      variant: "ghost" as const,
+    },
+  ];
 
   return (
     <div className="pi-console-app dark min-h-screen bg-background text-foreground">
@@ -176,29 +212,30 @@ function App() {
                   </Badge>
                 ) : null}
               </div>
-              <h1 className="text-sm text-foreground/80">
-                {snapshot ? truncateMiddle(snapshot.task, 16, 12) : "Loading task"}
-              </h1>
+              <a
+                href={DEFAULT_CANVAS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <span>
+                  {snapshot
+                    ? truncateMiddle(snapshot.task, 16, 12)
+                    : "Loading task"}
+                </span>
+                <ArrowUpRight className="size-3.5" />
+              </a>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <a href={DEFAULT_STUDIO_URL} target="_blank" rel="noreferrer">
-                  Surfpool Studio
-                  <ArrowUpRight className="size-4" />
-                </a>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <a href={DEFAULT_CANVAS_URL} target="_blank" rel="noreferrer">
-                  Run dashboard
-                  <ArrowUpRight className="size-4" />
-                </a>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <a href={DEFAULT_SNAPSHOT_URL} target="_blank" rel="noreferrer">
-                  Snapshot JSON
-                </a>
-              </Button>
+              {headerLinks.map((link) => (
+                <Button key={link.label} asChild variant={link.variant} size="sm">
+                  <a href={link.href} target="_blank" rel="noreferrer">
+                    {link.label}
+                    <ArrowUpRight className="size-4" />
+                  </a>
+                </Button>
+              ))}
             </div>
           </div>
         </header>
@@ -267,6 +304,7 @@ function App() {
                         ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
                         : "Unavailable"
                     }
+                    href={leadEntry ? buildStudioScenariosUrl(leadEntry.agentId) : null}
                   />
                   <FactRow
                     label="Latest"
@@ -275,10 +313,16 @@ function App() {
                         ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
                         : "Unavailable"
                     }
+                    href={
+                      latestReceipt
+                        ? buildStudioScenariosUrl(latestReceipt.receiptId)
+                        : null
+                    }
                   />
                   <FactRow
                     label="Slashed"
                     value={snapshot ? formatLamports(totalSlashedLamports) : "Unavailable"}
+                    href={DEFAULT_STUDIO_SCENARIOS_URL}
                   />
                   <FactRow
                     label="RPC"
@@ -287,6 +331,7 @@ function App() {
                         ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
                         : surfpoolStatus?.errorLabel ?? "Unavailable"
                     }
+                    href={DEFAULT_SURFPOOL_RPC_URL}
                   />
                 </dl>
               </div>
@@ -301,9 +346,16 @@ function App() {
               <div className="mt-3 space-y-2">
                 {chainLabels.length > 0 ? (
                   chainLabels.map((entry) => (
-                    <p key={entry} className="text-sm text-foreground/82">
-                      {entry}
-                    </p>
+                    <a
+                      key={entry}
+                      href={buildStudioScenariosUrl(entry)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-foreground/82 transition-colors hover:text-foreground"
+                    >
+                      <span>{entry}</span>
+                      <ArrowUpRight className="size-3.5" />
+                    </a>
                   ))
                 ) : (
                   <p className="text-sm text-muted-foreground">No delegation chain</p>
@@ -322,7 +374,12 @@ function App() {
                   <ul className="space-y-0">
                     {snapshot.receiptTimeline.map((entry, index) => (
                       <li key={entry.receiptId} className="py-3">
-                        <div className="flex items-start justify-between gap-3">
+                        <a
+                          href={buildStudioScenariosUrl(entry.receiptId)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-start justify-between gap-3 transition-colors hover:text-foreground"
+                        >
                           <div className="space-y-1">
                             <p className="text-sm text-foreground/84">{entry.kind}</p>
                             <p className="text-xs text-muted-foreground">
@@ -334,11 +391,12 @@ function App() {
                             <p className="text-xs text-muted-foreground">
                               slot {entry.slot}
                             </p>
-                            <p className="text-xs text-muted-foreground">
-                              {truncateMiddle(entry.receiptId)}
+                            <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <span>{truncateMiddle(entry.receiptId)}</span>
+                              <ArrowUpRight className="size-3.5" />
                             </p>
                           </div>
-                        </div>
+                        </a>
                         {index < snapshot.receiptTimeline.length - 1 ? (
                           <Separator className="mt-3" />
                         ) : null}
@@ -363,11 +421,33 @@ function App() {
   );
 }
 
-function FactRow({ label, value }: { label: string; value: string }) {
+function FactRow({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string;
+  href?: string | null;
+}) {
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="max-w-[16rem] text-right text-foreground/82">{value}</dd>
+      <dd className="max-w-[16rem] text-right text-foreground/82">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-end gap-1 transition-colors hover:text-foreground"
+          >
+            <span>{value}</span>
+            <ArrowUpRight className="size-3.5" />
+          </a>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }
