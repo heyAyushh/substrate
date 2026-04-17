@@ -124,16 +124,26 @@ type IdentityPdaModule =
   typeof import("../../program-clients/dist/generated/identity_registry/pdas/identity.js");
 type CreateIdentityInstructionModule =
   typeof import("../../program-clients/dist/generated/identity_registry/instructions/createIdentity.js");
+type AgentIdentityAccountModule =
+  typeof import("../../program-clients/dist/generated/identity_registry/accounts/agentIdentity.js");
 type TaskPdaModule =
   typeof import("../../program-clients/dist/generated/task_registry/pdas/task.js");
 type CreateTaskInstructionModule =
   typeof import("../../program-clients/dist/generated/task_registry/instructions/createTask.js");
+type TaskRecordAccountModule =
+  typeof import("../../program-clients/dist/generated/task_registry/accounts/taskRecord.js");
 type SyncTaskStatusInstructionModule =
   typeof import("../../program-clients/dist/generated/task_registry/instructions/syncTaskStatus.js");
 type ReceiptPdaModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/receipt.js");
+type CpiAuthorityPdaModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/cpiAuthority.js");
 type EmitReceiptInstructionModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitReceipt.js");
+type InitializeCpiAuthorityInstructionModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/initializeCpiAuthority.js");
+type CpiAuthorityAccountModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/accounts/cpiAuthority.js");
 type DomainCatalogPdaModule =
   typeof import("../../program-clients/dist/generated/reputation_accumulator/pdas/domainCatalog.js");
 type ReputationPdaModule =
@@ -185,11 +195,17 @@ const loadCreateIdentityInstructionModule =
   lazyModule<CreateIdentityInstructionModule>(
     "./generated/identity_registry/instructions/createIdentity.js"
   );
+const loadAgentIdentityAccountModule = lazyModule<AgentIdentityAccountModule>(
+  "./generated/identity_registry/accounts/agentIdentity.js"
+);
 const loadTaskPdaModule = lazyModule<TaskPdaModule>(
   "./generated/task_registry/pdas/task.js"
 );
 const loadCreateTaskInstructionModule = lazyModule<CreateTaskInstructionModule>(
   "./generated/task_registry/instructions/createTask.js"
+);
+const loadTaskRecordAccountModule = lazyModule<TaskRecordAccountModule>(
+  "./generated/task_registry/accounts/taskRecord.js"
 );
 const loadSyncTaskStatusInstructionModule =
   lazyModule<SyncTaskStatusInstructionModule>(
@@ -198,10 +214,20 @@ const loadSyncTaskStatusInstructionModule =
 const loadReceiptPdaModule = lazyModule<ReceiptPdaModule>(
   "./generated/receipt_emitter/pdas/receipt.js"
 );
+const loadCpiAuthorityPdaModule = lazyModule<CpiAuthorityPdaModule>(
+  "./generated/receipt_emitter/pdas/cpiAuthority.js"
+);
 const loadEmitReceiptInstructionModule =
   lazyModule<EmitReceiptInstructionModule>(
     "./generated/receipt_emitter/instructions/emitReceipt.js"
   );
+const loadInitializeCpiAuthorityInstructionModule =
+  lazyModule<InitializeCpiAuthorityInstructionModule>(
+    "./generated/receipt_emitter/instructions/initializeCpiAuthority.js"
+  );
+const loadCpiAuthorityAccountModule = lazyModule<CpiAuthorityAccountModule>(
+  "./generated/receipt_emitter/accounts/cpiAuthority.js"
+);
 const loadDomainCatalogPdaModule = lazyModule<DomainCatalogPdaModule>(
   "./generated/reputation_accumulator/pdas/domainCatalog.js"
 );
@@ -394,6 +420,11 @@ export class TrustSubstrateOnchainClient {
     };
   }
 
+  async bindCpiAuthority(): Promise<Address> {
+    const { findCpiAuthorityPda } = await loadCpiAuthorityPdaModule();
+    return addressFromPda(await findCpiAuthorityPda());
+  }
+
   async bindStake(input: {
     readonly identity: Address;
   }): Promise<OnchainStakeBinding> {
@@ -443,6 +474,32 @@ export class TrustSubstrateOnchainClient {
     return { ...binding, ...commit };
   }
 
+  async ensureIdentity(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: IdentityRecord;
+  }): Promise<OnchainIdentityBinding & OnchainOperationResult> {
+    const binding = await this.bindIdentity(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeAgentIdentity } = await loadAgentIdentityAccountModule();
+      const existing = await fetchMaybeAgentIdentity(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "create_identity",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+
+    return {
+      ...(await this.createIdentity(input)),
+      created: true,
+    };
+  }
+
   async createTask(input: {
     readonly authority: TransactionSigner;
     readonly identity: Address;
@@ -468,6 +525,33 @@ export class TrustSubstrateOnchainClient {
     return { ...binding, ...commit };
   }
 
+  async ensureTask(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly task: TaskRecord;
+  }): Promise<OnchainTaskBinding & OnchainOperationResult> {
+    const binding = await this.bindTask(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeTaskRecord } = await loadTaskRecordAccountModule();
+      const existing = await fetchMaybeTaskRecord(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "create_task",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+
+    return {
+      ...(await this.createTask(input)),
+      created: true,
+    };
+  }
+
   async initializeDomainCatalog(input: {
     readonly curator: TransactionSigner;
     readonly domainCatalog?: Address;
@@ -485,6 +569,47 @@ export class TrustSubstrateOnchainClient {
       input.curator,
       address
     );
+  }
+
+  async initializeCpiAuthority(input: {
+    readonly payer: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const { getInitializeCpiAuthorityInstructionAsync } =
+      await loadInitializeCpiAuthorityInstructionModule();
+    const address = await this.bindCpiAuthority();
+    return await this.sendOperation(
+      "initialize_cpi_authority",
+      getInitializeCpiAuthorityInstructionAsync({
+        payer: input.payer,
+        cpiAuthority: address,
+      }),
+      input.payer,
+      address
+    );
+  }
+
+  async ensureCpiAuthority(input: {
+    readonly payer: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const address = await this.bindCpiAuthority();
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeCpiAuthority } = await loadCpiAuthorityAccountModule();
+      const existing = await fetchMaybeCpiAuthority(rpc, address);
+      if (existing.exists) {
+        return {
+          kind: "initialize_cpi_authority",
+          address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+
+    return {
+      ...(await this.initializeCpiAuthority(input)),
+      created: true,
+    };
   }
 
   async ensureDomainCatalog(input: {

@@ -22,6 +22,7 @@ What the harness does:
 2. Starts Surfpool at the local endpoint.
 3. Lets Surfpool auto-deploy the declared Anchor program IDs.
 4. Runs the validator-backed TypeScript tests with Anchor deployment skipped.
+5. Creates a disposable pi-extension keypair, airdrops it on Surfpool, and runs `tests/surfpool/pi_extension_e2e.test.ts`.
 
 To run a targeted Surfpool suite, pass the test path:
 
@@ -30,6 +31,7 @@ To run a targeted Surfpool suite, pass the test path:
 ```
 
 The shell harness waits for Surfpool RPC readiness before handing off to the
-validator-backed Anchor suite from `tests/*.ts`.
+validator-backed Anchor suite from `tests/*.ts`, then executes the live
+pi-extension receipt test on the same Surfpool instance.
 
 If the Surfpool gate fails, inspect the log path printed by the harness before changing code or test expectations.

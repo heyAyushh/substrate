@@ -88,7 +88,8 @@ Surfpool replaces devnet as the final end-to-end gate.
 2. starts Surfpool directly at the local endpoint
 3. sets `ANCHOR_TEST_RUN` so the validator-backed TypeScript E2E suite runs instead of the default LiteSVM script
 4. lets Surfpool auto-deploy the declared Anchor program IDs
-5. runs the E2E suite against Surfpool with Anchor deployment skipped
+5. runs the Anchor-backed E2E suite against Surfpool with deployment skipped
+6. provisions a disposable pi-extension signer, airdrops it on Surfpool, and runs `tests/surfpool/pi_extension_e2e.test.ts`
 
 Default local endpoint:
 
@@ -96,6 +97,13 @@ Default local endpoint:
 - Websocket: `ws://127.0.0.1:8900`
 
 The harness intentionally lets Surfpool own local program deployment, then runs Anchor with `--skip-deploy`. That avoids deploying generated `target/deploy/*-keypair.json` IDs that do not match the declared program IDs used by the TypeScript tests.
+
+The appended pi-extension E2E confirms a live `createSubstrateExtension` turn can:
+
+- provision or reuse the identity/task PDAs
+- initialize the domain catalog, register the task domain, and initialize the receipt emitter CPI authority
+- emit a `completion` receipt and sync task status
+- re-attach with the same signer without recreating the identity or task
 
 ## Expected Local Order
 

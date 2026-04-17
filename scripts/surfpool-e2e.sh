@@ -13,9 +13,13 @@ readonly ANCHOR_BUILD_TARGET_DIR="${ANCHOR_BUILD_TARGET_DIR:-${REPO_ROOT}/target
 readonly SURFPOOL_HOST="${SURFPOOL_HOST:-127.0.0.1}"
 readonly SURFPOOL_PORT="${SURFPOOL_PORT:-8899}"
 readonly SURFPOOL_WS_PORT="${SURFPOOL_WS_PORT:-8900}"
+readonly SURFPOOL_STUDIO_PORT="${SURFPOOL_STUDIO_PORT:-18488}"
 readonly SURFPOOL_RPC_URL="${SURFPOOL_RPC_URL:-http://${SURFPOOL_HOST}:${SURFPOOL_PORT}}"
 readonly SURFPOOL_LOG_DIR="${SURFPOOL_LOG_DIR:-${REPO_ROOT}/.surfpool/logs}"
 readonly SURFPOOL_STARTUP_WAIT_SECONDS="${SURFPOOL_STARTUP_WAIT_SECONDS:-60}"
+readonly SUBSTRATE_E2E_KEYPAIR_PATH="${SUBSTRATE_E2E_KEYPAIR_PATH:-/tmp/pi-e2e-key.json}"
+readonly SUBSTRATE_E2E_TEST_PATH="${SUBSTRATE_E2E_TEST_PATH:-tests/surfpool/pi_extension_e2e.test.ts}"
+readonly SUBSTRATE_E2E_RPC_SUBSCRIPTIONS_URL="${SUBSTRATE_E2E_RPC_SUBSCRIPTIONS_URL:-ws://${SURFPOOL_HOST}:${SURFPOOL_WS_PORT}}"
 
 surfpool_pid=""
 surfpool_log_file=""
@@ -88,6 +92,7 @@ start_surfpool() {
     --host "${SURFPOOL_HOST}" \
     --port "${SURFPOOL_PORT}" \
     --ws-port "${SURFPOOL_WS_PORT}" \
+    --studio-port "${SURFPOOL_STUDIO_PORT}" \
     --no-tui \
     --ci \
     --offline \
@@ -115,12 +120,29 @@ start_surfpool() {
   die "Surfpool RPC was not ready after ${SURFPOOL_STARTUP_WAIT_SECONDS}s"
 }
 
+prepare_pi_extension_e2e() {
+  local funded_pubkey
+
+  log "creating pi extension e2e keypair at ${SUBSTRATE_E2E_KEYPAIR_PATH}"
+  solana-keygen new \
+    -o "${SUBSTRATE_E2E_KEYPAIR_PATH}" \
+    --no-bip39-passphrase \
+    --force
+
+  funded_pubkey="$(solana-keygen pubkey "${SUBSTRATE_E2E_KEYPAIR_PATH}")"
+  log "airdropping Surfpool funds to ${funded_pubkey}"
+  solana airdrop 10 "${funded_pubkey}" -u "${SURFPOOL_RPC_URL}"
+}
+
 trap cleanup EXIT
 
 cd "${REPO_ROOT}"
 
 require_command anchor
 require_command curl
+require_command node
+require_command solana
+require_command solana-keygen
 require_command surfpool
 
 [[ -f "${ANCHOR_WALLET_PATH}" ]] || die "wallet not found at ${ANCHOR_WALLET_PATH}"
@@ -140,3 +162,12 @@ ANCHOR_TEST_RUN="${TEST_RUN_PATH}" anchor test \
   --skip-deploy \
   --provider.cluster "${SURFPOOL_RPC_URL}" \
   --provider.wallet "${ANCHOR_WALLET_PATH}"
+
+prepare_pi_extension_e2e
+
+log "running pi extension e2e on Surfpool: ${SUBSTRATE_E2E_TEST_PATH}"
+SUBSTRATE_E2E=1 \
+SUBSTRATE_KEYPAIR="${SUBSTRATE_E2E_KEYPAIR_PATH}" \
+SUBSTRATE_RPC_URL="${SURFPOOL_RPC_URL}" \
+SUBSTRATE_RPC_SUBSCRIPTIONS_URL="${SUBSTRATE_E2E_RPC_SUBSCRIPTIONS_URL}" \
+node --experimental-strip-types --test "${SUBSTRATE_E2E_TEST_PATH}"
