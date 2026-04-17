@@ -64,9 +64,14 @@ export interface SurfpoolStatus {
 }
 
 export interface SurfpoolStudioLinks {
-  studio: boolean;
-  accounts: boolean;
-  scenarios: boolean;
+  studio: SurfpoolStudioLinkTarget;
+  accounts: SurfpoolStudioLinkTarget;
+  scenarios: SurfpoolStudioLinkTarget;
+}
+
+export interface SurfpoolStudioLinkTarget {
+  href: string;
+  available: boolean;
 }
 
 export async function loadDashboardSnapshot(): Promise<DashboardSnapshot> {
@@ -118,11 +123,25 @@ export async function loadSurfpoolStudioLinks(): Promise<SurfpoolStudioLinks> {
   ]);
 
   return {
-    studio,
-    accounts,
-    scenarios,
+    studio: {
+      href: DEFAULT_STUDIO_URL,
+      available: studio,
+    },
+    accounts: {
+      href: DEFAULT_STUDIO_ACCOUNTS_URL,
+      available: accounts,
+    },
+    scenarios: {
+      href: DEFAULT_STUDIO_SCENARIOS_URL,
+      available: scenarios,
+    },
   };
 }
+
+// Surfpool Studio supports real scenario deep links like `/scenarios?id=<scenarioId>&tab=<tab>`.
+// The Pi Console snapshot only includes internal `receipt_*` and `identity_*` values today, so
+// row-level deep links stay disabled until the snapshot provides stable Studio IDs such as
+// `studioScenarioId` or `studioAccountAddress`.
 
 async function tryLoadSnapshot(
   url: string,
@@ -176,23 +195,4 @@ export function formatTimestamp(value: number): string {
     minute: "2-digit",
     second: "2-digit",
   }).format(value);
-}
-
-export function buildStudioAccountsUrl(query?: string | null): string {
-  return appendSearch(DEFAULT_STUDIO_ACCOUNTS_URL, query);
-}
-
-export function buildStudioScenariosUrl(query?: string | null): string {
-  return appendSearch(DEFAULT_STUDIO_SCENARIOS_URL, query);
-}
-
-function appendSearch(baseUrl: string, query?: string | null): string {
-  const trimmedQuery = query?.trim();
-  if (!trimmedQuery) {
-    return baseUrl;
-  }
-
-  const url = new URL(baseUrl);
-  url.searchParams.set("search", trimmedQuery);
-  return url.toString();
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Activity,
   AlertCircle,
@@ -6,15 +6,18 @@ import {
   FileText,
   Link2,
   Trophy,
+  Wrench,
 } from "lucide-react";
 
-import { PiChatSurface } from "@/components/pi-chat-surface";
+import {
+  PiChatSurface,
+  type PiChatInspectorState,
+} from "@/components/pi-chat-surface";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -29,11 +32,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  buildStudioScenariosUrl,
   type DashboardSnapshot,
   DEFAULT_SNAPSHOT_URL,
+  DEFAULT_STUDIO_ACCOUNTS_URL,
+  DEFAULT_STUDIO_SCENARIOS_URL,
+  DEFAULT_STUDIO_URL,
   formatLamports,
   formatTimestamp,
   loadDashboardSnapshot,
@@ -49,8 +55,20 @@ import type { PiIdentityProfile } from "@/lib/pi-identities";
 import {
   getDefaultRuntimeLabel,
   loadLocalRuntimeConfig,
+  type LocalMcpServer,
+  type LocalRuntimeActivity,
   type LocalRuntimeConfig,
 } from "@/lib/local-runtime";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+const EMPTY_MCP_SERVERS: LocalMcpServer[] = [];
+const EMPTY_RUNTIME_ACTIVITY: LocalRuntimeActivity[] = [];
+const EMPTY_INSPECTOR_STATE: PiChatInspectorState = {
+  mcpServers: EMPTY_MCP_SERVERS,
+  activities: EMPTY_RUNTIME_ACTIVITY,
+  pendingToolCount: 0,
+  isStreaming: false,
+};
 
 function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -62,11 +80,22 @@ function App() {
     null,
   );
   const [studioLinks, setStudioLinks] = useState<SurfpoolStudioLinks>({
-    studio: false,
-    accounts: false,
-    scenarios: false,
+    studio: {
+      href: DEFAULT_STUDIO_URL,
+      available: false,
+    },
+    accounts: {
+      href: DEFAULT_STUDIO_ACCOUNTS_URL,
+      available: false,
+    },
+    scenarios: {
+      href: DEFAULT_STUDIO_SCENARIOS_URL,
+      available: false,
+    },
   });
   const [runtime, setRuntime] = useState<LocalRuntimeConfig | null>(null);
+  const [chatInspector, setChatInspector] =
+    useState<PiChatInspectorState>(EMPTY_INSPECTOR_STATE);
 
   useEffect(() => {
     let isActive = true;
@@ -153,6 +182,10 @@ function App() {
   }, []);
 
   const runtimeLabel = runtime ? getDefaultRuntimeLabel(runtime) : null;
+  const runtimeMcpServers = useMemo(
+    () => runtime?.mcpServers ?? EMPTY_MCP_SERVERS,
+    [runtime],
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -218,31 +251,41 @@ function App() {
     {
       href: DEFAULT_SNAPSHOT_URL,
       label: "Snapshot JSON",
-      variant: "ghost" as const,
+      available: true,
     },
-  ] as Array<{
+    {
+      href: studioLinks.studio.href,
+      label: "Studio",
+      available: studioLinks.studio.available,
+    },
+    {
+      href: studioLinks.accounts.href,
+      label: "Accounts",
+      available: studioLinks.accounts.available,
+    },
+    {
+      href: studioLinks.scenarios.href,
+      label: "Scenarios",
+      available: studioLinks.scenarios.available,
+    },
+  ].filter((link) => link.available) as Array<{
     href: string;
     label: string;
-    variant: "ghost";
+    available: boolean;
   }>;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex max-w-[1520px] flex-col gap-5 px-4 py-4 lg:px-6 lg:py-6">
-        <header className="flex flex-col gap-4 border-b border-border/60 pb-5">
+      <div className="mx-auto flex max-w-[1480px] flex-col gap-4 px-4 py-4 lg:px-6 lg:py-6">
+        <header className="flex flex-col gap-4 border-b border-border/60 pb-4">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-foreground/88">
-                  Pi console
+                <span className="text-sm font-medium text-foreground/88">
+                  Pi Console
                 </span>
                 {runtimeLabel ? (
                   <Badge variant="outline">{runtimeLabel}</Badge>
-                ) : null}
-                {runtime && runtime.mcpServers.length > 0 ? (
-                  <Badge variant="outline">
-                    {runtime.mcpServers.length} MCP
-                  </Badge>
                 ) : null}
                 {surfpoolStatus ? (
                   <Badge
@@ -257,14 +300,24 @@ function App() {
                       : "RPC offline"}
                   </Badge>
                 ) : null}
+                {snapshotUpdatedAt ? (
+                  <Badge variant="outline">
+                    {formatTimestamp(snapshotUpdatedAt)}
+                  </Badge>
+                ) : null}
               </div>
 
-              <div className="min-w-0 text-base font-normal tracking-tight text-foreground sm:text-lg">
-                <span className="block truncate">
+              <div className="min-w-0">
+                <h1 className="truncate text-lg font-medium tracking-tight text-foreground sm:text-xl">
                   {snapshot
                     ? truncateMiddle(snapshot.task, 18, 12)
                     : "Loading task"}
-                </span>
+                </h1>
+                {snapshotError ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Snapshot unavailable. The console will keep retrying.
+                  </p>
+                ) : null}
               </div>
 
               {surfpoolStatus?.status === "offline" ? (
@@ -283,8 +336,8 @@ function App() {
                 <Button
                   key={link.label}
                   asChild
-                  variant={link.variant}
                   size="sm"
+                  variant="ghost"
                 >
                   <a href={link.href} target="_blank" rel="noreferrer">
                     {link.label}
@@ -296,11 +349,11 @@ function App() {
           </div>
         </header>
 
-        <main className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_380px]">
-          <section className="xl:min-h-[calc(100vh-9rem)]">
+        <main className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,392px)]">
+          <section className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
             <PiChatSurface
               identityProfiles={identityProfiles}
-              mcpServers={runtime?.mcpServers ?? []}
+              mcpServers={runtimeMcpServers}
               runtimeLabel={runtimeLabel}
               slotLabel={surfpoolStatus?.slotLabel ?? null}
               latestReceiptLabel={latestReceiptLabel}
@@ -312,11 +365,12 @@ function App() {
                   : surfpoolStatus?.errorLabel ?? null
               }
               delegationLabels={chainLabels}
+              onInspectorStateChange={setChatInspector}
             />
           </section>
 
-          <aside className="flex flex-col gap-4 xl:min-h-[calc(100vh-9rem)]">
-            <RunOverviewCard
+          <aside className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
+            <InspectorPanel
               leadEntry={leadEntry}
               latestReceipt={latestReceipt}
               identityLabelsById={identityLabelsById}
@@ -324,19 +378,10 @@ function App() {
               snapshot={snapshot}
               surfpoolStatus={surfpoolStatus}
               snapshotUpdatedAt={snapshotUpdatedAt}
-              scenarioLinksEnabled={studioLinks.scenarios}
-            />
-
-            <DelegationCard
               chainLabels={chainLabels}
-              scenarioLinksEnabled={studioLinks.scenarios}
-            />
-
-            <ReceiptTimelineCard
-              snapshot={snapshot}
               snapshotError={snapshotError}
-              identityLabelsById={identityLabelsById}
-              scenarioLinksEnabled={studioLinks.scenarios}
+              inspectorState={chatInspector}
+              fallbackMcpServers={runtimeMcpServers}
             />
           </aside>
         </main>
@@ -345,7 +390,7 @@ function App() {
   );
 }
 
-function RunOverviewCard({
+function InspectorPanel({
   leadEntry,
   latestReceipt,
   identityLabelsById,
@@ -353,7 +398,10 @@ function RunOverviewCard({
   snapshot,
   surfpoolStatus,
   snapshotUpdatedAt,
-  scenarioLinksEnabled,
+  chainLabels,
+  snapshotError,
+  inspectorState,
+  fallbackMcpServers,
 }: {
   leadEntry: DashboardSnapshot["leaderboard"]["all"][number] | null;
   latestReceipt: DashboardSnapshot["receiptTimeline"][number] | null;
@@ -362,298 +410,383 @@ function RunOverviewCard({
   snapshot: DashboardSnapshot | null;
   surfpoolStatus: SurfpoolStatus | null;
   snapshotUpdatedAt: number | null;
-  scenarioLinksEnabled: boolean;
-}) {
-  return (
-    <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
-      <CardHeader className="border-b border-border/70 bg-background/28">
-        <CardTitle>Run</CardTitle>
-        <CardDescription>
-          {snapshot
-            ? `${snapshot.receiptTimeline.length} receipts landed`
-            : "Waiting for live snapshot"}
-        </CardDescription>
-        {snapshotUpdatedAt ? (
-          <CardAction className="text-xs text-muted-foreground">
-            {formatTimestamp(snapshotUpdatedAt)}
-          </CardAction>
-        ) : null}
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-3 pt-4">
-        {snapshot ? (
-          <>
-            <SummaryRow
-              icon={<Trophy aria-hidden="true" />}
-              label="Lead"
-              value={
-                leadEntry
-                  ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
-                  : "Unavailable"
-              }
-              href={
-                leadEntry && scenarioLinksEnabled
-                  ? buildStudioScenariosUrl(leadEntry.agentId)
-                  : null
-              }
-            />
-            <SummaryRow
-              icon={<FileText aria-hidden="true" />}
-              label="Latest"
-              value={
-                latestReceipt
-                  ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
-                  : "Unavailable"
-              }
-              href={
-                latestReceipt && scenarioLinksEnabled
-                  ? buildStudioScenariosUrl(latestReceipt.receiptId)
-                  : null
-              }
-            />
-            <SummaryRow
-              icon={<AlertCircle aria-hidden="true" />}
-              label="Slashed"
-              value={formatLamports(totalSlashedLamports)}
-            />
-            <SummaryRow
-              icon={<Activity aria-hidden="true" />}
-              label="RPC"
-              value={
-                surfpoolStatus?.status === "online"
-                  ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                  : surfpoolStatus?.errorLabel ?? "Unavailable"
-              }
-            />
-          </>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-11 w-full" />
-            <Skeleton className="h-11 w-full" />
-            <Skeleton className="h-11 w-full" />
-            <Skeleton className="h-11 w-full" />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function DelegationCard({
-  chainLabels,
-  scenarioLinksEnabled,
-}: {
   chainLabels: string[];
-  scenarioLinksEnabled: boolean;
+  snapshotError: string | null;
+  inspectorState: PiChatInspectorState;
+  fallbackMcpServers: LocalMcpServer[];
 }) {
-  return (
-    <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
-      <CardHeader className="border-b border-border/70 bg-background/28">
-        <CardTitle>Delegation</CardTitle>
-        <CardDescription>Who handed work to whom.</CardDescription>
-      </CardHeader>
+  const [copiedReceiptId, setCopiedReceiptId] = useState<string | null>(null);
+  const mcpServers =
+    inspectorState.mcpServers.length > 0
+      ? inspectorState.mcpServers
+      : fallbackMcpServers;
 
-      <CardContent className="pt-4">
-        {chainLabels.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {chainLabels.map((entry) =>
-              scenarioLinksEnabled ? (
-                <a
-                  key={entry}
-                  href={buildStudioScenariosUrl(entry)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5 transition-colors hover:bg-muted/50"
-                >
-                  <div className="flex min-w-0 items-start gap-2">
-                    <Link2 className="mt-0.5 size-4 text-muted-foreground" />
-                    <span className="min-w-0 truncate text-sm text-foreground">
-                      {entry}
+  const copyReceiptId = async (receiptId: string) => {
+    try {
+      await navigator.clipboard.writeText(receiptId);
+      setCopiedReceiptId(receiptId);
+      window.setTimeout(() => {
+        setCopiedReceiptId((current) =>
+          current === receiptId ? null : current,
+        );
+      }, 1400);
+    } catch {
+      setCopiedReceiptId(null);
+    }
+  };
+
+  return (
+    <Card className="h-full min-h-[420px] gap-0 overflow-hidden bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-0">
+      <Tabs defaultValue="run" className="flex h-full flex-col gap-0">
+        <CardHeader className="gap-3 border-b border-border/70 bg-background/28">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle className="text-base font-medium">Inspector</CardTitle>
+              <CardDescription>
+                Run state, delegation, receipts, and MCP.
+              </CardDescription>
+            </div>
+            <Badge variant="outline">
+              {snapshot
+                ? `${snapshot.receiptTimeline.length} receipts`
+                : "Waiting"}
+            </Badge>
+          </div>
+          <TabsList
+            variant="line"
+            className="w-full justify-start overflow-x-auto pb-1"
+          >
+            <TabsTrigger value="run">Run</TabsTrigger>
+            <TabsTrigger value="delegation">Delegation</TabsTrigger>
+            <TabsTrigger value="receipts">Receipts</TabsTrigger>
+            <TabsTrigger value="mcp">MCP</TabsTrigger>
+          </TabsList>
+        </CardHeader>
+        <CardContent className="min-h-0 flex-1 px-0 pb-0 pt-0">
+          <TabsContent value="run" className="mt-0 h-full">
+            <InspectorScrollArea>
+              {snapshot ? (
+                <div className="flex flex-col gap-3 pr-1">
+                  <InspectorStatRow
+                    icon={<FileText aria-hidden="true" />}
+                    label="Task"
+                    value={truncateMiddle(snapshot.task, 24, 16)}
+                  />
+                  <InspectorStatRow
+                    icon={<Trophy aria-hidden="true" />}
+                    label="Lead"
+                    value={
+                      leadEntry
+                        ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
+                        : "Unavailable"
+                    }
+                  />
+                  <InspectorStatRow
+                    icon={<FileText aria-hidden="true" />}
+                    label="Latest receipt"
+                    value={
+                      latestReceipt
+                        ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
+                        : "Unavailable"
+                    }
+                  />
+                  <InspectorStatRow
+                    icon={<AlertCircle aria-hidden="true" />}
+                    label="Slashed"
+                    value={formatLamports(totalSlashedLamports)}
+                  />
+                  <InspectorStatRow
+                    icon={<Activity aria-hidden="true" />}
+                    label="RPC"
+                    value={
+                      surfpoolStatus?.status === "online"
+                        ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
+                        : surfpoolStatus?.errorLabel ?? "Unavailable"
+                    }
+                  />
+                  <InspectorStatRow
+                    icon={<FileText aria-hidden="true" />}
+                    label="Snapshot"
+                    value={
+                      snapshotUpdatedAt
+                        ? `Updated ${formatTimestamp(snapshotUpdatedAt)}`
+                        : "Waiting for the first poll"
+                    }
+                  />
+                </div>
+              ) : snapshotError ? (
+                <Alert variant="destructive">
+                  <AlertCircle aria-hidden="true" />
+                  <AlertTitle>Snapshot unavailable</AlertTitle>
+                  <AlertDescription>{snapshotError}</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-14 w-full" />
+                  ))}
+                </div>
+              )}
+            </InspectorScrollArea>
+          </TabsContent>
+
+          <TabsContent value="delegation" className="mt-0 h-full">
+            <InspectorScrollArea>
+              {chainLabels.length > 0 ? (
+                <div className="flex flex-col gap-2 pr-1">
+                  {chainLabels.map((entry) => (
+                    <div
+                      key={entry}
+                      className="flex items-start gap-3 rounded-lg border border-border/70 bg-background/32 px-3 py-3"
+                    >
+                      <Link2 className="mt-0.5 size-4 text-muted-foreground" />
+                      <span className="min-w-0 text-sm leading-6 text-foreground">
+                        {entry}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Empty className="border-border/70 bg-background/28 py-10">
+                  <EmptyContent>
+                    <EmptyMedia variant="icon">
+                      <Link2 aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyHeader>
+                      <EmptyTitle>No delegation chain</EmptyTitle>
+                      <EmptyDescription>
+                        Delegation will appear here when the snapshot lands.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </EmptyContent>
+                </Empty>
+              )}
+            </InspectorScrollArea>
+          </TabsContent>
+
+          <TabsContent value="receipts" className="mt-0 h-full">
+            <InspectorScrollArea>
+              {snapshot ? (
+                <div className="flex flex-col gap-2 pr-1">
+                  {snapshot.receiptTimeline.map((entry) => (
+                    <div
+                      key={entry.receiptId}
+                      className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/32 px-3 py-3"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {entry.kind}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {identityLabelsById.get(entry.actor) ??
+                            truncateMiddle(entry.actor)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          slot {entry.slot}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {entry.receiptId}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => void copyReceiptId(entry.receiptId)}
+                      >
+                        {copiedReceiptId === entry.receiptId
+                          ? "Copied"
+                          : "Copy ID"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : snapshotError ? (
+                <Alert variant="destructive">
+                  <AlertCircle aria-hidden="true" />
+                  <AlertTitle>Snapshot unavailable</AlertTitle>
+                  <AlertDescription>{snapshotError}</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16 w-full" />
+                  ))}
+                </div>
+              )}
+            </InspectorScrollArea>
+          </TabsContent>
+
+          <TabsContent value="mcp" className="mt-0 h-full">
+            <InspectorScrollArea>
+              <div className="flex flex-col gap-4 pr-1">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-background/32 px-3 py-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Local runtime
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {inspectorState.pendingToolCount > 0
+                        ? `${inspectorState.pendingToolCount} tools running`
+                        : "Idle"}
+                    </p>
+                  </div>
+                  <Badge variant="outline">
+                    {inspectorState.isStreaming ? "live" : "ready"}
+                  </Badge>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">
+                      Configured MCP servers
                     </span>
                   </div>
-                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
-                </a>
-              ) : (
-                <div
-                  key={entry}
-                  className="flex items-start gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5"
-                >
-                  <Link2 className="mt-0.5 size-4 text-muted-foreground" />
-                  <span className="min-w-0 truncate text-sm text-foreground">
-                    {entry}
-                  </span>
+                  {mcpServers.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {mcpServers.map((server) => (
+                        <div
+                          key={`${server.transport}-${server.name}`}
+                          className="rounded-lg border border-border/70 bg-background/32 px-3 py-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">
+                              {server.name}
+                            </span>
+                            <Badge variant="outline">{server.transport}</Badge>
+                            <Badge
+                              variant={
+                                server.auth === "OAuth"
+                                  ? "secondary"
+                                  : "outline"
+                              }
+                            >
+                              {server.auth}
+                            </Badge>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {server.target}
+                          </p>
+                          <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                            {server.status}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty className="border-border/70 bg-background/28 py-8">
+                      <EmptyContent>
+                        <EmptyHeader>
+                          <EmptyTitle>No MCP servers</EmptyTitle>
+                          <EmptyDescription>
+                            Add MCP servers in Codex to surface them here.
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </EmptyContent>
+                    </Empty>
+                  )}
                 </div>
-              ),
-            )}
-          </div>
-        ) : (
-          <Empty className="border-border/70 bg-background/30 py-8">
-            <EmptyContent>
-              <EmptyMedia variant="icon">
-                <Link2 aria-hidden="true" />
-              </EmptyMedia>
-              <EmptyHeader>
-                <EmptyTitle>No delegation chain</EmptyTitle>
-                <EmptyDescription>
-                  Delegation links will show here when the snapshot lands.
-                </EmptyDescription>
-              </EmptyHeader>
-            </EmptyContent>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
-function ReceiptTimelineCard({
-  snapshot,
-  snapshotError,
-  identityLabelsById,
-  scenarioLinksEnabled,
-}: {
-  snapshot: DashboardSnapshot | null;
-  snapshotError: string | null;
-  identityLabelsById: Map<string, string>;
-  scenarioLinksEnabled: boolean;
-}) {
-  return (
-    <Card className="min-h-0 flex-1 gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
-      <CardHeader className="border-b border-border/70 bg-background/28">
-        <CardTitle>Receipt timeline</CardTitle>
-        <CardDescription>Latest onchain activity for the active task.</CardDescription>
-      </CardHeader>
+                <Separator />
 
-      <CardContent className="min-h-0 flex-1 px-0 pt-0">
-        {snapshot ? (
-          <ScrollArea className="h-[320px] sm:h-[380px] xl:h-full">
-            <div className="flex flex-col px-4 py-2">
-              {snapshot.receiptTimeline.map((entry) =>
-                scenarioLinksEnabled ? (
-                  <a
-                    key={entry.receiptId}
-                    href={buildStudioScenariosUrl(entry.receiptId)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
-                  >
-                    <ReceiptTimelineEntry
-                      entry={entry}
-                      identityLabelsById={identityLabelsById}
-                      linked
-                    />
-                  </a>
-                ) : (
-                  <div
-                    key={entry.receiptId}
-                    className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
-                  >
-                    <ReceiptTimelineEntry
-                      entry={entry}
-                      identityLabelsById={identityLabelsById}
-                    />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="size-4 text-muted-foreground" />
+                    <span className="text-sm font-medium text-foreground">
+                      Local runtime activity
+                    </span>
                   </div>
-                ),
-              )}
-            </div>
-          </ScrollArea>
-        ) : snapshotError ? (
-          <div className="p-4">
-            <Alert variant="destructive">
-              <AlertCircle aria-hidden="true" />
-              <AlertTitle>Snapshot unavailable</AlertTitle>
-              <AlertDescription>{snapshotError}</AlertDescription>
-            </Alert>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 p-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Skeleton key={index} className="h-14 w-full" />
-            ))}
-          </div>
-        )}
-      </CardContent>
+                  {inspectorState.activities.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {inspectorState.activities.map((activity) => (
+                        <div
+                          key={activity.id}
+                          className="rounded-lg border border-border/70 bg-background/32 px-3 py-3"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                            <span>{activity.label}</span>
+                            <Badge variant="outline">{activity.source}</Badge>
+                            {activity.server ? (
+                              <Badge variant="outline">{activity.server}</Badge>
+                            ) : null}
+                            <Badge
+                              variant={
+                                activity.isError ? "destructive" : "outline"
+                              }
+                            >
+                              {activity.phase === "start"
+                                ? "running"
+                                : activity.isError
+                                  ? "failed"
+                                  : "done"}
+                            </Badge>
+                          </div>
+                          {activity.detail ? (
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              {activity.detail}
+                            </p>
+                          ) : null}
+                          {activity.output ? (
+                            <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-background/65 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
+                              {activity.output}
+                            </pre>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Empty className="border-border/70 bg-background/28 py-8">
+                      <EmptyContent>
+                        <EmptyHeader>
+                          <EmptyTitle>No tool activity yet</EmptyTitle>
+                          <EmptyDescription>
+                            MCP and shell activity will stream here during the
+                            next turn.
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </EmptyContent>
+                    </Empty>
+                  )}
+                </div>
+              </div>
+            </InspectorScrollArea>
+          </TabsContent>
+        </CardContent>
+      </Tabs>
     </Card>
   );
 }
 
-function ReceiptTimelineEntry({
-  entry,
-  identityLabelsById,
-  linked = false,
-}: {
-  entry: DashboardSnapshot["receiptTimeline"][number];
-  identityLabelsById: Map<string, string>;
-  linked?: boolean;
-}) {
+function InspectorScrollArea({ children }: { children: ReactNode }) {
   return (
-    <>
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-sm font-medium text-foreground">
-          {entry.kind}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {identityLabelsById.get(entry.actor) ?? truncateMiddle(entry.actor)}
-        </span>
-      </div>
-      <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-        <span className="text-xs text-muted-foreground">slot {entry.slot}</span>
-        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-          <span>{truncateMiddle(entry.receiptId)}</span>
-          {linked ? (
-            <ArrowUpRight className="size-3.5" aria-hidden="true" />
-          ) : null}
-        </span>
-      </div>
-    </>
+    <ScrollArea className="h-[320px] sm:h-[380px] xl:h-full">
+      <div className="px-4 py-4">{children}</div>
+    </ScrollArea>
   );
 }
 
-function SummaryRow({
+function InspectorStatRow({
   icon,
   label,
   value,
-  href,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
-  href?: string | null;
 }) {
-  const content = (
-    <>
-      <div className="flex min-w-0 items-start gap-2">
-        <span className="mt-0.5 text-muted-foreground">{icon}</span>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
-            {label}
-          </span>
-          <span className="text-sm text-foreground">{value}</span>
-        </div>
-      </div>
-      {href ? (
-        <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
-      ) : null}
-    </>
-  );
-
-  if (!href) {
-    return (
-      <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
-        {content}
-      </div>
-    );
-  }
-
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5 transition-colors hover:bg-muted/50"
-    >
-      {content}
-    </a>
+    <div className="flex items-start gap-3 rounded-lg border border-border/70 bg-background/32 px-3 py-3">
+      <span className="mt-0.5 text-muted-foreground">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          {label}
+        </p>
+        <p className="mt-1 text-sm text-foreground">{value}</p>
+      </div>
+    </div>
   );
 }
 

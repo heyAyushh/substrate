@@ -73,11 +73,12 @@ export async function createPiConsoleAgent(
   ensurePiStorage();
 
   const runtime = await loadLocalRuntimeConfig();
-  try {
-    await syncLocalRuntimeProviderKeys(runtime);
-  } catch (error) {
-    console.warn("Pi storage unavailable, continuing without provider key sync", error);
-  }
+  void syncLocalRuntimeProviderKeys(runtime).catch((error) => {
+    console.warn(
+      "Pi storage unavailable, continuing without provider key sync",
+      error,
+    );
+  });
 
   const model =
     resolvePreferredModel(runtime, input.preferredModel) ?? pickDefaultModel(runtime);

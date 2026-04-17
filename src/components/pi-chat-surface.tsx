@@ -27,13 +27,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -84,6 +78,14 @@ interface PiChatSurfaceProps {
   taskLabel?: string | null;
   rpcLabel?: string | null;
   delegationLabels?: string[];
+  onInspectorStateChange?: (state: PiChatInspectorState) => void;
+}
+
+export interface PiChatInspectorState {
+  mcpServers: LocalMcpServer[];
+  activities: LocalRuntimeActivity[];
+  pendingToolCount: number;
+  isStreaming: boolean;
 }
 
 type PiConsoleAgentHandle = Awaited<ReturnType<typeof createPiConsoleAgent>>;
@@ -98,6 +100,7 @@ export function PiChatSurface({
   taskLabel = null,
   rpcLabel = null,
   delegationLabels = [],
+  onInspectorStateChange,
 }: PiChatSurfaceProps) {
   const availableIdentities = useMemo(
     () =>
@@ -297,6 +300,9 @@ export function PiChatSurface({
     agentHandle?.runtime.mcpServers.length
       ? agentHandle.runtime.mcpServers
       : mcpServers;
+  const isLocalRuntimeModel = currentModel
+    ? isLocalRuntimeProvider(runtime, currentModel.provider)
+    : false;
   const availableThinkingLevels = useMemo(() => {
     if (!currentModel) {
       return ["off", "minimal", "low", "medium", "high"] as ThinkingLevel[];
@@ -325,8 +331,25 @@ export function PiChatSurface({
     [],
   );
 
+  useEffect(() => {
+    onInspectorStateChange?.({
+      mcpServers: runtimeMcpServers,
+      activities: activityLog,
+      pendingToolCount: pendingToolCalls.size,
+      isStreaming: isStreaming && isLocalRuntimeModel,
+    });
+  }, [
+    activityLog,
+    isLocalRuntimeModel,
+    isStreaming,
+    onInspectorStateChange,
+    pendingToolCalls.size,
+    runtimeMcpServers,
+  ]);
+
   const handleSubmit = async () => {
-    if (!agent || !currentModel || draft.trim().length === 0 || isStreaming) {
+    const activeAgent = agentRef.current?.agent;
+    if (!activeAgent || !currentModel || draft.trim().length === 0 || isStreaming) {
       return;
     }
 
@@ -353,7 +376,27 @@ export function PiChatSurface({
     setDraft("");
 
     try {
-      await agent.prompt(message);
+      const nextUserMessage = {
+        role: "user",
+        content: [{ type: "text", text: message }],
+        timestamp: Date.now(),
+      } as AgentMessage;
+
+      // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
+      activeAgent.state.messages = [...activeAgent.state.messages, nextUserMessage];
+      setIdentityWorkspace((current) =>
+        updateIdentityChatState(current, activeIdentity.id, {
+          messages: [...activeAgent.state.messages],
+          preferredModel: {
+            provider: activeAgent.state.model.provider,
+            modelId: activeAgent.state.model.id,
+          },
+          thinkingLevel: activeAgent.state.thinkingLevel,
+        }),
+      );
+      setVersion((current) => current + 1);
+
+      await activeAgent.continue();
     } catch (error) {
       setDraft(message);
       setComposeError(
@@ -453,7 +496,7 @@ export function PiChatSurface({
     <Card className="h-full min-h-[760px] gap-0 overflow-hidden bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-0">
       <CardHeader className="gap-4 border-b border-border/70 bg-background/28">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-base font-medium">
                 {activeIdentity.label}
@@ -467,11 +510,11 @@ export function PiChatSurface({
               ) : null}
             </div>
 
-            <CardDescription className="mt-1 max-w-3xl">
+            <CardDescription className="max-w-3xl">
               {activeIdentity.roleSummary}
             </CardDescription>
             {connectionSummary ? (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {connectionSummary}
               </p>
             ) : null}
@@ -535,49 +578,20 @@ export function PiChatSurface({
       </CardHeader>
 
       <CardContent className="min-h-0 flex-1 px-0 py-0">
-        <div className="hidden h-full xl:block">
-          <ResizablePanelGroup orientation="horizontal">
-            <ResizablePanel defaultSize={68} minSize={52}>
-              <ConversationPane
-                messages={messages}
-                streamingMessage={streamingMessage}
-                pendingToolCalls={pendingToolCalls}
-                activityLog={activityLog}
-                showInlineRuntimeActivity={false}
-                activeIdentity={activeIdentity}
-                bottomRef={bottomRef}
-              />
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={32} minSize={24}>
-              <DesktopInspector
-                mcpServers={runtimeMcpServers}
-                activities={activityLog}
-                pendingToolCount={pendingToolCalls.size}
-                isStreaming={
-                  isStreaming && isLocalRuntimeProvider(runtime, currentModel.provider)
-                }
-              />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        </div>
-
-        <div className="flex w-full xl:hidden">
-          <ConversationPane
-            messages={messages}
-            streamingMessage={streamingMessage}
-            pendingToolCalls={pendingToolCalls}
-            activityLog={activityLog}
-            showInlineRuntimeActivity
-            activeIdentity={activeIdentity}
-            bottomRef={bottomRef}
-          />
-        </div>
+        <ConversationPane
+          messages={messages}
+          streamingMessage={streamingMessage}
+          pendingToolCalls={pendingToolCalls}
+          activeIdentity={activeIdentity}
+          quickPrompts={quickPrompts}
+          onUsePrompt={handleUsePrompt}
+          bottomRef={bottomRef}
+        />
       </CardContent>
 
-      <CardFooter className="block border-t border-border/70 bg-background/20 supports-[backdrop-filter]:bg-background/44 supports-[backdrop-filter]:backdrop-blur-2xl">
+      <CardFooter className="border-t border-border/70 bg-background/20 px-3 py-3 supports-[backdrop-filter]:bg-background/44 supports-[backdrop-filter]:backdrop-blur-2xl sm:px-4 sm:py-4">
         <form
-          className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/26 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/24 sm:p-4"
+          className="flex w-full flex-col gap-3 rounded-lg border border-border/70 bg-background/26 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/24 sm:p-4"
           onSubmit={(event) => {
             event.preventDefault();
             void handleSubmit();
@@ -591,66 +605,50 @@ export function PiChatSurface({
             </Alert>
           ) : null}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
-              {quickPrompts.map((quickPrompt) => (
-                <Button
-                  key={quickPrompt.label}
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => handleUsePrompt(quickPrompt.prompt)}
-                  disabled={isStreaming}
-                >
-                  {quickPrompt.label}
-                </Button>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg border-border/70 bg-background/40"
+              onClick={handleSelectModel}
+            >
+              {currentModel.id}
+            </Button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
+            <Select
+              value={agent.state.thinkingLevel}
+              onValueChange={(nextValue) => {
+                const activeAgent = agentRef.current?.agent;
+                if (!activeAgent) {
+                  return;
+                }
+
+                // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
+                activeAgent.state.thinkingLevel = nextValue as ThinkingLevel;
+                setVersion((current) => current + 1);
+              }}
+            >
+              <SelectTrigger
                 size="sm"
-                onClick={handleSelectModel}
+                className="w-[122px] rounded-lg border-border/70 bg-background/40"
               >
-                Model {currentModel.id}
-              </Button>
+                <SelectValue placeholder="Thinking" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {availableThinkingLevels.map((level) => (
+                    <SelectItem key={level} value={level}>
+                      {level}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
 
-              <Select
-                value={agent.state.thinkingLevel}
-                onValueChange={(nextValue) => {
-                  const activeAgent = agentRef.current?.agent;
-                  if (!activeAgent) {
-                    return;
-                  }
-
-                  // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
-                  activeAgent.state.thinkingLevel = nextValue as ThinkingLevel;
-                  setVersion((current) => current + 1);
-                }}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="w-[136px] border-border/70 bg-background/30"
-                >
-                  <SelectValue placeholder="Reasoning" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {availableThinkingLevels.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        {level}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-
-              {pendingToolCalls.size > 0 ? (
-                <Badge variant="outline">{pendingToolCalls.size} tools running</Badge>
-              ) : null}
-            </div>
+            {pendingToolCalls.size > 0 ? (
+              <Badge variant="outline">{pendingToolCalls.size} tools running</Badge>
+            ) : null}
           </div>
 
           <label htmlFor="pi-chat-input" className="sr-only">
@@ -669,18 +667,16 @@ export function PiChatSurface({
             }}
             placeholder={`Ask ${activeIdentity.label} about the task, receipts, or next handoff`}
             disabled={isStreaming}
-            rows={4}
+            rows={5}
             enterKeyHint="send"
-            className="min-h-24 resize-none rounded-xl border-border/70 bg-background/38 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/30"
+            className="min-h-[140px] resize-none rounded-lg border-border/70 bg-background/38 px-4 py-3 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/30"
           />
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>Enter sends. Shift+Enter adds a line.</span>
-              {pendingToolCalls.size > 0 ? (
-                <span>{pendingToolCalls.size} tools running</span>
-              ) : null}
-            </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              Enter sends. Shift+Enter adds a line. Tool and MCP activity lands
+              in the inspector.
+            </p>
 
             <div className="flex justify-end gap-2">
               {messages.length > 0 ? (
@@ -688,6 +684,7 @@ export function PiChatSurface({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="rounded-lg"
                   onClick={handleClear}
                   disabled={isStreaming}
                 >
@@ -701,13 +698,19 @@ export function PiChatSurface({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="rounded-lg"
                   onClick={() => agent.abort()}
                 >
                   <Square data-icon="inline-start" aria-hidden="true" />
                   Stop
                 </Button>
               ) : (
-                <Button type="submit" size="sm" disabled={!canSend}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="rounded-lg"
+                  disabled={!canSend}
+                >
                   Send
                   <Send data-icon="inline-end" aria-hidden="true" />
                 </Button>
@@ -720,17 +723,51 @@ export function PiChatSurface({
   );
 }
 
-function EmptyState({ identity }: { identity: PiIdentityProfile }) {
+function EmptyState({
+  identity,
+  quickPrompts,
+  onUsePrompt,
+}: {
+  identity: PiIdentityProfile;
+  quickPrompts: Array<{ label: string; prompt: string }>;
+  onUsePrompt: (prompt: string) => void;
+}) {
   return (
-    <Empty className="border-border/70 bg-background/25 py-12">
-      <EmptyContent>
+    <Empty className="border-border/70 bg-background/25 py-12 text-left sm:py-16">
+      <EmptyContent className="max-w-none items-start gap-4 text-left">
         <EmptyMedia variant="icon">
           <Bot aria-hidden="true" />
         </EmptyMedia>
-        <EmptyHeader>
-          <EmptyTitle>Start with the task, a receipt, or a dispute.</EmptyTitle>
-          <EmptyDescription>{identity.promptHint}</EmptyDescription>
+        <EmptyHeader className="max-w-xl items-start text-left">
+          <Badge variant="outline" className="mb-1">
+            {identity.label}
+          </Badge>
+          <EmptyTitle className="text-base">
+            Start with the task, a receipt, or a handoff.
+          </EmptyTitle>
+          <EmptyDescription>{identity.roleSummary}</EmptyDescription>
+          <p className="text-sm text-muted-foreground">{identity.promptHint}</p>
         </EmptyHeader>
+        <div className="grid w-full gap-2 sm:grid-cols-3">
+          {quickPrompts.map((quickPrompt) => (
+            <Button
+              key={quickPrompt.label}
+              type="button"
+              variant="outline"
+              className="h-auto items-start justify-start rounded-lg border-border/70 bg-background/42 px-3 py-3 text-left whitespace-normal"
+              onClick={() => onUsePrompt(quickPrompt.prompt)}
+            >
+              <span className="flex flex-col items-start gap-1">
+                <span className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
+                  {quickPrompt.label}
+                </span>
+                <span className="text-sm leading-6 text-foreground">
+                  {quickPrompt.prompt}
+                </span>
+              </span>
+            </Button>
+          ))}
+        </div>
       </EmptyContent>
     </Empty>
   );
@@ -740,26 +777,28 @@ function ConversationPane({
   messages,
   streamingMessage,
   pendingToolCalls,
-  activityLog,
-  showInlineRuntimeActivity,
   activeIdentity,
+  quickPrompts,
+  onUsePrompt,
   bottomRef,
 }: {
   messages: AgentMessage[];
   streamingMessage: AssistantMessageLike | null;
   pendingToolCalls: ReadonlySet<string>;
-  activityLog: LocalRuntimeActivity[];
-  showInlineRuntimeActivity: boolean;
   activeIdentity: PiIdentityProfile;
+  quickPrompts: Array<{ label: string; prompt: string }>;
+  onUsePrompt: (prompt: string) => void;
   bottomRef: { current: HTMLDivElement | null };
 }) {
   return (
-    <ScrollArea className="h-[360px] min-h-[360px] w-full sm:h-[420px] lg:h-[500px] xl:h-full">
+    <ScrollArea className="h-[360px] min-h-[360px] w-full sm:h-[440px] lg:h-[520px] xl:h-full">
       <div className="flex min-h-full flex-col gap-4 px-4 py-4">
-        {messages.length === 0 &&
-        !streamingMessage &&
-        (!showInlineRuntimeActivity || activityLog.length === 0) ? (
-          <EmptyState identity={activeIdentity} />
+        {messages.length === 0 && !streamingMessage ? (
+          <EmptyState
+            identity={activeIdentity}
+            quickPrompts={quickPrompts}
+            onUsePrompt={onUsePrompt}
+          />
         ) : null}
 
         {messages.map((message, index) => (
@@ -770,13 +809,6 @@ function ConversationPane({
           />
         ))}
 
-        {showInlineRuntimeActivity && activityLog.length > 0 ? (
-          <RuntimeActivityCard
-            activities={activityLog}
-            isStreaming={false}
-          />
-        ) : null}
-
         {streamingMessage ? (
           <AssistantBubble
             message={streamingMessage}
@@ -786,104 +818,6 @@ function ConversationPane({
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
-  );
-}
-
-function DesktopInspector({
-  mcpServers,
-  activities,
-  pendingToolCount,
-  isStreaming,
-}: {
-  mcpServers: LocalMcpServer[];
-  activities: LocalRuntimeActivity[];
-  pendingToolCount: number;
-  isStreaming: boolean;
-}) {
-  return (
-    <div className="flex h-full flex-col bg-background/10">
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-foreground">
-            MCP and tools
-          </span>
-          <span className="text-xs text-muted-foreground">
-            Live runtime surface for desktop.
-          </span>
-        </div>
-        <Badge variant="outline">
-          {pendingToolCount > 0 ? `${pendingToolCount} running` : "idle"}
-        </Badge>
-      </div>
-      <Separator />
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-4 p-4">
-          <McpServersCard mcpServers={mcpServers} />
-          <RuntimeActivityCard
-            activities={activities}
-            isStreaming={isStreaming}
-          />
-        </div>
-      </ScrollArea>
-    </div>
-  );
-}
-
-function McpServersCard({ mcpServers }: { mcpServers: LocalMcpServer[] }) {
-  return (
-    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2 text-sm text-foreground">
-          <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-muted-foreground" />
-            <span className="font-medium">Configured MCP servers</span>
-          </div>
-          <Badge variant="outline">{mcpServers.length}</Badge>
-        </div>
-
-        {mcpServers.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {mcpServers.map((server) => (
-              <div
-                key={`${server.transport}-${server.name}`}
-                className="rounded-lg border border-border/70 bg-background/70 px-3 py-2"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {server.name}
-                  </span>
-                  <Badge variant="outline">{server.transport}</Badge>
-                  <Badge
-                    variant={
-                      server.auth === "OAuth" ? "secondary" : "outline"
-                    }
-                  >
-                    {server.auth}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  {server.target}
-                </p>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  {server.status}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty className="border-border/70 bg-background/25 py-8">
-            <EmptyContent>
-              <EmptyHeader>
-                <EmptyTitle>No MCP servers</EmptyTitle>
-                <EmptyDescription>
-                  Add `shadcn` or other MCP servers in Codex to surface them here.
-                </EmptyDescription>
-              </EmptyHeader>
-            </EmptyContent>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -1030,73 +964,6 @@ function ToolResultBubble({
   );
 }
 
-function RuntimeActivityCard({
-  activities,
-  isStreaming,
-}: {
-  activities: LocalRuntimeActivity[];
-  isStreaming: boolean;
-}) {
-  return (
-    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 text-sm text-foreground">
-          <Wrench className="size-4 text-muted-foreground" />
-          <span className="font-medium">Local runtime activity</span>
-          {isStreaming ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          ) : null}
-        </div>
-
-        {activities.length > 0 ? (
-          <div className="flex flex-col gap-3">
-            {activities.map((activity) => (
-              <div key={activity.id} className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
-                  <span>{activity.label}</span>
-                  <Badge variant="outline">{activity.source}</Badge>
-                  {activity.server ? (
-                    <Badge variant="outline">{activity.server}</Badge>
-                  ) : null}
-                  <Badge
-                    variant={activity.isError ? "destructive" : "outline"}
-                  >
-                    {activity.phase === "start"
-                      ? "running"
-                      : activity.isError
-                        ? "failed"
-                        : "done"}
-                  </Badge>
-                </div>
-                {activity.detail ? (
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    {activity.detail}
-                  </p>
-                ) : null}
-                {activity.output ? (
-                  <pre className="max-h-48 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
-                    {activity.output}
-                  </pre>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <Empty className="border-border/70 bg-background/25 py-8">
-            <EmptyContent>
-              <EmptyHeader>
-                <EmptyTitle>No tool activity yet</EmptyTitle>
-                <EmptyDescription>
-                  MCP and shell activity will stream here during the next turn.
-                </EmptyDescription>
-              </EmptyHeader>
-            </EmptyContent>
-          </Empty>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
   return (
