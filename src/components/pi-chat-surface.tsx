@@ -27,7 +27,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -52,6 +58,7 @@ import {
 import { createPiConsoleAgent } from "@/lib/pi-chat";
 import {
   subscribeToLocalRuntimeActivity,
+  type LocalMcpServer,
   type LocalRuntimeActivity,
   type LocalRuntimeConfig,
 } from "@/lib/local-runtime";
@@ -64,10 +71,12 @@ const BASE_SYSTEM_PROMPT = [
   "Stay faithful to the live task, receipts, delegation chain, and disputes shown in the console.",
   "If you infer something from the live snapshot instead of knowing it directly, say so plainly.",
   "Use tools when they improve precision.",
+  "If Codex MCP servers are configured, prefer them for search and external context when they materially improve the answer.",
 ].join(" ");
 
 interface PiChatSurfaceProps {
   identityProfiles?: PiIdentityProfile[];
+  mcpServers?: LocalMcpServer[];
   runtimeLabel?: string | null;
   slotLabel?: string | null;
   latestReceiptLabel?: string | null;
@@ -81,6 +90,7 @@ type PiConsoleAgentHandle = Awaited<ReturnType<typeof createPiConsoleAgent>>;
 
 export function PiChatSurface({
   identityProfiles = [],
+  mcpServers = [],
   runtimeLabel = null,
   slotLabel = null,
   latestReceiptLabel = null,
@@ -283,6 +293,10 @@ export function PiChatSurface({
   const currentModel = agent?.state.model ?? null;
   const pendingToolCalls = agent?.state.pendingToolCalls ?? new Set<string>();
   const canSend = Boolean(agent && draft.trim().length > 0 && !isStreaming);
+  const runtimeMcpServers =
+    agentHandle?.runtime.mcpServers.length
+      ? agentHandle.runtime.mcpServers
+      : mcpServers;
   const providerLabel = currentModel
     ? getProviderLabel(currentModel.provider, runtime)
     : runtimeLabel;
@@ -295,6 +309,31 @@ export function PiChatSurface({
       ? (["off", "minimal", "low", "medium", "high", "xhigh"] as ThinkingLevel[])
       : (["off", "minimal", "low", "medium", "high"] as ThinkingLevel[]);
   }, [currentModel]);
+  const quickPrompts = useMemo(
+    () =>
+      [
+        {
+          label: "Task",
+          prompt: "Summarize the active task and the highest-risk open issue.",
+        },
+        {
+          label: "Receipts",
+          prompt: "List the latest receipts and what they imply for the current run.",
+        },
+        {
+          label: "Delegation",
+          prompt: "Explain the current delegation chain and who should act next.",
+        },
+        runtimeMcpServers.length > 0
+          ? {
+              label: "MCP search",
+              prompt:
+                "Use the configured MCP servers if helpful and tell me which server you used.",
+            }
+          : null,
+      ].filter(Boolean) as Array<{ label: string; prompt: string }>,
+    [runtimeMcpServers.length],
+  );
 
   const handleSubmit = async () => {
     if (!agent || !currentModel || draft.trim().length === 0 || isStreaming) {
@@ -377,6 +416,14 @@ export function PiChatSurface({
     setActivityLog([]);
   };
 
+  const handleUsePrompt = (prompt: string) => {
+    if (isStreaming) {
+      return;
+    }
+
+    setDraft(prompt);
+  };
+
   if (!isReady && !startupError) {
     return (
       <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />
@@ -427,6 +474,11 @@ export function PiChatSurface({
               <Badge variant="secondary">{activeIdentity.label}</Badge>
               {providerLabel ? <Badge variant="outline">{providerLabel}</Badge> : null}
               <Badge variant="outline">{currentModel.id}</Badge>
+              <Badge variant="outline">
+                {runtimeMcpServers.length > 0
+                  ? `${runtimeMcpServers.length} MCP`
+                  : "No MCP"}
+              </Badge>
               <Badge variant="outline">{activeIdentity.receiptCount} receipts</Badge>
               {activeIdentity.latestReceiptKind ? (
                 <Badge variant="outline">{activeIdentity.latestReceiptKind}</Badge>
@@ -467,7 +519,7 @@ export function PiChatSurface({
               </div>
             ) : null}
 
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground lg:justify-end">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{truncateIdentity(activeIdentity.id)}</span>
               {identityMeta.map((value) => (
                 <span key={value}>{value}</span>
@@ -510,39 +562,45 @@ export function PiChatSurface({
         ) : null}
       </CardHeader>
 
-      <CardContent className="flex min-h-0 flex-1 px-0">
-        <ScrollArea className="h-[360px] min-h-[360px] w-full sm:h-[420px] lg:h-[500px] xl:h-full">
-          <div className="flex min-h-full flex-col gap-4 px-4 py-4">
-            {messages.length === 0 && !streamingMessage && activityLog.length === 0 ? (
-              <EmptyState identity={activeIdentity} />
-            ) : null}
-
-            {messages.map((message, index) => (
-              <MessageRow
-                key={getMessageKey(message, index)}
-                message={message}
+      <CardContent className="min-h-0 flex-1 px-0 py-0">
+        <div className="hidden h-full xl:block">
+          <ResizablePanelGroup orientation="horizontal">
+            <ResizablePanel defaultSize={68} minSize={52}>
+              <ConversationPane
+                messages={messages}
+                streamingMessage={streamingMessage}
                 pendingToolCalls={pendingToolCalls}
+                activityLog={activityLog}
+                showInlineRuntimeActivity={false}
+                activeIdentity={activeIdentity}
+                bottomRef={bottomRef}
               />
-            ))}
-
-            {activityLog.length > 0 ? (
-              <RuntimeActivityCard
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={32} minSize={24}>
+              <DesktopInspector
+                mcpServers={runtimeMcpServers}
                 activities={activityLog}
+                pendingToolCount={pendingToolCalls.size}
                 isStreaming={
                   isStreaming && isLocalRuntimeProvider(runtime, currentModel.provider)
                 }
               />
-            ) : null}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </div>
 
-            {streamingMessage ? (
-              <AssistantBubble
-                message={streamingMessage}
-                pendingToolCalls={pendingToolCalls}
-              />
-            ) : null}
-            <div ref={bottomRef} />
-          </div>
-        </ScrollArea>
+        <div className="flex w-full xl:hidden">
+          <ConversationPane
+            messages={messages}
+            streamingMessage={streamingMessage}
+            pendingToolCalls={pendingToolCalls}
+            activityLog={activityLog}
+            showInlineRuntimeActivity
+            activeIdentity={activeIdentity}
+            bottomRef={bottomRef}
+          />
+        </div>
       </CardContent>
 
       <CardFooter className="block border-t border-border/70 bg-background/20 supports-[backdrop-filter]:bg-background/44 supports-[backdrop-filter]:backdrop-blur-2xl">
@@ -561,7 +619,22 @@ export function PiChatSurface({
             </Alert>
           ) : null}
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            {quickPrompts.map((quickPrompt) => (
+              <Button
+                key={quickPrompt.label}
+                type="button"
+                variant="ghost"
+                size="xs"
+                onClick={() => handleUsePrompt(quickPrompt.prompt)}
+                disabled={isStreaming}
+              >
+                {quickPrompt.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="pi-chat-input"
@@ -574,7 +647,7 @@ export function PiChatSurface({
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -599,7 +672,7 @@ export function PiChatSurface({
               >
                 <SelectTrigger
                   size="sm"
-                  className="w-full border-border/70 bg-background/30 sm:w-[140px]"
+                  className="w-[136px] border-border/70 bg-background/30"
                 >
                   <SelectValue placeholder="Reasoning" />
                 </SelectTrigger>
@@ -614,7 +687,13 @@ export function PiChatSurface({
                 </SelectContent>
               </Select>
 
-              <Badge variant="outline">MCP + tools</Badge>
+              <Badge variant="outline">
+                {pendingToolCalls.size > 0
+                  ? `${pendingToolCalls.size} active tool`
+                  : runtimeMcpServers.length > 0
+                    ? "MCP ready"
+                    : "Tools ready"}
+              </Badge>
             </div>
           </div>
 
@@ -693,6 +772,157 @@ function EmptyState({ identity }: { identity: PiIdentityProfile }) {
         </EmptyHeader>
       </EmptyContent>
     </Empty>
+  );
+}
+
+function ConversationPane({
+  messages,
+  streamingMessage,
+  pendingToolCalls,
+  activityLog,
+  showInlineRuntimeActivity,
+  activeIdentity,
+  bottomRef,
+}: {
+  messages: AgentMessage[];
+  streamingMessage: AssistantMessageLike | null;
+  pendingToolCalls: ReadonlySet<string>;
+  activityLog: LocalRuntimeActivity[];
+  showInlineRuntimeActivity: boolean;
+  activeIdentity: PiIdentityProfile;
+  bottomRef: { current: HTMLDivElement | null };
+}) {
+  return (
+    <ScrollArea className="h-[360px] min-h-[360px] w-full sm:h-[420px] lg:h-[500px] xl:h-full">
+      <div className="flex min-h-full flex-col gap-4 px-4 py-4">
+        {messages.length === 0 &&
+        !streamingMessage &&
+        (!showInlineRuntimeActivity || activityLog.length === 0) ? (
+          <EmptyState identity={activeIdentity} />
+        ) : null}
+
+        {messages.map((message, index) => (
+          <MessageRow
+            key={getMessageKey(message, index)}
+            message={message}
+            pendingToolCalls={pendingToolCalls}
+          />
+        ))}
+
+        {showInlineRuntimeActivity && activityLog.length > 0 ? (
+          <RuntimeActivityCard
+            activities={activityLog}
+            isStreaming={false}
+          />
+        ) : null}
+
+        {streamingMessage ? (
+          <AssistantBubble
+            message={streamingMessage}
+            pendingToolCalls={pendingToolCalls}
+          />
+        ) : null}
+        <div ref={bottomRef} />
+      </div>
+    </ScrollArea>
+  );
+}
+
+function DesktopInspector({
+  mcpServers,
+  activities,
+  pendingToolCount,
+  isStreaming,
+}: {
+  mcpServers: LocalMcpServer[];
+  activities: LocalRuntimeActivity[];
+  pendingToolCount: number;
+  isStreaming: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col bg-background/10">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium text-foreground">
+            MCP and tools
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Live runtime surface for desktop.
+          </span>
+        </div>
+        <Badge variant="outline">
+          {pendingToolCount > 0 ? `${pendingToolCount} running` : "idle"}
+        </Badge>
+      </div>
+      <Separator />
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-4 p-4">
+          <McpServersCard mcpServers={mcpServers} />
+          <RuntimeActivityCard
+            activities={activities}
+            isStreaming={isStreaming}
+          />
+        </div>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function McpServersCard({ mcpServers }: { mcpServers: LocalMcpServer[] }) {
+  return (
+    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2 text-sm text-foreground">
+          <div className="flex items-center gap-2">
+            <Wrench className="size-4 text-muted-foreground" />
+            <span className="font-medium">Configured MCP servers</span>
+          </div>
+          <Badge variant="outline">{mcpServers.length}</Badge>
+        </div>
+
+        {mcpServers.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {mcpServers.map((server) => (
+              <div
+                key={`${server.transport}-${server.name}`}
+                className="rounded-lg border border-border/70 bg-background/70 px-3 py-2"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {server.name}
+                  </span>
+                  <Badge variant="outline">{server.transport}</Badge>
+                  <Badge
+                    variant={
+                      server.auth === "OAuth" ? "secondary" : "outline"
+                    }
+                  >
+                    {server.auth}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {server.target}
+                </p>
+                <p className="mt-1 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                  {server.status}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty className="border-border/70 bg-background/25 py-8">
+            <EmptyContent>
+              <EmptyHeader>
+                <EmptyTitle>No MCP servers</EmptyTitle>
+                <EmptyDescription>
+                  Add `shadcn` or other MCP servers in Codex to surface them here.
+                </EmptyDescription>
+              </EmptyHeader>
+            </EmptyContent>
+          </Empty>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -857,34 +1087,51 @@ function RuntimeActivityCard({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-3">
-          {activities.map((activity) => (
-            <div key={activity.id} className="flex flex-col gap-1">
-              <div className="flex items-center gap-2 text-sm text-foreground">
-                <span>{activity.label}</span>
-                <Badge
-                  variant={activity.isError ? "destructive" : "outline"}
-                >
-                  {activity.phase === "start"
-                    ? "running"
-                    : activity.isError
-                      ? "failed"
-                      : "done"}
-                </Badge>
+        {activities.length > 0 ? (
+          <div className="flex flex-col gap-3">
+            {activities.map((activity) => (
+              <div key={activity.id} className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                  <span>{activity.label}</span>
+                  <Badge variant="outline">{activity.source}</Badge>
+                  {activity.server ? (
+                    <Badge variant="outline">{activity.server}</Badge>
+                  ) : null}
+                  <Badge
+                    variant={activity.isError ? "destructive" : "outline"}
+                  >
+                    {activity.phase === "start"
+                      ? "running"
+                      : activity.isError
+                        ? "failed"
+                        : "done"}
+                  </Badge>
+                </div>
+                {activity.detail ? (
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    {activity.detail}
+                  </p>
+                ) : null}
+                {activity.output ? (
+                  <pre className="max-h-48 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
+                    {activity.output}
+                  </pre>
+                ) : null}
               </div>
-              {activity.detail ? (
-                <p className="text-xs leading-5 text-muted-foreground">
-                  {activity.detail}
-                </p>
-              ) : null}
-              {activity.output ? (
-                <pre className="max-h-48 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
-                  {activity.output}
-                </pre>
-              ) : null}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <Empty className="border-border/70 bg-background/25 py-8">
+            <EmptyContent>
+              <EmptyHeader>
+                <EmptyTitle>No tool activity yet</EmptyTitle>
+                <EmptyDescription>
+                  MCP and shell activity will stream here during the next turn.
+                </EmptyDescription>
+              </EmptyHeader>
+            </EmptyContent>
+          </Empty>
+        )}
       </CardContent>
     </Card>
   );

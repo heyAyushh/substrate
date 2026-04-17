@@ -27,6 +27,15 @@ interface LocalRuntimeConfig {
   codex: RuntimeCapability;
   claude: RuntimeCapability;
   defaultProvider: LocalProviderId | null;
+  mcpServers: LocalMcpServer[];
+}
+
+interface LocalMcpServer {
+  name: string;
+  transport: "command" | "url";
+  target: string;
+  status: string;
+  auth: string;
 }
 
 interface LocalChatRequest {
@@ -50,6 +59,9 @@ interface LocalChatStreamEvent {
   readonly provider?: LocalProviderId;
   readonly id?: string;
   readonly label?: string;
+  readonly source?: "shell" | "mcp" | "runtime";
+  readonly server?: string;
+  readonly tool?: string;
   readonly detail?: string;
   readonly output?: string;
   readonly isError?: boolean;
@@ -127,6 +139,7 @@ function detectLocalRuntime(): LocalRuntimeConfig {
     commandExists("codex") && existsSync(path.join(homedir(), ".codex"));
   const claudeAvailable =
     commandExists("claude") && existsSync(path.join(homedir(), ".claude"));
+  const mcpServers = codexAvailable ? detectCodexMcpServers() : [];
 
   return {
     codex: {
@@ -146,6 +159,7 @@ function detectLocalRuntime(): LocalRuntimeConfig {
       : claudeAvailable
         ? "anthropic"
         : null,
+    mcpServers,
   };
 }
 
@@ -154,6 +168,91 @@ function commandExists(command: string): boolean {
     stdio: "ignore",
   });
   return result.status === 0;
+}
+
+function detectCodexMcpServers(): LocalMcpServer[] {
+  const result = spawnSync("codex", ["mcp", "list"], {
+    cwd: WORKSPACE_ROOT,
+    env: process.env,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0 || !result.stdout) {
+    return [];
+  }
+
+  return parseCodexMcpList(result.stdout);
+}
+
+function parseCodexMcpList(output: string): LocalMcpServer[] {
+  const sections = output
+    .split(/\n\s*\n/)
+    .map((section) =>
+      section
+        .split(/\r?\n/)
+        .map((line) => line.trimEnd())
+        .filter(Boolean),
+    )
+    .filter((section) => section.length >= 2);
+
+  const servers: LocalMcpServer[] = [];
+
+  for (const section of sections) {
+    const [headerLine, ...dataLines] = section;
+    if (!headerLine || !headerLine.startsWith("Name")) {
+      continue;
+    }
+
+    const headers = splitTableRow(headerLine);
+    for (const dataLine of dataLines) {
+      const cells = splitTableRow(dataLine);
+      if (cells.length !== headers.length) {
+        continue;
+      }
+
+      const row = Object.fromEntries(
+        headers.map((header, index) => [header, cells[index] ?? ""]),
+      );
+      const name = row.Name?.trim();
+      const status = row.Status?.trim();
+      const auth = row.Auth?.trim();
+
+      if (!name || !status || !auth) {
+        continue;
+      }
+
+      if (row.Url) {
+        servers.push({
+          name,
+          transport: "url",
+          target: row.Url.trim(),
+          status,
+          auth,
+        });
+        continue;
+      }
+
+      if (row.Command) {
+        const args = row.Args?.trim();
+        servers.push({
+          name,
+          transport: "command",
+          target: args ? `${row.Command.trim()} ${args}` : row.Command.trim(),
+          status,
+          auth,
+        });
+      }
+    }
+  }
+
+  return servers;
+}
+
+function splitTableRow(row: string): string[] {
+  return row
+    .split(/\s{2,}/)
+    .map((cell) => cell.trim())
+    .filter(Boolean);
 }
 
 function respondJson(
@@ -547,7 +646,7 @@ function buildRuntimePrompt(payload: LocalChatRequest): string {
     "You are the assistant inside the Trust Substrate Pi console.",
     payload.systemPrompt ? `System instructions:\n${payload.systemPrompt}` : "",
     transcript ? `Conversation transcript:\n${transcript}` : "",
-    "Reply as the assistant to the latest user message. Use the earlier turns only as context. Do not restate the transcript or add role labels unless needed.",
+    "Reply as the assistant to the latest user message. Use the earlier turns only as context. Use available tools and configured MCP servers when they improve accuracy. Do not restate the transcript or add role labels unless needed.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -597,10 +696,26 @@ function handleCodexEvent(
     if (item.type === "agent_message") {
       return;
     }
+
+    if (item.type === "mcp_tool_call") {
+      write({
+        type: "activity_start",
+        provider: "openai-codex",
+        id: typeof item.id === "string" ? item.id : undefined,
+        source: "mcp",
+        server: typeof item.server === "string" ? item.server : undefined,
+        tool: typeof item.tool === "string" ? item.tool : undefined,
+        label: describeCodexMcpItem(item),
+        detail: renderCodexMcpArguments(item.arguments),
+      });
+      return;
+    }
+
     write({
       type: "activity_start",
       provider: "openai-codex",
       id: typeof item.id === "string" ? item.id : undefined,
+      source: item.type === "command_execution" ? "shell" : "runtime",
       label: describeCodexItem(item),
       detail: detailCodexItem(item),
     });
@@ -617,10 +732,27 @@ function handleCodexEvent(
       return;
     }
 
+    if (item.type === "mcp_tool_call") {
+      write({
+        type: "activity_end",
+        provider: "openai-codex",
+        id: typeof item.id === "string" ? item.id : undefined,
+        source: "mcp",
+        server: typeof item.server === "string" ? item.server : undefined,
+        tool: typeof item.tool === "string" ? item.tool : undefined,
+        label: describeCodexMcpItem(item),
+        detail: renderCodexMcpArguments(item.arguments),
+        output: renderCodexMcpOutput(item),
+        isError: item.status === "failed" || isRecord(item.error),
+      });
+      return;
+    }
+
     write({
       type: "activity_end",
       provider: "openai-codex",
       id: typeof item.id === "string" ? item.id : undefined,
+      source: item.type === "command_execution" ? "shell" : "runtime",
       label: describeCodexItem(item),
       detail: detailCodexItem(item),
       output: outputCodexItem(item),
@@ -637,6 +769,12 @@ function handleCodexEvent(
       appendAssistantText(state, nextText, "openai-codex", write);
     }
   }
+}
+
+function describeCodexMcpItem(item: Record<string, unknown>): string {
+  const server = typeof item.server === "string" ? item.server : "mcp";
+  const tool = typeof item.tool === "string" ? item.tool : "tool";
+  return `${server}.${tool}`;
 }
 
 function handleClaudeEvent(
@@ -771,6 +909,38 @@ function detailCodexItem(item: Record<string, unknown>): string | undefined {
   }
 
   return undefined;
+}
+
+function renderCodexMcpArguments(argumentsValue: unknown): string | undefined {
+  if (argumentsValue === undefined) {
+    return undefined;
+  }
+
+  try {
+    return JSON.stringify(argumentsValue, null, 2);
+  } catch {
+    return undefined;
+  }
+}
+
+function renderCodexMcpOutput(item: Record<string, unknown>): string | undefined {
+  if (isRecord(item.error) && typeof item.error.message === "string") {
+    return item.error.message;
+  }
+
+  if (item.result === undefined || item.result === null) {
+    return undefined;
+  }
+
+  if (typeof item.result === "string") {
+    return trimPreview(item.result);
+  }
+
+  try {
+    return trimPreview(JSON.stringify(item.result, null, 2));
+  } catch {
+    return undefined;
+  }
 }
 
 function outputCodexItem(item: Record<string, unknown>): string | undefined {

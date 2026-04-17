@@ -25,6 +25,7 @@ const DEFAULT_OPENAI_MODEL_ID = "gpt-5.4-mini";
 const LOCAL_RUNTIME_ACTIVITY_EVENT = "pi-console:local-runtime-activity";
 
 export type LocalProviderId = "openai-codex" | "anthropic";
+export type LocalRuntimeActivitySource = "shell" | "mcp" | "runtime";
 
 interface RuntimeCapability {
   available: boolean;
@@ -32,10 +33,19 @@ interface RuntimeCapability {
   defaultModelId: string;
 }
 
+export interface LocalMcpServer {
+  name: string;
+  transport: "command" | "url";
+  target: string;
+  status: string;
+  auth: string;
+}
+
 export interface LocalRuntimeConfig {
   codex: RuntimeCapability;
   claude: RuntimeCapability;
   defaultProvider: LocalProviderId | null;
+  mcpServers: LocalMcpServer[];
 }
 
 interface LocalChatResponse {
@@ -48,6 +58,9 @@ interface LocalChatStreamEvent {
   provider?: LocalProviderId;
   id?: string;
   label?: string;
+  source?: LocalRuntimeActivitySource;
+  server?: string;
+  tool?: string;
   detail?: string;
   output?: string;
   isError?: boolean;
@@ -71,6 +84,9 @@ export interface LocalRuntimeActivity {
   phase: "start" | "end";
   id: string;
   label: string;
+  source: LocalRuntimeActivitySource;
+  server?: string;
+  tool?: string;
   detail?: string;
   output?: string;
   isError?: boolean;
@@ -272,6 +288,7 @@ function createFallbackRuntimeConfig(): LocalRuntimeConfig {
       defaultModelId: DEFAULT_CLAUDE_MODEL_ID,
     },
     defaultProvider: null,
+    mcpServers: [],
   };
 }
 
@@ -441,6 +458,9 @@ async function handleLocalRuntimeStreamEvent(
       phase: event.type === "activity_start" ? "start" : "end",
       id: event.id,
       label: event.label,
+      source: event.source ?? "runtime",
+      server: event.server,
+      tool: event.tool,
       detail: event.detail,
       output: event.output,
       isError: event.isError,

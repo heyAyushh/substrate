@@ -51,6 +51,7 @@ import type { PiIdentityProfile } from "@/lib/pi-identities";
 import {
   getDefaultRuntimeLabel,
   loadLocalRuntimeConfig,
+  type LocalRuntimeConfig,
 } from "@/lib/local-runtime";
 
 function App() {
@@ -62,7 +63,7 @@ function App() {
   const [surfpoolStatus, setSurfpoolStatus] = useState<SurfpoolStatus | null>(
     null,
   );
-  const [runtimeLabel, setRuntimeLabel] = useState<string | null>(null);
+  const [runtime, setRuntime] = useState<LocalRuntimeConfig | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -108,11 +109,11 @@ function App() {
     let isActive = true;
 
     const refreshRuntime = async () => {
-      const runtime = await loadLocalRuntimeConfig();
+      const nextRuntime = await loadLocalRuntimeConfig();
       if (!isActive) {
         return;
       }
-      setRuntimeLabel(getDefaultRuntimeLabel(runtime));
+      setRuntime(nextRuntime);
     };
 
     void refreshRuntime();
@@ -121,6 +122,8 @@ function App() {
       isActive = false;
     };
   }, []);
+
+  const runtimeLabel = runtime ? getDefaultRuntimeLabel(runtime) : null;
 
   useEffect(() => {
     let isActive = true;
@@ -228,6 +231,11 @@ function App() {
                 {runtimeLabel ? (
                   <Badge variant="outline">{runtimeLabel}</Badge>
                 ) : null}
+                {runtime && runtime.mcpServers.length > 0 ? (
+                  <Badge variant="outline">
+                    {runtime.mcpServers.length} MCP
+                  </Badge>
+                ) : null}
                 {surfpoolStatus ? (
                   <Badge
                     variant={
@@ -290,6 +298,7 @@ function App() {
           <section className="xl:min-h-[calc(100vh-9rem)]">
             <PiChatSurface
               identityProfiles={identityProfiles}
+              mcpServers={runtime?.mcpServers ?? []}
               runtimeLabel={runtimeLabel}
               slotLabel={surfpoolStatus?.slotLabel ?? null}
               latestReceiptLabel={latestReceiptLabel}
