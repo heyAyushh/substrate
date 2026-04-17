@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pi Agent Surfpool Canvas</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111414;
+        --bg-alt: #161a19;
+        --panel: #1b211f;
+        --panel-strong: #232c29;
+        --line: #34403c;
+        --text: #f3f5f0;
+        --muted: #aeb8b2;
+        --mint: #7ee7c1;
+        --lime: #b8e986;
+        --amber: #f7b55f;
+        --rose: #f18476;
+        --sky: #78c7f7;
+        --shadow: rgba(0, 0, 0, 0.2);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top right, rgba(126, 231, 193, 0.12), transparent 32%),
+          radial-gradient(circle at left center, rgba(247, 181, 95, 0.1), transparent 28%),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino,
+          "URW Palladio L", serif;
+      }
+
+      body {
+        padding: 24px;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: min(1320px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: 18px;
+      }
+
+      .masthead,
+      .band,
+      .rail {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(255, 255, 255, 0)
+        );
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: 0 18px 40px var(--shadow);
+      }
+
+      .masthead {
+        padding: 24px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .eyebrow {
+        color: var(--lime);
+        font-size: 0.84rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2.1rem, 4vw, 3.8rem);
+        font-weight: 600;
+        line-height: 0.96;
+        max-width: 11ch;
+      }
+
+      .subcopy {
+        max-width: 68ch;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.55;
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .link-button {
+        min-height: 42px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.95rem;
+        transition:
+          transform 120ms ease,
+          border-color 120ms ease,
+          background 120ms ease;
+      }
+
+      .link-button:hover,
+      .link-button:focus-visible {
+        transform: translateY(-1px);
+        border-color: var(--mint);
+        background: rgba(126, 231, 193, 0.1);
+        outline: none;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .stat {
+        padding: 14px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        display: grid;
+        gap: 8px;
+      }
+
+      .stat-label {
+        color: var(--muted);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .stat-value {
+        font-size: clamp(1.25rem, 2vw, 1.8rem);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+        gap: 18px;
+      }
+
+      .band {
+        padding: 20px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .band-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .band-title {
+        font-size: 1.35rem;
+        line-height: 1;
+      }
+
+      .band-note {
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.45;
+        max-width: 46ch;
+      }
+
+      .timeline-wrap {
+        display: grid;
+        gap: 12px;
+      }
+
+      .timeline-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        padding: 10px;
+      }
+
+      canvas {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend-swatch {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+      }
+
+      .chain {
+        display: grid;
+        gap: 12px;
+      }
+
+      .chain-step {
+        padding: 14px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.03);
+        display: grid;
+        gap: 8px;
+      }
+
+      .chain-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .arrow {
+        color: var(--mint);
+        font-size: 0.98rem;
+      }
+
+      .rail {
+        padding: 18px;
+        display: grid;
+        gap: 18px;
+        align-content: start;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric-list,
+      .receipt-list,
+      .rankings {
+        display: grid;
+        gap: 10px;
+      }
+
+      .metric-row,
+      .receipt-row,
+      .rank-row {
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 12px;
+      }
+
+      .metric-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .metric-header,
+      .receipt-top,
+      .rank-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .agent-name,
+      .receipt-kind,
+      .rank-name {
+        font-size: 0.95rem;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .tiny {
+        font-size: 0.84rem;
+      }
+
+      .bar {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .bar > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--mint), var(--lime));
+      }
+
+      .receipt-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .receipt-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .rank-row {
+        display: grid;
+        gap: 8px;
+      }
+
+      .callout {
+        padding: 14px;
+        border-radius: 6px;
+        background: rgba(241, 132, 118, 0.08);
+        border: 1px solid rgba(241, 132, 118, 0.22);
+        display: grid;
+        gap: 6px;
+      }
+
+      .status {
+        min-height: 52px;
+        display: grid;
+        align-items: center;
+        color: var(--muted);
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @media (max-width: 1080px) {
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 700px) {
+        body {
+          padding: 14px;
+        }
+
+        .masthead,
+        .band,
+        .rail {
+          padding: 16px;
+        }
+
+        .stats {
+          grid-template-columns: 1fr;
+        }
+
+        .title-row,
+        .band-header,
+        .metric-header,
+        .receipt-top,
+        .rank-top {
+          align-items: start;
+        }
+      }
+
+      @media (prefers-reduced-motion: no-preference) {
+        .link-button,
+        .stat,
+        .chain-step,
+        .metric-row,
+        .receipt-row,
+        .rank-row {
+          transition:
+            transform 160ms ease,
+            border-color 160ms ease,
+            background 160ms ease;
+        }
+
+        .chain-step:hover,
+        .metric-row:hover,
+        .receipt-row:hover,
+        .rank-row:hover,
+        .stat:hover {
+          transform: translateY(-1px);
+          border-color: rgba(126, 231, 193, 0.25);
+          background: rgba(126, 231, 193, 0.06);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="masthead">
+        <div class="eyebrow">Pi Agent Simulation</div>
+        <div class="title-row">
+          <div>
+            <h1>Delegation, challenge, slash, recovery.</h1>
+          </div>
+          <div class="cta-row">
+            <a
+              class="link-button"
+              href="http://127.0.0.1:18488"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Surfpool Studio
+            </a>
+            <a
+              class="link-button"
+              href="../.snapshot/dashboard-data.json"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Run JSON
+            </a>
+            <a
+              class="link-button"
+              href="../.snapshot/indexer.json"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Indexer Snapshot
+            </a>
+          </div>
+        </div>
+        <p class="subcopy">
+          Planner routes work to alpha, alpha loses a challenge over missing
+          data availability, beta takes the handoff, and the final attestation
+          closes the run.
+        </p>
+        <div class="stats hidden" id="stats"></div>
+      </section>
+
+      <div class="layout">
+        <section class="band">
+          <div class="band-header">
+            <div>
+              <h2 class="band-title">Receipt Timeline</h2>
+              <p class="band-note">
+                Every receipt is pinned to its slot so the dispute path and the
+                successful recovery stay visible in one line.
+              </p>
+            </div>
+            <div class="chip" id="task-chip">Loading run...</div>
+          </div>
+
+          <div class="status" id="status" aria-live="polite">
+            Pulling the latest simulation snapshot.
+          </div>
+
+          <div class="timeline-wrap hidden" id="timeline-block">
+            <div class="timeline-card">
+              <canvas
+                id="timeline"
+                width="1100"
+                height="280"
+                aria-label="Receipt timeline"
+              ></canvas>
+            </div>
+            <div class="legend" id="legend"></div>
+          </div>
+
+          <div class="stack hidden" id="delegation-block">
+            <div class="band-header">
+              <div>
+                <h2 class="band-title">Delegation Chain</h2>
+                <p class="band-note">
+                  The authority path stays explicit from planner to beta, with
+                  slot bounds on each scope.
+                </p>
+              </div>
+            </div>
+            <div class="chain" id="delegation-chain"></div>
+          </div>
+        </section>
+
+        <aside class="rail hidden" id="rail">
+          <section class="stack">
+            <div class="band-header">
+              <div>
+                <h2 class="band-title">Leaderboard</h2>
+                <p class="band-note">
+                  Scores come from the indexed receipt history for the coding
+                  domain.
+                </p>
+              </div>
+            </div>
+            <div class="rankings" id="leaderboard"></div>
+          </section>
+
+          <section class="stack">
+            <div class="band-header">
+              <div>
+                <h2 class="band-title">Stake</h2>
+                <p class="band-note">
+                  Alpha keeps the scar from the unanswered challenge; beta lands
+                  clean.
+                </p>
+              </div>
+            </div>
+            <div class="metric-list" id="stake"></div>
+          </section>
+        </aside>
+      </div>
+
+      <section class="band hidden" id="receipts-block">
+        <div class="band-header">
+          <div>
+            <h2 class="band-title">Receipt Feed</h2>
+            <p class="band-note">
+              Slot order, actor, and receipt kind for the whole execution path.
+            </p>
+          </div>
+          <div class="chip" id="receipt-count-chip">0 receipts</div>
+        </div>
+        <div class="callout" id="callout"></div>
+        <div class="receipt-list" id="receipts"></div>
+      </section>
+    </main>
+
+    <script>
+      const DATA_URL = "../.snapshot/dashboard-data.json";
+      const studioUrl = "http://127.0.0.1:18488";
+      const status = document.getElementById("status");
+      const taskChip = document.getElementById("task-chip");
+      const stats = document.getElementById("stats");
+      const legend = document.getElementById("legend");
+      const timelineBlock = document.getElementById("timeline-block");
+      const delegationBlock = document.getElementById("delegation-block");
+      const delegationChain = document.getElementById("delegation-chain");
+      const rail = document.getElementById("rail");
+      const leaderboard = document.getElementById("leaderboard");
+      const stake = document.getElementById("stake");
+      const receiptsBlock = document.getElementById("receipts-block");
+      const receipts = document.getElementById("receipts");
+      const callout = document.getElementById("callout");
+      const receiptCountChip = document.getElementById("receipt-count-chip");
+      const canvas = document.getElementById("timeline");
+      const ctx = canvas.getContext("2d");
+
+      const palette = {
+        assignment: "#78c7f7",
+        handoff: "#7ee7c1",
+        completion: "#b8e986",
+        challenge: "#f7b55f",
+        dispute: "#f59f67",
+        dispute_resolved: "#f18476",
+        attestation: "#ffd7a3",
+      };
+
+      const aliasOrder = ["planner", "alpha", "beta", "reviewer"];
+
+      const shortId = (value) => {
+        if (!value) return "unknown";
+        return value.length > 18 ? `${value.slice(0, 10)}...${value.slice(-6)}` : value;
+      };
+
+      const titleCase = (value) =>
+        value
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+      const formatLamports = (value) =>
+        new Intl.NumberFormat("en-US").format(Number(value || 0));
+
+      const renderStats = (data, aliasMap) => {
+        const cards = [
+          ["Task", shortId(data.task)],
+          ["Receipts", String(data.executionGraphReceiptCount)],
+          ["Active Leader", aliasMap[data.leaderboard.all[0]?.agentId] || "n/a"],
+          ["Studio", "127.0.0.1:18488"],
+        ];
+        stats.innerHTML = cards
+          .map(
+            ([label, value]) => `
+              <article class="stat">
+                <span class="stat-label">${label}</span>
+                <strong class="stat-value">${value}</strong>
+              </article>
+            `
+          )
+          .join("");
+        stats.classList.remove("hidden");
+      };
+
+      const renderLegend = () => {
+        legend.innerHTML = Object.entries(palette)
+          .map(
+            ([kind, color]) => `
+              <span class="legend-item">
+                <span class="legend-swatch" style="background:${color}"></span>
+                <span>${titleCase(kind)}</span>
+              </span>
+            `
+          )
+          .join("");
+      };
+
+      const renderTimeline = (data, aliasMap) => {
+        const items = data.receiptTimeline;
+        const slots = items.map((item) => item.slot);
+        const minSlot = Math.min(...slots);
+        const maxSlot = Math.max(...slots);
+        const padding = { top: 34, right: 24, bottom: 42, left: 54 };
+        const innerWidth = canvas.width - padding.left - padding.right;
+        const innerHeight = canvas.height - padding.top - padding.bottom;
+        const lanes = aliasOrder.filter((name) => data.identities[name]);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#161a19";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i <= 4; i += 1) {
+          const y = padding.top + (innerHeight / 4) * i;
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(canvas.width - padding.right, y);
+        }
+        ctx.stroke();
+
+        ctx.fillStyle = "#aeb8b2";
+        ctx.font = '13px "SF Mono", ui-monospace, monospace';
+        ctx.textAlign = "center";
+        const tickCount = 4;
+        for (let tick = 0; tick <= tickCount; tick += 1) {
+          const slotValue = Math.round(
+            minSlot + ((maxSlot - minSlot) / tickCount) * tick
+          );
+          const x = padding.left + (innerWidth / tickCount) * tick;
+          ctx.fillText(String(slotValue), x, canvas.height - 14);
+          ctx.strokeStyle = "rgba(255,255,255,0.05)";
+          ctx.beginPath();
+          ctx.moveTo(x, padding.top);
+          ctx.lineTo(x, canvas.height - padding.bottom);
+          ctx.stroke();
+        }
+
+        const laneY = new Map(
+          lanes.map((name, index) => [
+            data.identities[name],
+            padding.top +
+              28 +
+              (index * Math.max(innerHeight - 40, 40)) /
+                Math.max(lanes.length - 1, 1),
+          ])
+        );
+
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#f3f5f0";
+        ctx.font =
+          '14px "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif';
+        lanes.forEach((name) => {
+          const actorId = data.identities[name];
+          ctx.fillText(name, 10, laneY.get(actorId) + 5);
+        });
+
+        items.forEach((item, index) => {
+          const x =
+            padding.left +
+            ((item.slot - minSlot) / Math.max(maxSlot - minSlot, 1)) * innerWidth;
+          const y = laneY.get(item.actor) ?? padding.top + innerHeight / 2;
+          const next = items[index + 1];
+          const color = palette[item.kind] || "#ffffff";
+
+          if (next) {
+            const nextX =
+              padding.left +
+              ((next.slot - minSlot) / Math.max(maxSlot - minSlot, 1)) * innerWidth;
+            const nextY = laneY.get(next.actor) ?? padding.top + innerHeight / 2;
+            ctx.strokeStyle = "rgba(174,184,178,0.24)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(nextX, nextY);
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = "rgba(17,20,20,0.9)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.fillStyle = "#f3f5f0";
+          ctx.font = '12px "SF Mono", ui-monospace, monospace';
+          ctx.fillText(titleCase(item.kind), x + 12, y + 4);
+        });
+      };
+
+      const renderDelegation = (data, aliasMap) => {
+        delegationChain.innerHTML = data.delegationChain
+          .map(
+            (step, index) => `
+              <article class="chain-step">
+                <div class="chain-topline">
+                  <div class="chip">Scope ${index + 1}</div>
+                  <div class="chip">slot <= ${step.expiresAtSlot}</div>
+                </div>
+                <div>
+                  <strong>${aliasMap[step.delegatorId] || shortId(step.delegatorId)}</strong>
+                  <span class="arrow"> -> </span>
+                  <strong>${aliasMap[step.delegateId] || shortId(step.delegateId)}</strong>
+                </div>
+                <div class="receipt-tags">
+                  ${step.allowedActions
+                    .map((action) => `<span class="tag">${action}</span>`)
+                    .join("")}
+                  <span class="tag">${shortId(step.taskId)}</span>
+                  <span class="tag">${step.domain}</span>
+                </div>
+              </article>
+            `
+          )
+          .join("");
+        delegationBlock.classList.remove("hidden");
+      };
+
+      const renderLeaderboard = (data, aliasMap) => {
+        leaderboard.innerHTML = data.leaderboard.all
+          .map(
+            (entry, index) => `
+              <article class="rank-row">
+                <div class="rank-top">
+                  <strong class="rank-name">#${index + 1} ${aliasMap[entry.agentId] || shortId(entry.agentId)}</strong>
+                  <span class="chip">${entry.tier}</span>
+                </div>
+                <div class="muted tiny">
+                  ${entry.receiptCount} receipts · ${entry.score} score
+                </div>
+                <div class="bar" aria-hidden="true">
+                  <span style="width:${Math.max((entry.score / 10) * 100, 12)}%"></span>
+                </div>
+              </article>
+            `
+          )
+          .join("");
+      };
+
+      const renderStake = (data, aliasMap) => {
+        stake.innerHTML = Object.entries(data.stake)
+          .map(([name, details]) => {
+            const active = Number(details.activeLamports || 0);
+            const slashed = Number(details.slashedLamports || 0);
+            const total = Math.max(active + slashed, 1);
+            const retained = (active / total) * 100;
+
+            return `
+              <article class="metric-row">
+                <div class="metric-header">
+                  <strong class="agent-name">${name}</strong>
+                  <span class="chip">${aliasMap[details.identityId] || shortId(details.identityId)}</span>
+                </div>
+                <div class="muted tiny">
+                  active ${formatLamports(details.activeLamports)} · slashed ${formatLamports(details.slashedLamports)}
+                </div>
+                <div class="bar" aria-hidden="true">
+                  <span style="width:${retained}%"></span>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      };
+
+      const renderReceipts = (data, aliasMap) => {
+        receipts.innerHTML = data.receiptTimeline
+          .map(
+            (item) => `
+              <article class="receipt-row">
+                <div class="receipt-top">
+                  <strong class="receipt-kind">${titleCase(item.kind)}</strong>
+                  <span class="chip">slot ${item.slot}</span>
+                </div>
+                <div class="muted tiny">
+                  ${aliasMap[item.actor] || shortId(item.actor)}
+                </div>
+                <div class="receipt-tags">
+                  <span class="tag">${shortId(item.receiptId)}</span>
+                </div>
+              </article>
+            `
+          )
+          .join("");
+        receiptCountChip.textContent = `${data.receiptTimeline.length} receipts`;
+      };
+
+      const renderCallout = (data, aliasMap) => {
+        const alpha = aliasMap[data.identities.alpha] || "alpha";
+        const beta = aliasMap[data.identities.beta] || "beta";
+        callout.innerHTML = `
+          <strong>Critical turn</strong>
+          <p class="muted">
+            ${alpha} failed DA verification, lost 400,000 lamports after the unanswered
+            challenge, and ${beta} closed the task with the verified completion.
+          </p>
+        `;
+      };
+
+      const reveal = () => {
+        timelineBlock.classList.remove("hidden");
+        rail.classList.remove("hidden");
+        receiptsBlock.classList.remove("hidden");
+      };
+
+      const render = (data) => {
+        const aliasMap = Object.fromEntries(
+          Object.entries(data.identities).map(([name, id]) => [id, name])
+        );
+
+        taskChip.textContent = shortId(data.task);
+        status.classList.add("hidden");
+        renderStats(data, aliasMap);
+        renderLegend();
+        renderTimeline(data, aliasMap);
+        renderDelegation(data, aliasMap);
+        renderLeaderboard(data, aliasMap);
+        renderStake(data, aliasMap);
+        renderReceipts(data, aliasMap);
+        renderCallout(data, aliasMap);
+        reveal();
+      };
+
+      const renderError = (message) => {
+        status.textContent = message;
+        status.classList.remove("hidden");
+        taskChip.textContent = "Run needed";
+        callout.innerHTML = `
+          <strong>Missing data</strong>
+          <p class="muted">
+            Start the dashboard server after re-running the simulation output.
+            Surfpool Studio should still be reachable at ${studioUrl}.
+          </p>
+        `;
+        receiptsBlock.classList.remove("hidden");
+      };
+
+      fetch(DATA_URL, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`request failed with ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(render)
+        .catch((error) => {
+          renderError(`Could not load simulation data: ${error.message}`);
+        });
+    </script>
+  </body>
+</html>

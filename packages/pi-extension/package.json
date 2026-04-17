@@ -1,0 +1,33 @@
+{
+  "name": "@trust-substrate/pi-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && tsc -p tsconfig.build.json",
+    "test": "pnpm run build && tsc -p tsconfig.test.json && node --test dist-tests/packages/pi-extension/test/*.test.js",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true }); require('node:fs').rmSync('dist-tests', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@solana/kit": "6.8.0",
+    "@trust-substrate/indexer": "workspace:*",
+    "@trust-substrate/sdk": "workspace:*"
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": ">=0.67.0 <1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@mariozechner/pi-coding-agent": {
+      "optional": false
+    }
+  }
+}
