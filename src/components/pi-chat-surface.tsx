@@ -138,7 +138,7 @@ export function PiChatSurface({
     ) ?? availableIdentities[0];
   const activeChatState =
     syncedIdentityWorkspace.chats[activeIdentity.id] ?? createEmptyChatState();
-  const initialChatState = activeChatState;
+  const initialChatStateRef = useRef(activeChatState);
 
   const systemPrompt = useMemo(() => {
     const identityLines = [
@@ -188,6 +188,10 @@ export function PiChatSurface({
   ]);
 
   useEffect(() => {
+    initialChatStateRef.current = activeChatState;
+  }, [activeChatState]);
+
+  useEffect(() => {
     systemPromptRef.current = systemPrompt;
   }, [systemPrompt]);
 
@@ -201,6 +205,7 @@ export function PiChatSurface({
 
     const initialize = async () => {
       try {
+        const initialChatState = initialChatStateRef.current;
         const handle = await createPiConsoleAgent({
           sessionId: getIdentitySessionId(activeIdentity.id),
           systemPrompt: systemPromptRef.current,
@@ -256,7 +261,7 @@ export function PiChatSurface({
         agentRef.current = null;
       }
     };
-  }, [activeIdentity.id, initialChatState]);
+  }, [activeIdentity.id]);
 
   useEffect(() => {
     if (!agentRef.current) {
@@ -582,6 +587,8 @@ export function PiChatSurface({
           messages={messages}
           streamingMessage={streamingMessage}
           pendingToolCalls={pendingToolCalls}
+          activityLog={activityLog}
+          isStreaming={isStreaming && isLocalRuntimeModel}
           activeIdentity={activeIdentity}
           quickPrompts={quickPrompts}
           onUsePrompt={handleUsePrompt}
@@ -706,9 +713,10 @@ export function PiChatSurface({
                 </Button>
               ) : (
                 <Button
-                  type="submit"
+                  type="button"
                   size="sm"
                   className="rounded-lg"
+                  onClick={() => void handleSubmit()}
                   disabled={!canSend}
                 >
                   Send
@@ -777,6 +785,8 @@ function ConversationPane({
   messages,
   streamingMessage,
   pendingToolCalls,
+  activityLog,
+  isStreaming,
   activeIdentity,
   quickPrompts,
   onUsePrompt,
@@ -785,6 +795,8 @@ function ConversationPane({
   messages: AgentMessage[];
   streamingMessage: AssistantMessageLike | null;
   pendingToolCalls: ReadonlySet<string>;
+  activityLog: LocalRuntimeActivity[];
+  isStreaming: boolean;
   activeIdentity: PiIdentityProfile;
   quickPrompts: Array<{ label: string; prompt: string }>;
   onUsePrompt: (prompt: string) => void;
@@ -808,6 +820,17 @@ function ConversationPane({
             pendingToolCalls={pendingToolCalls}
           />
         ))}
+
+        {activityLog.length > 0 ? (
+          <RuntimeActivityCard
+            activities={activityLog}
+            isStreaming={isStreaming}
+          />
+        ) : null}
+
+        {isStreaming && activityLog.length === 0 ? (
+          <PendingRuntimeCard />
+        ) : null}
 
         {streamingMessage ? (
           <AssistantBubble
@@ -844,11 +867,13 @@ function MessageRow({
 }
 
 function UserBubble({ message }: { message: UserLikeMessage }) {
+  const textContent = getUserMessageText(message);
+
   return (
     <div className="flex justify-end">
       <Card size="sm" className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15">
         <CardContent className="text-sm leading-6 whitespace-pre-wrap text-foreground">
-          {typeof message.content === "string" ? message.content : ""}
+          {textContent}
         </CardContent>
       </Card>
     </div>
@@ -964,6 +989,72 @@ function ToolResultBubble({
   );
 }
 
+function RuntimeActivityCard({
+  activities,
+  isStreaming,
+}: {
+  activities: LocalRuntimeActivity[];
+  isStreaming: boolean;
+}) {
+  return (
+    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Wrench className="size-4 text-muted-foreground" />
+          <span className="font-medium">Tools and MCP</span>
+          {isStreaming ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {activities.map((activity) => (
+            <div key={activity.id} className="flex flex-col gap-1">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-foreground">
+                <span>{activity.label}</span>
+                <Badge variant="outline">{activity.source}</Badge>
+                {activity.server ? (
+                  <Badge variant="outline">{activity.server}</Badge>
+                ) : null}
+                <Badge
+                  variant={activity.isError ? "destructive" : "outline"}
+                >
+                  {activity.phase === "start"
+                    ? "running"
+                    : activity.isError
+                      ? "failed"
+                      : "done"}
+                </Badge>
+              </div>
+              {activity.detail ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {activity.detail}
+                </p>
+              ) : null}
+              {activity.output ? (
+                <pre className="max-h-48 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
+                  {activity.output}
+                </pre>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PendingRuntimeCard() {
+  return (
+    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+      <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" />
+        <span>Waiting for the local runtime…</span>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
   return (
@@ -1013,6 +1104,40 @@ function buildIdentityChipMeta(identity: PiIdentityProfile) {
     parts.push(`score ${identity.score}`);
   }
   return parts.join(" · ");
+}
+
+function getUserMessageText(message: UserLikeMessage) {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+
+  if (!Array.isArray(message.content)) {
+    return "";
+  }
+
+  return message.content
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return "";
+      }
+
+      if (
+        "type" in entry &&
+        entry.type === "text" &&
+        "text" in entry &&
+        typeof entry.text === "string"
+      ) {
+        return entry.text;
+      }
+
+      if ("type" in entry && entry.type === "image") {
+        return "[image]";
+      }
+
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function buildConnectionSummary(identity: PiIdentityProfile) {
