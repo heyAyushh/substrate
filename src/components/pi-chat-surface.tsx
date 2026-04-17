@@ -297,9 +297,6 @@ export function PiChatSurface({
     agentHandle?.runtime.mcpServers.length
       ? agentHandle.runtime.mcpServers
       : mcpServers;
-  const providerLabel = currentModel
-    ? getProviderLabel(currentModel.provider, runtime)
-    : runtimeLabel;
   const availableThinkingLevels = useMemo(() => {
     if (!currentModel) {
       return ["off", "minimal", "low", "medium", "high"] as ThinkingLevel[];
@@ -324,15 +321,8 @@ export function PiChatSurface({
           label: "Delegation",
           prompt: "Explain the current delegation chain and who should act next.",
         },
-        runtimeMcpServers.length > 0
-          ? {
-              label: "MCP search",
-              prompt:
-                "Use the configured MCP servers if helpful and tell me which server you used.",
-            }
-          : null,
       ].filter(Boolean) as Array<{ label: string; prompt: string }>,
-    [runtimeMcpServers.length],
+    [],
   );
 
   const handleSubmit = async () => {
@@ -457,28 +447,17 @@ export function PiChatSurface({
     (agent.state.errorMessage && agent.state.errorMessage !== "aborted"
       ? agent.state.errorMessage
       : null);
-  const identityMeta = [
-    providerLabel,
-    currentModel.id,
-    agent.state.thinkingLevel,
-    slotLabel,
-  ].filter(Boolean);
   const connectionSummary = buildConnectionSummary(activeIdentity);
 
   return (
     <Card className="h-full min-h-[760px] gap-0 overflow-hidden bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-0">
       <CardHeader className="gap-4 border-b border-border/70 bg-background/28">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">{activeIdentity.label}</Badge>
-              {providerLabel ? <Badge variant="outline">{providerLabel}</Badge> : null}
-              <Badge variant="outline">{currentModel.id}</Badge>
-              <Badge variant="outline">
-                {runtimeMcpServers.length > 0
-                  ? `${runtimeMcpServers.length} MCP`
-                  : "No MCP"}
-              </Badge>
+              <CardTitle className="text-base font-medium">
+                {activeIdentity.label}
+              </CardTitle>
               <Badge variant="outline">{activeIdentity.receiptCount} receipts</Badge>
               {activeIdentity.latestReceiptKind ? (
                 <Badge variant="outline">{activeIdentity.latestReceiptKind}</Badge>
@@ -488,12 +467,14 @@ export function PiChatSurface({
               ) : null}
             </div>
 
-            <div className="flex min-w-0 flex-col gap-1">
-              <CardTitle className="text-sm">{activeIdentity.roleSummary}</CardTitle>
-              <CardDescription className="max-w-3xl">
-                {connectionSummary ?? activeIdentity.promptHint}
-              </CardDescription>
-            </div>
+            <CardDescription className="mt-1 max-w-3xl">
+              {activeIdentity.roleSummary}
+            </CardDescription>
+            {connectionSummary ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {connectionSummary}
+              </p>
+            ) : null}
           </div>
 
           <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
@@ -503,7 +484,7 @@ export function PiChatSurface({
                   value={activeIdentity.id}
                   onValueChange={handleSwitchIdentity}
                 >
-                    <SelectTrigger className="w-full border-border/70 bg-background/30">
+                  <SelectTrigger className="w-full border-border/70 bg-background/30">
                     <SelectValue placeholder="Choose identity" />
                   </SelectTrigger>
                   <SelectContent>
@@ -518,15 +499,6 @@ export function PiChatSurface({
                 </Select>
               </div>
             ) : null}
-
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>{truncateIdentity(activeIdentity.id)}</span>
-              {identityMeta.map((value) => (
-                <span key={value}>{value}</span>
-              ))}
-              {latestReceiptLabel ? <span>{latestReceiptLabel}</span> : null}
-              <span>{receiptCount} total receipts</span>
-            </div>
           </div>
         </div>
 
@@ -619,32 +591,20 @@ export function PiChatSurface({
             </Alert>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
-            {quickPrompts.map((quickPrompt) => (
-              <Button
-                key={quickPrompt.label}
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => handleUsePrompt(quickPrompt.prompt)}
-                disabled={isStreaming}
-              >
-                {quickPrompt.label}
-              </Button>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="pi-chat-input"
-                className="text-[11px] font-medium text-muted-foreground"
-              >
-                Message {activeIdentity.label}
-              </label>
-              <p className="text-sm text-muted-foreground">
-                {activeIdentity.promptHint}
-              </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {quickPrompts.map((quickPrompt) => (
+                <Button
+                  key={quickPrompt.label}
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => handleUsePrompt(quickPrompt.prompt)}
+                  disabled={isStreaming}
+                >
+                  {quickPrompt.label}
+                </Button>
+              ))}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -687,15 +647,15 @@ export function PiChatSurface({
                 </SelectContent>
               </Select>
 
-              <Badge variant="outline">
-                {pendingToolCalls.size > 0
-                  ? `${pendingToolCalls.size} active tool`
-                  : runtimeMcpServers.length > 0
-                    ? "MCP ready"
-                    : "Tools ready"}
-              </Badge>
+              {pendingToolCalls.size > 0 ? (
+                <Badge variant="outline">{pendingToolCalls.size} tools running</Badge>
+              ) : null}
             </div>
           </div>
+
+          <label htmlFor="pi-chat-input" className="sr-only">
+            Message {activeIdentity.label}
+          </label>
 
           <Textarea
             id="pi-chat-input"
@@ -707,18 +667,19 @@ export function PiChatSurface({
                 void handleSubmit();
               }
             }}
-            placeholder={`Ask ${activeIdentity.label} about the task, delegation, or receipts`}
+            placeholder={`Ask ${activeIdentity.label} about the task, receipts, or next handoff`}
             disabled={isStreaming}
             rows={4}
             enterKeyHint="send"
-            className="min-h-28 resize-none rounded-xl border-border/70 bg-background/38 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/30"
+            className="min-h-24 resize-none rounded-xl border-border/70 bg-background/38 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/30"
           />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>Enter sends. Shift+Enter adds a line.</span>
-              <span>{messages.length} messages</span>
-              <span>{activeIdentity.receiptCount} live receipts</span>
+              {pendingToolCalls.size > 0 ? (
+                <span>{pendingToolCalls.size} tools running</span>
+              ) : null}
             </div>
 
             <div className="flex justify-end gap-2">
@@ -1198,21 +1159,6 @@ function buildConnectionSummary(identity: PiIdentityProfile) {
   return segments.length > 0 ? `Connected ${segments.join(" · ")}` : null;
 }
 
-function getProviderLabel(
-  provider: string,
-  runtime: LocalRuntimeConfig | null,
-) {
-  if (provider === "openai-codex") {
-    return "Local Codex";
-  }
-
-  if (provider === "anthropic" && runtime?.claude.available) {
-    return "Local Claude";
-  }
-
-  return provider;
-}
-
 function isLocalRuntimeProvider(
   runtime: LocalRuntimeConfig | null,
   provider: string,
@@ -1258,12 +1204,6 @@ function getIdentitySessionId(identityId: string) {
 function getMessageKey(message: AgentMessage, index: number) {
   const timestamp = "timestamp" in message ? String(message.timestamp) : "untimed";
   return `${message.role}-${timestamp}-${index}`;
-}
-
-function truncateIdentity(identityId: string) {
-  return identityId.length > 24
-    ? `${identityId.slice(0, 12)}...${identityId.slice(-8)}`
-    : identityId;
 }
 
 type UserLikeMessage = Extract<AgentMessage, { role: "user" | "user-with-attachments" }>;

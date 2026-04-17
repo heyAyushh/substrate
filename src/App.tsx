@@ -33,18 +33,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildStudioScenariosUrl,
   type DashboardSnapshot,
-  DEFAULT_CANVAS_URL,
   DEFAULT_SNAPSHOT_URL,
-  DEFAULT_STUDIO_ACCOUNTS_URL,
-  DEFAULT_STUDIO_SCENARIOS_URL,
-  DEFAULT_SURFPOOL_RPC_URL,
-  DEFAULT_STUDIO_URL,
   formatLamports,
   formatTimestamp,
   loadDashboardSnapshot,
+  loadSurfpoolStudioLinks,
   loadSurfpoolStatus,
   SNAPSHOT_POLL_INTERVAL_MS,
   type SurfpoolStatus,
+  SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS,
+  type SurfpoolStudioLinks,
   truncateMiddle,
 } from "@/lib/dashboard";
 import type { PiIdentityProfile } from "@/lib/pi-identities";
@@ -63,6 +61,11 @@ function App() {
   const [surfpoolStatus, setSurfpoolStatus] = useState<SurfpoolStatus | null>(
     null,
   );
+  const [studioLinks, setStudioLinks] = useState<SurfpoolStudioLinks>({
+    studio: false,
+    accounts: false,
+    scenarios: false,
+  });
   const [runtime, setRuntime] = useState<LocalRuntimeConfig | null>(null);
 
   useEffect(() => {
@@ -120,6 +123,32 @@ function App() {
 
     return () => {
       isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+    let timerId: number | undefined;
+
+    const refreshStudioLinks = async () => {
+      const nextLinks = await loadSurfpoolStudioLinks();
+      if (!isActive) {
+        return;
+      }
+      setStudioLinks(nextLinks);
+      timerId = window.setTimeout(
+        refreshStudioLinks,
+        SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS,
+      );
+    };
+
+    void refreshStudioLinks();
+
+    return () => {
+      isActive = false;
+      if (timerId !== undefined) {
+        window.clearTimeout(timerId);
+      }
     };
   }, []);
 
@@ -187,36 +216,15 @@ function App() {
 
   const headerLinks = [
     {
-      href: DEFAULT_STUDIO_URL,
-      label: "Surfpool Studio",
-      variant: "outline" as const,
-    },
-    {
-      href: DEFAULT_STUDIO_ACCOUNTS_URL,
-      label: "Accounts",
-      variant: "outline" as const,
-    },
-    {
-      href: DEFAULT_STUDIO_SCENARIOS_URL,
-      label: "Scenarios",
-      variant: "outline" as const,
-    },
-    {
-      href: DEFAULT_SURFPOOL_RPC_URL,
-      label: "RPC",
-      variant: "outline" as const,
-    },
-    {
-      href: DEFAULT_CANVAS_URL,
-      label: "Run dashboard",
-      variant: "outline" as const,
-    },
-    {
       href: DEFAULT_SNAPSHOT_URL,
       label: "Snapshot JSON",
       variant: "ghost" as const,
     },
-  ];
+  ] as Array<{
+    href: string;
+    label: string;
+    variant: "ghost";
+  }>;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -251,19 +259,13 @@ function App() {
                 ) : null}
               </div>
 
-              <a
-                href={DEFAULT_CANVAS_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-w-0 items-center gap-1 text-base font-normal tracking-tight text-foreground transition-colors hover:text-foreground/80 sm:text-lg"
-              >
-                <span className="truncate">
+              <div className="min-w-0 text-base font-normal tracking-tight text-foreground sm:text-lg">
+                <span className="block truncate">
                   {snapshot
                     ? truncateMiddle(snapshot.task, 18, 12)
                     : "Loading task"}
                 </span>
-                <ArrowUpRight className="size-4" aria-hidden="true" />
-              </a>
+              </div>
 
               {surfpoolStatus?.status === "offline" ? (
                 <Alert variant="destructive" className="max-w-2xl">
@@ -322,14 +324,19 @@ function App() {
               snapshot={snapshot}
               surfpoolStatus={surfpoolStatus}
               snapshotUpdatedAt={snapshotUpdatedAt}
+              scenarioLinksEnabled={studioLinks.scenarios}
             />
 
-            <DelegationCard chainLabels={chainLabels} />
+            <DelegationCard
+              chainLabels={chainLabels}
+              scenarioLinksEnabled={studioLinks.scenarios}
+            />
 
             <ReceiptTimelineCard
               snapshot={snapshot}
               snapshotError={snapshotError}
               identityLabelsById={identityLabelsById}
+              scenarioLinksEnabled={studioLinks.scenarios}
             />
           </aside>
         </main>
@@ -346,6 +353,7 @@ function RunOverviewCard({
   snapshot,
   surfpoolStatus,
   snapshotUpdatedAt,
+  scenarioLinksEnabled,
 }: {
   leadEntry: DashboardSnapshot["leaderboard"]["all"][number] | null;
   latestReceipt: DashboardSnapshot["receiptTimeline"][number] | null;
@@ -354,6 +362,7 @@ function RunOverviewCard({
   snapshot: DashboardSnapshot | null;
   surfpoolStatus: SurfpoolStatus | null;
   snapshotUpdatedAt: number | null;
+  scenarioLinksEnabled: boolean;
 }) {
   return (
     <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
@@ -382,7 +391,11 @@ function RunOverviewCard({
                   ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
                   : "Unavailable"
               }
-              href={leadEntry ? buildStudioScenariosUrl(leadEntry.agentId) : null}
+              href={
+                leadEntry && scenarioLinksEnabled
+                  ? buildStudioScenariosUrl(leadEntry.agentId)
+                  : null
+              }
             />
             <SummaryRow
               icon={<FileText aria-hidden="true" />}
@@ -393,7 +406,7 @@ function RunOverviewCard({
                   : "Unavailable"
               }
               href={
-                latestReceipt
+                latestReceipt && scenarioLinksEnabled
                   ? buildStudioScenariosUrl(latestReceipt.receiptId)
                   : null
               }
@@ -402,7 +415,6 @@ function RunOverviewCard({
               icon={<AlertCircle aria-hidden="true" />}
               label="Slashed"
               value={formatLamports(totalSlashedLamports)}
-              href={DEFAULT_STUDIO_SCENARIOS_URL}
             />
             <SummaryRow
               icon={<Activity aria-hidden="true" />}
@@ -412,7 +424,6 @@ function RunOverviewCard({
                   ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
                   : surfpoolStatus?.errorLabel ?? "Unavailable"
               }
-              href={DEFAULT_SURFPOOL_RPC_URL}
             />
           </>
         ) : (
@@ -428,7 +439,13 @@ function RunOverviewCard({
   );
 }
 
-function DelegationCard({ chainLabels }: { chainLabels: string[] }) {
+function DelegationCard({
+  chainLabels,
+  scenarioLinksEnabled,
+}: {
+  chainLabels: string[];
+  scenarioLinksEnabled: boolean;
+}) {
   return (
     <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
       <CardHeader className="border-b border-border/70 bg-background/28">
@@ -439,23 +456,35 @@ function DelegationCard({ chainLabels }: { chainLabels: string[] }) {
       <CardContent className="pt-4">
         {chainLabels.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {chainLabels.map((entry) => (
-              <a
-                key={entry}
-                href={buildStudioScenariosUrl(entry)}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5 transition-colors hover:bg-muted/50"
-              >
-                <div className="flex min-w-0 items-start gap-2">
+            {chainLabels.map((entry) =>
+              scenarioLinksEnabled ? (
+                <a
+                  key={entry}
+                  href={buildStudioScenariosUrl(entry)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5 transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex min-w-0 items-start gap-2">
+                    <Link2 className="mt-0.5 size-4 text-muted-foreground" />
+                    <span className="min-w-0 truncate text-sm text-foreground">
+                      {entry}
+                    </span>
+                  </div>
+                  <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+                </a>
+              ) : (
+                <div
+                  key={entry}
+                  className="flex items-start gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5"
+                >
                   <Link2 className="mt-0.5 size-4 text-muted-foreground" />
                   <span className="min-w-0 truncate text-sm text-foreground">
                     {entry}
                   </span>
                 </div>
-                <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
-              </a>
-            ))}
+              ),
+            )}
           </div>
         ) : (
           <Empty className="border-border/70 bg-background/30 py-8">
@@ -481,10 +510,12 @@ function ReceiptTimelineCard({
   snapshot,
   snapshotError,
   identityLabelsById,
+  scenarioLinksEnabled,
 }: {
   snapshot: DashboardSnapshot | null;
   snapshotError: string | null;
   identityLabelsById: Map<string, string>;
+  scenarioLinksEnabled: boolean;
 }) {
   return (
     <Card className="min-h-0 flex-1 gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
@@ -497,34 +528,33 @@ function ReceiptTimelineCard({
         {snapshot ? (
           <ScrollArea className="h-[320px] sm:h-[380px] xl:h-full">
             <div className="flex flex-col px-4 py-2">
-              {snapshot.receiptTimeline.map((entry) => (
-                <a
-                  key={entry.receiptId}
-                  href={buildStudioScenariosUrl(entry.receiptId)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
-                >
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="text-sm font-medium text-foreground">
-                      {entry.kind}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {identityLabelsById.get(entry.actor) ??
-                        truncateMiddle(entry.actor)}
-                    </span>
+              {snapshot.receiptTimeline.map((entry) =>
+                scenarioLinksEnabled ? (
+                  <a
+                    key={entry.receiptId}
+                    href={buildStudioScenariosUrl(entry.receiptId)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
+                  >
+                    <ReceiptTimelineEntry
+                      entry={entry}
+                      identityLabelsById={identityLabelsById}
+                      linked
+                    />
+                  </a>
+                ) : (
+                  <div
+                    key={entry.receiptId}
+                    className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
+                  >
+                    <ReceiptTimelineEntry
+                      entry={entry}
+                      identityLabelsById={identityLabelsById}
+                    />
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-                    <span className="text-xs text-muted-foreground">
-                      slot {entry.slot}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <span>{truncateMiddle(entry.receiptId)}</span>
-                      <ArrowUpRight className="size-3.5" aria-hidden="true" />
-                    </span>
-                  </div>
-                </a>
-              ))}
+                ),
+              )}
             </div>
           </ScrollArea>
         ) : snapshotError ? (
@@ -544,6 +574,38 @@ function ReceiptTimelineCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function ReceiptTimelineEntry({
+  entry,
+  identityLabelsById,
+  linked = false,
+}: {
+  entry: DashboardSnapshot["receiptTimeline"][number];
+  identityLabelsById: Map<string, string>;
+  linked?: boolean;
+}) {
+  return (
+    <>
+      <div className="flex min-w-0 flex-col gap-1">
+        <span className="text-sm font-medium text-foreground">
+          {entry.kind}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {identityLabelsById.get(entry.actor) ?? truncateMiddle(entry.actor)}
+        </span>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+        <span className="text-xs text-muted-foreground">slot {entry.slot}</span>
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+          <span>{truncateMiddle(entry.receiptId)}</span>
+          {linked ? (
+            <ArrowUpRight className="size-3.5" aria-hidden="true" />
+          ) : null}
+        </span>
+      </div>
+    </>
   );
 }
 

@@ -3,10 +3,10 @@ import { createSolanaRpc } from "@solana/kit";
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_SURFPOOL_RPC_PORT = "18999";
 const DEFAULT_SURFPOOL_STUDIO_PORT = "18489";
-const DEFAULT_CANVAS_PORT = "4173";
 const LIVE_SNAPSHOT_URL = "/__live/dashboard-data.json";
 const SURFPOOL_POLL_INTERVAL_MS = 5_000;
 export const SNAPSHOT_POLL_INTERVAL_MS = 5_000;
+export const SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS = 15_000;
 
 export const DEFAULT_SNAPSHOT_URL = "/dashboard-data.json";
 export const DEFAULT_STUDIO_URL =
@@ -14,9 +14,6 @@ export const DEFAULT_STUDIO_URL =
   `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_STUDIO_PORT}`;
 export const DEFAULT_STUDIO_ACCOUNTS_URL = `${DEFAULT_STUDIO_URL}/accounts`;
 export const DEFAULT_STUDIO_SCENARIOS_URL = `${DEFAULT_STUDIO_URL}/scenarios`;
-export const DEFAULT_CANVAS_URL =
-  import.meta.env.VITE_RUN_CANVAS_URL ??
-  `http://${DEFAULT_HOST}:${DEFAULT_CANVAS_PORT}/examples/multi_agent/dashboard/index.html`;
 export const DEFAULT_SURFPOOL_RPC_URL =
   import.meta.env.VITE_SURFPOOL_RPC_URL ??
   `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_RPC_PORT}`;
@@ -66,6 +63,12 @@ export interface SurfpoolStatus {
   pollIntervalMs: number;
 }
 
+export interface SurfpoolStudioLinks {
+  studio: boolean;
+  accounts: boolean;
+  scenarios: boolean;
+}
+
 export async function loadDashboardSnapshot(): Promise<DashboardSnapshot> {
   const liveSnapshot = await tryLoadSnapshot(LIVE_SNAPSHOT_URL);
   if (liveSnapshot) {
@@ -107,6 +110,20 @@ export async function loadSurfpoolStatus(): Promise<SurfpoolStatus> {
   }
 }
 
+export async function loadSurfpoolStudioLinks(): Promise<SurfpoolStudioLinks> {
+  const [studio, accounts, scenarios] = await Promise.all([
+    probeBrowsableUrl(DEFAULT_STUDIO_URL),
+    probeBrowsableUrl(DEFAULT_STUDIO_ACCOUNTS_URL),
+    probeBrowsableUrl(DEFAULT_STUDIO_SCENARIOS_URL),
+  ]);
+
+  return {
+    studio,
+    accounts,
+    scenarios,
+  };
+}
+
 async function tryLoadSnapshot(
   url: string,
 ): Promise<DashboardSnapshot | null> {
@@ -121,6 +138,19 @@ async function tryLoadSnapshot(
     return (await response.json()) as DashboardSnapshot;
   } catch {
     return null;
+  }
+}
+
+async function probeBrowsableUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store",
+    });
+    return response.ok;
+  } catch {
+    return false;
   }
 }
 
