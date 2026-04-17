@@ -1,6 +1,7 @@
 declare module "node:crypto" {
   export interface Hash {
-    update(data: string): Hash;
+    update(data: string | Uint8Array): Hash;
+    digest(): Buffer;
     digest(encoding: "hex"): string;
   }
 
