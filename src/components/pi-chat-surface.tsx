@@ -89,6 +89,7 @@ export function PiChatSurface({
   const [activityLog, setActivityLog] = useState<LocalRuntimeActivity[]>([]);
   const [version, setVersion] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -183,35 +184,46 @@ export function PiChatSurface({
     let unsubscribe = () => {};
 
     setIsReady(false);
+    setStartupError(null);
     setComposeError(null);
     setDraft("");
     setActivityLog([]);
 
     const initialize = async () => {
-      const handle = await createPiConsoleAgent({
-        sessionId: getIdentitySessionId(activeIdentity.id),
-        systemPrompt,
-        messages: initialChatState.messages,
-        preferredModel: initialChatState.preferredModel,
-        thinkingLevel: initialChatState.thinkingLevel,
-      });
+      try {
+        const handle = await createPiConsoleAgent({
+          sessionId: getIdentitySessionId(activeIdentity.id),
+          systemPrompt,
+          messages: initialChatState.messages,
+          preferredModel: initialChatState.preferredModel,
+          thinkingLevel: initialChatState.thinkingLevel,
+        });
 
-      if (!isActive) {
-        handle.agent.abort();
-        return;
-      }
+        if (!isActive) {
+          handle.agent.abort();
+          return;
+        }
 
-      unsubscribe = handle.agent.subscribe(() => {
+        unsubscribe = handle.agent.subscribe(() => {
+          if (!isActive) {
+            return;
+          }
+
+          setVersion((current) => current + 1);
+        });
+
+        agentRef.current = handle;
+        setAgentHandle(handle);
+        setIsReady(true);
+      } catch (error) {
         if (!isActive) {
           return;
         }
 
-        setVersion((current) => current + 1);
-      });
-
-      agentRef.current = handle;
-      setAgentHandle(handle);
-      setIsReady(true);
+        setStartupError(
+          error instanceof Error ? error.message : "Pi could not start",
+        );
+      }
     };
 
     void initialize();
@@ -298,11 +310,17 @@ export function PiChatSurface({
     }
 
     const message = draft.trim();
-    const providerKey = await getAppStorage().providerKeys.get(currentModel.provider);
-    if (!providerKey) {
-      const didProvideKey = await ApiKeyPromptDialog.prompt(currentModel.provider);
-      if (!didProvideKey) {
-        return;
+    if (!isLocalRuntimeProvider(runtime, currentModel.provider)) {
+      const providerKey = await getAppStorage().providerKeys.get(
+        currentModel.provider,
+      );
+      if (!providerKey) {
+        const didProvideKey = await ApiKeyPromptDialog.prompt(
+          currentModel.provider,
+        );
+        if (!didProvideKey) {
+          return;
+        }
       }
     }
 
@@ -357,7 +375,7 @@ export function PiChatSurface({
     setActivityLog([]);
   };
 
-  if (!workspaceReady || !isReady) {
+  if (!workspaceReady || (!isReady && !startupError)) {
     return (
       <div className="flex h-full items-center justify-center px-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -377,7 +395,7 @@ export function PiChatSurface({
           </div>
           <p className="text-sm text-foreground">Pi could not start.</p>
           <p className="text-xs text-muted-foreground">
-            Reload the page after the local runtime is ready.
+            {startupError ?? "Reload the page after the local runtime is ready."}
           </p>
         </div>
       </div>

@@ -147,17 +147,18 @@ export function syncIdentityWorkspace(
 }
 
 export function persistIdentityWorkspace(workspace: StoredIdentityWorkspace) {
-  if (typeof window === "undefined") {
+  const storage = getBrowserStorage();
+  if (!storage) {
     return;
   }
 
   try {
-    window.localStorage.setItem(
+    storage.setItem(
       IDENTITY_WORKSPACE_STORAGE_KEY,
       JSON.stringify(workspace),
     );
   } catch {
-    window.localStorage.removeItem(IDENTITY_WORKSPACE_STORAGE_KEY);
+    clearStorageKey(storage, IDENTITY_WORKSPACE_STORAGE_KEY);
   }
 }
 
@@ -312,21 +313,40 @@ function loadLegacyChatState(): StoredChatState | null {
 }
 
 function parseStorage<T>(key: string): T | null {
-  if (typeof window === "undefined") {
+  const storage = getBrowserStorage();
+  if (!storage) {
     return null;
   }
 
   try {
-    const rawValue = window.localStorage.getItem(key);
+    const rawValue = storage.getItem(key);
     if (!rawValue) {
       return null;
     }
 
     return JSON.parse(rawValue) as T;
   } catch {
-    window.localStorage.removeItem(key);
+    clearStorageKey(storage, key);
     return null;
   }
+}
+
+function getBrowserStorage(): Storage | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function clearStorageKey(storage: Storage, key: string) {
+  try {
+    storage.removeItem(key);
+  } catch {}
 }
 
 function isStoredIdentityWorkspace(
