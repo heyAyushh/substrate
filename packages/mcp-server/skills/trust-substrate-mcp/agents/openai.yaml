@@ -1,0 +1,4 @@
+interface:
+  display_name: "Trust Substrate MCP"
+  short_description: "Use Trust Substrate snapshot tools"
+  default_prompt: "Use $trust-substrate-mcp to inspect a Trust Substrate indexer snapshot."

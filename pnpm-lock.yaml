@@ -142,6 +142,18 @@ importers:
 
   packages/indexer: {}
 
+  packages/mcp-server:
+    dependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 1.29.0
+        version: 1.29.0(zod@3.25.76)
+      '@trust-substrate/indexer':
+        specifier: workspace:*
+        version: link:../indexer
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
   packages/pi-extension:
     dependencies:
       '@mariozechner/pi-coding-agent':
@@ -6723,8 +6735,8 @@ snapshots:
   '@mistralai/mistralai@1.14.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)':
     dependencies:
       ws: 8.20.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
-      zod: 4.3.6
-      zod-to-json-schema: 3.25.2(zod@4.3.6)
+      zod: 3.25.76
+      zod-to-json-schema: 3.25.2(zod@3.25.76)
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate

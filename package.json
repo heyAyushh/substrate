@@ -7,7 +7,7 @@
   "scripts": {
     "generate:clients": "pnpm exec node scripts/generate-program-clients.mjs",
     "test": "pnpm test:packages && pnpm test:rust && pnpm test:anchor && pnpm test:verification",
-    "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer",
+    "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer && npm test --prefix packages/mcp-server",
     "test:rust": "cargo test --workspace --exclude trust_substrate_litesvm_tests",
     "test:verification": "pnpm --filter @trust-substrate/sdk build && node --test --experimental-strip-types tests/verification/*.test.ts tests/verification/*.test.js",
     "test:litesvm": "anchor test --skip-lint --skip-local-validator --skip-deploy",
