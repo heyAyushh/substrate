@@ -8,22 +8,39 @@ import {
 } from "@mariozechner/pi-web-ui";
 import { Bot, Loader2, Send, Square, Trash2, Wrench } from "lucide-react";
 
-import {
-  PromptInput,
-  PromptInputActions,
-  PromptInputEnterHint,
-  PromptInputFooter,
-  PromptInputHeader,
-  PromptInputMeta,
-  PromptInputTextarea,
-  PromptInputTools,
-} from "@/components/ai-elements/prompt-input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import {
   createEmptyChatState,
   createFallbackIdentityProfile,
-  createIdentityWorkspace,
   loadIdentityWorkspace,
   persistIdentityWorkspace,
   setActiveIdentity,
@@ -60,6 +77,8 @@ interface PiChatSurfaceProps {
   delegationLabels?: string[];
 }
 
+type PiConsoleAgentHandle = Awaited<ReturnType<typeof createPiConsoleAgent>>;
+
 export function PiChatSurface({
   identityProfiles = [],
   runtimeLabel = null,
@@ -79,31 +98,34 @@ export function PiChatSurface({
   );
   const [identityWorkspace, setIdentityWorkspace] =
     useState<StoredIdentityWorkspace>(() =>
-      createIdentityWorkspace(availableIdentities),
+      loadIdentityWorkspace(availableIdentities),
     );
-  const [agentHandle, setAgentHandle] = useState<Awaited<
-    ReturnType<typeof createPiConsoleAgent>
-  > | null>(null);
+  const [agentHandle, setAgentHandle] = useState<PiConsoleAgentHandle | null>(
+    null,
+  );
   const [draft, setDraft] = useState("");
   const [composeError, setComposeError] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<LocalRuntimeActivity[]>([]);
   const [version, setVersion] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [startupError, setStartupError] = useState<string | null>(null);
-  const [workspaceReady, setWorkspaceReady] = useState(false);
 
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const agentRef = useRef<Awaited<ReturnType<typeof createPiConsoleAgent>> | null>(
-    null,
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const agentRef = useRef<PiConsoleAgentHandle | null>(null);
+  const systemPromptRef = useRef("");
+
+  const syncedIdentityWorkspace = useMemo(
+    () => syncIdentityWorkspace(identityWorkspace, availableIdentities),
+    [availableIdentities, identityWorkspace],
   );
 
   const activeIdentity =
     availableIdentities.find(
-      (identity) => identity.id === identityWorkspace.activeIdentityId,
+      (identity) => identity.id === syncedIdentityWorkspace.activeIdentityId,
     ) ?? availableIdentities[0];
   const activeChatState =
-    identityWorkspace.chats[activeIdentity.id] ?? createEmptyChatState();
-  const initialChatState = useMemo(() => activeChatState, [activeIdentity.id]);
+    syncedIdentityWorkspace.chats[activeIdentity.id] ?? createEmptyChatState();
+  const initialChatState = activeChatState;
 
   const systemPrompt = useMemo(() => {
     const identityLines = [
@@ -153,47 +175,22 @@ export function PiChatSurface({
   ]);
 
   useEffect(() => {
-    setIdentityWorkspace(loadIdentityWorkspace(availableIdentities));
-    setWorkspaceReady(true);
-  }, []);
+    systemPromptRef.current = systemPrompt;
+  }, [systemPrompt]);
 
   useEffect(() => {
-    if (!workspaceReady) {
-      return;
-    }
-
-    setIdentityWorkspace((current) =>
-      syncIdentityWorkspace(current, availableIdentities),
-    );
-  }, [availableIdentities, workspaceReady]);
+    persistIdentityWorkspace(syncedIdentityWorkspace);
+  }, [syncedIdentityWorkspace]);
 
   useEffect(() => {
-    if (!workspaceReady) {
-      return;
-    }
-
-    persistIdentityWorkspace(identityWorkspace);
-  }, [identityWorkspace, workspaceReady]);
-
-  useEffect(() => {
-    if (!workspaceReady) {
-      return;
-    }
-
     let isActive = true;
     let unsubscribe = () => {};
-
-    setIsReady(false);
-    setStartupError(null);
-    setComposeError(null);
-    setDraft("");
-    setActivityLog([]);
 
     const initialize = async () => {
       try {
         const handle = await createPiConsoleAgent({
           sessionId: getIdentitySessionId(activeIdentity.id),
-          systemPrompt,
+          systemPrompt: systemPromptRef.current,
           messages: initialChatState.messages,
           preferredModel: initialChatState.preferredModel,
           thinkingLevel: initialChatState.thinkingLevel,
@@ -209,6 +206,16 @@ export function PiChatSurface({
             return;
           }
 
+          setIdentityWorkspace((current) =>
+            updateIdentityChatState(current, activeIdentity.id, {
+              messages: [...handle.agent.state.messages],
+              preferredModel: {
+                provider: handle.agent.state.model.provider,
+                modelId: handle.agent.state.model.id,
+              },
+              thinkingLevel: handle.agent.state.thinkingLevel,
+            }),
+          );
           setVersion((current) => current + 1);
         });
 
@@ -236,16 +243,15 @@ export function PiChatSurface({
         agentRef.current = null;
       }
     };
-  }, [activeIdentity.id, initialChatState, workspaceReady]);
+  }, [activeIdentity.id, initialChatState]);
 
   useEffect(() => {
-    if (!agentHandle) {
+    if (!agentRef.current) {
       return;
     }
 
-    agentHandle.agent.state.systemPrompt = systemPrompt;
-    setVersion((current) => current + 1);
-  }, [agentHandle, systemPrompt]);
+    agentRef.current.agent.state.systemPrompt = systemPrompt;
+  }, [systemPrompt]);
 
   useEffect(() => {
     const unsubscribe = subscribeToLocalRuntimeActivity((activity) => {
@@ -256,29 +262,15 @@ export function PiChatSurface({
   }, []);
 
   useEffect(() => {
-    if (!agentHandle || !workspaceReady) {
+    const bottomMarker = bottomRef.current;
+    if (!bottomMarker) {
       return;
     }
 
-    setIdentityWorkspace((current) =>
-      updateIdentityChatState(current, activeIdentity.id, {
-        messages: [...agentHandle.agent.state.messages],
-        preferredModel: {
-          provider: agentHandle.agent.state.model.provider,
-          modelId: agentHandle.agent.state.model.id,
-        },
-        thinkingLevel: agentHandle.agent.state.thinkingLevel,
-      }),
-    );
-  }, [activeIdentity.id, agentHandle, version, workspaceReady]);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
-
-    container.scrollTop = container.scrollHeight;
+    bottomMarker.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
   }, [activityLog, version]);
 
   const agent = agentHandle?.agent ?? null;
@@ -342,11 +334,13 @@ export function PiChatSurface({
   };
 
   const handleClear = () => {
-    if (!agent || isStreaming) {
+    const activeAgent = agentRef.current?.agent;
+    if (!activeAgent || isStreaming) {
       return;
     }
 
-    agent.state.messages = [];
+    // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
+    activeAgent.state.messages = [];
     setActivityLog([]);
     setComposeError(null);
     setVersion((current) => current + 1);
@@ -358,7 +352,12 @@ export function PiChatSurface({
     }
 
     ModelSelector.open(currentModel, (nextModel) => {
-      agent.state.model = nextModel;
+      const activeAgent = agentRef.current?.agent;
+      if (!activeAgent) {
+        return;
+      }
+
+      activeAgent.state.model = nextModel;
       setComposeError(null);
       setVersion((current) => current + 1);
     });
@@ -370,35 +369,39 @@ export function PiChatSurface({
     }
 
     setIdentityWorkspace((current) => setActiveIdentity(current, identityId));
+    setAgentHandle(null);
+    setIsReady(false);
+    setStartupError(null);
     setComposeError(null);
     setDraft("");
     setActivityLog([]);
   };
 
-  if (!workspaceReady || (!isReady && !startupError)) {
+  if (!isReady && !startupError) {
     return (
-      <div className="flex h-full items-center justify-center px-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Connecting to {activeIdentity.label}
-        </div>
-      </div>
+      <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />
     );
   }
 
   if (!agent || !currentModel) {
     return (
-      <div className="flex h-full items-center justify-center px-6">
-        <div className="max-w-sm space-y-2 text-center">
-          <div className="flex justify-center">
-            <Bot className="size-5 text-muted-foreground" />
-          </div>
-          <p className="text-sm text-foreground">Pi could not start.</p>
-          <p className="text-xs text-muted-foreground">
-            {startupError ?? "Reload the page after the local runtime is ready."}
-          </p>
-        </div>
-      </div>
+      <Card className="min-h-[420px] gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
+        <CardHeader className="border-b border-border/70 bg-background/28">
+          <CardTitle>Pi could not start</CardTitle>
+          <CardDescription>
+            Reload after the local runtime is ready.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-1 items-center justify-center py-8">
+          <Alert variant="destructive" className="max-w-lg">
+            <Bot aria-hidden="true" />
+            <AlertTitle>Startup failed</AlertTitle>
+            <AlertDescription>
+              {startupError ?? "The local runtime did not become ready."}
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -416,270 +419,280 @@ export function PiChatSurface({
   const connectionSummary = buildConnectionSummary(activeIdentity);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="border-b border-border/80 px-4 py-3 sm:px-5">
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                <span>Identities</span>
-                <span>{availableIdentities.length}</span>
-              </div>
-              <p className="hidden max-w-2xl text-sm leading-6 text-foreground/82 sm:block">
-                {activeIdentity.roleSummary}
-              </p>
-              {connectionSummary ? (
-                <p className="hidden max-w-2xl text-xs leading-5 text-muted-foreground sm:block">
-                  {connectionSummary}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="hidden flex-wrap items-center gap-2 sm:flex">
-              {activeIdentity.score !== null ? (
-                <Badge variant="outline" className="h-6 rounded-md px-2.5">
-                  score {activeIdentity.score}
-                </Badge>
-              ) : null}
-              <Badge variant="outline" className="h-6 rounded-md px-2.5">
-                {activeIdentity.receiptCount} receipts
-              </Badge>
+    <Card className="h-full min-h-[760px] gap-0 overflow-hidden bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-0">
+      <CardHeader className="gap-4 border-b border-border/70 bg-background/28">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{activeIdentity.label}</Badge>
+              {providerLabel ? <Badge variant="outline">{providerLabel}</Badge> : null}
+              <Badge variant="outline">{currentModel.id}</Badge>
+              <Badge variant="outline">{activeIdentity.receiptCount} receipts</Badge>
               {activeIdentity.latestReceiptKind ? (
-                <Badge variant="outline" className="h-6 rounded-md px-2.5">
-                  {activeIdentity.latestReceiptKind}
-                </Badge>
+                <Badge variant="outline">{activeIdentity.latestReceiptKind}</Badge>
+              ) : null}
+              {activeIdentity.score !== null ? (
+                <Badge variant="outline">score {activeIdentity.score}</Badge>
               ) : null}
             </div>
-          </div>
 
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {availableIdentities.map((identityOption) => {
-              const isActive = identityOption.id === activeIdentity.id;
-
-              return (
-                <button
-                  key={identityOption.id}
-                  type="button"
-                  className={cn(
-                    "min-h-10 min-w-[136px] rounded-lg border px-3 py-2 text-left transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
-                    isActive
-                      ? "border-border bg-card/80 text-foreground shadow-sm shadow-black/20"
-                      : "border-border/70 bg-background/40 text-foreground/82 hover:bg-muted/35",
-                  )}
-                  onClick={() => handleSwitchIdentity(identityOption.id)}
-                >
-                  <span className="block text-sm">{identityOption.label}</span>
-                  <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
-                    {buildIdentityChipMeta(identityOption)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="hidden flex-wrap items-center gap-2 text-xs text-muted-foreground sm:flex">
-            <span className="text-foreground/82">{truncateIdentity(activeIdentity.id)}</span>
-            {identityMeta.map((value) => (
-              <span key={value}>{value}</span>
-            ))}
-            {latestReceiptLabel ? <span>{latestReceiptLabel}</span> : null}
-            <span>{receiptCount} total receipts</span>
-          </div>
-        </div>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          {messages.length === 0 && !streamingMessage && activityLog.length === 0 ? (
-            <EmptyState identity={activeIdentity} />
-          ) : null}
-
-          {messages.map((message, index) => (
-            <MessageRow
-              key={getMessageKey(message, index)}
-              message={message}
-              pendingToolCalls={pendingToolCalls}
-            />
-          ))}
-
-          {activityLog.length > 0 ? (
-            <RuntimeActivityCard
-              activities={activityLog}
-              isStreaming={
-                isStreaming && isLocalRuntimeProvider(runtime, currentModel.provider)
-              }
-            />
-          ) : null}
-
-          {streamingMessage ? (
-            <AssistantBubble
-              message={streamingMessage}
-              pendingToolCalls={pendingToolCalls}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      <div className="border-t border-border/80 px-4 py-3 sm:px-5">
-        <div className="mx-auto max-w-3xl">
-          {activeError ? (
-            <div className="mb-3 rounded-lg border border-destructive/30 bg-destructive/8 px-3 py-2 text-sm text-destructive">
-              {activeError}
+            <div className="flex min-w-0 flex-col gap-1">
+              <CardTitle className="text-sm">{activeIdentity.roleSummary}</CardTitle>
+              <CardDescription className="max-w-3xl">
+                {connectionSummary ?? activeIdentity.promptHint}
+              </CardDescription>
             </div>
+          </div>
+
+          <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
+            {availableIdentities.length > 1 ? (
+              <div className="sm:hidden">
+                <Select
+                  value={activeIdentity.id}
+                  onValueChange={handleSwitchIdentity}
+                >
+                    <SelectTrigger className="w-full border-border/70 bg-background/30">
+                    <SelectValue placeholder="Choose identity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {availableIdentities.map((identityOption) => (
+                        <SelectItem key={identityOption.id} value={identityOption.id}>
+                          {identityOption.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground lg:justify-end">
+              <span>{truncateIdentity(activeIdentity.id)}</span>
+              {identityMeta.map((value) => (
+                <span key={value}>{value}</span>
+              ))}
+              {latestReceiptLabel ? <span>{latestReceiptLabel}</span> : null}
+              <span>{receiptCount} total receipts</span>
+            </div>
+          </div>
+        </div>
+
+        {availableIdentities.length > 1 ? (
+          <div className="hidden overflow-x-auto pb-1 sm:block">
+            <div className="flex gap-2">
+              {availableIdentities.map((identityOption) => {
+                const isActive = identityOption.id === activeIdentity.id;
+
+                return (
+                  <button
+                    key={identityOption.id}
+                    type="button"
+                    className={cn(
+                      "flex min-w-[148px] flex-col gap-1 rounded-md border px-3 py-2 text-left transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+                      isActive
+                        ? "border-border bg-background/72 text-foreground"
+                        : "border-border/70 bg-background/24 text-foreground/82 hover:bg-muted/50",
+                    )}
+                    onClick={() => handleSwitchIdentity(identityOption.id)}
+                  >
+                    <span className="text-sm font-medium">
+                      {identityOption.label}
+                    </span>
+                    <span className="text-[11px] leading-5 text-muted-foreground">
+                      {buildIdentityChipMeta(identityOption)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </CardHeader>
+
+      <CardContent className="flex min-h-0 flex-1 px-0">
+        <ScrollArea className="h-[360px] min-h-[360px] w-full sm:h-[420px] lg:h-[500px] xl:h-full">
+          <div className="flex min-h-full flex-col gap-4 px-4 py-4">
+            {messages.length === 0 && !streamingMessage && activityLog.length === 0 ? (
+              <EmptyState identity={activeIdentity} />
+            ) : null}
+
+            {messages.map((message, index) => (
+              <MessageRow
+                key={getMessageKey(message, index)}
+                message={message}
+                pendingToolCalls={pendingToolCalls}
+              />
+            ))}
+
+            {activityLog.length > 0 ? (
+              <RuntimeActivityCard
+                activities={activityLog}
+                isStreaming={
+                  isStreaming && isLocalRuntimeProvider(runtime, currentModel.provider)
+                }
+              />
+            ) : null}
+
+            {streamingMessage ? (
+              <AssistantBubble
+                message={streamingMessage}
+                pendingToolCalls={pendingToolCalls}
+              />
+            ) : null}
+            <div ref={bottomRef} />
+          </div>
+        </ScrollArea>
+      </CardContent>
+
+      <CardFooter className="block border-t border-border/70 bg-background/20 supports-[backdrop-filter]:bg-background/44 supports-[backdrop-filter]:backdrop-blur-2xl">
+        <form
+          className="flex flex-col gap-3 rounded-xl border border-border/70 bg-background/26 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/24 sm:p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSubmit();
+          }}
+        >
+          {activeError ? (
+            <Alert variant="destructive">
+              <Bot aria-hidden="true" />
+              <AlertTitle>Pi failed to respond</AlertTitle>
+              <AlertDescription>{activeError}</AlertDescription>
+            </Alert>
           ) : null}
 
-          <PromptInput
-            onSubmit={(event) => {
-              event.preventDefault();
-              void handleSubmit();
-            }}
-          >
-            <PromptInputHeader>
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="pi-chat-input"
-                  className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="pi-chat-input"
+                className="text-[11px] font-medium text-muted-foreground"
+              >
+                Message {activeIdentity.label}
+              </label>
+              <p className="text-sm text-muted-foreground">
+                {activeIdentity.promptHint}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSelectModel}
+              >
+                Model {currentModel.id}
+              </Button>
+
+              <Select
+                value={agent.state.thinkingLevel}
+                onValueChange={(nextValue) => {
+                  const activeAgent = agentRef.current?.agent;
+                  if (!activeAgent) {
+                    return;
+                  }
+
+                  // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
+                  activeAgent.state.thinkingLevel = nextValue as ThinkingLevel;
+                  setVersion((current) => current + 1);
+                }}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="w-full border-border/70 bg-background/30 sm:w-[140px]"
                 >
-                  Message {activeIdentity.label}
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary" className="h-6 rounded-md px-2.5">
-                    {activeIdentity.label}
-                  </Badge>
-                  <span className="hidden text-xs leading-5 text-muted-foreground sm:inline">
-                    {activeIdentity.promptHint}
-                  </span>
-                </div>
-              </div>
-            </PromptInputHeader>
+                  <SelectValue placeholder="Reasoning" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {availableThinkingLevels.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {level}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
 
-            <PromptInputTextarea
-              id="pi-chat-input"
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSubmit();
-                }
-              }}
-              placeholder={`Ask ${activeIdentity.label} about the task, delegation, or receipts`}
-              disabled={isStreaming}
-              rows={4}
-              enterKeyHint="send"
-            />
+              <Badge variant="outline">MCP + tools</Badge>
+            </div>
+          </div>
 
-            <PromptInputFooter>
-              <div className="space-y-2">
-                <PromptInputTools>
-                  <div className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/60 px-2">
-                    <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                      Model
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 rounded-md px-2 text-xs font-normal"
-                      onClick={handleSelectModel}
-                    >
-                      {currentModel.id}
-                    </Button>
-                  </div>
+          <Textarea
+            id="pi-chat-input"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void handleSubmit();
+              }
+            }}
+            placeholder={`Ask ${activeIdentity.label} about the task, delegation, or receipts`}
+            disabled={isStreaming}
+            rows={4}
+            enterKeyHint="send"
+            className="min-h-28 resize-none rounded-xl border-border/70 bg-background/38 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] supports-[backdrop-filter]:bg-background/30"
+          />
 
-                  <label className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/60 px-2">
-                    <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                      Reasoning
-                    </span>
-                    <select
-                      value={agent.state.thinkingLevel}
-                      onChange={(event) => {
-                        agent.state.thinkingLevel = event.target.value as ThinkingLevel;
-                        setVersion((current) => current + 1);
-                      }}
-                      className="h-6 bg-transparent pr-1 text-xs text-foreground outline-none"
-                    >
-                      {availableThinkingLevels.map((level) => (
-                        <option key={level} value={level}>
-                          {level}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <span>Enter sends. Shift+Enter adds a line.</span>
+              <span>{messages.length} messages</span>
+              <span>{activeIdentity.receiptCount} live receipts</span>
+            </div>
 
-                  <Badge variant="outline" className="h-6 rounded-md px-2.5">
-                    MCP + tools
-                  </Badge>
-                </PromptInputTools>
+            <div className="flex justify-end gap-2">
+              {messages.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClear}
+                  disabled={isStreaming}
+                >
+                  <Trash2 data-icon="inline-start" aria-hidden="true" />
+                  Clear
+                </Button>
+              ) : null}
 
-                <PromptInputMeta>
-                  <PromptInputEnterHint />
-                  <span>{messages.length} messages</span>
-                  <span>{activeIdentity.receiptCount} live receipts</span>
-                </PromptInputMeta>
-              </div>
-
-              <PromptInputActions>
-                {messages.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="font-normal"
-                    onClick={handleClear}
-                    disabled={isStreaming}
-                  >
-                    <Trash2 className="size-3.5" />
-                    Clear
-                  </Button>
-                ) : null}
-
-                {isStreaming ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="font-normal"
-                    onClick={() => agent.abort()}
-                  >
-                    <Square className="size-3.5" />
-                    Stop
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="font-normal"
-                    disabled={!canSend}
-                  >
-                    <Send className="size-3.5" />
-                    Send
-                  </Button>
-                )}
-              </PromptInputActions>
-            </PromptInputFooter>
-          </PromptInput>
-        </div>
-      </div>
-    </div>
+              {isStreaming ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => agent.abort()}
+                >
+                  <Square data-icon="inline-start" aria-hidden="true" />
+                  Stop
+                </Button>
+              ) : (
+                <Button type="submit" size="sm" disabled={!canSend}>
+                  Send
+                  <Send data-icon="inline-end" aria-hidden="true" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </form>
+      </CardFooter>
+    </Card>
   );
 }
 
 function EmptyState({ identity }: { identity: PiIdentityProfile }) {
   return (
-    <div className="flex min-h-[88px] items-center justify-center sm:min-h-[220px]">
-      <div className="max-w-sm space-y-2 text-center">
-        <div className="flex justify-center">
-          <Bot className="size-5 text-muted-foreground" />
-        </div>
-        <p className="text-sm text-foreground/84">
-          Start with the task, a receipt, or a dispute.
-        </p>
-        <p className="text-xs leading-5 text-muted-foreground">
-          {identity.promptHint}
-        </p>
-      </div>
-    </div>
+    <Empty className="border-border/70 bg-background/25 py-12">
+      <EmptyContent>
+        <EmptyMedia variant="icon">
+          <Bot aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyHeader>
+          <EmptyTitle>Start with the task, a receipt, or a dispute.</EmptyTitle>
+          <EmptyDescription>{identity.promptHint}</EmptyDescription>
+        </EmptyHeader>
+      </EmptyContent>
+    </Empty>
   );
 }
 
@@ -708,9 +721,11 @@ function MessageRow({
 function UserBubble({ message }: { message: UserLikeMessage }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[88%] rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
-        {typeof message.content === "string" ? message.content : ""}
-      </div>
+      <Card size="sm" className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15">
+        <CardContent className="text-sm leading-6 whitespace-pre-wrap text-foreground">
+          {typeof message.content === "string" ? message.content : ""}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -730,20 +745,28 @@ function AssistantBubble({
     <div className="flex justify-start">
       <div className="flex max-w-[92%] flex-col gap-3">
         {textBlocks.length > 0 ? (
-          <div className="rounded-lg px-1 text-sm leading-6 whitespace-pre-wrap text-foreground/90">
-            {textBlocks.map((block, index) => (
-              <p key={`${message.timestamp ?? 0}-text-${index}`}>{block.text}</p>
-            ))}
-          </div>
+          <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+            <CardContent className="flex flex-col gap-3 text-sm leading-6 whitespace-pre-wrap text-foreground">
+              {textBlocks.map((block, index) => (
+                <p key={`${message.timestamp ?? 0}-text-${index}`}>{block.text}</p>
+              ))}
+            </CardContent>
+          </Card>
         ) : null}
 
         {thinkingBlocks.map((block, index) => (
-          <div
+          <Card
             key={`${message.timestamp ?? 0}-thinking-${index}`}
-            className="rounded-lg border border-border/70 bg-card/60 px-3 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground"
+            size="sm"
+            className="gap-0 bg-muted/40 py-3 ring-border/70"
           >
-            {block.thinking}
-          </div>
+            <CardContent className="flex flex-col gap-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+              <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                Reasoning
+              </span>
+              <span>{block.thinking}</span>
+            </CardContent>
+          </Card>
         ))}
 
         {toolCalls.map((toolCall) => (
@@ -766,20 +789,20 @@ function ToolCallBubble({
   isPending: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-      <div className="flex items-center gap-2 text-sm text-foreground/84">
-        <Wrench className="size-3.5 text-muted-foreground" />
-        <span>{toolCall.name}</span>
-        <span className="text-xs text-muted-foreground">
-          {isPending ? "running" : "ready"}
-        </span>
-      </div>
-      {toolCall.arguments ? (
-        <pre className="mt-2 overflow-x-auto text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-          {JSON.stringify(toolCall.arguments, null, 2)}
-        </pre>
-      ) : null}
-    </div>
+    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+      <CardContent className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Wrench className="size-4 text-muted-foreground" />
+          <span className="font-medium">{toolCall.name}</span>
+          <Badge variant="outline">{isPending ? "running" : "ready"}</Badge>
+        </div>
+        {toolCall.arguments ? (
+          <pre className="overflow-x-auto rounded-lg bg-background/70 px-2 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+            {JSON.stringify(toolCall.arguments, null, 2)}
+          </pre>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -796,20 +819,22 @@ function ToolResultBubble({
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[92%] rounded-lg border border-border/70 bg-card/70 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm text-foreground/84">
-          <Wrench className="size-3.5 text-muted-foreground" />
-          <span>{message.toolName}</span>
-          <span className="text-xs text-muted-foreground">
-            {message.isError ? "failed" : "complete"}
-          </span>
-        </div>
-        {textOutput ? (
-          <pre className="mt-2 max-h-56 overflow-auto text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
-            {textOutput}
-          </pre>
-        ) : null}
-      </div>
+      <Card size="sm" className="max-w-[92%] gap-0 bg-background/45 py-3 ring-border/70">
+        <CardContent className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Wrench className="size-4 text-muted-foreground" />
+            <span className="font-medium">{message.toolName}</span>
+            <Badge variant={message.isError ? "destructive" : "outline"}>
+              {message.isError ? "failed" : "complete"}
+            </Badge>
+          </div>
+          {textOutput ? (
+            <pre className="max-h-56 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-xs leading-5 whitespace-pre-wrap text-muted-foreground">
+              {textOutput}
+            </pre>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -822,42 +847,85 @@ function RuntimeActivityCard({
   isStreaming: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-card/60 px-3 py-3">
-      <div className="flex items-center gap-2 text-sm text-foreground/84">
-        <Wrench className="size-3.5 text-muted-foreground" />
-        <span>Local runtime activity</span>
-        {isStreaming ? (
-          <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-        ) : null}
-      </div>
+    <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center gap-2 text-sm text-foreground">
+          <Wrench className="size-4 text-muted-foreground" />
+          <span className="font-medium">Local runtime activity</span>
+          {isStreaming ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : null}
+        </div>
 
-      <div className="mt-3 space-y-3">
-        {activities.map((activity) => (
-          <div key={activity.id} className="space-y-1">
-            <div className="flex items-center gap-2 text-sm text-foreground/82">
-              <span>{activity.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {activity.phase === "start"
-                  ? "running"
-                  : activity.isError
-                    ? "failed"
-                    : "done"}
-              </span>
+        <div className="flex flex-col gap-3">
+          {activities.map((activity) => (
+            <div key={activity.id} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sm text-foreground">
+                <span>{activity.label}</span>
+                <Badge
+                  variant={activity.isError ? "destructive" : "outline"}
+                >
+                  {activity.phase === "start"
+                    ? "running"
+                    : activity.isError
+                      ? "failed"
+                      : "done"}
+                </Badge>
+              </div>
+              {activity.detail ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {activity.detail}
+                </p>
+              ) : null}
+              {activity.output ? (
+                <pre className="max-h-48 overflow-auto rounded-lg bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
+                  {activity.output}
+                </pre>
+              ) : null}
             </div>
-            {activity.detail ? (
-              <p className="text-xs leading-5 text-muted-foreground">
-                {activity.detail}
-              </p>
-            ) : null}
-            {activity.output ? (
-              <pre className="max-h-48 overflow-auto rounded-md bg-background/70 px-2 py-2 text-[11px] leading-5 whitespace-pre-wrap text-muted-foreground">
-                {activity.output}
-              </pre>
-            ) : null}
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
+  return (
+    <Card className="min-h-[760px] gap-0 overflow-hidden bg-card/80">
+      <CardHeader className="gap-4 border-b border-border/70 bg-background/35">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{identityLabel}</Badge>
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-5 w-20" />
           </div>
-        ))}
-      </div>
-    </div>
+          <Skeleton className="h-4 w-full max-w-xl" />
+          <div className="hidden gap-2 sm:flex">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-14 w-[148px]" />
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-3 px-4 py-4">
+        <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Connecting to {identityLabel}
+        </div>
+        <Skeleton className="h-14 w-2/3" />
+        <Skeleton className="h-24 w-3/4" />
+        <Skeleton className="h-20 w-1/2 self-end" />
+      </CardContent>
+      <CardFooter className="flex flex-col items-stretch gap-3 border-t border-border/70 bg-background/35">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-28 w-full" />
+        <div className="flex justify-end gap-2">
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-8 w-24" />
+        </div>
+      </CardFooter>
+    </Card>
   );
 }
 

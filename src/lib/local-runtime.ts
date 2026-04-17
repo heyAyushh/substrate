@@ -2,6 +2,7 @@ import {
   createAssistantMessageEventStream,
   getModel,
   streamSimple,
+  type Api,
   type AssistantMessage,
   type Context,
   type Model as PiModel,
@@ -303,7 +304,7 @@ function shouldUseLocalClaude(runtime: LocalRuntimeConfig, provider: string) {
 
 async function streamFromLocalRuntime(
   provider: LocalProviderId,
-  model: PiModel<any>,
+  model: PiModel<Api>,
   context: Context,
   options?: SimpleStreamOptions,
 ) {
@@ -472,7 +473,7 @@ async function flushLocalRuntimeEvents(
 }
 
 async function streamRemoteModel(
-  model: PiModel<any>,
+  model: PiModel<Api>,
   context: Context,
   options?: SimpleStreamOptions,
 ) {
@@ -488,7 +489,7 @@ async function streamRemoteModel(
 }
 
 function createAssistantMessage(
-  model: PiModel<any>,
+  model: PiModel<Api>,
   text: string,
   stopReason: StopReason = "stop",
 ): AssistantMessage {

@@ -1,10 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowUpRight, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  AlertCircle,
+  ArrowUpRight,
+  FileText,
+  Link2,
+  Trophy,
+} from "lucide-react";
 
 import { PiChatSurface } from "@/components/pi-chat-surface";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   buildStudioScenariosUrl,
   type DashboardSnapshot,
@@ -27,7 +52,6 @@ import {
   getDefaultRuntimeLabel,
   loadLocalRuntimeConfig,
 } from "@/lib/local-runtime";
-import { cn } from "@/lib/utils";
 
 function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -39,7 +63,6 @@ function App() {
     null,
   );
   const [runtimeLabel, setRuntimeLabel] = useState<string | null>(null);
-  const [mobilePanel, setMobilePanel] = useState<"chat" | "run">("chat");
 
   useEffect(() => {
     let isActive = true;
@@ -84,7 +107,7 @@ function App() {
   useEffect(() => {
     let isActive = true;
 
-    const loadRuntime = async () => {
+    const refreshRuntime = async () => {
       const runtime = await loadLocalRuntimeConfig();
       if (!isActive) {
         return;
@@ -92,7 +115,7 @@ function App() {
       setRuntimeLabel(getDefaultRuntimeLabel(runtime));
     };
 
-    void loadRuntime();
+    void refreshRuntime();
 
     return () => {
       isActive = false;
@@ -158,6 +181,7 @@ function App() {
     () => buildIdentityProfiles(snapshot, identityLabelsById),
     [identityLabelsById, snapshot],
   );
+
   const headerLinks = [
     {
       href: DEFAULT_STUDIO_URL,
@@ -192,19 +216,17 @@ function App() {
   ];
 
   return (
-    <div className="pi-console-app dark min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex h-screen max-w-[1440px] flex-col overflow-hidden">
-        <header className="border-b border-border/80">
-          <div className="flex flex-col gap-3 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[12px] text-muted-foreground">
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex max-w-[1520px] flex-col gap-5 px-4 py-4 lg:px-6 lg:py-6">
+        <header className="flex flex-col gap-4 border-b border-border/60 pb-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-foreground/88">
                   Pi console
                 </span>
                 {runtimeLabel ? (
-                  <Badge variant="outline" className="h-5 rounded-md px-2">
-                    {runtimeLabel}
-                  </Badge>
+                  <Badge variant="outline">{runtimeLabel}</Badge>
                 ) : null}
                 {surfpoolStatus ? (
                   <Badge
@@ -213,33 +235,50 @@ function App() {
                         ? "secondary"
                         : "destructive"
                     }
-                    className="h-5 rounded-md px-2"
                   >
-                    {surfpoolStatus.status === "online" ? "RPC online" : "RPC offline"}
+                    {surfpoolStatus.status === "online"
+                      ? "RPC online"
+                      : "RPC offline"}
                   </Badge>
                 ) : null}
               </div>
+
               <a
                 href={DEFAULT_CANVAS_URL}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-sm text-foreground/80 transition-colors hover:text-foreground"
+                className="inline-flex min-w-0 items-center gap-1 text-base font-normal tracking-tight text-foreground transition-colors hover:text-foreground/80 sm:text-lg"
               >
-                <span>
+                <span className="truncate">
                   {snapshot
-                    ? truncateMiddle(snapshot.task, 16, 12)
+                    ? truncateMiddle(snapshot.task, 18, 12)
                     : "Loading task"}
                 </span>
-                <ArrowUpRight className="size-3.5" />
+                <ArrowUpRight className="size-4" aria-hidden="true" />
               </a>
+
+              {surfpoolStatus?.status === "offline" ? (
+                <Alert variant="destructive" className="max-w-2xl">
+                  <AlertCircle aria-hidden="true" />
+                  <AlertTitle>Surfpool is offline</AlertTitle>
+                  <AlertDescription>
+                    {surfpoolStatus.errorLabel ?? "The RPC could not be reached."}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:pb-0">
+            <div className="flex flex-wrap gap-2">
               {headerLinks.map((link) => (
-                <Button key={link.label} asChild variant={link.variant} size="sm">
+                <Button
+                  key={link.label}
+                  asChild
+                  variant={link.variant}
+                  size="sm"
+                >
                   <a href={link.href} target="_blank" rel="noreferrer">
                     {link.label}
-                    <ArrowUpRight className="size-4" />
+                    <ArrowUpRight data-icon="inline-end" aria-hidden="true" />
                   </a>
                 </Button>
               ))}
@@ -247,214 +286,42 @@ function App() {
           </div>
         </header>
 
-        <main className="min-h-0 flex flex-1 flex-col md:grid md:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)]">
-          <div className="border-b border-border/80 px-4 py-2 sm:px-5 md:hidden">
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={mobilePanel === "chat" ? "secondary" : "ghost"}
-                size="sm"
-                className="font-normal"
-                onClick={() => setMobilePanel("chat")}
-              >
-                Chat
-              </Button>
-              <Button
-                type="button"
-                variant={mobilePanel === "run" ? "secondary" : "ghost"}
-                size="sm"
-                className="font-normal"
-                onClick={() => setMobilePanel("run")}
-              >
-                Run
-              </Button>
-            </div>
-          </div>
-
-          <section
-            className={cn(
-              "min-h-0 flex-1 flex-col overflow-hidden border-b border-border/80 md:border-r md:border-b-0",
-              mobilePanel === "chat" ? "flex" : "hidden md:flex",
-            )}
-          >
-            <div className="flex items-center justify-between gap-3 border-b border-border/80 px-4 py-2.5 sm:px-5">
-              <div className="space-y-1">
-                <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  Identity
-                </p>
-                <p className="text-sm text-foreground/78">
-                  Talk to live Surfpool identities with local Codex
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Activity className="size-3.5" />
-                {surfpoolStatus?.slotLabel ?? "Checking slot"}
-              </div>
-            </div>
-
-            <div className="min-h-0 flex-1">
-              <PiChatSurface
-                identityProfiles={identityProfiles}
-                runtimeLabel={runtimeLabel}
-                slotLabel={surfpoolStatus?.slotLabel ?? null}
-                latestReceiptLabel={latestReceiptLabel}
-                receiptCount={snapshot?.receiptTimeline.length ?? 0}
-                taskLabel={snapshot?.task ?? null}
-                rpcLabel={
-                  surfpoolStatus?.status === "online"
-                    ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                    : surfpoolStatus?.errorLabel ?? null
-                }
-                delegationLabels={chainLabels}
-              />
-            </div>
+        <main className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_380px]">
+          <section className="xl:min-h-[calc(100vh-9rem)]">
+            <PiChatSurface
+              identityProfiles={identityProfiles}
+              runtimeLabel={runtimeLabel}
+              slotLabel={surfpoolStatus?.slotLabel ?? null}
+              latestReceiptLabel={latestReceiptLabel}
+              receiptCount={snapshot?.receiptTimeline.length ?? 0}
+              taskLabel={snapshot?.task ?? null}
+              rpcLabel={
+                surfpoolStatus?.status === "online"
+                  ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
+                  : surfpoolStatus?.errorLabel ?? null
+              }
+              delegationLabels={chainLabels}
+            />
           </section>
 
-          <aside
-            className={cn(
-              "min-h-0 flex-1 flex-col overflow-y-auto",
-              mobilePanel === "run" ? "flex" : "hidden md:flex",
-            )}
-          >
-            <section className="px-4 py-4 sm:px-5">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                      Run
-                    </p>
-                    <p className="mt-1 text-sm text-foreground/82">
-                      {snapshot
-                        ? `${snapshot.receiptTimeline.length} receipts landed`
-                        : "Waiting for snapshot"}
-                    </p>
-                  </div>
-                  {snapshotUpdatedAt ? (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <RefreshCw className="size-3.5" />
-                      {formatTimestamp(snapshotUpdatedAt)}
-                    </div>
-                  ) : null}
-                </div>
+          <aside className="flex flex-col gap-4 xl:min-h-[calc(100vh-9rem)]">
+            <RunOverviewCard
+              leadEntry={leadEntry}
+              latestReceipt={latestReceipt}
+              identityLabelsById={identityLabelsById}
+              totalSlashedLamports={totalSlashedLamports}
+              snapshot={snapshot}
+              surfpoolStatus={surfpoolStatus}
+              snapshotUpdatedAt={snapshotUpdatedAt}
+            />
 
-                <dl className="space-y-3 text-sm">
-                  <FactRow
-                    label="Lead"
-                    value={
-                      leadEntry
-                        ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
-                        : "Unavailable"
-                    }
-                    href={leadEntry ? buildStudioScenariosUrl(leadEntry.agentId) : null}
-                  />
-                  <FactRow
-                    label="Latest"
-                    value={
-                      latestReceipt
-                        ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
-                        : "Unavailable"
-                    }
-                    href={
-                      latestReceipt
-                        ? buildStudioScenariosUrl(latestReceipt.receiptId)
-                        : null
-                    }
-                  />
-                  <FactRow
-                    label="Slashed"
-                    value={snapshot ? formatLamports(totalSlashedLamports) : "Unavailable"}
-                    href={DEFAULT_STUDIO_SCENARIOS_URL}
-                  />
-                  <FactRow
-                    label="RPC"
-                    value={
-                      surfpoolStatus?.status === "online"
-                        ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                        : surfpoolStatus?.errorLabel ?? "Unavailable"
-                    }
-                    href={DEFAULT_SURFPOOL_RPC_URL}
-                  />
-                </dl>
-              </div>
-            </section>
+            <DelegationCard chainLabels={chainLabels} />
 
-            <Separator />
-
-            <section className="px-4 py-4 sm:px-5">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                Delegation
-              </p>
-              <div className="mt-3 space-y-2">
-                {chainLabels.length > 0 ? (
-                  chainLabels.map((entry) => (
-                    <a
-                      key={entry}
-                      href={buildStudioScenariosUrl(entry)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-foreground/82 transition-colors hover:text-foreground"
-                    >
-                      <span>{entry}</span>
-                      <ArrowUpRight className="size-3.5" />
-                    </a>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No delegation chain</p>
-                )}
-              </div>
-            </section>
-
-            <Separator />
-
-            <section className="min-h-0 flex-1 overflow-hidden px-4 py-4 sm:px-5">
-              <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                Receipt timeline
-              </p>
-              <div className="mt-3 h-full overflow-y-auto">
-                {snapshot ? (
-                  <ul className="space-y-0">
-                    {snapshot.receiptTimeline.map((entry, index) => (
-                      <li key={entry.receiptId} className="py-3">
-                        <a
-                          href={buildStudioScenariosUrl(entry.receiptId)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-start justify-between gap-3 transition-colors hover:text-foreground"
-                        >
-                          <div className="space-y-1">
-                            <p className="text-sm text-foreground/84">{entry.kind}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {identityLabelsById.get(entry.actor) ??
-                                truncateMiddle(entry.actor)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground">
-                              slot {entry.slot}
-                            </p>
-                            <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                              <span>{truncateMiddle(entry.receiptId)}</span>
-                              <ArrowUpRight className="size-3.5" />
-                            </p>
-                          </div>
-                        </a>
-                        {index < snapshot.receiptTimeline.length - 1 ? (
-                          <Separator className="mt-3" />
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : snapshotError ? (
-                  <p className="text-sm text-destructive">{snapshotError}</p>
-                ) : (
-                  <div className="space-y-3">
-                    <LoadingLine />
-                    <LoadingLine />
-                    <LoadingLine />
-                  </div>
-                )}
-              </div>
-            </section>
+            <ReceiptTimelineCard
+              snapshot={snapshot}
+              snapshotError={snapshotError}
+              identityLabelsById={identityLabelsById}
+            />
           </aside>
         </main>
       </div>
@@ -462,39 +329,261 @@ function App() {
   );
 }
 
-function FactRow({
+function RunOverviewCard({
+  leadEntry,
+  latestReceipt,
+  identityLabelsById,
+  totalSlashedLamports,
+  snapshot,
+  surfpoolStatus,
+  snapshotUpdatedAt,
+}: {
+  leadEntry: DashboardSnapshot["leaderboard"]["all"][number] | null;
+  latestReceipt: DashboardSnapshot["receiptTimeline"][number] | null;
+  identityLabelsById: Map<string, string>;
+  totalSlashedLamports: number;
+  snapshot: DashboardSnapshot | null;
+  surfpoolStatus: SurfpoolStatus | null;
+  snapshotUpdatedAt: number | null;
+}) {
+  return (
+    <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
+      <CardHeader className="border-b border-border/70 bg-background/28">
+        <CardTitle>Run</CardTitle>
+        <CardDescription>
+          {snapshot
+            ? `${snapshot.receiptTimeline.length} receipts landed`
+            : "Waiting for live snapshot"}
+        </CardDescription>
+        {snapshotUpdatedAt ? (
+          <CardAction className="text-xs text-muted-foreground">
+            {formatTimestamp(snapshotUpdatedAt)}
+          </CardAction>
+        ) : null}
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3 pt-4">
+        {snapshot ? (
+          <>
+            <SummaryRow
+              icon={<Trophy aria-hidden="true" />}
+              label="Lead"
+              value={
+                leadEntry
+                  ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
+                  : "Unavailable"
+              }
+              href={leadEntry ? buildStudioScenariosUrl(leadEntry.agentId) : null}
+            />
+            <SummaryRow
+              icon={<FileText aria-hidden="true" />}
+              label="Latest"
+              value={
+                latestReceipt
+                  ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
+                  : "Unavailable"
+              }
+              href={
+                latestReceipt
+                  ? buildStudioScenariosUrl(latestReceipt.receiptId)
+                  : null
+              }
+            />
+            <SummaryRow
+              icon={<AlertCircle aria-hidden="true" />}
+              label="Slashed"
+              value={formatLamports(totalSlashedLamports)}
+              href={DEFAULT_STUDIO_SCENARIOS_URL}
+            />
+            <SummaryRow
+              icon={<Activity aria-hidden="true" />}
+              label="RPC"
+              value={
+                surfpoolStatus?.status === "online"
+                  ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
+                  : surfpoolStatus?.errorLabel ?? "Unavailable"
+              }
+              href={DEFAULT_SURFPOOL_RPC_URL}
+            />
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DelegationCard({ chainLabels }: { chainLabels: string[] }) {
+  return (
+    <Card className="gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
+      <CardHeader className="border-b border-border/70 bg-background/28">
+        <CardTitle>Delegation</CardTitle>
+        <CardDescription>Who handed work to whom.</CardDescription>
+      </CardHeader>
+
+      <CardContent className="pt-4">
+        {chainLabels.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            {chainLabels.map((entry) => (
+              <a
+                key={entry}
+                href={buildStudioScenariosUrl(entry)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-background/34 px-3 py-2.5 transition-colors hover:bg-muted/50"
+              >
+                <div className="flex min-w-0 items-start gap-2">
+                  <Link2 className="mt-0.5 size-4 text-muted-foreground" />
+                  <span className="min-w-0 truncate text-sm text-foreground">
+                    {entry}
+                  </span>
+                </div>
+                <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+              </a>
+            ))}
+          </div>
+        ) : (
+          <Empty className="border-border/70 bg-background/30 py-8">
+            <EmptyContent>
+              <EmptyMedia variant="icon">
+                <Link2 aria-hidden="true" />
+              </EmptyMedia>
+              <EmptyHeader>
+                <EmptyTitle>No delegation chain</EmptyTitle>
+                <EmptyDescription>
+                  Delegation links will show here when the snapshot lands.
+                </EmptyDescription>
+              </EmptyHeader>
+            </EmptyContent>
+          </Empty>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReceiptTimelineCard({
+  snapshot,
+  snapshotError,
+  identityLabelsById,
+}: {
+  snapshot: DashboardSnapshot | null;
+  snapshotError: string | null;
+  identityLabelsById: Map<string, string>;
+}) {
+  return (
+    <Card className="min-h-0 flex-1 gap-0 bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl">
+      <CardHeader className="border-b border-border/70 bg-background/28">
+        <CardTitle>Receipt timeline</CardTitle>
+        <CardDescription>Latest onchain activity for the active task.</CardDescription>
+      </CardHeader>
+
+      <CardContent className="min-h-0 flex-1 px-0 pt-0">
+        {snapshot ? (
+          <ScrollArea className="h-[320px] sm:h-[380px] xl:h-full">
+            <div className="flex flex-col px-4 py-2">
+              {snapshot.receiptTimeline.map((entry) => (
+                <a
+                  key={entry.receiptId}
+                  href={buildStudioScenariosUrl(entry.receiptId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-start justify-between gap-4 border-b border-border/60 py-3 last:border-b-0"
+                >
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span className="text-sm font-medium text-foreground">
+                      {entry.kind}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {identityLabelsById.get(entry.actor) ??
+                        truncateMiddle(entry.actor)}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                    <span className="text-xs text-muted-foreground">
+                      slot {entry.slot}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <span>{truncateMiddle(entry.receiptId)}</span>
+                      <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </ScrollArea>
+        ) : snapshotError ? (
+          <div className="p-4">
+            <Alert variant="destructive">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>Snapshot unavailable</AlertTitle>
+              <AlertDescription>{snapshotError}</AlertDescription>
+            </Alert>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 p-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-14 w-full" />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SummaryRow({
+  icon,
   label,
   value,
   href,
 }: {
+  icon: React.ReactNode;
   label: string;
   value: string;
   href?: string | null;
 }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="max-w-[16rem] text-right text-foreground/82">
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-end gap-1 transition-colors hover:text-foreground"
-          >
-            <span>{value}</span>
-            <ArrowUpRight className="size-3.5" />
-          </a>
-        ) : (
-          value
-        )}
-      </dd>
-    </div>
+  const content = (
+    <>
+      <div className="flex min-w-0 items-start gap-2">
+        <span className="mt-0.5 text-muted-foreground">{icon}</span>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-xs uppercase tracking-[0.08em] text-muted-foreground">
+            {label}
+          </span>
+          <span className="text-sm text-foreground">{value}</span>
+        </div>
+      </div>
+      {href ? (
+        <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+      ) : null}
+    </>
   );
-}
 
-function LoadingLine() {
-  return <div className="h-4 w-full rounded bg-muted/60" />;
+  if (!href) {
+    return (
+      <div className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/40 px-3 py-2.5 transition-colors hover:bg-muted/50"
+    >
+      {content}
+    </a>
+  );
 }
 
 function buildIdentityProfiles(

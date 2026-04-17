@@ -346,7 +346,9 @@ function getBrowserStorage(): Storage | null {
 function clearStorageKey(storage: Storage, key: string) {
   try {
     storage.removeItem(key);
-  } catch {}
+  } catch {
+    // Ignore blocked or unavailable browser storage.
+  }
 }
 
 function isStoredIdentityWorkspace(
