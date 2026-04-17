@@ -22,10 +22,12 @@ import {
   type SurfpoolStatus,
   truncateMiddle,
 } from "@/lib/dashboard";
+import type { PiIdentityProfile } from "@/lib/pi-identities";
 import {
   getDefaultRuntimeLabel,
   loadLocalRuntimeConfig,
 } from "@/lib/local-runtime";
+import { cn } from "@/lib/utils";
 
 function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -37,6 +39,7 @@ function App() {
     null,
   );
   const [runtimeLabel, setRuntimeLabel] = useState<string | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<"chat" | "run">("chat");
 
   useEffect(() => {
     let isActive = true;
@@ -151,6 +154,10 @@ function App() {
         return `${identityLabelsById.get(entry.delegatorId) ?? truncateMiddle(entry.delegatorId)} -> ${identityLabelsById.get(entry.delegateId) ?? truncateMiddle(entry.delegateId)}`;
       })
     : [];
+  const identityProfiles = useMemo(
+    () => buildIdentityProfiles(snapshot, identityLabelsById),
+    [identityLabelsById, snapshot],
+  );
   const headerLinks = [
     {
       href: DEFAULT_STUDIO_URL,
@@ -227,7 +234,7 @@ function App() {
               </a>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:pb-0">
               {headerLinks.map((link) => (
                 <Button key={link.label} asChild variant={link.variant} size="sm">
                   <a href={link.href} target="_blank" rel="noreferrer">
@@ -240,15 +247,43 @@ function App() {
           </div>
         </header>
 
-        <main className="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)]">
-          <section className="flex min-h-0 flex-col overflow-hidden border-b border-border/80 md:border-r md:border-b-0">
+        <main className="min-h-0 flex flex-1 flex-col md:grid md:grid-cols-[minmax(0,1.35fr)_minmax(300px,360px)]">
+          <div className="border-b border-border/80 px-4 py-2 sm:px-5 md:hidden">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={mobilePanel === "chat" ? "secondary" : "ghost"}
+                size="sm"
+                className="font-normal"
+                onClick={() => setMobilePanel("chat")}
+              >
+                Chat
+              </Button>
+              <Button
+                type="button"
+                variant={mobilePanel === "run" ? "secondary" : "ghost"}
+                size="sm"
+                className="font-normal"
+                onClick={() => setMobilePanel("run")}
+              >
+                Run
+              </Button>
+            </div>
+          </div>
+
+          <section
+            className={cn(
+              "min-h-0 flex-1 flex-col overflow-hidden border-b border-border/80 md:border-r md:border-b-0",
+              mobilePanel === "chat" ? "flex" : "hidden md:flex",
+            )}
+          >
             <div className="flex items-center justify-between gap-3 border-b border-border/80 px-4 py-2.5 sm:px-5">
               <div className="space-y-1">
                 <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                  Agent
+                  Identity
                 </p>
                 <p className="text-sm text-foreground/78">
-                  Browser Pi surface with local session storage
+                  Talk to live Surfpool identities with local Codex
                 </p>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -259,6 +294,7 @@ function App() {
 
             <div className="min-h-0 flex-1">
               <PiChatSurface
+                identityProfiles={identityProfiles}
                 runtimeLabel={runtimeLabel}
                 slotLabel={surfpoolStatus?.slotLabel ?? null}
                 latestReceiptLabel={latestReceiptLabel}
@@ -274,7 +310,12 @@ function App() {
             </div>
           </section>
 
-          <aside className="flex min-h-0 flex-col overflow-y-auto">
+          <aside
+            className={cn(
+              "min-h-0 flex-1 flex-col overflow-y-auto",
+              mobilePanel === "run" ? "flex" : "hidden md:flex",
+            )}
+          >
             <section className="px-4 py-4 sm:px-5">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
@@ -454,6 +495,114 @@ function FactRow({
 
 function LoadingLine() {
   return <div className="h-4 w-full rounded bg-muted/60" />;
+}
+
+function buildIdentityProfiles(
+  snapshot: DashboardSnapshot | null,
+  identityLabelsById: Map<string, string>,
+): PiIdentityProfile[] {
+  if (!snapshot) {
+    return [];
+  }
+
+  const receiptCountByActor = new Map<string, number>();
+  const latestReceiptByActor = new Map<
+    string,
+    DashboardSnapshot["receiptTimeline"][number]
+  >();
+  const delegatedFromById = new Map<string, string[]>();
+  const delegatedToById = new Map<string, string[]>();
+  const scoreById = new Map(
+    snapshot.leaderboard.all.map((entry) => [entry.agentId, entry.score]),
+  );
+
+  for (const receipt of snapshot.receiptTimeline) {
+    receiptCountByActor.set(
+      receipt.actor,
+      (receiptCountByActor.get(receipt.actor) ?? 0) + 1,
+    );
+    latestReceiptByActor.set(receipt.actor, receipt);
+  }
+
+  for (const delegation of snapshot.delegationChain) {
+    delegatedFromById.set(delegation.delegateId, [
+      ...(delegatedFromById.get(delegation.delegateId) ?? []),
+      delegation.delegatorId,
+    ]);
+    delegatedToById.set(delegation.delegatorId, [
+      ...(delegatedToById.get(delegation.delegatorId) ?? []),
+      delegation.delegateId,
+    ]);
+  }
+
+  return Object.entries(snapshot.identities).map(([slug, identityId]) => {
+    const delegatedFromLabels = (delegatedFromById.get(identityId) ?? []).map(
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
+    );
+    const delegatedToLabels = (delegatedToById.get(identityId) ?? []).map(
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
+    );
+    const latestReceipt = latestReceiptByActor.get(identityId) ?? null;
+
+    return {
+      id: identityId,
+      slug,
+      label: formatIdentityLabel(slug),
+      roleSummary: describeIdentityRole({
+        slug,
+        latestReceiptKind: latestReceipt?.kind ?? null,
+        delegatedFromCount: delegatedFromLabels.length,
+        delegatedToCount: delegatedToLabels.length,
+      }),
+      promptHint: buildIdentityPromptHint(slug),
+      receiptCount: receiptCountByActor.get(identityId) ?? 0,
+      latestReceiptKind: latestReceipt?.kind ?? null,
+      score: scoreById.get(identityId) ?? null,
+      delegatedFromLabels,
+      delegatedToLabels,
+    } satisfies PiIdentityProfile;
+  });
+}
+
+function formatIdentityLabel(slug: string) {
+  return `${slug.charAt(0).toUpperCase()}${slug.slice(1)} Agent`;
+}
+
+function buildIdentityPromptHint(slug: string) {
+  if (slug === "planner") {
+    return "Ask about assignment, task scope, or the next delegation.";
+  }
+
+  if (slug === "reviewer") {
+    return "Ask about challenges, disputes, or final attestation.";
+  }
+
+  return `Ask ${formatIdentityLabel(slug)} about execution, receipts, or the next move.`;
+}
+
+function describeIdentityRole(input: {
+  slug: string;
+  latestReceiptKind: string | null;
+  delegatedFromCount: number;
+  delegatedToCount: number;
+}) {
+  if (input.slug === "reviewer" || input.latestReceiptKind === "attestation") {
+    return "Reviews the task, challenges outcomes, and resolves disputes.";
+  }
+
+  if (input.delegatedToCount > 0 && input.delegatedFromCount === 0) {
+    return "Owns the top-level task plan and delegates execution downstream.";
+  }
+
+  if (input.delegatedToCount > 0 && input.delegatedFromCount > 0) {
+    return "Executes delegated work and can hand it off to another identity.";
+  }
+
+  if (input.delegatedFromCount > 0) {
+    return "Executes delegated work and lands receipts on the current task.";
+  }
+
+  return "Participates directly in the current Surfpool task.";
 }
 
 export default App;

@@ -6,46 +6,51 @@ import {
   ModelSelector,
   getAppStorage,
 } from "@mariozechner/pi-web-ui";
-import {
-  Bot,
-  Loader2,
-  Plus,
-  Send,
-  Square,
-  Trash2,
-  Wrench,
-} from "lucide-react";
+import { Bot, Loader2, Send, Square, Trash2, Wrench } from "lucide-react";
 
+import {
+  PromptInput,
+  PromptInputActions,
+  PromptInputEnterHint,
+  PromptInputFooter,
+  PromptInputHeader,
+  PromptInputMeta,
+  PromptInputTextarea,
+  PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  appendAgent,
-  createAgentRecord,
-  createDefaultAgentWorkspace,
-  getActiveAgentRecord,
-  loadAgentWorkspace,
-  persistAgentWorkspace,
-  setActiveAgent,
-  type StoredAgentWorkspace,
-  updateAgentChatState,
-} from "@/lib/pi-agents";
+  createEmptyChatState,
+  createFallbackIdentityProfile,
+  createIdentityWorkspace,
+  loadIdentityWorkspace,
+  persistIdentityWorkspace,
+  setActiveIdentity,
+  syncIdentityWorkspace,
+  type PiIdentityProfile,
+  type StoredIdentityWorkspace,
+  updateIdentityChatState,
+} from "@/lib/pi-identities";
 import { createPiConsoleAgent } from "@/lib/pi-chat";
 import {
   subscribeToLocalRuntimeActivity,
   type LocalRuntimeActivity,
   type LocalRuntimeConfig,
 } from "@/lib/local-runtime";
+import { cn } from "@/lib/utils";
 
-const AGENT_SESSION_ID_PREFIX = "trust-substrate-pi-console-agent";
+const IDENTITY_SESSION_ID_PREFIX = "trust-substrate-pi-console-identity";
 const BASE_SYSTEM_PROMPT = [
-  "You are Pi inside the Trust Substrate console.",
-  "Stay concise.",
-  "Prioritize the current Surfpool task, receipts, delegation chain, and disputes.",
-  "When you do not know a fact, say so plainly.",
-  "Use the live context block below as the source of truth for the current local run.",
-  "If the active model exposes tools, use them when they improve precision.",
+  "You are the selected Surfpool identity inside the Trust Substrate console.",
+  "Answer in a concise, direct way.",
+  "Stay faithful to the live task, receipts, delegation chain, and disputes shown in the console.",
+  "If you infer something from the live snapshot instead of knowing it directly, say so plainly.",
+  "Use tools when they improve precision.",
 ].join(" ");
 
 interface PiChatSurfaceProps {
+  identityProfiles?: PiIdentityProfile[];
   runtimeLabel?: string | null;
   slotLabel?: string | null;
   latestReceiptLabel?: string | null;
@@ -56,6 +61,7 @@ interface PiChatSurfaceProps {
 }
 
 export function PiChatSurface({
+  identityProfiles = [],
   runtimeLabel = null,
   slotLabel = null,
   latestReceiptLabel = null,
@@ -64,9 +70,17 @@ export function PiChatSurface({
   rpcLabel = null,
   delegationLabels = [],
 }: PiChatSurfaceProps) {
-  const [agentWorkspace, setAgentWorkspace] = useState<StoredAgentWorkspace>(
-    () => createDefaultAgentWorkspace(),
+  const availableIdentities = useMemo(
+    () =>
+      identityProfiles.length > 0
+        ? identityProfiles
+        : [createFallbackIdentityProfile(taskLabel)],
+    [identityProfiles, taskLabel],
   );
+  const [identityWorkspace, setIdentityWorkspace] =
+    useState<StoredIdentityWorkspace>(() =>
+      createIdentityWorkspace(availableIdentities),
+    );
   const [agentHandle, setAgentHandle] = useState<Awaited<
     ReturnType<typeof createPiConsoleAgent>
   > | null>(null);
@@ -76,21 +90,39 @@ export function PiChatSurface({
   const [version, setVersion] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(false);
-  const [isCreatingAgent, setIsCreatingAgent] = useState(false);
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentInstructions, setNewAgentInstructions] = useState("");
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const agentRef = useRef<Awaited<ReturnType<typeof createPiConsoleAgent>> | null>(
     null,
   );
 
-  const activeAgentRecord = useMemo(
-    () => getActiveAgentRecord(agentWorkspace),
-    [agentWorkspace],
-  );
+  const activeIdentity =
+    availableIdentities.find(
+      (identity) => identity.id === identityWorkspace.activeIdentityId,
+    ) ?? availableIdentities[0];
+  const activeChatState =
+    identityWorkspace.chats[activeIdentity.id] ?? createEmptyChatState();
+  const initialChatState = useMemo(() => activeChatState, [activeIdentity.id]);
 
   const systemPrompt = useMemo(() => {
+    const identityLines = [
+      `Label: ${activeIdentity.label}`,
+      `Identity id: ${activeIdentity.id}`,
+      `Role: ${activeIdentity.roleSummary}`,
+      activeIdentity.latestReceiptKind
+        ? `Latest receipt: ${activeIdentity.latestReceiptKind}`
+        : null,
+      `Receipts landed: ${activeIdentity.receiptCount}`,
+      activeIdentity.score !== null
+        ? `Leaderboard score: ${activeIdentity.score}`
+        : null,
+      activeIdentity.delegatedFromLabels.length > 0
+        ? `Delegated from: ${activeIdentity.delegatedFromLabels.join(" | ")}`
+        : "Delegated from: none",
+      activeIdentity.delegatedToLabels.length > 0
+        ? `Delegates to: ${activeIdentity.delegatedToLabels.join(" | ")}`
+        : "Delegates to: none",
+    ].filter(Boolean);
     const contextLines = [
       taskLabel ? `Task: ${taskLabel}` : null,
       runtimeLabel ? `Runtime: ${runtimeLabel}` : null,
@@ -103,14 +135,13 @@ export function PiChatSurface({
         : "Delegation: none",
     ].filter(Boolean);
 
-    const sections = [BASE_SYSTEM_PROMPT];
-    if (activeAgentRecord.instructions) {
-      sections.push(`Agent brief:\n${activeAgentRecord.instructions}`);
-    }
-    sections.push(`Live context:\n${contextLines.join("\n")}`);
-    return sections.join("\n\n");
+    return [
+      BASE_SYSTEM_PROMPT,
+      `Active identity:\n${identityLines.join("\n")}`,
+      `Live context:\n${contextLines.join("\n")}`,
+    ].join("\n\n");
   }, [
-    activeAgentRecord.instructions,
+    activeIdentity,
     delegationLabels,
     latestReceiptLabel,
     receiptCount,
@@ -121,8 +152,7 @@ export function PiChatSurface({
   ]);
 
   useEffect(() => {
-    const workspace = loadAgentWorkspace();
-    setAgentWorkspace(workspace);
+    setIdentityWorkspace(loadIdentityWorkspace(availableIdentities));
     setWorkspaceReady(true);
   }, []);
 
@@ -131,8 +161,18 @@ export function PiChatSurface({
       return;
     }
 
-    persistAgentWorkspace(agentWorkspace);
-  }, [agentWorkspace, workspaceReady]);
+    setIdentityWorkspace((current) =>
+      syncIdentityWorkspace(current, availableIdentities),
+    );
+  }, [availableIdentities, workspaceReady]);
+
+  useEffect(() => {
+    if (!workspaceReady) {
+      return;
+    }
+
+    persistIdentityWorkspace(identityWorkspace);
+  }, [identityWorkspace, workspaceReady]);
 
   useEffect(() => {
     if (!workspaceReady) {
@@ -149,11 +189,11 @@ export function PiChatSurface({
 
     const initialize = async () => {
       const handle = await createPiConsoleAgent({
-        sessionId: getAgentSessionId(activeAgentRecord.id),
+        sessionId: getIdentitySessionId(activeIdentity.id),
         systemPrompt,
-        messages: activeAgentRecord.state.messages,
-        preferredModel: activeAgentRecord.state.preferredModel,
-        thinkingLevel: activeAgentRecord.state.thinkingLevel,
+        messages: initialChatState.messages,
+        preferredModel: initialChatState.preferredModel,
+        thinkingLevel: initialChatState.thinkingLevel,
       });
 
       if (!isActive) {
@@ -184,7 +224,7 @@ export function PiChatSurface({
         agentRef.current = null;
       }
     };
-  }, [activeAgentRecord.id, workspaceReady]);
+  }, [activeIdentity.id, initialChatState, workspaceReady]);
 
   useEffect(() => {
     if (!agentHandle) {
@@ -196,12 +236,20 @@ export function PiChatSurface({
   }, [agentHandle, systemPrompt]);
 
   useEffect(() => {
+    const unsubscribe = subscribeToLocalRuntimeActivity((activity) => {
+      setActivityLog((current) => upsertActivity(current, activity));
+    });
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
     if (!agentHandle || !workspaceReady) {
       return;
     }
 
-    setAgentWorkspace((current) =>
-      updateAgentChatState(current, activeAgentRecord.id, {
+    setIdentityWorkspace((current) =>
+      updateIdentityChatState(current, activeIdentity.id, {
         messages: [...agentHandle.agent.state.messages],
         preferredModel: {
           provider: agentHandle.agent.state.model.provider,
@@ -210,15 +258,7 @@ export function PiChatSurface({
         thinkingLevel: agentHandle.agent.state.thinkingLevel,
       }),
     );
-  }, [activeAgentRecord.id, agentHandle, version, workspaceReady]);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToLocalRuntimeActivity((activity) => {
-      setActivityLog((current) => upsertActivity(current, activity));
-    });
-
-    return unsubscribe;
-  }, []);
+  }, [activeIdentity.id, agentHandle, version, workspaceReady]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -306,28 +346,12 @@ export function PiChatSurface({
     });
   };
 
-  const handleSwitchAgent = (agentId: string) => {
-    if (agentId === activeAgentRecord.id) {
+  const handleSwitchIdentity = (identityId: string) => {
+    if (identityId === activeIdentity.id) {
       return;
     }
 
-    setAgentWorkspace((current) => setActiveAgent(current, agentId));
-    setComposeError(null);
-    setDraft("");
-    setActivityLog([]);
-  };
-
-  const handleCreateAgent = () => {
-    const agentNumber = agentWorkspace.agents.length + 1;
-    const nextAgent = createAgentRecord({
-      name: newAgentName.trim() || `Agent ${agentNumber}`,
-      instructions: newAgentInstructions,
-    });
-
-    setAgentWorkspace((current) => appendAgent(current, nextAgent));
-    setIsCreatingAgent(false);
-    setNewAgentName("");
-    setNewAgentInstructions("");
+    setIdentityWorkspace((current) => setActiveIdentity(current, identityId));
     setComposeError(null);
     setDraft("");
     setActivityLog([]);
@@ -338,7 +362,7 @@ export function PiChatSurface({
       <div className="flex h-full items-center justify-center px-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
-          Connecting to Pi
+          Connecting to {activeIdentity.label}
         </div>
       </div>
     );
@@ -365,127 +389,83 @@ export function PiChatSurface({
     (agent.state.errorMessage && agent.state.errorMessage !== "aborted"
       ? agent.state.errorMessage
       : null);
+  const identityMeta = [
+    providerLabel,
+    currentModel.id,
+    agent.state.thinkingLevel,
+    slotLabel,
+  ].filter(Boolean);
+  const connectionSummary = buildConnectionSummary(activeIdentity);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="border-b border-border/80 px-4 py-3 sm:px-5">
         <div className="space-y-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-2">
+            <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                <span>Agents</span>
-                <span>{agentWorkspace.agents.length}</span>
+                <span>Identities</span>
+                <span>{availableIdentities.length}</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {agentWorkspace.agents.map((agentOption) => (
-                  <Button
-                    key={agentOption.id}
-                    type="button"
-                    variant={
-                      agentOption.id === activeAgentRecord.id ? "secondary" : "ghost"
-                    }
-                    size="sm"
-                    className="max-w-full font-normal"
-                    onClick={() => handleSwitchAgent(agentOption.id)}
-                  >
-                    {agentOption.name}
-                  </Button>
-                ))}
-              </div>
-              <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
-                {activeAgentRecord.instructions
-                  ? activeAgentRecord.instructions
-                  : "Separate each agent by brief, history, and model choice."}
+              <p className="hidden max-w-2xl text-sm leading-6 text-foreground/82 sm:block">
+                {activeIdentity.roleSummary}
               </p>
+              {connectionSummary ? (
+                <p className="hidden max-w-2xl text-xs leading-5 text-muted-foreground sm:block">
+                  {connectionSummary}
+                </p>
+              ) : null}
             </div>
 
-            <Button
-              type="button"
-              variant={isCreatingAgent ? "secondary" : "outline"}
-              size="sm"
-              className="font-normal"
-              onClick={() => {
-                setIsCreatingAgent((current) => !current);
-                if (isCreatingAgent) {
-                  setNewAgentName("");
-                  setNewAgentInstructions("");
-                }
-              }}
-            >
-              <Plus className="size-3.5" />
-              New agent
-            </Button>
+            <div className="hidden flex-wrap items-center gap-2 sm:flex">
+              {activeIdentity.score !== null ? (
+                <Badge variant="outline" className="h-6 rounded-md px-2.5">
+                  score {activeIdentity.score}
+                </Badge>
+              ) : null}
+              <Badge variant="outline" className="h-6 rounded-md px-2.5">
+                {activeIdentity.receiptCount} receipts
+              </Badge>
+              {activeIdentity.latestReceiptKind ? (
+                <Badge variant="outline" className="h-6 rounded-md px-2.5">
+                  {activeIdentity.latestReceiptKind}
+                </Badge>
+              ) : null}
+            </div>
           </div>
 
-          {isCreatingAgent ? (
-            <div className="rounded-lg border border-border/70 bg-card/60 px-3 py-3">
-              <div className="grid gap-3 sm:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
-                <label className="space-y-2">
-                  <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                    Name
-                  </span>
-                  <input
-                    value={newAgentName}
-                    onChange={(event) => setNewAgentName(event.target.value)}
-                    placeholder={`Agent ${agentWorkspace.agents.length + 1}`}
-                    className="h-9 w-full rounded-lg border border-border/70 bg-background/80 px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
-                  />
-                </label>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {availableIdentities.map((identityOption) => {
+              const isActive = identityOption.id === activeIdentity.id;
 
-                <label className="space-y-2">
-                  <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-                    Brief
-                  </span>
-                  <textarea
-                    value={newAgentInstructions}
-                    onChange={(event) =>
-                      setNewAgentInstructions(event.target.value)
-                    }
-                    rows={2}
-                    placeholder="Optional role or focus for this agent"
-                    className="min-h-[78px] w-full resize-none rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-sm leading-6 text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50 placeholder:text-muted-foreground"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-3 flex items-center justify-end gap-2">
-                <Button
+              return (
+                <button
+                  key={identityOption.id}
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="font-normal"
-                  onClick={() => {
-                    setIsCreatingAgent(false);
-                    setNewAgentName("");
-                    setNewAgentInstructions("");
-                  }}
+                  className={cn(
+                    "min-h-10 min-w-[136px] rounded-lg border px-3 py-2 text-left transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
+                    isActive
+                      ? "border-border bg-card/80 text-foreground shadow-sm shadow-black/20"
+                      : "border-border/70 bg-background/40 text-foreground/82 hover:bg-muted/35",
+                  )}
+                  onClick={() => handleSwitchIdentity(identityOption.id)}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="font-normal"
-                  onClick={handleCreateAgent}
-                >
-                  Create agent
-                </Button>
-              </div>
-            </div>
-          ) : null}
+                  <span className="block text-sm">{identityOption.label}</span>
+                  <span className="mt-1 block text-[11px] leading-5 text-muted-foreground">
+                    {buildIdentityChipMeta(identityOption)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-            <span className="truncate text-foreground/78">
-              {activeAgentRecord.name}
-            </span>
-            {providerLabel ? (
-              <span className="truncate text-foreground/78">{providerLabel}</span>
-            ) : null}
-            <span className="truncate">{currentModel.id}</span>
-            <span>{agent.state.thinkingLevel}</span>
-            {slotLabel ? <span>{slotLabel}</span> : null}
+          <div className="hidden flex-wrap items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <span className="text-foreground/82">{truncateIdentity(activeIdentity.id)}</span>
+            {identityMeta.map((value) => (
+              <span key={value}>{value}</span>
+            ))}
             {latestReceiptLabel ? <span>{latestReceiptLabel}</span> : null}
-            <span>{receiptCount} receipts</span>
+            <span>{receiptCount} total receipts</span>
           </div>
         </div>
       </div>
@@ -493,7 +473,7 @@ export function PiChatSurface({
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
           {messages.length === 0 && !streamingMessage && activityLog.length === 0 ? (
-            <EmptyState agentName={activeAgentRecord.name} />
+            <EmptyState identity={activeIdentity} />
           ) : null}
 
           {messages.map((message, index) => (
@@ -522,25 +502,40 @@ export function PiChatSurface({
         </div>
       </div>
 
-      <form
-        className="border-t border-border/80 px-4 py-3 sm:px-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void handleSubmit();
-        }}
-      >
-        <div className="mx-auto max-w-3xl space-y-3">
+      <div className="border-t border-border/80 px-4 py-3 sm:px-5">
+        <div className="mx-auto max-w-3xl">
           {activeError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/8 px-3 py-2 text-sm text-destructive">
+            <div className="mb-3 rounded-lg border border-destructive/30 bg-destructive/8 px-3 py-2 text-sm text-destructive">
               {activeError}
             </div>
           ) : null}
 
-          <div className="rounded-lg border border-border/70 bg-card/70 px-3 py-3 shadow-sm">
-            <label htmlFor="pi-chat-input" className="sr-only">
-              Message {activeAgentRecord.name}
-            </label>
-            <textarea
+          <PromptInput
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleSubmit();
+            }}
+          >
+            <PromptInputHeader>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="pi-chat-input"
+                  className="block text-[11px] uppercase tracking-[0.08em] text-muted-foreground"
+                >
+                  Message {activeIdentity.label}
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary" className="h-6 rounded-md px-2.5">
+                    {activeIdentity.label}
+                  </Badge>
+                  <span className="hidden text-xs leading-5 text-muted-foreground sm:inline">
+                    {activeIdentity.promptHint}
+                  </span>
+                </div>
+              </div>
+            </PromptInputHeader>
+
+            <PromptInputTextarea
               id="pi-chat-input"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
@@ -550,45 +545,63 @@ export function PiChatSurface({
                   void handleSubmit();
                 }
               }}
-              placeholder={`Ask ${activeAgentRecord.name} about the run`}
-              rows={3}
+              placeholder={`Ask ${activeIdentity.label} about the task, delegation, or receipts`}
               disabled={isStreaming}
-              className="min-h-[92px] w-full resize-none bg-transparent text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-70"
+              rows={4}
+              enterKeyHint="send"
             />
 
-            <div className="mt-3 flex flex-col gap-2 border-t border-border/70 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="max-w-full truncate font-normal"
-                  onClick={handleSelectModel}
-                >
-                  {currentModel.id}
-                </Button>
+            <PromptInputFooter>
+              <div className="space-y-2">
+                <PromptInputTools>
+                  <div className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/60 px-2">
+                    <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                      Model
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 rounded-md px-2 text-xs font-normal"
+                      onClick={handleSelectModel}
+                    >
+                      {currentModel.id}
+                    </Button>
+                  </div>
 
-                <label className="sr-only" htmlFor="pi-thinking-level">
-                  Reasoning level
-                </label>
-                <select
-                  id="pi-thinking-level"
-                  value={agent.state.thinkingLevel}
-                  onChange={(event) => {
-                    agent.state.thinkingLevel = event.target.value as ThinkingLevel;
-                    setVersion((current) => current + 1);
-                  }}
-                  className="h-8 rounded-lg border border-border/70 bg-background/80 px-2 text-xs text-muted-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
-                >
-                  {availableThinkingLevels.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
-                  ))}
-                </select>
+                  <label className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 bg-background/60 px-2">
+                    <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                      Reasoning
+                    </span>
+                    <select
+                      value={agent.state.thinkingLevel}
+                      onChange={(event) => {
+                        agent.state.thinkingLevel = event.target.value as ThinkingLevel;
+                        setVersion((current) => current + 1);
+                      }}
+                      className="h-6 bg-transparent pr-1 text-xs text-foreground outline-none"
+                    >
+                      {availableThinkingLevels.map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <Badge variant="outline" className="h-6 rounded-md px-2.5">
+                    MCP + tools
+                  </Badge>
+                </PromptInputTools>
+
+                <PromptInputMeta>
+                  <PromptInputEnterHint />
+                  <span>{messages.length} messages</span>
+                  <span>{activeIdentity.receiptCount} live receipts</span>
+                </PromptInputMeta>
               </div>
 
-              <div className="flex items-center gap-2">
+              <PromptInputActions>
                 {messages.length > 0 ? (
                   <Button
                     type="button"
@@ -625,18 +638,18 @@ export function PiChatSurface({
                     Send
                   </Button>
                 )}
-              </div>
-            </div>
-          </div>
+              </PromptInputActions>
+            </PromptInputFooter>
+          </PromptInput>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
 
-function EmptyState({ agentName }: { agentName: string }) {
+function EmptyState({ identity }: { identity: PiIdentityProfile }) {
   return (
-    <div className="flex min-h-[220px] items-center justify-center">
+    <div className="flex min-h-[88px] items-center justify-center sm:min-h-[220px]">
       <div className="max-w-sm space-y-2 text-center">
         <div className="flex justify-center">
           <Bot className="size-5 text-muted-foreground" />
@@ -644,9 +657,8 @@ function EmptyState({ agentName }: { agentName: string }) {
         <p className="text-sm text-foreground/84">
           Start with the task, a receipt, or a dispute.
         </p>
-        <p className="text-xs text-muted-foreground">
-          {agentName} keeps a separate history. Create another agent when you
-          need a different brief.
+        <p className="text-xs leading-5 text-muted-foreground">
+          {identity.promptHint}
         </p>
       </div>
     </div>
@@ -678,7 +690,7 @@ function MessageRow({
 function UserBubble({ message }: { message: UserLikeMessage }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[88%] rounded-lg border border-border/70 bg-card px-3 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
+      <div className="max-w-[88%] rounded-lg border border-border/70 bg-card/70 px-3 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
         {typeof message.content === "string" ? message.content : ""}
       </div>
     </div>
@@ -831,6 +843,28 @@ function RuntimeActivityCard({
   );
 }
 
+function buildIdentityChipMeta(identity: PiIdentityProfile) {
+  const parts = [`${identity.receiptCount} receipts`];
+  if (identity.latestReceiptKind) {
+    parts.push(identity.latestReceiptKind);
+  }
+  if (identity.score !== null) {
+    parts.push(`score ${identity.score}`);
+  }
+  return parts.join(" · ");
+}
+
+function buildConnectionSummary(identity: PiIdentityProfile) {
+  const segments = [];
+  if (identity.delegatedFromLabels.length > 0) {
+    segments.push(`from ${identity.delegatedFromLabels.join(", ")}`);
+  }
+  if (identity.delegatedToLabels.length > 0) {
+    segments.push(`to ${identity.delegatedToLabels.join(", ")}`);
+  }
+  return segments.length > 0 ? `Connected ${segments.join(" · ")}` : null;
+}
+
 function getProviderLabel(
   provider: string,
   runtime: LocalRuntimeConfig | null,
@@ -884,13 +918,19 @@ function upsertActivity(
   return updatedActivities;
 }
 
-function getAgentSessionId(agentId: string) {
-  return `${AGENT_SESSION_ID_PREFIX}-${agentId}`;
+function getIdentitySessionId(identityId: string) {
+  return `${IDENTITY_SESSION_ID_PREFIX}-${identityId}`;
 }
 
 function getMessageKey(message: AgentMessage, index: number) {
   const timestamp = "timestamp" in message ? String(message.timestamp) : "untimed";
   return `${message.role}-${timestamp}-${index}`;
+}
+
+function truncateIdentity(identityId: string) {
+  return identityId.length > 24
+    ? `${identityId.slice(0, 12)}...${identityId.slice(-8)}`
+    : identityId;
 }
 
 type UserLikeMessage = Extract<AgentMessage, { role: "user" | "user-with-attachments" }>;
@@ -920,9 +960,7 @@ function isToolResultMessage(
   return message?.role === "toolResult";
 }
 
-function isTextBlock(
-  block: AssistantMessageLike["content"][number],
-): block is TextBlock {
+function isTextBlock(block: AssistantMessageLike["content"][number]): block is TextBlock {
   return block.type === "text";
 }
 
