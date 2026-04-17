@@ -7,7 +7,7 @@ import {
   type PiBridgeCommitResult,
   type ReceiptIndexWriter,
 } from "@trust-substrate/sdk";
-import { LocalDurableIndexer } from "@trust-substrate/indexer";
+import { SqliteDurableIndexer } from "@trust-substrate/indexer";
 
 import { loadExtensionConfig, type ExtensionConfig } from "./config.js";
 import {
@@ -75,7 +75,9 @@ export const createSubstrateExtension = (
     if (options.onBootstrapped) {
       await options.onBootstrapped(bootstrap);
     }
-    const indexer = options.indexer ?? new LocalDurableIndexer();
+    const indexer =
+      options.indexer ??
+      new SqliteDurableIndexer({ path: config.indexDbPath });
     const bridge = new PiToolStreamBridge({ onchain: client, indexer });
     const commit = createSubstrateSessionCommitter({
       bridge,

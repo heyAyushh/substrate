@@ -23,13 +23,14 @@ import {
 } from "@trust-substrate/sdk";
 import { hashCanonical } from "@trust-substrate/sdk/canonical";
 import {
-  LocalDurableIndexer,
+  SqliteDurableIndexer,
   type LocalReceiptRecord,
 } from "@trust-substrate/indexer";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");
 const SNAPSHOT_PATH = join(SNAPSHOT_DIR, "indexer.json");
+const SQLITE_PATH = join(SNAPSHOT_DIR, "indexer.sqlite");
 const DOMAIN = "coding";
 const DEADLINE_SLOT = 210;
 const CURRENT_SLOT = 300;
@@ -529,7 +530,10 @@ function toIndexed(receipt: ReceiptRecord, slot: number): LocalReceiptRecord {
   };
 }
 
-const indexer = new LocalDurableIndexer();
+const indexer = new SqliteDurableIndexer({
+  path: SQLITE_PATH,
+  reset: true,
+});
 indexer.ingest(orderedReceipts);
 
 mkdirSync(SNAPSHOT_DIR, { recursive: true });
@@ -610,6 +614,7 @@ console.log(
       reputation,
       executionGraphReceiptCount: executionGraph.receipts.length,
       snapshotPath: SNAPSHOT_PATH,
+      sqlitePath: SQLITE_PATH,
     },
     null,
     2

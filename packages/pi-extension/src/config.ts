@@ -7,6 +7,7 @@ export const DEFAULT_DOMAIN = "general";
 export const DEFAULT_IDENTITY_LABEL = "pi-local-agent";
 export const DEFAULT_TASK_TITLE = "pi coding session";
 export const DEFAULT_BLOB_DIR = ".pi/substrate-blobs";
+export const DEFAULT_INDEX_DB_PATH = ".pi/substrate-index.sqlite";
 export const DEFAULT_SURFPOOL_STUDIO_URL = "http://127.0.0.1:18489";
 export const DEFAULT_RUN_DASHBOARD_URL =
   "http://127.0.0.1:4173/examples/multi_agent/dashboard/index.html";
@@ -21,6 +22,7 @@ export interface ExtensionConfig {
   readonly identityLabel: string;
   readonly taskTitle: string;
   readonly blobDir: string;
+  readonly indexDbPath: string;
   readonly autoProvisionIdentity: boolean;
   readonly surfpoolStudioUrl: string;
   readonly runDashboardUrl: string;
@@ -54,6 +56,7 @@ export function loadExtensionConfig(
     identityLabel: env.SUBSTRATE_IDENTITY_LABEL ?? DEFAULT_IDENTITY_LABEL,
     taskTitle: env.SUBSTRATE_TASK_TITLE ?? DEFAULT_TASK_TITLE,
     blobDir: env.SUBSTRATE_BLOB_DIR ?? resolve(cwd, DEFAULT_BLOB_DIR),
+    indexDbPath: env.SUBSTRATE_INDEX_DB ?? resolve(cwd, DEFAULT_INDEX_DB_PATH),
     autoProvisionIdentity: autoProvisionOverride ?? true,
     surfpoolStudioUrl:
       env.SUBSTRATE_SURFPOOL_STUDIO_URL ?? DEFAULT_SURFPOOL_STUDIO_URL,
