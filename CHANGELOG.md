@@ -8,6 +8,12 @@ All notable changes to Trust Substrate are documented in this file.
 
 - An ISC `LICENSE` file so the declared package license is present in the
   repository.
+- Task inheritance views in the local durable indexer, so a task's handoff
+  lineage and the inherited path for each completion can be reconstructed from
+  receipts without writing separate task-level state.
+- Team reputation rollups in the local durable indexer, so downstream
+  consumers can derive auditable builder or reviewer team views from member
+  histories, handoff boundaries, and attestation weight.
 - Tiered identities with bonded audit eligibility and guarded bond withdrawal,
   so challenge power is not rent-only and bonded identities cannot exit while
   tasks, stake, or challenge obligations are still open.
@@ -47,6 +53,10 @@ All notable changes to Trust Substrate are documented in this file.
 - Prepared the v0.1 release surface by bumping the package version, renaming
   the verification guide, tightening `.gitignore`, and retitling the README's
   scope section for the release.
+- The README, architecture guide, production-readiness checklist, and
+  multi-agent simulation walkthrough now describe handoff inheritance and team
+  reputation as local derived views, while keeping multi-hop proof enforcement
+  explicitly open on-chain.
 - Core architecture, program, storage, and security docs now mark which
   guarantees are enforced on-chain, which are local SDK behavior, and which are
   replay/indexer conventions.
@@ -85,6 +95,8 @@ All notable changes to Trust Substrate are documented in this file.
 
 ### Verified
 
+- Added indexer coverage for task inheritance lineages and team reputation
+  aggregation, and exercised both in the multi-agent simulation output.
 - Added LiteSVM coverage for sybil-gated audit receipts, guarded bond
   withdrawal, attester registration and tier updates, and versioned runtime
   attestations.
