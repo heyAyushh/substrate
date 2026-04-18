@@ -108,7 +108,7 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 - dispute-resolved weight
 
 [on-chain] There is no direct score-write instruction.
-[sdk] The SDK can derive richer local profiles from the verified graph, and those derived values are the source of truth when they disagree with the cached projection.
+[sdk] The SDK and indexer can derive richer local profiles from the verified graph, including team reputation rollups and handoff inheritance views, and those derived values are the source of truth when they disagree with the cached projection.
 
 ## Stake-Backed Disputes
 
@@ -121,7 +121,9 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 - task histories
 - agent histories
 - handoff chains
+- task inheritance lineages
 - domain summaries
+- team reputation rollups
 - execution graph snapshots
 
 [indexer] The indexer is local and deterministic. Remote event ingestion and Geyser-style pipelines are future work.

@@ -14,7 +14,7 @@ This repository contains a local protocol baseline:
 - a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
 - Codama-generated `@solana/kit` program clients
 - deterministic TypeScript SDK helpers for local graph, proof, and reputation modeling
-- a local durable indexer that rebuilds execution graphs from receipts
+- a local durable indexer that rebuilds execution graphs, handoff inheritance, and team reputation views from receipts
 - Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
 - documentation for architecture, development, testing, security, and roadmap decisions
 
@@ -152,7 +152,7 @@ The current local path is:
 5. Checkpoint receipt history roots.
 6. Apply receipts to derived reputation state.
 7. Escrow stake for agents that opt into slashable dispute resolution.
-8. Rebuild the execution graph through the local indexer.
+8. Rebuild the execution graph, handoff inheritance, and team reputation views through the local indexer.
 
 Receipts are the source of truth. Reputation is derived from that receipt graph.
 

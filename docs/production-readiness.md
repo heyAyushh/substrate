@@ -35,9 +35,9 @@ together.
     verification, with tests for each failure mode.
 
 - [ ] [on-chain] Multi-hop handoff proofs are not fully modeled yet.
-  - Current boundary: handoff chains can be reconstructed locally, while the
-    on-chain programs validate scoped delegation records and delegated receipts
-    one hop at a time.
+  - Current boundary: handoff chains, task inheritance, and team rollups can
+    be reconstructed locally, while the on-chain programs validate scoped
+    delegation records and delegated receipts one hop at a time.
   - Done when: the protocol has an explicit multi-hop proof model, receipt and
     delegation constraints enforce it, LiteSVM covers accepted and rejected
     chains, and downstream indexer views match the on-chain proof shape.

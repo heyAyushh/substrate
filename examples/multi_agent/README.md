@@ -36,15 +36,18 @@ transaction — it is an offline choreography of SDK APIs.
    a verified blob.
 7. `reviewer` attests to `builder-beta` with a `review` attestation.
 8. The indexer derives the execution graph, the domain leaderboard, the
-   attestation-filtered leaderboard, per-identity stake state, and a
-   reputation profile, then writes a JSON snapshot to
+   attestation-filtered leaderboard, the task inheritance chain, per-identity
+   stake state, team reputation views, and a reputation profile, then writes
+   a JSON snapshot to
    `examples/multi_agent/.snapshot/`.
 
 The transcript surfaces:
 
 - which receipts landed and in what order
 - the handoff chain across the three builders
+- the inherited lineage for the final completion (`planner -> builder-alpha -> builder-beta`)
 - the leaderboard with and without the attestation filter (alpha drops out)
+- derived team reputation for the builder team and the control-plane team
 - derived stake state, including alpha's 400_000-lamport slash
 - the reputation profile derived from the verified receipt history
 
