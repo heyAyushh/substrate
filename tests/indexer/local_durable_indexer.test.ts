@@ -177,6 +177,56 @@ test("reconstructs a planner-alpha-beta delegated handoff chain", () => {
   ]);
 });
 
+test("derives task inheritance lineages from the handoff chain", () => {
+  const indexer = new LocalDurableIndexer();
+
+  indexer.ingest([
+    createReceipt({
+      receiptId: "receipt-51",
+      slot: 51,
+      kind: "assignment",
+      actorId: "planner",
+    }),
+    createReceipt({
+      receiptId: "receipt-52",
+      slot: 52,
+      kind: "handoff",
+      actorId: "planner",
+      payload: { toAgentId: "alpha" },
+    }),
+    createReceipt({
+      receiptId: "receipt-53",
+      slot: 53,
+      kind: "handoff",
+      actorId: "alpha",
+      payload: { toAgentId: "beta" },
+    }),
+    createReceipt({
+      receiptId: "receipt-54",
+      slot: 54,
+      kind: "completion",
+      actorId: "beta",
+    }),
+  ]);
+
+  const inheritance = indexer.getTaskInheritance("task-1");
+
+  deepStrictEqual(inheritance.rootAgentIds, ["planner"]);
+  deepStrictEqual(inheritance.lineageByAgent.planner, ["planner"]);
+  deepStrictEqual(inheritance.lineageByAgent.alpha, ["planner", "alpha"]);
+  deepStrictEqual(inheritance.lineageByAgent.beta, [
+    "planner",
+    "alpha",
+    "beta",
+  ]);
+  strictEqual(inheritance.depthByAgent.beta, 2);
+  deepStrictEqual(inheritance.completionLineageByReceipt["receipt-54"], [
+    "planner",
+    "alpha",
+    "beta",
+  ]);
+});
+
 test("rejects conflicting duplicate replays for the same receipt id and slot", () => {
   const indexer = new LocalDurableIndexer();
   const firstReceipt = createReceipt({

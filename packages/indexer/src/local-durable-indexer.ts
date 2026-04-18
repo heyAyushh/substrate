@@ -22,7 +22,10 @@ import {
   type LeaderboardQuery,
   type LocalReceiptRecord,
   type StakeStateView,
+  type TaskInheritanceView,
   type TaskHistoryView,
+  type TeamDefinition,
+  type TeamReputationView,
   type ToolQualityStat,
 } from "./types.js";
 
@@ -730,6 +733,74 @@ export class LocalDurableIndexer {
     };
   }
 
+  getTaskInheritance(taskId: string): TaskInheritanceView {
+    const taskReceipts = this.getTaskHistory(taskId);
+    const handoffChain = this.getHandoffChain(taskId);
+    const parentByAgent = new Map<string, string>();
+    const allAgents = new Set<string>();
+
+    for (const receipt of taskReceipts) {
+      allAgents.add(receipt.actorId);
+    }
+
+    for (const handoff of handoffChain) {
+      allAgents.add(handoff.fromAgentId);
+      allAgents.add(handoff.toAgentId);
+      const existingParent = parentByAgent.get(handoff.toAgentId);
+      if (
+        existingParent !== undefined &&
+        existingParent !== handoff.fromAgentId
+      ) {
+        throw new Error(
+          `conflicting inheritance path for ${handoff.toAgentId} on task ${taskId}`
+        );
+      }
+      parentByAgent.set(handoff.toAgentId, handoff.fromAgentId);
+    }
+
+    const lineageByAgent: Record<string, string[]> = {};
+    const depthByAgent: Record<string, number> = {};
+
+    const buildLineage = (agentId: string): string[] => {
+      const cached = lineageByAgent[agentId];
+      if (cached) {
+        return cached;
+      }
+
+      const parentId = parentByAgent.get(agentId);
+      const lineage =
+        parentId === undefined
+          ? [agentId]
+          : [...buildLineage(parentId), agentId];
+      lineageByAgent[agentId] = lineage;
+      depthByAgent[agentId] = Math.max(0, lineage.length - 1);
+      return lineage;
+    };
+
+    for (const agentId of allAgents) {
+      buildLineage(agentId);
+    }
+
+    const completionLineageByReceipt: Record<string, string[]> = {};
+    for (const receipt of taskReceipts) {
+      if (receipt.kind === "completion") {
+        completionLineageByReceipt[receipt.receiptId] = [
+          ...buildLineage(receipt.actorId),
+        ];
+      }
+    }
+
+    return {
+      taskId,
+      rootAgentIds: [...allAgents]
+        .filter((agentId) => !parentByAgent.has(agentId))
+        .sort(),
+      lineageByAgent,
+      depthByAgent,
+      completionLineageByReceipt,
+    };
+  }
+
   getAgentProfile(agentId: string): AgentProfile {
     const receipts = this.sortedReceipts().filter(
       (receipt) => receipt.actorId === agentId
@@ -845,6 +916,87 @@ export class LocalDurableIndexer {
       entries = entries.filter((entry) => entry.attestations > 0);
     }
     return entries.sort((left, right) => right.score - left.score);
+  }
+
+  getTeamReputation(team: TeamDefinition): TeamReputationView {
+    const memberIds = dedupeStrings([...team.memberIds]);
+    const memberSet = new Set(memberIds);
+    const receipts = this.sortedReceipts().filter(
+      (receipt) =>
+        memberSet.has(receipt.actorId) &&
+        receipt.kind !== ATTESTATION_KIND &&
+        receipt.kind in KIND_WEIGHTS
+    );
+    const byKind: Record<string, number> = {};
+    const domains: Record<string, number> = {};
+    const contributedTaskIds = new Set<string>();
+    const inheritedTaskIds = new Set<string>();
+    let overall = 0;
+    let internalHandoffs = 0;
+    let inboundHandoffs = 0;
+    let outboundHandoffs = 0;
+
+    for (const receipt of receipts) {
+      const weight = KIND_WEIGHTS[receipt.kind] ?? 0;
+      overall += weight;
+      byKind[receipt.kind] = (byKind[receipt.kind] ?? 0) + 1;
+      domains[receipt.domain] = (domains[receipt.domain] ?? 0) + weight;
+      contributedTaskIds.add(receipt.taskId);
+    }
+
+    for (const receipt of this.sortedReceipts()) {
+      if (!isHandoff(receipt)) {
+        continue;
+      }
+      const toAgentId = getHandoffTarget(receipt);
+      if (!toAgentId) {
+        continue;
+      }
+      const fromInside = memberSet.has(receipt.actorId);
+      const toInside = memberSet.has(toAgentId);
+
+      if (fromInside && toInside) {
+        internalHandoffs += 1;
+      } else if (!fromInside && toInside) {
+        inboundHandoffs += 1;
+        inheritedTaskIds.add(receipt.taskId);
+      } else if (fromInside && !toInside) {
+        outboundHandoffs += 1;
+      }
+    }
+
+    const attestationWeights = this.collectAttestationCounts();
+    let attestations = 0;
+    for (const memberId of memberIds) {
+      attestations += attestationWeights.get(memberId) ?? 0;
+    }
+
+    return {
+      teamId: team.teamId,
+      memberIds,
+      overall,
+      receiptCount: receipts.length,
+      domains,
+      byKind,
+      attestations,
+      internalHandoffs,
+      inboundHandoffs,
+      outboundHandoffs,
+      inheritedTaskIds: [...inheritedTaskIds].sort(),
+      contributedTaskIds: [...contributedTaskIds].sort(),
+    };
+  }
+
+  getTeamReputations(
+    teams: ReadonlyArray<TeamDefinition>
+  ): TeamReputationView[] {
+    return teams
+      .map((team) => this.getTeamReputation(team))
+      .sort(
+        (left, right) =>
+          right.overall - left.overall ||
+          left.teamId.localeCompare(right.teamId)
+      );
   }
 
   getIdentityStates(): IdentityStateView[] {

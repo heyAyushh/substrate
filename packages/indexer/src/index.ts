@@ -26,6 +26,9 @@ export type {
   LocalReceiptRecord,
   ReceiptKind,
   StakeStateView,
+  TaskInheritanceView,
   TaskHistoryView,
+  TeamDefinition,
+  TeamReputationView,
   ToolQualityStat,
 } from "./types.js";

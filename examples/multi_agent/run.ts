@@ -563,6 +563,17 @@ const leaderboardAttested = indexer.getAgentLeaderboard({
   attestedOnly: true,
 });
 const executionGraph = indexer.getExecutionGraph();
+const handoffInheritance = indexer.getTaskInheritance(task.taskId);
+const reputationTeams = indexer.getTeamReputations([
+  {
+    teamId: "builders",
+    memberIds: [alpha.identityId, beta.identityId],
+  },
+  {
+    teamId: "control-plane",
+    memberIds: [planner.identityId, reviewer.identityId],
+  },
+]);
 
 const alphaRootHex = hashExecutionRecord(alphaWorkRecord).root.toString("hex");
 const betaRootHex = hashExecutionRecord(betaWorkRecord).root.toString("hex");
@@ -571,6 +582,8 @@ const stakeJson = (identityId: keyof typeof stakeStates) => {
   const state = stakeStates[identityId];
   return {
     identityId: state.identityId,
+    ownerId: state.ownerId,
+    slashAuthorityId: state.slashAuthorityId,
     activeLamports: state.activeLamports.toString(),
     pendingUnstakeLamports: state.pendingUnstakeLamports.toString(),
     slashedLamports: state.slashedLamports.toString(),
@@ -602,10 +615,12 @@ console.log(
         receiptId: receipt.receiptId,
       })),
       handoffChain: indexer.getHandoffChain(task.taskId),
+      handoffInheritance,
       leaderboard: {
         all: leaderboardAll,
         attestedOnly: leaderboardAttested,
       },
+      reputationTeams,
       stake: {
         planner: stakeJson("planner"),
         alpha: stakeJson("alpha"),

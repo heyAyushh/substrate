@@ -651,3 +651,82 @@ test("projects slashing from dispute resolution payloads", () => {
   strictEqual(state.slashedLamports, "125000");
   deepStrictEqual(state.slashReceiptIds, ["resolution"]);
 });
+
+test("aggregates team reputation and inherited task flow", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    stakeReceipt("stake-planner", 0, "planner", "100"),
+    stakeReceipt("stake-alpha", 0, "alpha", "100"),
+    stakeReceipt("stake-beta", 0, "beta", "100"),
+    receipt({
+      receiptId: "r-team-1",
+      slot: 1,
+      taskId: "task-team",
+      actorId: "planner",
+      kind: "assignment",
+      domain: "coding",
+    }),
+    receipt({
+      receiptId: "r-team-2",
+      slot: 2,
+      taskId: "task-team",
+      actorId: "planner",
+      kind: "handoff",
+      domain: "coding",
+      payload: { toAgentId: "alpha" },
+    }),
+    receipt({
+      receiptId: "r-team-3",
+      slot: 3,
+      taskId: "task-team",
+      actorId: "alpha",
+      kind: "handoff",
+      domain: "coding",
+      payload: { toAgentId: "beta" },
+    }),
+    receipt({
+      receiptId: "r-team-4",
+      slot: 4,
+      taskId: "task-team",
+      actorId: "beta",
+      kind: "completion",
+      domain: "coding",
+    }),
+    receipt({
+      receiptId: "r-team-5",
+      slot: 5,
+      taskId: "task-team",
+      actorId: "reviewer",
+      kind: "attestation",
+      domain: "coding",
+      payload: { target: "beta", kind: "review" },
+    }),
+  ]);
+  indexer.ingestAttesterRecords([
+    {
+      identityId: "reviewer",
+      category: "review",
+      selfDeclaredTier: 1,
+      effectiveTier: 2,
+    },
+  ]);
+
+  const team = indexer.getTeamReputation({
+    teamId: "builders",
+    memberIds: ["alpha", "beta"],
+  });
+
+  strictEqual(team.teamId, "builders");
+  deepStrictEqual(team.memberIds, ["alpha", "beta"]);
+  strictEqual(team.overall, 7);
+  strictEqual(team.receiptCount, 2);
+  strictEqual(team.attestations, 2);
+  strictEqual(team.internalHandoffs, 1);
+  strictEqual(team.inboundHandoffs, 1);
+  strictEqual(team.outboundHandoffs, 0);
+  deepStrictEqual(team.inheritedTaskIds, ["task-team"]);
+  deepStrictEqual(team.contributedTaskIds, ["task-team"]);
+  strictEqual(team.domains.coding, 7);
+  strictEqual(team.byKind.handoff, 1);
+  strictEqual(team.byKind.completion, 1);
+});

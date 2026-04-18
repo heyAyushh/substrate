@@ -61,6 +61,14 @@ export interface ExecutionGraph {
   domains: Record<string, DomainSummary>;
 }
 
+export interface TaskInheritanceView {
+  taskId: string;
+  rootAgentIds: string[];
+  lineageByAgent: Record<string, string[]>;
+  depthByAgent: Record<string, number>;
+  completionLineageByReceipt: Record<string, string[]>;
+}
+
 export interface IngestResult {
   accepted: number;
   duplicates: number;
@@ -109,6 +117,26 @@ export interface LeaderboardQuery {
   attestedOnly?: boolean;
   currentSlot?: number;
   tier0?: boolean;
+}
+
+export interface TeamDefinition {
+  teamId: string;
+  memberIds: string[];
+}
+
+export interface TeamReputationView {
+  teamId: string;
+  memberIds: string[];
+  overall: number;
+  receiptCount: number;
+  domains: Record<string, number>;
+  byKind: Record<string, number>;
+  attestations: number;
+  internalHandoffs: number;
+  inboundHandoffs: number;
+  outboundHandoffs: number;
+  inheritedTaskIds: string[];
+  contributedTaskIds: string[];
 }
 
 export interface AgentAttestation {
