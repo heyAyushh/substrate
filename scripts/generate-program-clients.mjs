@@ -13,6 +13,7 @@ const CONFIG_NAMES = [
   "reputation_accumulator.json",
   "agent_stake.json",
   "attester_registry.json",
+  "dispute_resolver.json",
 ];
 
 for (const configName of CONFIG_NAMES) {

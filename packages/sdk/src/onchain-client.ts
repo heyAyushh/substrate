@@ -38,6 +38,7 @@ import {
 import {
   bytes32Equals,
   deriveAgentIdBytes,
+  deriveAuditReceiptIdBytes,
   deriveDomainBytes,
   deriveHistoryRootBytes,
   derivePayloadHashBytes,
@@ -48,6 +49,9 @@ import {
   deriveTaskIdBytes,
   zeroBytes32,
 } from "./onchain-identifiers.js";
+
+const CHALLENGE_RECEIPT_KIND_CODE = RECEIPT_KIND_CODES.challenge;
+const DISPUTE_RECEIPT_KIND_CODE = RECEIPT_KIND_CODES.dispute;
 
 export type TrustSubstrateRpc = Rpc<
   GetAccountInfoApi &
@@ -102,7 +106,47 @@ export interface OnchainReceiptBinding {
   readonly domain: Uint8Array;
 }
 
+export interface OnchainAuditReceiptBinding {
+  readonly address: Address;
+  readonly receiptId: Uint8Array;
+}
+
+export interface OnchainChallengeResponseBinding {
+  readonly address: Address;
+}
+
 export interface OnchainStakeBinding {
+  readonly address: Address;
+}
+
+export interface OnchainIdentityBondBinding {
+  readonly address: Address;
+}
+
+export interface OnchainAttesterBinding {
+  readonly address: Address;
+  readonly config: Address;
+  readonly identityBond: Address;
+}
+
+export interface OnchainDelegationBinding {
+  readonly address: Address;
+  readonly delegate: Address;
+}
+
+export interface OnchainHistoryCheckpointBinding {
+  readonly address: Address;
+  readonly latestCheckpoint: Address;
+  readonly epoch: bigint;
+}
+
+export interface OnchainAdjudicatorBinding {
+  readonly address: Address;
+  readonly adjudicator: Address;
+  readonly treasuryVault: Address;
+}
+
+export interface OnchainVerdictBinding {
   readonly address: Address;
 }
 
@@ -124,6 +168,12 @@ type IdentityPdaModule =
   typeof import("../../program-clients/dist/generated/identity_registry/pdas/identity.js");
 type CreateIdentityInstructionModule =
   typeof import("../../program-clients/dist/generated/identity_registry/instructions/createIdentity.js");
+type IdentityBondPdaModule =
+  typeof import("../../program-clients/dist/generated/identity_registry/pdas/identityBond.js");
+type IdentityBondAccountModule =
+  typeof import("../../program-clients/dist/generated/identity_registry/accounts/identityBond.js");
+type DepositIdentityBondInstructionModule =
+  typeof import("../../program-clients/dist/generated/identity_registry/instructions/depositIdentityBond.js");
 type AgentIdentityAccountModule =
   typeof import("../../program-clients/dist/generated/identity_registry/accounts/agentIdentity.js");
 type TaskPdaModule =
@@ -136,10 +186,20 @@ type SyncTaskStatusInstructionModule =
   typeof import("../../program-clients/dist/generated/task_registry/instructions/syncTaskStatus.js");
 type ReceiptPdaModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/receipt.js");
+type AuditReceiptPdaModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/auditReceipt.js");
+type ChallengeResponsePdaModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/challengeResponse.js");
 type CpiAuthorityPdaModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/cpiAuthority.js");
 type EmitReceiptInstructionModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitReceipt.js");
+type EmitAuditReceiptInstructionModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitAuditReceipt.js");
+type EmitChallengeResponseInstructionModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitChallengeResponse.js");
+type FinalizeUnansweredChallengeInstructionModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/finalizeUnansweredChallenge.js");
 type InitializeCpiAuthorityInstructionModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/initializeCpiAuthority.js");
 type CpiAuthorityAccountModule =
@@ -160,6 +220,40 @@ type CreateReputationDomainInstructionModule =
   typeof import("../../program-clients/dist/generated/reputation_accumulator/instructions/createReputationDomain.js");
 type ApplyReputationReceiptInstructionModule =
   typeof import("../../program-clients/dist/generated/reputation_accumulator/instructions/applyReputationReceipt.js");
+type AttesterConfigPdaModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/pdas/config.js");
+type AttesterPdaModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/pdas/attester.js");
+type AttesterRegistryConfigAccountModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/accounts/attesterRegistryConfig.js");
+type AttesterRecordAccountModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/accounts/attesterRecord.js");
+type InitializeAttesterRegistryInstructionModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/instructions/initializeRegistry.js");
+type RegisterAttesterInstructionModule =
+  typeof import("../../program-clients/dist/generated/attester_registry/instructions/registerAttester.js");
+type DelegationPdaModule =
+  typeof import("../../program-clients/dist/generated/delegation_engine/pdas/delegation.js");
+type DelegationRecordAccountModule =
+  typeof import("../../program-clients/dist/generated/delegation_engine/accounts/delegationRecord.js");
+type CreateDelegationInstructionModule =
+  typeof import("../../program-clients/dist/generated/delegation_engine/instructions/createDelegation.js");
+type HistoryUpdaterPdaModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/pdas/historyUpdater.js");
+type CheckpointPdaModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/pdas/checkpoint.js");
+type LatestCheckpointPdaModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/pdas/latestCheckpoint.js");
+type HistoryUpdaterAccountModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/accounts/historyUpdater.js");
+type HistoryCheckpointAccountModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/accounts/historyCheckpoint.js");
+type InitializeHistoryUpdaterInstructionModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/instructions/initializeHistoryUpdater.js");
+type InitializeCheckpointInstructionModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/instructions/initializeCheckpoint.js");
+type AppendReceiptToCheckpointInstructionModule =
+  typeof import("../../program-clients/dist/generated/proof_verifier/instructions/appendReceiptToCheckpoint.js");
 type StakePdaModule =
   typeof import("../../program-clients/dist/generated/agent_stake/pdas/stake.js");
 type StakeAccountModule =
@@ -168,6 +262,20 @@ type InitializeStakeInstructionModule =
   typeof import("../../program-clients/dist/generated/agent_stake/instructions/initializeStake.js");
 type StakeInstructionModule =
   typeof import("../../program-clients/dist/generated/agent_stake/instructions/stake.js");
+type AdjudicatorConfigPdaModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/pdas/adjudicatorConfig.js");
+type TreasuryVaultPdaModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/pdas/treasuryVault.js");
+type VerdictPdaModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/pdas/verdict.js");
+type AdjudicatorConfigAccountModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/accounts/adjudicatorConfig.js");
+type DisputeVerdictAccountModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/accounts/disputeVerdict.js");
+type RegisterAdjudicatorInstructionModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/instructions/registerAdjudicator.js");
+type RecordVerdictInstructionModule =
+  typeof import("../../program-clients/dist/generated/dispute_resolver/instructions/recordVerdict.js");
 
 const addressFromPda = (pda: ProgramDerivedAddress): Address => pda[0];
 const require = createRequire(import.meta.url);
@@ -195,6 +303,16 @@ const loadCreateIdentityInstructionModule =
   lazyModule<CreateIdentityInstructionModule>(
     "./generated/identity_registry/instructions/createIdentity.js"
   );
+const loadIdentityBondPdaModule = lazyModule<IdentityBondPdaModule>(
+  "./generated/identity_registry/pdas/identityBond.js"
+);
+const loadIdentityBondAccountModule = lazyModule<IdentityBondAccountModule>(
+  "./generated/identity_registry/accounts/identityBond.js"
+);
+const loadDepositIdentityBondInstructionModule =
+  lazyModule<DepositIdentityBondInstructionModule>(
+    "./generated/identity_registry/instructions/depositIdentityBond.js"
+  );
 const loadAgentIdentityAccountModule = lazyModule<AgentIdentityAccountModule>(
   "./generated/identity_registry/accounts/agentIdentity.js"
 );
@@ -214,12 +332,30 @@ const loadSyncTaskStatusInstructionModule =
 const loadReceiptPdaModule = lazyModule<ReceiptPdaModule>(
   "./generated/receipt_emitter/pdas/receipt.js"
 );
+const loadAuditReceiptPdaModule = lazyModule<AuditReceiptPdaModule>(
+  "./generated/receipt_emitter/pdas/auditReceipt.js"
+);
+const loadChallengeResponsePdaModule = lazyModule<ChallengeResponsePdaModule>(
+  "./generated/receipt_emitter/pdas/challengeResponse.js"
+);
 const loadCpiAuthorityPdaModule = lazyModule<CpiAuthorityPdaModule>(
   "./generated/receipt_emitter/pdas/cpiAuthority.js"
 );
 const loadEmitReceiptInstructionModule =
   lazyModule<EmitReceiptInstructionModule>(
     "./generated/receipt_emitter/instructions/emitReceipt.js"
+  );
+const loadEmitAuditReceiptInstructionModule =
+  lazyModule<EmitAuditReceiptInstructionModule>(
+    "./generated/receipt_emitter/instructions/emitAuditReceipt.js"
+  );
+const loadEmitChallengeResponseInstructionModule =
+  lazyModule<EmitChallengeResponseInstructionModule>(
+    "./generated/receipt_emitter/instructions/emitChallengeResponse.js"
+  );
+const loadFinalizeUnansweredChallengeInstructionModule =
+  lazyModule<FinalizeUnansweredChallengeInstructionModule>(
+    "./generated/receipt_emitter/instructions/finalizeUnansweredChallenge.js"
   );
 const loadInitializeCpiAuthorityInstructionModule =
   lazyModule<InitializeCpiAuthorityInstructionModule>(
@@ -258,6 +394,66 @@ const loadApplyReputationReceiptInstructionModule =
   lazyModule<ApplyReputationReceiptInstructionModule>(
     "./generated/reputation_accumulator/instructions/applyReputationReceipt.js"
   );
+const loadAttesterConfigPdaModule = lazyModule<AttesterConfigPdaModule>(
+  "./generated/attester_registry/pdas/config.js"
+);
+const loadAttesterPdaModule = lazyModule<AttesterPdaModule>(
+  "./generated/attester_registry/pdas/attester.js"
+);
+const loadAttesterRegistryConfigAccountModule =
+  lazyModule<AttesterRegistryConfigAccountModule>(
+    "./generated/attester_registry/accounts/attesterRegistryConfig.js"
+  );
+const loadAttesterRecordAccountModule = lazyModule<AttesterRecordAccountModule>(
+  "./generated/attester_registry/accounts/attesterRecord.js"
+);
+const loadInitializeAttesterRegistryInstructionModule =
+  lazyModule<InitializeAttesterRegistryInstructionModule>(
+    "./generated/attester_registry/instructions/initializeRegistry.js"
+  );
+const loadRegisterAttesterInstructionModule =
+  lazyModule<RegisterAttesterInstructionModule>(
+    "./generated/attester_registry/instructions/registerAttester.js"
+  );
+const loadDelegationPdaModule = lazyModule<DelegationPdaModule>(
+  "./generated/delegation_engine/pdas/delegation.js"
+);
+const loadDelegationRecordAccountModule =
+  lazyModule<DelegationRecordAccountModule>(
+    "./generated/delegation_engine/accounts/delegationRecord.js"
+  );
+const loadCreateDelegationInstructionModule =
+  lazyModule<CreateDelegationInstructionModule>(
+    "./generated/delegation_engine/instructions/createDelegation.js"
+  );
+const loadHistoryUpdaterPdaModule = lazyModule<HistoryUpdaterPdaModule>(
+  "./generated/proof_verifier/pdas/historyUpdater.js"
+);
+const loadCheckpointPdaModule = lazyModule<CheckpointPdaModule>(
+  "./generated/proof_verifier/pdas/checkpoint.js"
+);
+const loadLatestCheckpointPdaModule = lazyModule<LatestCheckpointPdaModule>(
+  "./generated/proof_verifier/pdas/latestCheckpoint.js"
+);
+const loadHistoryUpdaterAccountModule = lazyModule<HistoryUpdaterAccountModule>(
+  "./generated/proof_verifier/accounts/historyUpdater.js"
+);
+const loadHistoryCheckpointAccountModule =
+  lazyModule<HistoryCheckpointAccountModule>(
+    "./generated/proof_verifier/accounts/historyCheckpoint.js"
+  );
+const loadInitializeHistoryUpdaterInstructionModule =
+  lazyModule<InitializeHistoryUpdaterInstructionModule>(
+    "./generated/proof_verifier/instructions/initializeHistoryUpdater.js"
+  );
+const loadInitializeCheckpointInstructionModule =
+  lazyModule<InitializeCheckpointInstructionModule>(
+    "./generated/proof_verifier/instructions/initializeCheckpoint.js"
+  );
+const loadAppendReceiptToCheckpointInstructionModule =
+  lazyModule<AppendReceiptToCheckpointInstructionModule>(
+    "./generated/proof_verifier/instructions/appendReceiptToCheckpoint.js"
+  );
 const loadStakePdaModule = lazyModule<StakePdaModule>(
   "./generated/agent_stake/pdas/stake.js"
 );
@@ -271,6 +467,30 @@ const loadInitializeStakeInstructionModule =
 const loadStakeInstructionModule = lazyModule<StakeInstructionModule>(
   "./generated/agent_stake/instructions/stake.js"
 );
+const loadAdjudicatorConfigPdaModule = lazyModule<AdjudicatorConfigPdaModule>(
+  "./generated/dispute_resolver/pdas/adjudicatorConfig.js"
+);
+const loadTreasuryVaultPdaModule = lazyModule<TreasuryVaultPdaModule>(
+  "./generated/dispute_resolver/pdas/treasuryVault.js"
+);
+const loadVerdictPdaModule = lazyModule<VerdictPdaModule>(
+  "./generated/dispute_resolver/pdas/verdict.js"
+);
+const loadAdjudicatorConfigAccountModule =
+  lazyModule<AdjudicatorConfigAccountModule>(
+    "./generated/dispute_resolver/accounts/adjudicatorConfig.js"
+  );
+const loadDisputeVerdictAccountModule = lazyModule<DisputeVerdictAccountModule>(
+  "./generated/dispute_resolver/accounts/disputeVerdict.js"
+);
+const loadRegisterAdjudicatorInstructionModule =
+  lazyModule<RegisterAdjudicatorInstructionModule>(
+    "./generated/dispute_resolver/instructions/registerAdjudicator.js"
+  );
+const loadRecordVerdictInstructionModule =
+  lazyModule<RecordVerdictInstructionModule>(
+    "./generated/dispute_resolver/instructions/recordVerdict.js"
+  );
 
 export class KitTransactionDispatcher implements OnchainTransactionDispatcher {
   readonly rpc: TrustSubstrateRpc;
@@ -349,6 +569,15 @@ export const createKitTransactionDispatcher = ({
 export class TrustSubstrateOnchainClient {
   constructor(private readonly dispatcher: OnchainTransactionDispatcher) {}
 
+  async getCurrentSlot(): Promise<number> {
+    const rpc = this.dispatcher.rpc;
+    if (!rpc) {
+      throw new Error("Current slot is unavailable without an RPC client");
+    }
+    const slot = await rpc.getSlot({ commitment: DEFAULT_COMMITMENT }).send();
+    return Number(slot);
+  }
+
   async getDomainCatalogAddress(): Promise<Address> {
     const { findDomainCatalogPda } = await loadDomainCatalogPdaModule();
     return addressFromPda(await findDomainCatalogPda());
@@ -367,6 +596,18 @@ export class TrustSubstrateOnchainClient {
       })
     );
     return { address, agentId };
+  }
+
+  async bindIdentityBond(input: {
+    readonly identity: Address;
+  }): Promise<OnchainIdentityBondBinding> {
+    const { findIdentityBondPda } = await loadIdentityBondPdaModule();
+    const address = addressFromPda(
+      await findIdentityBondPda({
+        identity: input.identity,
+      })
+    );
+    return { address };
   }
 
   async bindTask(input: {
@@ -420,6 +661,44 @@ export class TrustSubstrateOnchainClient {
     };
   }
 
+  async bindAuditReceipt(input: {
+    readonly auditorIdentity: Address;
+    readonly targetReceipt: Address;
+    readonly kind: ReceiptRecord["kind"];
+    readonly round: number;
+  }): Promise<OnchainAuditReceiptBinding> {
+    const { findAuditReceiptPda } = await loadAuditReceiptPdaModule();
+    const kind = RECEIPT_KIND_CODES[input.kind];
+    const receiptId = deriveAuditReceiptIdBytes({
+      auditorIdentity: input.auditorIdentity,
+      targetReceipt: input.targetReceipt,
+      kind,
+      round: input.round,
+    });
+    const address = addressFromPda(
+      await findAuditReceiptPda({
+        auditorIdentity: input.auditorIdentity,
+        targetReceipt: input.targetReceipt,
+        kind,
+        round: input.round,
+      })
+    );
+    return { address, receiptId };
+  }
+
+  async bindChallengeResponse(input: {
+    readonly challenge: Address;
+  }): Promise<OnchainChallengeResponseBinding> {
+    const { findChallengeResponsePda } = await loadChallengeResponsePdaModule();
+    return {
+      address: addressFromPda(
+        await findChallengeResponsePda({
+          challenge: input.challenge,
+        })
+      ),
+    };
+  }
+
   async bindCpiAuthority(): Promise<Address> {
     const { findCpiAuthorityPda } = await loadCpiAuthorityPdaModule();
     return addressFromPda(await findCpiAuthorityPda());
@@ -432,6 +711,83 @@ export class TrustSubstrateOnchainClient {
     const address = addressFromPda(
       await findStakePda({
         identity: input.identity,
+      })
+    );
+    return { address };
+  }
+
+  async bindAttester(input: {
+    readonly identity: Address;
+  }): Promise<OnchainAttesterBinding> {
+    const { findConfigPda } = await loadAttesterConfigPdaModule();
+    const { findAttesterPda } = await loadAttesterPdaModule();
+    const identityBond = await this.bindIdentityBond(input);
+    const config = addressFromPda(await findConfigPda());
+    const address = addressFromPda(
+      await findAttesterPda({
+        identity: input.identity,
+      })
+    );
+    return { address, config, identityBond: identityBond.address };
+  }
+
+  async bindDelegation(input: {
+    readonly identity: Address;
+    readonly delegate: Address;
+  }): Promise<OnchainDelegationBinding> {
+    const { findDelegationPda } = await loadDelegationPdaModule();
+    const address = addressFromPda(
+      await findDelegationPda({
+        identity: input.identity,
+        delegate: input.delegate,
+      })
+    );
+    return { address, delegate: input.delegate };
+  }
+
+  async bindHistoryUpdater(): Promise<Address> {
+    const { findHistoryUpdaterPda } = await loadHistoryUpdaterPdaModule();
+    return addressFromPda(await findHistoryUpdaterPda());
+  }
+
+  async bindHistoryCheckpoint(input: {
+    readonly identity: Address;
+    readonly epoch: number | bigint;
+  }): Promise<OnchainHistoryCheckpointBinding> {
+    const { findCheckpointPda } = await loadCheckpointPdaModule();
+    const { findLatestCheckpointPda } = await loadLatestCheckpointPdaModule();
+    const epoch = BigInt(input.epoch);
+    const address = addressFromPda(
+      await findCheckpointPda({
+        identity: input.identity,
+        epoch,
+      })
+    );
+    const latestCheckpoint = addressFromPda(
+      await findLatestCheckpointPda({
+        identity: input.identity,
+      })
+    );
+    return { address, latestCheckpoint, epoch };
+  }
+
+  async bindAdjudicator(): Promise<OnchainAdjudicatorBinding> {
+    const { findAdjudicatorConfigPda } = await loadAdjudicatorConfigPdaModule();
+    const { findTreasuryVaultPda } = await loadTreasuryVaultPdaModule();
+    return {
+      address: addressFromPda(await findAdjudicatorConfigPda()),
+      adjudicator: "11111111111111111111111111111111" as Address,
+      treasuryVault: addressFromPda(await findTreasuryVaultPda()),
+    };
+  }
+
+  async bindVerdict(input: {
+    readonly disputeReceipt: Address;
+  }): Promise<OnchainVerdictBinding> {
+    const { findVerdictPda } = await loadVerdictPdaModule();
+    const address = addressFromPda(
+      await findVerdictPda({
+        disputeReceipt: input.disputeReceipt,
       })
     );
     return { address };
@@ -481,7 +837,8 @@ export class TrustSubstrateOnchainClient {
     const binding = await this.bindIdentity(input);
     const rpc = this.dispatcher.rpc;
     if (rpc) {
-      const { fetchMaybeAgentIdentity } = await loadAgentIdentityAccountModule();
+      const { fetchMaybeAgentIdentity } =
+        await loadAgentIdentityAccountModule();
       const existing = await fetchMaybeAgentIdentity(rpc, binding.address);
       if (existing.exists) {
         return {
@@ -496,6 +853,52 @@ export class TrustSubstrateOnchainClient {
 
     return {
       ...(await this.createIdentity(input)),
+      created: true,
+    };
+  }
+
+  async depositIdentityBond(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+  }): Promise<OnchainIdentityBondBinding & OnchainOperationResult> {
+    const { getDepositIdentityBondInstructionAsync } =
+      await loadDepositIdentityBondInstructionModule();
+    const binding = await this.bindIdentityBond(input);
+    const commit = await this.sendOperation(
+      "deposit_identity_bond",
+      getDepositIdentityBondInstructionAsync({
+        authority: input.authority,
+        identity: input.identity,
+        identityBond: binding.address,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async ensureIdentityBond(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+  }): Promise<OnchainIdentityBondBinding & OnchainOperationResult> {
+    const binding = await this.bindIdentityBond(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeIdentityBond } = await loadIdentityBondAccountModule();
+      const existing = await fetchMaybeIdentityBond(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "deposit_identity_bond",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+
+    return {
+      ...(await this.depositIdentityBond(input)),
       created: true,
     };
   }
@@ -865,6 +1268,115 @@ export class TrustSubstrateOnchainClient {
     return { ...binding, ...commit };
   }
 
+  async emitAuditReceipt(input: {
+    readonly authority: TransactionSigner;
+    readonly auditorIdentity: Address;
+    readonly identityBond: Address;
+    readonly targetIdentity: Address;
+    readonly targetReceipt: Address;
+    readonly domainCatalog: Address;
+    readonly receipt: ReceiptRecord;
+    readonly round: number;
+    readonly deadlineSlot?: number | bigint;
+  }): Promise<OnchainAuditReceiptBinding & OnchainOperationResult> {
+    const { getEmitAuditReceiptInstructionAsync } =
+      await loadEmitAuditReceiptInstructionModule();
+    const binding = await this.bindAuditReceipt({
+      auditorIdentity: input.auditorIdentity,
+      targetReceipt: input.targetReceipt,
+      kind: input.receipt.kind,
+      round: input.round,
+    });
+    const kind = RECEIPT_KIND_CODES[input.receipt.kind];
+    const payloadHash = derivePayloadHashBytes(
+      payloadHashFromReceipt(input.receipt)
+    );
+    const domain = deriveDomainBytes(input.receipt.domain);
+    const commit = await this.sendOperation(
+      "emit_audit_receipt",
+      getEmitAuditReceiptInstructionAsync({
+        authority: input.authority,
+        auditorIdentity: input.auditorIdentity,
+        identityBond: input.identityBond,
+        targetIdentity: input.targetIdentity,
+        targetReceipt: input.targetReceipt,
+        auditReceipt: binding.address,
+        domainCatalog: input.domainCatalog,
+        kind,
+        domain,
+        payloadHash,
+        sequence: BigInt(input.receipt.sequence),
+        round: input.round,
+        deadlineSlot: input.deadlineSlot ?? 0n,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async emitChallengeResponse(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly targetIdentity: Address;
+    readonly challenge: Address;
+    readonly receipt: ReceiptRecord;
+  }): Promise<OnchainChallengeResponseBinding & OnchainOperationResult> {
+    const { getEmitChallengeResponseInstructionAsync } =
+      await loadEmitChallengeResponseInstructionModule();
+    const binding = await this.bindChallengeResponse({
+      challenge: input.challenge,
+    });
+    const payloadHash = derivePayloadHashBytes(
+      payloadHashFromReceipt(input.receipt)
+    );
+    const commit = await this.sendOperation(
+      "emit_challenge_response",
+      getEmitChallengeResponseInstructionAsync({
+        authority: input.authority,
+        identity: input.identity,
+        targetIdentity: input.targetIdentity,
+        challenge: input.challenge,
+        challengeResponse: binding.address,
+        payloadHash,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async finalizeUnansweredChallenge(input: {
+    readonly authority: TransactionSigner;
+    readonly targetIdentity: Address;
+    readonly challenge: Address;
+    readonly targetReceipt: Address;
+    readonly auditorIdentity: Address;
+    readonly round: number;
+  }): Promise<OnchainAuditReceiptBinding & OnchainOperationResult> {
+    const { getFinalizeUnansweredChallengeInstructionAsync } =
+      await loadFinalizeUnansweredChallengeInstructionModule();
+    const binding = await this.bindAuditReceipt({
+      auditorIdentity: input.auditorIdentity,
+      targetReceipt: input.targetReceipt,
+      kind: "dispute",
+      round: input.round,
+    });
+    const commit = await this.sendOperation(
+      "finalize_unanswered_challenge",
+      getFinalizeUnansweredChallengeInstructionAsync({
+        authority: input.authority,
+        targetIdentity: input.targetIdentity,
+        challenge: input.challenge,
+        targetReceipt: input.targetReceipt,
+        auditReceipt: binding.address,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
   async syncTaskStatus(input: {
     readonly authority: TransactionSigner;
     readonly identity: Address;
@@ -905,6 +1417,392 @@ export class TrustSubstrateOnchainClient {
       input.authority,
       input.reputation
     );
+  }
+
+  async initializeAttesterRegistry(input: {
+    readonly curator: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const { getInitializeRegistryInstructionAsync } =
+      await loadInitializeAttesterRegistryInstructionModule();
+    const { findConfigPda } = await loadAttesterConfigPdaModule();
+    const address = addressFromPda(await findConfigPda());
+    return await this.sendOperation(
+      "initialize_attester_registry",
+      getInitializeRegistryInstructionAsync({
+        curator: input.curator,
+        config: address,
+      }),
+      input.curator,
+      address
+    );
+  }
+
+  async ensureAttesterRegistry(input: {
+    readonly curator: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const { findConfigPda } = await loadAttesterConfigPdaModule();
+    const address = addressFromPda(await findConfigPda());
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeAttesterRegistryConfig } =
+        await loadAttesterRegistryConfigAccountModule();
+      const existing = await fetchMaybeAttesterRegistryConfig(rpc, address);
+      if (existing.exists) {
+        return {
+          kind: "initialize_attester_registry",
+          address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.initializeAttesterRegistry(input)),
+      created: true,
+    };
+  }
+
+  async registerAttester(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly category: string;
+    readonly selfDeclaredTier: number;
+  }): Promise<OnchainAttesterBinding & OnchainOperationResult> {
+    const { getRegisterAttesterInstructionAsync } =
+      await loadRegisterAttesterInstructionModule();
+    const binding = await this.bindAttester(input);
+    const commit = await this.sendOperation(
+      "register_attester",
+      getRegisterAttesterInstructionAsync({
+        authority: input.authority,
+        identity: input.identity,
+        identityBond: binding.identityBond,
+        config: binding.config,
+        attester: binding.address,
+        category: input.category,
+        selfDeclaredTier: input.selfDeclaredTier,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async ensureAttester(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly category: string;
+    readonly selfDeclaredTier: number;
+  }): Promise<OnchainAttesterBinding & OnchainOperationResult> {
+    const binding = await this.bindAttester(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeAttesterRecord } =
+        await loadAttesterRecordAccountModule();
+      const existing = await fetchMaybeAttesterRecord(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "register_attester",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.registerAttester(input)),
+      created: true,
+    };
+  }
+
+  async createDelegation(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly delegate: Address;
+    readonly allowedActions: number;
+    readonly expiresAtSlot?: number | bigint;
+  }): Promise<OnchainDelegationBinding & OnchainOperationResult> {
+    if (input.allowedActions <= 0) {
+      throw new Error("Delegation scope must include at least one action");
+    }
+
+    const { getCreateDelegationInstructionAsync } =
+      await loadCreateDelegationInstructionModule();
+    const binding = await this.bindDelegation(input);
+    const commit = await this.sendOperation(
+      "create_delegation",
+      getCreateDelegationInstructionAsync({
+        authority: input.authority,
+        identity: input.identity,
+        delegate: input.delegate,
+        delegation: binding.address,
+        allowedActions: input.allowedActions,
+        expiresAtSlot: input.expiresAtSlot ?? 0n,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async ensureDelegation(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly delegate: Address;
+    readonly allowedActions: number;
+    readonly expiresAtSlot?: number | bigint;
+  }): Promise<OnchainDelegationBinding & OnchainOperationResult> {
+    const binding = await this.bindDelegation(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeDelegationRecord } =
+        await loadDelegationRecordAccountModule();
+      const existing = await fetchMaybeDelegationRecord(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "create_delegation",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.createDelegation(input)),
+      created: true,
+    };
+  }
+
+  async initializeHistoryUpdater(input: {
+    readonly payer: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const { getInitializeHistoryUpdaterInstructionAsync } =
+      await loadInitializeHistoryUpdaterInstructionModule();
+    const address = await this.bindHistoryUpdater();
+    return await this.sendOperation(
+      "initialize_history_updater",
+      getInitializeHistoryUpdaterInstructionAsync({
+        payer: input.payer,
+        historyUpdater: address,
+      }),
+      input.payer,
+      address
+    );
+  }
+
+  async ensureHistoryUpdater(input: {
+    readonly payer: TransactionSigner;
+  }): Promise<OnchainOperationResult> {
+    const address = await this.bindHistoryUpdater();
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeHistoryUpdater } =
+        await loadHistoryUpdaterAccountModule();
+      const existing = await fetchMaybeHistoryUpdater(rpc, address);
+      if (existing.exists) {
+        return {
+          kind: "initialize_history_updater",
+          address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.initializeHistoryUpdater(input)),
+      created: true,
+    };
+  }
+
+  async initializeHistoryCheckpoint(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly epoch: number | bigint;
+  }): Promise<OnchainHistoryCheckpointBinding & OnchainOperationResult> {
+    const { getInitializeCheckpointInstructionAsync } =
+      await loadInitializeCheckpointInstructionModule();
+    const binding = await this.bindHistoryCheckpoint(input);
+    const historyUpdater = await this.bindHistoryUpdater();
+    const commit = await this.sendOperation(
+      "initialize_history_checkpoint",
+      getInitializeCheckpointInstructionAsync({
+        authority: input.authority,
+        identity: input.identity,
+        checkpoint: binding.address,
+        latestCheckpoint: binding.latestCheckpoint,
+        historyUpdater,
+        epoch: binding.epoch,
+      }),
+      input.authority,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async ensureHistoryCheckpoint(input: {
+    readonly authority: TransactionSigner;
+    readonly identity: Address;
+    readonly epoch: number | bigint;
+  }): Promise<OnchainHistoryCheckpointBinding & OnchainOperationResult> {
+    const binding = await this.bindHistoryCheckpoint(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeHistoryCheckpoint } =
+        await loadHistoryCheckpointAccountModule();
+      const existing = await fetchMaybeHistoryCheckpoint(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "initialize_history_checkpoint",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.initializeHistoryCheckpoint(input)),
+      created: true,
+    };
+  }
+
+  async appendReceiptToCheckpoint(input: {
+    readonly feePayer: TransactionSigner;
+    readonly identity: Address;
+    readonly checkpoint: Address;
+    readonly latestCheckpoint: Address;
+    readonly receipt: Address;
+  }): Promise<OnchainOperationResult> {
+    const { getAppendReceiptToCheckpointInstructionAsync } =
+      await loadAppendReceiptToCheckpointInstructionModule();
+    const historyUpdater = await this.bindHistoryUpdater();
+    return await this.sendOperation(
+      "append_receipt_to_checkpoint",
+      getAppendReceiptToCheckpointInstructionAsync({
+        identity: input.identity,
+        checkpoint: input.checkpoint,
+        latestCheckpoint: input.latestCheckpoint,
+        receipt: input.receipt,
+        historyUpdater,
+      }),
+      input.feePayer,
+      input.checkpoint
+    );
+  }
+
+  async registerAdjudicator(input: {
+    readonly governance: TransactionSigner;
+    readonly adjudicator?: Address;
+  }): Promise<OnchainAdjudicatorBinding & OnchainOperationResult> {
+    const { getRegisterAdjudicatorInstructionAsync } =
+      await loadRegisterAdjudicatorInstructionModule();
+    const { findAdjudicatorConfigPda } = await loadAdjudicatorConfigPdaModule();
+    const { findTreasuryVaultPda } = await loadTreasuryVaultPdaModule();
+    const address = addressFromPda(await findAdjudicatorConfigPda());
+    const treasuryVault = addressFromPda(await findTreasuryVaultPda());
+    const adjudicator = input.adjudicator ?? input.governance.address;
+    const commit = await this.sendOperation(
+      "register_adjudicator",
+      getRegisterAdjudicatorInstructionAsync({
+        governance: input.governance,
+        adjudicatorConfig: address,
+        treasuryVault,
+        adjudicator,
+      }),
+      input.governance,
+      address
+    );
+    return { address, adjudicator, treasuryVault, ...commit };
+  }
+
+  async ensureAdjudicator(input: {
+    readonly governance: TransactionSigner;
+    readonly adjudicator?: Address;
+  }): Promise<OnchainAdjudicatorBinding & OnchainOperationResult> {
+    const { findAdjudicatorConfigPda } = await loadAdjudicatorConfigPdaModule();
+    const { findTreasuryVaultPda } = await loadTreasuryVaultPdaModule();
+    const address = addressFromPda(await findAdjudicatorConfigPda());
+    const treasuryVault = addressFromPda(await findTreasuryVaultPda());
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeAdjudicatorConfig } =
+        await loadAdjudicatorConfigAccountModule();
+      const existing = await fetchMaybeAdjudicatorConfig(rpc, address);
+      if (existing.exists) {
+        return {
+          address,
+          adjudicator: existing.data.adjudicator,
+          treasuryVault,
+          kind: "register_adjudicator",
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.registerAdjudicator(input)),
+      created: true,
+    };
+  }
+
+  async recordVerdict(input: {
+    readonly adjudicator: TransactionSigner;
+    readonly disputeReceipt: Address;
+    readonly outcome: number;
+    readonly slashAmount: number | bigint;
+    readonly class: number;
+    readonly staleAfterSlot: number | bigint;
+  }): Promise<OnchainVerdictBinding & OnchainOperationResult> {
+    const { getRecordVerdictInstructionAsync } =
+      await loadRecordVerdictInstructionModule();
+    const binding = await this.bindVerdict(input);
+    const commit = await this.sendOperation(
+      "record_verdict",
+      getRecordVerdictInstructionAsync({
+        adjudicator: input.adjudicator,
+        disputeReceipt: input.disputeReceipt,
+        verdict: binding.address,
+        outcome: input.outcome,
+        slashAmount: input.slashAmount,
+        class: input.class,
+        staleAfterSlot: input.staleAfterSlot,
+      }),
+      input.adjudicator,
+      binding.address
+    );
+    return { ...binding, ...commit };
+  }
+
+  async ensureVerdict(input: {
+    readonly adjudicator: TransactionSigner;
+    readonly disputeReceipt: Address;
+    readonly outcome: number;
+    readonly slashAmount: number | bigint;
+    readonly class: number;
+    readonly staleAfterSlot: number | bigint;
+  }): Promise<OnchainVerdictBinding & OnchainOperationResult> {
+    const binding = await this.bindVerdict(input);
+    const rpc = this.dispatcher.rpc;
+    if (rpc) {
+      const { fetchMaybeDisputeVerdict } =
+        await loadDisputeVerdictAccountModule();
+      const existing = await fetchMaybeDisputeVerdict(rpc, binding.address);
+      if (existing.exists) {
+        return {
+          ...binding,
+          kind: "record_verdict",
+          address: binding.address,
+          created: false,
+          slot: 0,
+        };
+      }
+    }
+    return {
+      ...(await this.recordVerdict(input)),
+      created: true,
+    };
   }
 
   private async sendOperation(

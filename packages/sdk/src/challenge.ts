@@ -1,4 +1,5 @@
 import { createReceipt, type ReceiptRecord } from "./client.js";
+import { withPayloadHash } from "./payload-hash.js";
 
 export const CHALLENGE_MARKER = "trust-substrate.challenge";
 export const CHALLENGE_RESPONSE_MARKER = "trust-substrate.challenge_response";
@@ -39,18 +40,19 @@ export interface UnansweredChallengeDisputeInput {
 export function createChallengeReceipt(
   input: ChallengeReceiptInput
 ): ReceiptRecord {
+  const payload = withPayloadHash({
+    domain: input.domain,
+    type: CHALLENGE_MARKER,
+    challengeTarget: input.targetReceiptId,
+    deadlineSlot: input.deadlineSlot,
+  });
   return createReceipt({
     actorId: input.actorId,
     kind: "challenge",
     taskId: input.taskId,
     sequence: input.sequence,
     previousReceiptId: input.previousReceiptId,
-    payload: {
-      domain: input.domain,
-      type: CHALLENGE_MARKER,
-      challengeTarget: input.targetReceiptId,
-      deadlineSlot: input.deadlineSlot,
-    },
+    payload,
   });
 }
 
@@ -73,25 +75,26 @@ export function createChallengeResponseReceipt(
     taskId: input.taskId,
     sequence: input.sequence,
     previousReceiptId: input.previousReceiptId,
-    payload,
+    payload: withPayloadHash(payload),
   });
 }
 
 export function buildUnansweredChallengePayload(
   input: UnansweredChallengeDisputeInput
 ): ReceiptRecord {
+  const payload = withPayloadHash({
+    domain: input.domain,
+    type: UNANSWERED_CHALLENGE_MARKER,
+    challengeReceiptId: input.challengeReceiptId,
+    targetReceiptId: input.targetReceiptId,
+  });
   return createReceipt({
     actorId: input.actorId,
     kind: "dispute",
     taskId: input.taskId,
     sequence: input.sequence,
     previousReceiptId: input.previousReceiptId,
-    payload: {
-      domain: input.domain,
-      type: UNANSWERED_CHALLENGE_MARKER,
-      challengeReceiptId: input.challengeReceiptId,
-      targetReceiptId: input.targetReceiptId,
-    },
+    payload,
   });
 }
 

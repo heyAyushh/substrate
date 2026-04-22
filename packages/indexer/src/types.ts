@@ -14,6 +14,7 @@ export interface LocalReceiptRecord {
   kind: ReceiptKind;
   domain: string;
   payload: Record<string, unknown>;
+  sequence?: number;
 }
 
 export interface IndexedReceipt extends LocalReceiptRecord {

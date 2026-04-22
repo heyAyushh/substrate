@@ -21,6 +21,7 @@ export interface ReceiptIndexRecord {
   readonly kind: ReceiptKind;
   readonly domain: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly sequence?: number;
 }
 
 export interface ReceiptIndexWriter {
@@ -188,6 +189,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
       kind: receipt.kind,
       domain: receipt.domain,
       payload: { ...receipt.payload },
+      sequence: receipt.sequence,
     };
     this.indexer.ingest([indexedReceipt]);
 

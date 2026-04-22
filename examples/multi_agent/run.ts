@@ -6,7 +6,7 @@ import {
   createDisputeReceipt,
   createReceiptFromExecution,
   createStakeEvent,
-  createUnansweredChallengeDispute,
+  buildUnansweredChallengePayload,
   createVerifiedReceiptFromExecution,
   DataAvailabilityError,
   deriveReputation,
@@ -34,6 +34,7 @@ const SQLITE_PATH = join(SNAPSHOT_DIR, "indexer.sqlite");
 const DOMAIN = "coding";
 const DEADLINE_SLOT = 210;
 const CURRENT_SLOT = 300;
+const CHALLENGE_ROUND = 0;
 
 type CodingTool = "read" | "write" | "edit" | "bash";
 
@@ -328,25 +329,31 @@ const alphaCompletion = assertDelegatedReceipt({
 });
 
 const challenge = appendLedger(
-  createChallengeReceipt({
-    actorId: reviewer.identityId,
-    taskId: task.taskId,
-    sequence: nextSequence(),
-    domain: DOMAIN,
-    targetReceiptId: alphaCompletion.receiptId,
-    deadlineSlot: DEADLINE_SLOT,
-  })
+  {
+    ...createChallengeReceipt({
+      actorId: reviewer.identityId,
+      taskId: task.taskId,
+      sequence: nextSequence(),
+      domain: DOMAIN,
+      targetReceiptId: alphaCompletion.receiptId,
+      deadlineSlot: DEADLINE_SLOT,
+    }),
+    round: CHALLENGE_ROUND,
+  }
 );
 
 const alphaDispute = appendLedger(
-  createUnansweredChallengeDispute({
-    actorId: reviewer.identityId,
-    taskId: task.taskId,
-    sequence: nextSequence(),
-    domain: DOMAIN,
-    challengeReceiptId: challenge.receiptId,
-    targetReceiptId: alphaCompletion.receiptId,
-  })
+  {
+    ...buildUnansweredChallengePayload({
+      actorId: reviewer.identityId,
+      taskId: task.taskId,
+      sequence: nextSequence(),
+      domain: DOMAIN,
+      challengeReceiptId: challenge.receiptId,
+      targetReceiptId: alphaCompletion.receiptId,
+    }),
+    round: CHALLENGE_ROUND,
+  }
 );
 
 const slashResolution = appendLedger(
@@ -526,8 +533,9 @@ function toIndexed(receipt: ReceiptRecord, slot: number): LocalReceiptRecord {
     actorId: receipt.actorId,
     kind: receipt.kind,
     domain: receipt.domain,
+    ...(receipt.round !== undefined ? { round: receipt.round } : {}),
     payload: { ...receipt.payload },
-  };
+  } as LocalReceiptRecord;
 }
 
 const indexer = new SqliteDurableIndexer({
@@ -600,6 +608,7 @@ console.log(
         actor: receipt.actorId,
         kind: receipt.kind,
         receiptId: receipt.receiptId,
+        round: receipt.round,
       })),
       handoffChain: indexer.getHandoffChain(task.taskId),
       leaderboard: {

@@ -8,7 +8,7 @@ export const DEFAULT_IDENTITY_LABEL = "pi-local-agent";
 export const DEFAULT_TASK_TITLE = "pi coding session";
 export const DEFAULT_BLOB_DIR = ".pi/substrate-blobs";
 export const DEFAULT_INDEX_DB_PATH = ".pi/substrate-index.sqlite";
-export const DEFAULT_SURFPOOL_STUDIO_URL = "http://127.0.0.1:18489";
+export const DEFAULT_SURFPOOL_STUDIO_URL = "http://127.0.0.1:18488";
 export const DEFAULT_RUN_DASHBOARD_URL =
   "http://127.0.0.1:4173/examples/multi_agent/dashboard/index.html";
 

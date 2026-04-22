@@ -87,17 +87,21 @@ const getHandoffTarget = (receipt: LocalReceiptRecord): string | undefined => {
 const cloneReceipt = (
   receipt: LocalReceiptRecord,
   sequence: number
-): IndexedReceipt => ({
-  receiptId: receipt.receiptId,
-  slot: receipt.slot,
-  taskId: receipt.taskId,
-  actorId: receipt.actorId,
-  kind: receipt.kind,
-  domain: receipt.domain,
-  payload: { ...receipt.payload },
-  sequence,
-  dedupeKey: createDedupeKey(receipt),
-});
+): IndexedReceipt =>
+  ({
+    receiptId: receipt.receiptId,
+    slot: receipt.slot,
+    taskId: receipt.taskId,
+    actorId: receipt.actorId,
+    kind: receipt.kind,
+    domain: receipt.domain,
+    ...(getReceiptRound(receipt) !== undefined
+      ? { round: getReceiptRound(receipt) }
+      : {}),
+    payload: { ...receipt.payload },
+    sequence: receipt.sequence ?? sequence,
+    dedupeKey: createDedupeKey(receipt),
+  }) as IndexedReceipt;
 
 const dedupeStrings = (values: string[]): string[] =>
   [...new Set(values)].sort();
@@ -130,8 +134,15 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+const getReceiptRound = (
+  receipt: LocalReceiptRecord | IndexedReceipt
+): number | undefined =>
+  asNumber((receipt as LocalReceiptRecord & { round?: unknown }).round) ??
+  asNumber(receipt.payload.round) ??
+  undefined;
+
 const getChallengeRound = (receipt: LocalReceiptRecord): number =>
-  asNumber(receipt.payload.round) ?? 0;
+  getReceiptRound(receipt) ?? 0;
 
 const cloneAuthorityRotation = (
   event: AuthorityRotationEvent
@@ -404,8 +415,11 @@ export class LocalDurableIndexer {
         actorId: indexed.actorId,
         kind: indexed.kind,
         domain: indexed.domain,
+        ...(getReceiptRound(indexed) !== undefined
+          ? { round: getReceiptRound(indexed) }
+          : {}),
         payload: { ...indexed.payload },
-      };
+      } as LocalReceiptRecord;
       indexer.ingest([record]);
     }
     if (snapshot.authorityRotations) {
@@ -439,6 +453,8 @@ export class LocalDurableIndexer {
         actorId: receipt.actorId,
         kind: receipt.kind,
         domain: receipt.domain,
+        sequence: receipt.sequence ?? null,
+        round: getReceiptRound(receipt),
         payload: receipt.payload,
       });
       const existing = this.receiptsByKey.get(dedupeKey);

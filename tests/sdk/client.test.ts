@@ -2,11 +2,14 @@ import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
 import { resolve } from "node:path";
+import { address, getAddressEncoder } from "@solana/kit";
 import {
   ReceiptLedger,
   TrustSubstrateClient,
+  deriveAuditReceiptIdBytes,
   createAuthorityRotationEvent,
   createMerkleTree,
+  derivePreviousReceiptBytes,
   deriveReputation,
   verifyMerkleProof,
 } from "../../packages/sdk/src/index.js";
@@ -76,6 +79,35 @@ test("rejects receipt replay attempts", () => {
   ledger.append(receipt);
 
   throws(() => ledger.append(receipt), /replay/i);
+});
+
+test("derives previous receipt bytes from committed receipt addresses", () => {
+  const receiptAddress = address("SysvarC1ock11111111111111111111111111111111");
+
+  deepStrictEqual(
+    derivePreviousReceiptBytes({ previousReceiptId: receiptAddress }),
+    getAddressEncoder().encode(receiptAddress)
+  );
+});
+
+test("derives audit receipt bytes from the auditor target and round", () => {
+  const auditorIdentity = address("11111111111111111111111111111111");
+  const targetReceipt = address("SysvarC1ock11111111111111111111111111111111");
+  const firstDerivation = deriveAuditReceiptIdBytes({
+    auditorIdentity,
+    targetReceipt,
+    kind: 4,
+    round: 37,
+  });
+  const secondDerivation = deriveAuditReceiptIdBytes({
+    auditorIdentity,
+    targetReceipt,
+    kind: 4,
+    round: 37,
+  });
+
+  strictEqual(firstDerivation.length, 32);
+  deepStrictEqual(firstDerivation, secondDerivation);
 });
 
 test("rejects delegation scope mismatches", () => {

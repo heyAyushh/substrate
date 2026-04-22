@@ -14,6 +14,7 @@ const receipt = (
     taskId: string;
     actorId: string;
     kind: string;
+    round?: number;
   }
 ): LocalReceiptRecord => ({
   domain: "ops",
@@ -467,10 +468,10 @@ test("groups challenge rounds for the same target receipt", () => {
       taskId: "task-rounds",
       actorId: "reviewer-a",
       kind: "challenge",
+      round: 0,
       payload: {
         challengeTarget: "receipt-target",
         deadlineSlot: 35,
-        round: 0,
       },
     }),
     receipt({
@@ -489,10 +490,10 @@ test("groups challenge rounds for the same target receipt", () => {
       taskId: "task-rounds",
       actorId: "reviewer-b",
       kind: "challenge",
+      round: 1,
       payload: {
         challengeTarget: "receipt-target",
         deadlineSlot: 45,
-        round: 1,
       },
     }),
   ]);

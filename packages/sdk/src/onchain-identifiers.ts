@@ -1,4 +1,10 @@
-import type { ReadonlyUint8Array } from "@solana/kit";
+import { createHash } from "node:crypto";
+import {
+  getAddressEncoder,
+  isAddress,
+  type Address,
+  type ReadonlyUint8Array,
+} from "@solana/kit";
 
 import type { IdentityRecord, ReceiptRecord, TaskRecord } from "./client.js";
 import { hashCanonical } from "./canonical.js";
@@ -8,6 +14,11 @@ const HEX_BYTES32_LENGTH = BYTES32_LENGTH * 2;
 const BYTES32_ZERO = new Uint8Array(BYTES32_LENGTH);
 
 const HEX_BYTES32_PATTERN = /^[0-9a-f]{64}$/i;
+const ADDRESS_ENCODER = getAddressEncoder();
+const AUDIT_RECEIPT_SEED = Buffer.from("audit_receipt", "utf8");
+const AUDIT_RECEIPT_ROUND_SHIFT = 8;
+const AUDIT_RECEIPT_ROUND_MASK = 0xffff;
+const BYTE_MASK = 0xff;
 
 const toBytes32 = (hex: string): Uint8Array => {
   if (!HEX_BYTES32_PATTERN.test(hex)) {
@@ -43,8 +54,9 @@ export const deriveAgentIdBytes = (
   identity: Pick<IdentityRecord, "identityId">
 ): Uint8Array => deriveProtocolBytes32("agent_id", identity.identityId);
 
-export const deriveTaskIdBytes = (task: Pick<TaskRecord, "taskId">): Uint8Array =>
-  deriveProtocolBytes32("task_id", task.taskId);
+export const deriveTaskIdBytes = (
+  task: Pick<TaskRecord, "taskId">
+): Uint8Array => deriveProtocolBytes32("task_id", task.taskId);
 
 export const deriveSubtaskRootBytes = (
   task: Pick<TaskRecord, "taskId" | "subtasks" | "description">
@@ -67,11 +79,43 @@ export const deriveReceiptIdBytes = (
   receipt: Pick<ReceiptRecord, "receiptId">
 ): Uint8Array => deriveProtocolBytes32("receipt_id", receipt.receiptId);
 
+export const deriveAuditReceiptIdBytes = (input: {
+  readonly auditorIdentity: Address;
+  readonly targetReceipt: Address;
+  readonly kind: number;
+  readonly round: number;
+}): Uint8Array => {
+  const auditorIdentity = Uint8Array.from(
+    ADDRESS_ENCODER.encode(input.auditorIdentity)
+  );
+  const targetReceipt = Uint8Array.from(
+    ADDRESS_ENCODER.encode(input.targetReceipt)
+  );
+  const round = input.round & AUDIT_RECEIPT_ROUND_MASK;
+  const digest = createHash("sha256")
+    .update(AUDIT_RECEIPT_SEED)
+    .update(auditorIdentity)
+    .update(targetReceipt)
+    .update(Uint8Array.of(input.kind & BYTE_MASK))
+    .update(
+      Uint8Array.of(
+        round & BYTE_MASK,
+        (round >>> AUDIT_RECEIPT_ROUND_SHIFT) & BYTE_MASK
+      )
+    )
+    .digest();
+  return Uint8Array.from(digest);
+};
+
 export const derivePreviousReceiptBytes = (
   receipt: Pick<ReceiptRecord, "previousReceiptId">
 ): Uint8Array =>
   receipt.previousReceiptId
-    ? deriveProtocolBytes32("receipt_id", receipt.previousReceiptId)
+    ? isAddress(receipt.previousReceiptId)
+      ? Uint8Array.from(
+          ADDRESS_ENCODER.encode(receipt.previousReceiptId as Address)
+        )
+      : deriveProtocolBytes32("receipt_id", receipt.previousReceiptId)
     : zeroBytes32();
 
 export const derivePayloadHashBytes = (
