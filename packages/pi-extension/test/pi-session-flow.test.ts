@@ -51,7 +51,7 @@ const createStubHost = () => {
   const handlers: Handlers = new Map();
   const on = (
     event: string,
-    handler: (event: unknown, ctx: unknown) => unknown
+    handler: (event: unknown, ctx: unknown) => unknown,
   ) => {
     const list = handlers.get(event) ?? [];
     list.push(handler);
@@ -83,7 +83,9 @@ const buildStubBridge = (): {
   };
   const bridge = {
     indexer,
-    commit: async (input: PiBridgeCommitInput): Promise<PiBridgeCommitResult> => {
+    commit: async (
+      input: PiBridgeCommitInput,
+    ): Promise<PiBridgeCommitResult> => {
       commits.push(input);
       const receiptId = `rcpt-${input.recordId}`;
       const record: ReceiptIndexRecord = {
@@ -97,7 +99,14 @@ const buildStubBridge = (): {
       };
       indexer.ingest([record]);
       return {
-        execution: { record: { recordId: input.recordId, identityId: input.identity.identityId, taskId: input.task.taskId, steps: [] } },
+        execution: {
+          record: {
+            recordId: input.recordId,
+            identityId: input.identity.identityId,
+            taskId: input.task.taskId,
+            steps: [],
+          },
+        },
         receipt: {
           receiptId,
           hash: "h",
@@ -139,7 +148,10 @@ test("fake AgentSession stream drives multi-turn commits through the extension",
     toolName: "read",
     input: { path: "src/a.ts" },
   });
-  await emit("tool_execution_end", { type: "tool_execution_end", toolCallId: "t0-read" });
+  await emit("tool_execution_end", {
+    type: "tool_execution_end",
+    toolCallId: "t0-read",
+  });
   await emit("tool_call", {
     type: "tool_call",
     toolCallId: "t0-ls",
@@ -152,7 +164,10 @@ test("fake AgentSession stream drives multi-turn commits through the extension",
     toolName: "edit",
     input: { path: "src/a.ts" },
   });
-  await emit("tool_execution_end", { type: "tool_execution_end", toolCallId: "t0-edit" });
+  await emit("tool_execution_end", {
+    type: "tool_execution_end",
+    toolCallId: "t0-edit",
+  });
   await emit("turn_end", { type: "turn_end", turnIndex: 0 });
 
   await emit("turn_start", { type: "turn_start", turnIndex: 1 });
@@ -162,7 +177,10 @@ test("fake AgentSession stream drives multi-turn commits through the extension",
     toolName: "bash",
     input: { command: "pnpm test" },
   });
-  await emit("tool_execution_end", { type: "tool_execution_end", toolCallId: "t1-bash" });
+  await emit("tool_execution_end", {
+    type: "tool_execution_end",
+    toolCallId: "t1-bash",
+  });
   await emit("turn_end", { type: "turn_end", turnIndex: 1 });
 
   await emit("turn_start", { type: "turn_start", turnIndex: 2 });
@@ -183,6 +201,6 @@ test("fake AgentSession stream drives multi-turn commits through the extension",
   strictEqual(indexed.length, 2);
   deepStrictEqual(
     indexed.map((r) => r.receiptId),
-    ["rcpt-pi:session-e2e:turn-0", "rcpt-pi:session-e2e:turn-1"]
+    ["rcpt-pi:session-e2e:turn-0", "rcpt-pi:session-e2e:turn-1"],
   );
 });

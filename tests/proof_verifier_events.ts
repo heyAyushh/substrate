@@ -42,7 +42,7 @@ describe("proof_verifier structured events", () => {
   before(async () => {
     const [cpiAuthorityPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
-      receiptProgram.programId
+      receiptProgram.programId,
     );
     cpiAuthority = cpiAuthorityPda;
     try {
@@ -60,7 +60,7 @@ describe("proof_verifier structured events", () => {
 
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("history_updater", "utf8")],
-      proofProgram.programId
+      proofProgram.programId,
     );
     historyUpdater = pda;
     try {
@@ -78,12 +78,12 @@ describe("proof_verifier structured events", () => {
 
     const [domainCatalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("domain_catalog", "utf8")],
-      reputationProgram.programId
+      reputationProgram.programId,
     );
     domainCatalog = domainCatalogPda;
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -171,7 +171,7 @@ describe("proof_verifier structured events", () => {
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(createdEvent.identity.toBase58(), identity.toBase58());
@@ -189,7 +189,7 @@ describe("proof_verifier structured events", () => {
         new anchor.BN(1),
         bytes32(0),
         bytes32(0),
-        bytes32(707)
+        bytes32(707),
       )
       .accountsStrict({
         authority,
@@ -221,7 +221,7 @@ describe("proof_verifier structured events", () => {
             identityRegistryProgram: identityProgram.programId,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(appendedEvent.identity.toBase58(), identity.toBase58());
@@ -244,20 +244,22 @@ describe("proof_verifier structured events", () => {
           .verifyReceiptInclusion(
             completionLeafHash,
             new anchor.BN(completionProof.index),
-            completionProof.siblings.map((sibling) => Array.from(sibling))
+            completionProof.siblings.map((sibling) => Array.from(sibling)),
           )
           .accountsStrict({
             checkpoint,
             latestCheckpoint,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(verifiedEvent.identity.toBase58(), identity.toBase58());
     strictEqual(verifiedEvent.checkpoint.toBase58(), checkpoint.toBase58());
     ok(
-      Buffer.from(verifiedEvent.receipt).equals(Buffer.from(completionLeafHash))
+      Buffer.from(verifiedEvent.receipt).equals(
+        Buffer.from(completionLeafHash),
+      ),
     );
     ok(Number(verifiedEvent.slot) > 0);
 
@@ -280,12 +282,16 @@ describe("proof_verifier structured events", () => {
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(rotatedEvent.identity.toBase58(), identity.toBase58());
     strictEqual(rotatedEvent.epoch.toNumber(), NEXT_EPOCH_NUMBER);
-    ok(Buffer.from(rotatedEvent.previousRoot).equals(Buffer.from(checkpointRoot)));
+    ok(
+      Buffer.from(rotatedEvent.previousRoot).equals(
+        Buffer.from(checkpointRoot),
+      ),
+    );
     ok(Buffer.from(rotatedEvent.newRoot).equals(Buffer.alloc(32, 0)));
     strictEqual(rotatedEvent.leafCount.toNumber(), 0);
     ok(Number(rotatedEvent.slot) > 0);
@@ -294,7 +300,7 @@ describe("proof_verifier structured events", () => {
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -319,7 +325,7 @@ async function captureEvent<T>(
   program: Program<any>,
   eventName: string,
   action: () => Promise<void>,
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): Promise<T> {
   return new Promise(async (resolve, reject) => {
     let resolved = false;

@@ -25,7 +25,7 @@ export async function findRotateCheckpointCheckpointPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi" as Address<"4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi">,
+    programAddress = "7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE" as Address<"7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

@@ -27,7 +27,7 @@ test("snapshot script archives and prunes local indexer snapshots", () => {
   }
 
   const archived = readdirSync(archive).filter((entry) =>
-    entry.endsWith(".json")
+    entry.endsWith(".json"),
   );
 
   strictEqual(archived.length, 2);

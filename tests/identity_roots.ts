@@ -21,7 +21,7 @@ describe("identity root updates", () => {
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("history_updater", "utf8")],
-      proofProgram.programId
+      proofProgram.programId,
     );
     historyUpdater = pda;
     try {
@@ -76,21 +76,20 @@ describe("identity root updates", () => {
       })
       .rpc();
 
-    const identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    const identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
 
     strictEqual(
       Buffer.from(identityAccount.policyRoot).equals(
-        Buffer.from(updatedPolicyRoot)
+        Buffer.from(updatedPolicyRoot),
       ),
-      true
+      true,
     );
     strictEqual(
       Buffer.from(identityAccount.historyRoot).equals(
-        Buffer.from(initialHistoryRoot)
+        Buffer.from(initialHistoryRoot),
       ),
-      true
+      true,
     );
   });
 
@@ -140,7 +139,7 @@ describe("identity root updates", () => {
         })
         .signers([foreignAuthority])
         .rpc(),
-      "IdentityAuthorityMismatch"
+      "IdentityAuthorityMismatch",
     );
   });
 
@@ -188,12 +187,11 @@ describe("identity root updates", () => {
       })
       .rpc();
 
-    let identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    let identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
     strictEqual(
       Buffer.from(identityAccount.historyRoot).equals(emptyRoot),
-      true
+      true,
     );
 
     const [nextCheckpoint] = pda(proofProgram, [
@@ -216,12 +214,11 @@ describe("identity root updates", () => {
       })
       .rpc();
 
-    identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
     strictEqual(
       Buffer.from(identityAccount.historyRoot).equals(emptyRoot),
-      true
+      true,
     );
   });
 
@@ -263,7 +260,7 @@ describe("identity root updates", () => {
           historyUpdater: authority,
         })
         .rpc(),
-      "InvalidHistoryUpdater"
+      "InvalidHistoryUpdater",
     );
   });
 
@@ -274,15 +271,15 @@ describe("identity root updates", () => {
           fromPubkey: authority,
           toPubkey: publicKey,
           lamports: 1_000_000_000,
-        })
-      )
+        }),
+      ),
     );
   }
 });
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -305,7 +302,7 @@ function u64(value: number): Buffer {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;

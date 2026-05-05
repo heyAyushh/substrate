@@ -51,7 +51,7 @@ export interface DisputeReceiptInput {
 }
 
 export function createReceiptFromExecution(
-  input: ReceiptFromExecutionInput
+  input: ReceiptFromExecutionInput,
 ): ReceiptRecord {
   const { root } = hashExecutionRecord(input.record);
   const payloadHash = root.toString("hex");
@@ -79,7 +79,7 @@ export function createReceiptFromExecution(
 }
 
 export async function createVerifiedReceiptFromExecution(
-  input: ReceiptFromExecutionInput
+  input: ReceiptFromExecutionInput,
 ): Promise<ReceiptRecord> {
   if (input.storage?.verify) {
     const { root } = hashExecutionRecord(input.record);
@@ -93,12 +93,12 @@ export async function createVerifiedReceiptFromExecution(
 }
 
 export function createDisputeReceipt(
-  input: DisputeReceiptInput
+  input: DisputeReceiptInput,
 ): ReceiptRecord {
   const step = input.record.steps.find((entry) => entry.seq === input.stepSeq);
   if (!step) {
     throw new Error(
-      `ExecutionRecord has no step with seq=${input.stepSeq} for dispute binding`
+      `ExecutionRecord has no step with seq=${input.stepSeq} for dispute binding`,
     );
   }
 

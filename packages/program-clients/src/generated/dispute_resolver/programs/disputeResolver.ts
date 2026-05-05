@@ -63,7 +63,7 @@ import {
 } from "../pdas";
 
 export const DISPUTE_RESOLVER_PROGRAM_ADDRESS =
-  "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa" as Address<"9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa">;
+  "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF" as Address<"uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF">;
 
 export enum DisputeResolverAccount {
   AdjudicatorConfig,
@@ -164,7 +164,7 @@ export function identifyDisputeResolverInstruction(
 }
 
 export type ParsedDisputeResolverInstruction<
-  TProgram extends string = "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa",
+  TProgram extends string = "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF",
 > =
   | ({
       instructionType: DisputeResolverInstruction.ChallengeVerdict;

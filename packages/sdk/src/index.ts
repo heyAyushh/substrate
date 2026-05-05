@@ -155,6 +155,8 @@ export type {
   OnchainTransactionCommit,
   OnchainTransactionDispatcher,
   OnchainChallengeResponseBinding,
+  OnchainSocietyWorldBinding,
+  OnchainSocietyWorldRecord,
   TrustSubstrateDispatcherConfig,
   TrustSubstrateRpc,
   TrustSubstrateRpcSubscriptions,

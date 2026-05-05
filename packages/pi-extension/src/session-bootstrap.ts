@@ -27,7 +27,7 @@ export interface BootstrapResult extends SubstrateBindings {
 
 const buildIdentityRecord = (
   authority: TransactionSigner,
-  label: string
+  label: string,
 ): IdentityRecord =>
   createIdentity({
     authority: authority.address,
@@ -38,7 +38,7 @@ const buildTaskRecord = (
   identity: IdentityRecord,
   title: string,
   domain: string,
-  description?: string
+  description?: string,
 ): TaskRecord =>
   createTask({
     identityId: identity.identityId,
@@ -48,14 +48,14 @@ const buildTaskRecord = (
   });
 
 export const bootstrapSubstrateSession = async (
-  input: BootstrapInput
+  input: BootstrapInput,
 ): Promise<BootstrapResult> => {
   const identity = buildIdentityRecord(input.authority, input.identityLabel);
   const task = buildTaskRecord(
     identity,
     input.taskTitle,
     input.domain,
-    input.taskDescription
+    input.taskDescription,
   );
 
   const operations: OnchainOperationResult[] = [];
@@ -63,19 +63,19 @@ export const bootstrapSubstrateSession = async (
   operations.push(
     await input.client.ensureDomainCatalog({
       curator: input.authority,
-    })
+    }),
   );
   operations.push(
     await input.client.ensureDomainRegistered({
       curator: input.authority,
       domainCatalog: domainCatalogAddress,
       taskOrDomain: task,
-    })
+    }),
   );
   operations.push(
     await input.client.ensureCpiAuthority({
       payer: input.authority,
-    })
+    }),
   );
 
   let identityAddress: Address;

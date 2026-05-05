@@ -40,7 +40,7 @@ const truthy = (value: string | undefined): boolean | undefined => {
 };
 
 export function loadExtensionConfig(
-  input: LoadConfigInput = {}
+  input: LoadConfigInput = {},
 ): ExtensionConfig {
   const env = input.env ?? process.env;
   const home = input.home ?? homedir();

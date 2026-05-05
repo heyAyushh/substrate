@@ -39,7 +39,7 @@ pub mod __cpi_client_accounts_challenge_verdict {
     pub use crate::instructions::challenge_verdict::__cpi_client_accounts_challenge_verdict::*;
 }
 
-declare_id!("9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa");
+declare_id!("uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF");
 
 #[program]
 pub mod dispute_resolver {

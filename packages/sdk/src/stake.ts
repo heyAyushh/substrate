@@ -96,7 +96,7 @@ const parseOptionalPositiveLamports = (value: unknown): bigint | undefined =>
 const subtractLamports = (
   current: bigint,
   amount: bigint,
-  reason: string
+  reason: string,
 ): bigint => {
   if (amount > current) {
     throw new Error(`stake state underflow while ${reason}`);
@@ -106,7 +106,7 @@ const subtractLamports = (
 
 const normalizeStakeEvent = (
   input: StakeEventInput,
-  eventIdOverride?: string
+  eventIdOverride?: string,
 ): StakeEvent => {
   if (input.identityId.length === 0) {
     throw new Error("stake event identityId is required");
@@ -163,7 +163,7 @@ const eventFromRecord = (value: unknown): StakeEvent | undefined => {
       unlocksAtSlot: asSlot(candidate.unlocksAtSlot),
       disputeReceiptId: asNonEmptyString(candidate.disputeReceiptId),
     },
-    eventId
+    eventId,
   );
 };
 
@@ -172,7 +172,7 @@ export function createStakeEvent(input: StakeEventInput): StakeEvent {
 }
 
 export function extractStakeEventsFromReceipt(
-  receipt: ReceiptRecord
+  receipt: ReceiptRecord,
 ): StakeEvent[] {
   const events: StakeEvent[] = [];
   const payloadEvents = receipt.payload.stakeEvents;
@@ -198,7 +198,7 @@ export function extractStakeEventsFromReceipt(
           identityId: slashedAgentId,
           amountLamports: slashAmount as string | number | bigint,
           disputeReceiptId: receipt.receiptId,
-        })
+        }),
       );
     }
   }
@@ -208,7 +208,7 @@ export function extractStakeEventsFromReceipt(
 
 export function deriveStakeState(
   identityId: string,
-  events: ReadonlyArray<StakeEvent>
+  events: ReadonlyArray<StakeEvent>,
 ): StakeState {
   let ownerId: string | undefined;
   let slashAuthorityId: string | undefined;
@@ -240,12 +240,12 @@ export function deriveStakeState(
         activeLamports = subtractLamports(
           activeLamports,
           amount,
-          "finalizing unstake"
+          "finalizing unstake",
         );
         pendingUnstakeLamports = subtractLamports(
           pendingUnstakeLamports,
           amount,
-          "clearing pending unstake"
+          "clearing pending unstake",
         );
         if (pendingUnstakeLamports === 0n) {
           unstakeUnlocksAtSlot = undefined;

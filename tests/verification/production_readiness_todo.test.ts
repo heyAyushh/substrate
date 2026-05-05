@@ -6,17 +6,14 @@ const { test } = require("node:test");
 const REPO_ROOT = join(__dirname, "..", "..");
 const SECURITY_DOC = readFileSync(
   join(REPO_ROOT, "docs", "security.md"),
-  "utf8"
+  "utf8",
 );
 const READINESS_TODO_DOC = readFileSync(
   join(REPO_ROOT, "docs", "production-readiness.md"),
-  "utf8"
+  "utf8",
 );
 const README_DOC = readFileSync(join(REPO_ROOT, "README.md"), "utf8");
-const ROADMAP_DOC = readFileSync(
-  join(REPO_ROOT, "docs", "roadmap.md"),
-  "utf8"
-);
+const ROADMAP_DOC = readFileSync(join(REPO_ROOT, "docs", "roadmap.md"), "utf8");
 
 const normalizeText = (text) => text.replace(/\s+/g, " ").trim();
 
@@ -37,7 +34,7 @@ test("production readiness todo tracks every known security gap", () => {
     ok(securityDoc.includes(gap), `security.md must document: ${gap}`);
     ok(
       readinessTodoDoc.includes(gap),
-      `production-readiness.md must track: ${gap}`
+      `production-readiness.md must track: ${gap}`,
     );
   }
 });

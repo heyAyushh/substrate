@@ -36,7 +36,7 @@ describe("agent_stake", () => {
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
-      receiptProgram.programId
+      receiptProgram.programId,
     );
     cpiAuthority = pda;
     try {
@@ -54,12 +54,12 @@ describe("agent_stake", () => {
 
     const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("domain_catalog", "utf8")],
-      reputationProgram.programId
+      reputationProgram.programId,
     );
     domainCatalog = catalogPda;
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -179,7 +179,7 @@ describe("agent_stake", () => {
           identityRegistryProgram: identityProgram.programId,
         })
         .rpc(),
-      "StakeCooldownNotElapsed"
+      "StakeCooldownNotElapsed",
     );
 
     stakeAccount = await stakeProgram.account.stakeAccount.fetch(stake);
@@ -198,7 +198,7 @@ describe("agent_stake", () => {
     stakeAccount = await stakeProgram.account.stakeAccount.fetch(stake);
     strictEqual(
       stakeAccount.amount.toString(),
-      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).toString()
+      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).toString(),
     );
 
     await receiptProgram.methods
@@ -208,7 +208,7 @@ describe("agent_stake", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         authority: owner,
@@ -239,13 +239,12 @@ describe("agent_stake", () => {
     stakeAccount = await stakeProgram.account.stakeAccount.fetch(stake);
     strictEqual(
       stakeAccount.amount.toString(),
-      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).sub(SLASH_AMOUNT).toString()
+      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).sub(SLASH_AMOUNT).toString(),
     );
     strictEqual(stakeAccount.slashedTotal.toString(), SLASH_AMOUNT.toString());
 
-    const markerAccount = await stakeProgram.account.slashMarker.fetch(
-      slashMarker
-    );
+    const markerAccount =
+      await stakeProgram.account.slashMarker.fetch(slashMarker);
     strictEqual(markerAccount.disputeReceipt.toBase58(), receipt.toBase58());
 
     await expectAnchorError(
@@ -260,7 +259,7 @@ describe("agent_stake", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "AccountAlreadyInitialized"
+      "AccountAlreadyInitialized",
     );
   });
 
@@ -303,7 +302,7 @@ describe("agent_stake", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "StakeAmountMustBePositive"
+      "StakeAmountMustBePositive",
     );
   });
 
@@ -363,7 +362,7 @@ describe("agent_stake", () => {
         })
         .signers([wrongSlashAuthority])
         .rpc(),
-      "StakeSlashAuthorityMismatch"
+      "StakeSlashAuthorityMismatch",
     );
 
     await expectAnchorError(
@@ -378,7 +377,7 @@ describe("agent_stake", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "StakeReceiptKindMismatch"
+      "StakeReceiptKindMismatch",
     );
 
     const foreignAgent = await createIdentityTaskAndReceipt({
@@ -405,7 +404,7 @@ describe("agent_stake", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "StakeReceiptIdentityMismatch"
+      "StakeReceiptIdentityMismatch",
     );
   });
 
@@ -471,7 +470,7 @@ describe("agent_stake", () => {
             stake,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .rpc()
+          .rpc(),
     );
     strictEqual(initialized.identity.toBase58(), identity.toBase58());
     strictEqual(initialized.authority.toBase58(), owner.toBase58());
@@ -492,7 +491,7 @@ describe("agent_stake", () => {
             identityRegistryProgram: identityProgram.programId,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .rpc()
+          .rpc(),
     );
     strictEqual(deposited.identity.toBase58(), identity.toBase58());
     strictEqual(deposited.authority.toBase58(), owner.toBase58());
@@ -506,14 +505,14 @@ describe("agent_stake", () => {
         stakeProgram.methods
           .requestUnstake(UNSTAKE_AMOUNT)
           .accountsStrict({ owner, stake })
-          .rpc()
+          .rpc(),
     );
     strictEqual(requested.identity.toBase58(), identity.toBase58());
     strictEqual(requested.authority.toBase58(), owner.toBase58());
     strictEqual(requested.amount.toString(), UNSTAKE_AMOUNT.toString());
     strictEqual(
       requested.pendingUnstakeAmount.toString(),
-      UNSTAKE_AMOUNT.toString()
+      UNSTAKE_AMOUNT.toString(),
     );
     ok(Number(requested.slot.toString()) > 0);
 
@@ -531,7 +530,7 @@ describe("agent_stake", () => {
             stake,
             identityRegistryProgram: identityProgram.programId,
           })
-          .rpc()
+          .rpc(),
     );
     strictEqual(finalized.identity.toBase58(), identity.toBase58());
     strictEqual(finalized.authority.toBase58(), owner.toBase58());
@@ -545,7 +544,7 @@ describe("agent_stake", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         authority: owner,
@@ -575,7 +574,7 @@ describe("agent_stake", () => {
             treasuryVault,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
-          .rpc()
+          .rpc(),
     );
     strictEqual(slashed.identity.toBase58(), identity.toBase58());
     strictEqual(slashed.slashAuthority.toBase58(), owner.toBase58());
@@ -599,8 +598,8 @@ describe("agent_stake", () => {
           fromPubkey: owner,
           toPubkey: publicKey,
           lamports: 1_000_000_000,
-        })
-      )
+        }),
+      ),
     );
   }
 
@@ -635,7 +634,7 @@ describe("agent_stake", () => {
       .createIdentity(
         agentId,
         bytes32(input.agentId + 10),
-        bytes32(input.agentId + 20)
+        bytes32(input.agentId + 20),
       )
       .accountsStrict({
         identity,
@@ -662,7 +661,7 @@ describe("agent_stake", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        bytes32(input.receiptId + 30)
+        bytes32(input.receiptId + 30),
       )
       .accountsStrict({
         authority: owner,
@@ -681,7 +680,7 @@ describe("agent_stake", () => {
 
   async function ensureTreasuryVault(
     program: Program<DisputeResolver>,
-    adjudicator: anchor.web3.PublicKey
+    adjudicator: anchor.web3.PublicKey,
   ) {
     if (treasuryVault) {
       return;
@@ -710,10 +709,10 @@ describe("agent_stake", () => {
   async function ensureDomainRegistered(domain: number[]) {
     const catalog =
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     const isRegistered = catalog.domains.some((entry: number[]) =>
-      Buffer.from(entry).equals(Buffer.from(domain))
+      Buffer.from(entry).equals(Buffer.from(domain)),
     );
     if (isRegistered) {
       return;
@@ -731,7 +730,7 @@ describe("agent_stake", () => {
   async function captureEvent(
     program: Program<any>,
     eventName: string,
-    action: () => Promise<string>
+    action: () => Promise<string>,
   ): Promise<any> {
     const parser = new anchor.EventParser(program.programId, program.coder);
     const signature = await action();
@@ -762,7 +761,7 @@ describe("agent_stake", () => {
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -781,7 +780,7 @@ function asBuffer(value: number[]): Buffer {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;

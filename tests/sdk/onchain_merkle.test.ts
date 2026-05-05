@@ -62,8 +62,8 @@ test("verifyOnchainInclusion rejects out-of-range index", () => {
       leafHash,
       { index: 5, siblings: proof.siblings },
       1,
-      tree.root
-    )
+      tree.root,
+    ),
   );
 });
 

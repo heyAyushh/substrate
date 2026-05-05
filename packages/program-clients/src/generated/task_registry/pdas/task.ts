@@ -26,7 +26,7 @@ export async function findTaskPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">,
+    programAddress = "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

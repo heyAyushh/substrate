@@ -5,7 +5,7 @@ use std::io::Write;
 
 use crate::TrustSubstrateError;
 
-const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
+const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk");
 const RECEIPT_RECORD_DISCRIMINATOR: [u8; 8] = [51, 97, 207, 106, 28, 85, 70, 40];
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq, Eq, InitSpace)]

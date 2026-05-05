@@ -15,7 +15,7 @@ const receipt = (
     actorId: string;
     kind: string;
     round?: number;
-  }
+  },
 ): LocalReceiptRecord => ({
   domain: "ops",
   payload: {},
@@ -26,7 +26,7 @@ const stakeReceipt = (
   receiptId: string,
   slot: number,
   identityId: string,
-  amountLamports: string
+  amountLamports: string,
 ): LocalReceiptRecord =>
   receipt({
     receiptId,
@@ -358,8 +358,8 @@ test("getAgentTraceBundle projects file edit receipts", () => {
   strictEqual(bundle.edits.length, 2);
   ok(
     bundle.edits.every(
-      (edit) => typeof edit.path === "string" && edit.path.length > 0
-    )
+      (edit) => typeof edit.path === "string" && edit.path.length > 0,
+    ),
   );
 });
 
@@ -503,7 +503,7 @@ test("groups challenge rounds for the same target receipt", () => {
   strictEqual(rounds.length, 2);
   deepStrictEqual(
     rounds.map((round) => round.round),
-    [0, 1]
+    [0, 1],
   );
   strictEqual(rounds[0].answered, true);
   strictEqual(rounds[0].responseReceiptId, "challenge-response-round-0");

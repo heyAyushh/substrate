@@ -33,37 +33,53 @@ import {
 } from "@solana/kit/program-client-core";
 import {
   getAppliedTaskReceiptCodec,
+  getSocietyWorldCodec,
   getTaskRecordCodec,
   type AppliedTaskReceipt,
   type AppliedTaskReceiptArgs,
+  type SocietyWorld,
+  type SocietyWorldArgs,
   type TaskRecord,
   type TaskRecordArgs,
 } from "../accounts";
 import {
   getAdvanceReceiptChainInstructionAsync,
+  getCreateSocietyWorldInstructionAsync,
   getCreateTaskInstructionAsync,
   getSyncTaskStatusInstructionAsync,
   getTaskReceiptAlreadyAppliedInstructionAsync,
+  getUpdateSocietyWorldInstructionAsync,
   parseAdvanceReceiptChainInstruction,
+  parseCreateSocietyWorldInstruction,
   parseCreateTaskInstruction,
   parseSyncTaskStatusInstruction,
   parseTaskReceiptAlreadyAppliedInstruction,
+  parseUpdateSocietyWorldInstruction,
   type AdvanceReceiptChainAsyncInput,
+  type CreateSocietyWorldAsyncInput,
   type CreateTaskAsyncInput,
   type ParsedAdvanceReceiptChainInstruction,
+  type ParsedCreateSocietyWorldInstruction,
   type ParsedCreateTaskInstruction,
   type ParsedSyncTaskStatusInstruction,
   type ParsedTaskReceiptAlreadyAppliedInstruction,
+  type ParsedUpdateSocietyWorldInstruction,
   type SyncTaskStatusAsyncInput,
   type TaskReceiptAlreadyAppliedAsyncInput,
+  type UpdateSocietyWorldAsyncInput,
 } from "../instructions";
-import { findReceiptApplicationPda, findTaskPda } from "../pdas";
+import {
+  findReceiptApplicationPda,
+  findSocietyWorldPda,
+  findTaskPda,
+} from "../pdas";
 
 export const TASK_REGISTRY_PROGRAM_ADDRESS =
-  "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">;
+  "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">;
 
 export enum TaskRegistryAccount {
   AppliedTaskReceipt,
+  SocietyWorld,
   TaskRecord,
 }
 
@@ -86,6 +102,17 @@ export function identifyTaskRegistryAccount(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([49, 146, 44, 40, 130, 73, 254, 204]),
+      ),
+      0,
+    )
+  ) {
+    return TaskRegistryAccount.SocietyWorld;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([62, 42, 105, 214, 9, 85, 60, 158]),
       ),
       0,
@@ -101,9 +128,11 @@ export function identifyTaskRegistryAccount(
 
 export enum TaskRegistryInstruction {
   AdvanceReceiptChain,
+  CreateSocietyWorld,
   CreateTask,
   SyncTaskStatus,
   TaskReceiptAlreadyApplied,
+  UpdateSocietyWorld,
 }
 
 export function identifyTaskRegistryInstruction(
@@ -120,6 +149,17 @@ export function identifyTaskRegistryInstruction(
     )
   ) {
     return TaskRegistryInstruction.AdvanceReceiptChain;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([93, 92, 70, 129, 116, 174, 88, 197]),
+      ),
+      0,
+    )
+  ) {
+    return TaskRegistryInstruction.CreateSocietyWorld;
   }
   if (
     containsBytes(
@@ -154,6 +194,17 @@ export function identifyTaskRegistryInstruction(
   ) {
     return TaskRegistryInstruction.TaskReceiptAlreadyApplied;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([146, 172, 77, 174, 141, 248, 223, 7]),
+      ),
+      0,
+    )
+  ) {
+    return TaskRegistryInstruction.UpdateSocietyWorld;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "taskRegistry" },
@@ -161,11 +212,14 @@ export function identifyTaskRegistryInstruction(
 }
 
 export type ParsedTaskRegistryInstruction<
-  TProgram extends string = "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4",
+  TProgram extends string = "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4",
 > =
   | ({
       instructionType: TaskRegistryInstruction.AdvanceReceiptChain;
     } & ParsedAdvanceReceiptChainInstruction<TProgram>)
+  | ({
+      instructionType: TaskRegistryInstruction.CreateSocietyWorld;
+    } & ParsedCreateSocietyWorldInstruction<TProgram>)
   | ({
       instructionType: TaskRegistryInstruction.CreateTask;
     } & ParsedCreateTaskInstruction<TProgram>)
@@ -174,7 +228,10 @@ export type ParsedTaskRegistryInstruction<
     } & ParsedSyncTaskStatusInstruction<TProgram>)
   | ({
       instructionType: TaskRegistryInstruction.TaskReceiptAlreadyApplied;
-    } & ParsedTaskReceiptAlreadyAppliedInstruction<TProgram>);
+    } & ParsedTaskReceiptAlreadyAppliedInstruction<TProgram>)
+  | ({
+      instructionType: TaskRegistryInstruction.UpdateSocietyWorld;
+    } & ParsedUpdateSocietyWorldInstruction<TProgram>);
 
 export function parseTaskRegistryInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -186,6 +243,13 @@ export function parseTaskRegistryInstruction<TProgram extends string>(
       return {
         instructionType: TaskRegistryInstruction.AdvanceReceiptChain,
         ...parseAdvanceReceiptChainInstruction(instruction),
+      };
+    }
+    case TaskRegistryInstruction.CreateSocietyWorld: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: TaskRegistryInstruction.CreateSocietyWorld,
+        ...parseCreateSocietyWorldInstruction(instruction),
       };
     }
     case TaskRegistryInstruction.CreateTask: {
@@ -209,6 +273,13 @@ export function parseTaskRegistryInstruction<TProgram extends string>(
         ...parseTaskReceiptAlreadyAppliedInstruction(instruction),
       };
     }
+    case TaskRegistryInstruction.UpdateSocietyWorld: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: TaskRegistryInstruction.UpdateSocietyWorld,
+        ...parseUpdateSocietyWorldInstruction(instruction),
+      };
+    }
     default:
       throw new SolanaError(
         SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
@@ -229,6 +300,8 @@ export type TaskRegistryPlugin = {
 export type TaskRegistryPluginAccounts = {
   appliedTaskReceipt: ReturnType<typeof getAppliedTaskReceiptCodec> &
     SelfFetchFunctions<AppliedTaskReceiptArgs, AppliedTaskReceipt>;
+  societyWorld: ReturnType<typeof getSocietyWorldCodec> &
+    SelfFetchFunctions<SocietyWorldArgs, SocietyWorld>;
   taskRecord: ReturnType<typeof getTaskRecordCodec> &
     SelfFetchFunctions<TaskRecordArgs, TaskRecord>;
 };
@@ -237,6 +310,10 @@ export type TaskRegistryPluginInstructions = {
   advanceReceiptChain: (
     input: AdvanceReceiptChainAsyncInput,
   ) => ReturnType<typeof getAdvanceReceiptChainInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  createSocietyWorld: (
+    input: CreateSocietyWorldAsyncInput,
+  ) => ReturnType<typeof getCreateSocietyWorldInstructionAsync> &
     SelfPlanAndSendFunctions;
   createTask: (
     input: CreateTaskAsyncInput,
@@ -250,9 +327,14 @@ export type TaskRegistryPluginInstructions = {
     input: TaskReceiptAlreadyAppliedAsyncInput,
   ) => ReturnType<typeof getTaskReceiptAlreadyAppliedInstructionAsync> &
     SelfPlanAndSendFunctions;
+  updateSocietyWorld: (
+    input: UpdateSocietyWorldAsyncInput,
+  ) => ReturnType<typeof getUpdateSocietyWorldInstructionAsync> &
+    SelfPlanAndSendFunctions;
 };
 
 export type TaskRegistryPluginPdas = {
+  societyWorld: typeof findSocietyWorldPda;
   task: typeof findTaskPda;
   receiptApplication: typeof findReceiptApplicationPda;
 };
@@ -273,6 +355,7 @@ export function taskRegistryProgram() {
             client,
             getAppliedTaskReceiptCodec(),
           ),
+          societyWorld: addSelfFetchFunctions(client, getSocietyWorldCodec()),
           taskRecord: addSelfFetchFunctions(client, getTaskRecordCodec()),
         },
         instructions: {
@@ -280,6 +363,11 @@ export function taskRegistryProgram() {
             addSelfPlanAndSendFunctions(
               client,
               getAdvanceReceiptChainInstructionAsync(input),
+            ),
+          createSocietyWorld: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getCreateSocietyWorldInstructionAsync(input),
             ),
           createTask: (input) =>
             addSelfPlanAndSendFunctions(
@@ -296,8 +384,14 @@ export function taskRegistryProgram() {
               client,
               getTaskReceiptAlreadyAppliedInstructionAsync(input),
             ),
+          updateSocietyWorld: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getUpdateSocietyWorldInstructionAsync(input),
+            ),
         },
         pdas: {
+          societyWorld: findSocietyWorldPda,
           task: findTaskPda,
           receiptApplication: findReceiptApplicationPda,
         },

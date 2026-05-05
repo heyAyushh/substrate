@@ -70,7 +70,7 @@ pub mod __cpi_client_accounts_write_domain_stats_snapshot {
     pub use crate::instructions::write_domain_stats_snapshot::__cpi_client_accounts_write_domain_stats_snapshot::*;
 }
 
-declare_id!("8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv");
+declare_id!("EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs");
 
 #[program]
 pub mod reputation_accumulator {

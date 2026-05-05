@@ -286,7 +286,7 @@ export function createReceipt(input: ReceiptCreateInput): ReceiptRecord {
 }
 
 export function createDelegation(
-  input: DelegationCreateInput
+  input: DelegationCreateInput,
 ): DelegationRecord {
   const scope: DelegationScope = {
     allowedActions: [...input.allowedActions],

@@ -38,7 +38,7 @@ export interface UnansweredChallengeDisputeInput {
 }
 
 export function createChallengeReceipt(
-  input: ChallengeReceiptInput
+  input: ChallengeReceiptInput,
 ): ReceiptRecord {
   const payload = withPayloadHash({
     domain: input.domain,
@@ -57,7 +57,7 @@ export function createChallengeReceipt(
 }
 
 export function createChallengeResponseReceipt(
-  input: ChallengeResponseReceiptInput
+  input: ChallengeResponseReceiptInput,
 ): ReceiptRecord {
   const payload: Record<string, unknown> = {
     domain: input.domain,
@@ -80,7 +80,7 @@ export function createChallengeResponseReceipt(
 }
 
 export function buildUnansweredChallengePayload(
-  input: UnansweredChallengeDisputeInput
+  input: UnansweredChallengeDisputeInput,
 ): ReceiptRecord {
   const payload = withPayloadHash({
     domain: input.domain,
@@ -102,7 +102,7 @@ export function buildUnansweredChallengePayload(
  * @deprecated Use buildUnansweredChallengePayload. The production unanswered-challenge flow is governed by receipt_emitter.
  */
 export function createUnansweredChallengeDispute(
-  input: UnansweredChallengeDisputeInput
+  input: UnansweredChallengeDisputeInput,
 ): ReceiptRecord {
   return buildUnansweredChallengePayload(input);
 }

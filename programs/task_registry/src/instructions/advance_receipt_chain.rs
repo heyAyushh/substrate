@@ -3,7 +3,7 @@ use identity_registry::state::AgentIdentity;
 
 use crate::state::TaskRecord;
 
-const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
+const RECEIPT_EMITTER_PROGRAM_ID: Pubkey = pubkey!("FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk");
 
 pub fn handler(
     ctx: Context<AdvanceReceiptChain>,

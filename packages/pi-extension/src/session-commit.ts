@@ -37,12 +37,15 @@ const DEFAULT_RECORD_PREFIX = "pi";
 const formatRecordId = (
   prefix: string,
   sessionId: string,
-  turnIndex: number
+  turnIndex: number,
 ): string => `${prefix}:${sessionId}:turn-${turnIndex}`;
 
 export const buildBridgeCommitInput = (
   input: SessionCommitterInput,
-  turn: { readonly turnIndex: number; readonly toolCalls: ReadonlyArray<PiToolCall> }
+  turn: {
+    readonly turnIndex: number;
+    readonly toolCalls: ReadonlyArray<PiToolCall>;
+  },
 ): PiBridgeCommitInput => {
   const prefix = input.recordIdPrefix ?? DEFAULT_RECORD_PREFIX;
   const sessionId = input.sessionId ?? input.bindings.task.taskId;
@@ -68,7 +71,7 @@ export const buildBridgeCommitInput = (
 };
 
 export const createSubstrateSessionCommitter = (
-  input: SessionCommitterInput
+  input: SessionCommitterInput,
 ): TurnCommitHandler => {
   return async (turn: TurnCommitInput) => {
     const bridgeInput = buildBridgeCommitInput(input, turn);

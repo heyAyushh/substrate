@@ -78,7 +78,7 @@ test("E2E #1: DA proof rejects an unreachable blob at submit time", async () => 
       strictEqual(err.name, "DataAvailabilityError");
       strictEqual(err.reason, "unreachable");
       return true;
-    }
+    },
   );
 });
 
@@ -257,7 +257,7 @@ test("E2E #3c: mismatched reveal is rejected at submit time", () => {
       commitReceiptId: commit.receiptId,
       commitHash: commit.payload.commitHash as string,
       payload: { bid: 9999 },
-    })
+    }),
   );
 });
 
@@ -375,7 +375,7 @@ test("E2E #6: dispute receipt binds to the exact step of an execution record", (
   strictEqual(dispute.payload.stepSeq, 2);
   strictEqual(
     completion.payload.payloadHash,
-    hashExecutionRecord(record).root.toString("hex")
+    hashExecutionRecord(record).root.toString("hex"),
   );
 });
 
@@ -453,6 +453,6 @@ test("E2E #7: delegated receipts are appended only after scope assertions", () =
       action: "completion",
       taskId: task.taskId,
       domain: "research",
-    })
+    }),
   );
 });

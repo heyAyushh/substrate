@@ -6,7 +6,7 @@ import {
 } from "../../packages/indexer/src/index.js";
 
 const createReceipt = (
-  overrides: Partial<LocalReceiptRecord>
+  overrides: Partial<LocalReceiptRecord>,
 ): LocalReceiptRecord => ({
   receiptId: "receipt-1",
   slot: 1,
@@ -48,7 +48,7 @@ test("backfill ordering reconstructs history by slot", () => {
 
   deepStrictEqual(
     indexer.getTaskHistory("task-1").map((receipt) => receipt.slot),
-    [10, 20, 30]
+    [10, 20, 30],
   );
 });
 

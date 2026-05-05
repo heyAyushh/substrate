@@ -50,7 +50,7 @@ function normalize(value: unknown): unknown {
         normalized[key] = normalize(entry);
         return normalized;
       },
-      {}
+      {},
     );
   }
 

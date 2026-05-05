@@ -68,7 +68,7 @@ interface ReceiptHistoryReader extends ReceiptIndexWriter {
   getTaskHistory(taskId: string): IndexedReceipt[];
   getChallengeRounds?(
     targetReceiptId: string,
-    currentSlot?: number
+    currentSlot?: number,
   ): ReadonlyArray<{
     readonly challengeReceiptId: string;
     readonly answered: boolean;
@@ -110,11 +110,11 @@ interface AuditReviewerBinding {
 }
 
 const toReceiptHistoryReader = (
-  indexer: ReceiptIndexWriter
+  indexer: ReceiptIndexWriter,
 ): ReceiptHistoryReader => {
   if (typeof (indexer as ReceiptHistoryReader).getTaskHistory !== "function") {
     throw new Error(
-      "The configured receipt indexer cannot query task history for live commands."
+      "The configured receipt indexer cannot query task history for live commands.",
     );
   }
   return indexer as ReceiptHistoryReader;
@@ -122,7 +122,7 @@ const toReceiptHistoryReader = (
 
 const getTaskReceiptCursor = (
   indexer: ReceiptHistoryReader,
-  taskId: string
+  taskId: string,
 ): {
   readonly previousReceiptId?: string;
   readonly sequence: number;
@@ -138,14 +138,14 @@ const getTaskReceiptCursor = (
 const requireTaskReceipt = (
   indexer: ReceiptHistoryReader,
   taskId: string,
-  receiptId: string
+  receiptId: string,
 ): IndexedReceipt => {
   const receipt = indexer
     .getTaskHistory(taskId)
     .find((candidate) => candidate.receiptId === receiptId);
   if (!receipt) {
     throw new Error(
-      `Receipt ${receiptId} is not indexed for the current task.`
+      `Receipt ${receiptId} is not indexed for the current task.`,
     );
   }
   return receipt;
@@ -165,19 +165,17 @@ const getNextAuditRound = (
   indexer: ReceiptHistoryReader,
   taskId: string,
   targetReceiptId: string,
-  kind: "challenge" | "dispute"
+  kind: "challenge" | "dispute",
 ): number =>
-  indexer
-    .getTaskHistory(taskId)
-    .filter((receipt) => {
-      if (receipt.kind !== kind) {
-        return false;
-      }
-      if (kind === "challenge") {
-        return receipt.payload.challengeTarget === targetReceiptId;
-      }
-      return receipt.payload.targetReceiptId === targetReceiptId;
-    }).length;
+  indexer.getTaskHistory(taskId).filter((receipt) => {
+    if (receipt.kind !== kind) {
+      return false;
+    }
+    if (kind === "challenge") {
+      return receipt.payload.challengeTarget === targetReceiptId;
+    }
+    return receipt.payload.targetReceiptId === targetReceiptId;
+  }).length;
 
 const getAuditRound = (receipt: IndexedReceipt): number =>
   asNumber(receipt.payload.auditRound) ?? 0;
@@ -186,7 +184,7 @@ const getChallengeDeadlineSlot = (receipt: IndexedReceipt): number =>
   asNumber(receipt.payload.deadlineSlot) ?? 0;
 
 const buildAuditReviewerBinding = async (
-  input: LiveCommandHandlerInput
+  input: LiveCommandHandlerInput,
 ): Promise<AuditReviewerBinding> => {
   const identity = createIdentity({
     authority: input.bindings.authority.address,
@@ -212,7 +210,7 @@ const recordSubmittedReceipt = (
   indexer: ReceiptHistoryReader,
   receipt: ReceiptRecord,
   operation: { readonly signature?: string; readonly slot: number },
-  kind: string
+  kind: string,
 ): string => {
   ingestCommittedReceipt(indexer, receipt, operation.slot);
   if (!operation.signature) {
@@ -227,7 +225,7 @@ const annotateAuditReceipt = (
     readonly auditorId: string;
     readonly targetReceiptId: string;
     readonly round: number;
-  }
+  },
 ): ReceiptRecord => {
   const annotatedReceipt = createReceipt({
     actorId: input.auditorId,
@@ -252,7 +250,7 @@ const annotateAuditReceipt = (
 const ingestCommittedReceipt = (
   indexer: ReceiptHistoryReader,
   receipt: ReceiptRecord,
-  slot: number
+  slot: number,
 ) => {
   indexer.ingest([
     {
@@ -269,7 +267,7 @@ const ingestCommittedReceipt = (
 };
 
 export const createLiveCommandHandlers = (
-  input: LiveCommandHandlerInput
+  input: LiveCommandHandlerInput,
 ): LiveCommandHandlers => ({
   stake: async (amountLamports) => {
     await input.client.ensureStake({
@@ -293,7 +291,7 @@ export const createLiveCommandHandlers = (
     const targetReceipt = requireTaskReceipt(
       indexer,
       input.bindings.task.taskId,
-      receiptId
+      receiptId,
     );
     const targetReceiptRecord = targetReceipt as unknown as ReceiptRecord;
     const reviewer = await buildAuditReviewerBinding(input);
@@ -306,7 +304,7 @@ export const createLiveCommandHandlers = (
       indexer,
       input.bindings.task.taskId,
       receiptId,
-      "challenge"
+      "challenge",
     );
     const cursor = getTaskReceiptCursor(indexer, input.bindings.task.taskId);
     const receipt = createChallengeReceipt({
@@ -340,7 +338,7 @@ export const createLiveCommandHandlers = (
       indexer,
       annotatedReceipt,
       committedReceipt,
-      "challenge"
+      "challenge",
     );
   },
   dispute: async (receiptId) => {
@@ -348,7 +346,7 @@ export const createLiveCommandHandlers = (
     const targetReceipt = requireTaskReceipt(
       indexer,
       input.bindings.task.taskId,
-      receiptId
+      receiptId,
     );
     const targetReceiptRecord = targetReceipt as unknown as ReceiptRecord;
     const reviewer = await buildAuditReviewerBinding(input);
@@ -366,7 +364,7 @@ export const createLiveCommandHandlers = (
       const challengeReceipt = requireTaskReceipt(
         indexer,
         input.bindings.task.taskId,
-        pendingChallenge.challengeReceiptId
+        pendingChallenge.challengeReceiptId,
       );
       const round = getAuditRound(challengeReceipt);
       const receipt = buildUnansweredChallengePayload({
@@ -383,27 +381,32 @@ export const createLiveCommandHandlers = (
         targetReceiptId: receiptId,
         round,
       });
-      if ((await input.client.getCurrentSlot()) >= getChallengeDeadlineSlot(challengeReceipt)) {
-        const committedReceipt = await input.client.finalizeUnansweredChallenge({
-          authority: input.bindings.authority,
-          targetIdentity: input.bindings.identityAddress,
-          challenge: (
-            await input.client.bindAuditReceipt({
-              auditorIdentity: reviewer.identityAddress,
-              targetReceipt: targetReceiptBinding.address,
-              kind: "challenge",
-              round,
-            })
-          ).address,
-          targetReceipt: targetReceiptBinding.address,
-          auditorIdentity: reviewer.identityAddress,
-          round,
-        });
+      if (
+        (await input.client.getCurrentSlot()) >=
+        getChallengeDeadlineSlot(challengeReceipt)
+      ) {
+        const committedReceipt = await input.client.finalizeUnansweredChallenge(
+          {
+            authority: input.bindings.authority,
+            targetIdentity: input.bindings.identityAddress,
+            challenge: (
+              await input.client.bindAuditReceipt({
+                auditorIdentity: reviewer.identityAddress,
+                targetReceipt: targetReceiptBinding.address,
+                kind: "challenge",
+                round,
+              })
+            ).address,
+            targetReceipt: targetReceiptBinding.address,
+            auditorIdentity: reviewer.identityAddress,
+            round,
+          },
+        );
         return recordSubmittedReceipt(
           indexer,
           annotatedReceipt,
           committedReceipt,
-          "dispute"
+          "dispute",
         );
       }
 
@@ -421,7 +424,7 @@ export const createLiveCommandHandlers = (
         indexer,
         annotatedReceipt,
         committedReceipt,
-        "dispute"
+        "dispute",
       );
     }
 
@@ -429,7 +432,7 @@ export const createLiveCommandHandlers = (
       indexer,
       input.bindings.task.taskId,
       receiptId,
-      "dispute"
+      "dispute",
     );
     const receipt = createReceipt({
       actorId: reviewer.identity.identityId,
@@ -462,13 +465,13 @@ export const createLiveCommandHandlers = (
       indexer,
       annotatedReceipt,
       committedReceipt,
-      "dispute"
+      "dispute",
     );
   },
 });
 
 export const createSubstrateExtension = (
-  options: SubstrateExtensionOptions = {}
+  options: SubstrateExtensionOptions = {},
 ): SubstrateExtensionHandle => {
   const config = resolveConfig(options);
 

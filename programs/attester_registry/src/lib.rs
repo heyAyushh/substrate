@@ -24,7 +24,7 @@ pub mod __client_accounts_close_attester {
     pub use crate::instructions::close_attester::__client_accounts_close_attester::*;
 }
 
-declare_id!("2GtbAjxWCHDFdc1B4RtF2a1tfY8ZuSwysAMJ5MJtqBxp");
+declare_id!("GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7");
 
 #[program]
 pub mod attester_registry {

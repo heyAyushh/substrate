@@ -12,6 +12,9 @@ import {
 } from "../../packages/sdk/src/index.js";
 
 const CHALLENGE_DEADLINE_SLOT = 50;
+const MEMO_PROGRAM_ADDRESS = address(
+  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+);
 
 test("challenge receipts use a zero-weight challenge kind", () => {
   const challenge = createChallengeReceipt({
@@ -80,7 +83,8 @@ test("challenge responses derive the on-chain challenge-response account", async
     receipt,
   });
 
-  strictEqual(sentInstructions.length, 1);
+  strictEqual(sentInstructions.length, 2);
+  strictEqual(sentInstructions.at(-1)?.programAddress, MEMO_PROGRAM_ADDRESS);
   strictEqual(response.kind, "emit_challenge_response");
   strictEqual(response.address, binding.address);
 });

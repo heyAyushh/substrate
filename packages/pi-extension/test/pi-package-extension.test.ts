@@ -14,7 +14,7 @@ interface RegisteredCommand {
   readonly description?: string;
   readonly handler: (
     args: string,
-    ctx: PiExtensionCommandContext
+    ctx: PiExtensionCommandContext,
   ) => Promise<void> | void;
 }
 
@@ -86,7 +86,7 @@ test("Pi package extension attaches the live bridge and registers commands", asy
       "substrate-stake",
       "substrate-challenge",
       "substrate-dispute",
-    ]
+    ],
   );
 
   await commands
@@ -152,6 +152,6 @@ test("Pi package extension forwards live stake and challenge commands", async ()
   strictEqual(notifications[0]?.message, "stake deposit submitted: stake-42");
   strictEqual(
     notifications[1]?.message,
-    "challenge submitted: challenge-receipt-9"
+    "challenge submitted: challenge-receipt-9",
   );
 });

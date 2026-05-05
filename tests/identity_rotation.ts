@@ -10,6 +10,7 @@ const ROTATION_COOLDOWN_SLOTS = 5;
 const ROTATION_SLOT_BUFFER = 10;
 const SLOT_ADVANCE_MAX_ATTEMPTS = 60;
 const SLOT_ADVANCE_POLL_MS = 250;
+const SLOT_ADVANCE_AIRDROP_LAMPORTS = 1;
 
 describe("identity authority rotation", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -46,7 +47,7 @@ describe("identity authority rotation", () => {
       identityProgram.methods
         .rotateAuthority(
           newAuthority.publicKey,
-          new anchor.BN(currentSlot + ROTATION_COOLDOWN_SLOTS - 1)
+          new anchor.BN(currentSlot + ROTATION_COOLDOWN_SLOTS - 1),
         )
         .accountsStrict({
           authority,
@@ -55,7 +56,7 @@ describe("identity authority rotation", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "AuthorityRotationUnlockTooSoon"
+      "AuthorityRotationUnlockTooSoon",
     );
   });
 
@@ -103,11 +104,11 @@ describe("identity authority rotation", () => {
 
     const pendingAccount =
       await identityProgram.account.pendingAuthorityRotation.fetch(
-        pendingRotation
+        pendingRotation,
       );
     strictEqual(
       pendingAccount.newAuthority.toBase58(),
-      newAuthority.publicKey.toBase58()
+      newAuthority.publicKey.toBase58(),
     );
     strictEqual(pendingAccount.unlockSlot.toNumber(), unlockSlot);
 
@@ -130,17 +131,16 @@ describe("identity authority rotation", () => {
       }
     }
 
-    const identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    const identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
     strictEqual(
       identityAccount.authority.toBase58(),
-      newAuthority.publicKey.toBase58()
+      newAuthority.publicKey.toBase58(),
     );
 
     try {
       await identityProgram.account.pendingAuthorityRotation.fetch(
-        pendingRotation
+        pendingRotation,
       );
       throw new Error("pending rotation should be closed");
     } catch (error: any) {
@@ -158,7 +158,7 @@ describe("identity authority rotation", () => {
           authority,
         })
         .rpc(),
-      "IdentityAuthorityMismatch"
+      "IdentityAuthorityMismatch",
     );
 
     await identityProgram.methods
@@ -210,7 +210,7 @@ describe("identity authority rotation", () => {
     await identityProgram.methods
       .initializeGuardianSet(
         [guardianA.publicKey, guardianB.publicKey, guardianC.publicKey],
-        2
+        2,
       )
       .accountsStrict({
         authority,
@@ -232,7 +232,7 @@ describe("identity authority rotation", () => {
         .remainingAccounts([signerMeta(guardianA.publicKey)])
         .signers([guardianA])
         .rpc(),
-      "GuardianSignatureThresholdNotMet"
+      "GuardianSignatureThresholdNotMet",
     );
 
     await expectAnchorError(
@@ -250,7 +250,7 @@ describe("identity authority rotation", () => {
         ])
         .signers([guardianA, unauthorizedGuardian])
         .rpc(),
-      "GuardianSignerNotAuthorized"
+      "GuardianSignerNotAuthorized",
     );
   });
 
@@ -297,7 +297,7 @@ describe("identity authority rotation", () => {
     await identityProgram.methods
       .initializeGuardianSet(
         [guardianA.publicKey, guardianB.publicKey, guardianC.publicKey],
-        2
+        2,
       )
       .accountsStrict({
         authority,
@@ -342,17 +342,16 @@ describe("identity authority rotation", () => {
       }
     }
 
-    const identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    const identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
     strictEqual(
       identityAccount.authority.toBase58(),
-      newAuthority.publicKey.toBase58()
+      newAuthority.publicKey.toBase58(),
     );
 
     try {
       await identityProgram.account.pendingAuthorityRotation.fetch(
-        pendingRotation
+        pendingRotation,
       );
       throw new Error("pending rotation should be closed");
     } catch (error: any) {
@@ -370,7 +369,7 @@ describe("identity authority rotation", () => {
           authority,
         })
         .rpc(),
-      "IdentityAuthorityMismatch"
+      "IdentityAuthorityMismatch",
     );
 
     await identityProgram.methods
@@ -390,8 +389,8 @@ describe("identity authority rotation", () => {
           fromPubkey: authority,
           toPubkey: publicKey,
           lamports: 1_000_000_000,
-        })
-      )
+        }),
+      ),
     );
   }
 
@@ -399,6 +398,11 @@ describe("identity authority rotation", () => {
     for (let attempt = 0; attempt < SLOT_ADVANCE_MAX_ATTEMPTS; attempt += 1) {
       const currentSlot = await provider.connection.getSlot("confirmed");
       if (currentSlot >= targetSlot) return;
+
+      await provider.connection.requestAirdrop(
+        authority,
+        SLOT_ADVANCE_AIRDROP_LAMPORTS,
+      );
       await sleep(SLOT_ADVANCE_POLL_MS);
     }
 
@@ -408,7 +412,7 @@ describe("identity authority rotation", () => {
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -427,7 +431,7 @@ function asBuffer(value: number[]): Buffer {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;
@@ -447,7 +451,7 @@ async function expectAnchorError(
     const serializedError = JSON.stringify(
       error,
       Object.getOwnPropertyNames(error ?? {}),
-      2
+      2,
     );
     const msg = [error?.message ?? "", logLines]
       .filter((entry) => entry.length > 0)

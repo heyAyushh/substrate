@@ -67,7 +67,7 @@ export type CheckpointImportInstruction<
   TAccountLatestCheckpoint extends string | AccountMeta<string> = string,
   TAccountHistoryUpdater extends string | AccountMeta<string> = string,
   TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
-    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -264,7 +264,7 @@ export async function getCheckpointImportInstructionAsync<
   }
   if (!accounts.identityRegistryProgram.value) {
     accounts.identityRegistryProgram.value =
-      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
@@ -394,7 +394,7 @@ export function getCheckpointImportInstruction<
   // Resolve default values.
   if (!accounts.identityRegistryProgram.value) {
     accounts.identityRegistryProgram.value =
-      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

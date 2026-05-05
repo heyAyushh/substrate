@@ -102,7 +102,7 @@ test("substrate-dashboard returns default dashboard links", async () => {
   match(result.output, /studio: http:\/\/127\.0\.0\.1:18488/);
   match(
     result.output,
-    /runDashboard: http:\/\/127\.0\.0\.1:4173\/examples\/multi_agent\/dashboard\/index\.html/
+    /runDashboard: http:\/\/127\.0\.0\.1:4173\/examples\/multi_agent\/dashboard\/index\.html/,
   );
 });
 

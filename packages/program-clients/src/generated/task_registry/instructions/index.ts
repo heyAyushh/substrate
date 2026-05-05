@@ -7,6 +7,8 @@
  */
 
 export * from "./advanceReceiptChain";
+export * from "./createSocietyWorld";
 export * from "./createTask";
 export * from "./syncTaskStatus";
 export * from "./taskReceiptAlreadyApplied";
+export * from "./updateSocietyWorld";

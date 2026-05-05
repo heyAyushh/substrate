@@ -16,7 +16,7 @@ export interface PiExtensionCommandContext {
   readonly ui?: {
     readonly notify?: (
       message: string,
-      type?: PiNotificationType
+      type?: PiNotificationType,
     ) => void | Promise<void>;
   };
 }
@@ -25,7 +25,7 @@ export interface PiRuntimeCommandOptions {
   readonly description?: string;
   readonly handler: (
     args: string,
-    ctx: PiExtensionCommandContext
+    ctx: PiExtensionCommandContext,
   ) => void | Promise<void>;
 }
 
@@ -35,7 +35,7 @@ export interface PiExtensionRuntimeApi extends PiExtensionHost {
 
 export interface PiSubstrateExtensionOptions extends SubstrateExtensionOptions {
   readonly substrateFactory?: (
-    options: SubstrateExtensionOptions
+    options: SubstrateExtensionOptions,
   ) => SubstrateExtensionHandle;
 }
 
@@ -53,14 +53,14 @@ const resolveConfig = (options: SubstrateExtensionOptions): ExtensionConfig => {
 
 const notifyCommandResult = async (
   ctx: PiExtensionCommandContext,
-  result: SubstrateCommandResult
+  result: SubstrateCommandResult,
 ): Promise<void> => {
   const type: PiNotificationType = result.blocked ? "warning" : "info";
   await ctx.ui?.notify?.(result.output, type);
 };
 
 export const createPiSubstrateExtension = (
-  options: PiSubstrateExtensionOptions = {}
+  options: PiSubstrateExtensionOptions = {},
 ): ((pi: PiExtensionRuntimeApi) => void) => {
   const { substrateFactory = createSubstrateExtension, ...substrateOptions } =
     options;

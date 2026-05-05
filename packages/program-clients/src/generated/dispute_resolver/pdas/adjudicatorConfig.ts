@@ -17,7 +17,7 @@ export async function findAdjudicatorConfigPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa" as Address<"9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa">,
+    programAddress = "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF" as Address<"uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

@@ -10,10 +10,7 @@ import {
   hashLeafBytes,
   verifyOnchainInclusion,
 } from "@trust-substrate/sdk";
-import type {
-  ReceiptKind,
-  ReceiptRecord,
-} from "@trust-substrate/sdk";
+import type { ReceiptKind, ReceiptRecord } from "@trust-substrate/sdk";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
@@ -57,7 +54,7 @@ const appendRecord = (receipt: ReceiptRecord): ReceiptRecord =>
 const appendReceipt = (
   actorId: string,
   kind: ReceiptKind,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): ReceiptRecord => {
   const currentSequence = nextSequence();
   const receipt = client.receipt.create({
@@ -142,26 +139,29 @@ const receipts = ledger.list();
 
 const indexer = new LocalDurableIndexer();
 indexer.ingest(
-  receipts.map<LocalReceiptRecord>((receipt, offset) => ({
-    receiptId: receipt.receiptId,
-    slot: INDEXER_BASE_SLOT + offset,
-    taskId: receipt.taskId,
-    actorId: receipt.actorId,
-    kind: receipt.kind,
-    domain: receipt.domain,
-    ...(receipt.round !== undefined ? { round: receipt.round } : {}),
-    payload: { ...receipt.payload },
-  }) as LocalReceiptRecord)
+  receipts.map<LocalReceiptRecord>(
+    (receipt, offset) =>
+      ({
+        receiptId: receipt.receiptId,
+        slot: INDEXER_BASE_SLOT + offset,
+        taskId: receipt.taskId,
+        actorId: receipt.actorId,
+        kind: receipt.kind,
+        domain: receipt.domain,
+        ...(receipt.round !== undefined ? { round: receipt.round } : {}),
+        payload: { ...receipt.payload },
+      }) as LocalReceiptRecord,
+  ),
 );
 
 mkdirSync(SNAPSHOT_DIR, { recursive: true });
 indexer.saveSnapshot(SNAPSHOT_PATH);
 
 const merkle = new OnchainMerkleTree(
-  receipts.map((receipt) => Buffer.from(receipt.hash, "hex"))
+  receipts.map((receipt) => Buffer.from(receipt.hash, "hex")),
 );
 const completionIndex = receipts.findIndex(
-  (receipt) => receipt.receiptId === completion.receiptId
+  (receipt) => receipt.receiptId === completion.receiptId,
 );
 const completionProof = merkle.getProof(completionIndex);
 const completionLeafHash = hashLeafBytes(Buffer.from(completion.hash, "hex"));
@@ -169,13 +169,13 @@ const included = verifyOnchainInclusion(
   completionLeafHash,
   completionProof,
   receipts.length,
-  merkle.root
+  merkle.root,
 );
 
 const reputation = client.reputation.derive(receipts);
 const handoffChain = indexer.getHandoffChain(task.taskId);
 const stakeEvents = receipts.flatMap((receipt) =>
-  client.stake.extractEvents(receipt)
+  client.stake.extractEvents(receipt),
 );
 const sdkStake = {
   planner: client.stake.deriveState(planner.identityId, stakeEvents),
@@ -232,6 +232,6 @@ console.log(
       snapshotPath: SNAPSHOT_PATH,
     },
     null,
-    2
-  )
+    2,
+  ),
 );

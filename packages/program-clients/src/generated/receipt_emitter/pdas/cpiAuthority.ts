@@ -17,7 +17,7 @@ export async function findCpiAuthorityPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp" as Address<"FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp">,
+    programAddress = "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk" as Address<"FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

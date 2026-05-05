@@ -141,11 +141,7 @@ test("live challenge commands emit a real challenge receipt", async () => {
       },
     } as never,
     client: {
-      ensureIdentity: async ({
-        identity,
-      }: {
-        identity: { label: string };
-      }) => {
+      ensureIdentity: async ({ identity }: { identity: { label: string } }) => {
         reviewerIdentityCalls.push(identity.label);
         return {
           address: "Rvwr111111111111111111111111111111111111111" as Address,
@@ -269,8 +265,7 @@ test("live challenge commands emit a real challenge receipt", async () => {
     {
       auditorIdentity: "Rvwr111111111111111111111111111111111111111" as Address,
       identityBond: "Bond111111111111111111111111111111111111111" as Address,
-      targetIdentity:
-        "Idnt111111111111111111111111111111111111111" as Address,
+      targetIdentity: "Idnt111111111111111111111111111111111111111" as Address,
       targetReceipt: "RcptT11111111111111111111111111111111111111" as Address,
       round: 0,
       deadlineSlot: 160,
@@ -377,11 +372,7 @@ test("live dispute commands fall back to manual audit disputes before the challe
     } as never,
     client: {
       getCurrentSlot: async () => 150,
-      ensureIdentity: async ({
-        identity,
-      }: {
-        identity: { label: string };
-      }) => {
+      ensureIdentity: async ({ identity }: { identity: { label: string } }) => {
         reviewerIdentityCalls.push(identity.label);
         return {
           address: "Rvwr111111111111111111111111111111111111111" as Address,
@@ -709,8 +700,7 @@ test("live dispute commands finalize unanswered challenges after the deadline el
     {
       challenge: "Acrh111111111111111111111111111111111111111" as Address,
       targetReceipt: "RcptT11111111111111111111111111111111111111" as Address,
-      targetIdentity:
-        "Idnt111111111111111111111111111111111111111" as Address,
+      targetIdentity: "Idnt111111111111111111111111111111111111111" as Address,
       auditorIdentity: "Rvwr111111111111111111111111111111111111111" as Address,
       round: 0,
     },

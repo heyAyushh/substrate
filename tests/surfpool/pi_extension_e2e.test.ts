@@ -33,7 +33,7 @@ const advanceToSlot = async (
   client: TrustSubstrateOnchainClient,
   rpc: ReturnType<typeof createSolanaRpc>,
   airdropAddress: Address,
-  minimumSlot: number
+  minimumSlot: number,
 ): Promise<void> => {
   for (let attempt = 0; attempt < 120; attempt += 1) {
     const currentSlot = await client.getCurrentSlot();
@@ -56,7 +56,7 @@ const createStubHost = () => {
   const host = {
     on: (
       event: string,
-      handler: (event: unknown, context: unknown) => unknown
+      handler: (event: unknown, context: unknown) => unknown,
     ) => {
       const existing = handlers.get(event) ?? [];
       existing.push(handler);
@@ -78,7 +78,7 @@ describe("pi_extension_e2e", () => {
   it("lands a completion receipt on surfpool", async () => {
     ok(
       KEYPAIR_PATH,
-      "SUBSTRATE_KEYPAIR or ANCHOR_WALLET must point to a funded Surfpool keypair"
+      "SUBSTRATE_KEYPAIR or ANCHOR_WALLET must point to a funded Surfpool keypair",
     );
     const tempDir = mkdtempSync(join(tmpdir(), "pi-extension-e2e-"));
     const indexDbPath = join(tempDir, "indexer.sqlite");
@@ -112,7 +112,7 @@ describe("pi_extension_e2e", () => {
           receiptKind = result.receipt.kind;
           receiptSlot = result.indexedReceipt.slot;
           commitKinds = result.onchain.operations.map(
-            (operation) => operation.kind
+            (operation) => operation.kind,
           );
         },
       });
@@ -142,7 +142,7 @@ describe("pi_extension_e2e", () => {
           "initialize_cpi_authority",
           "create_identity",
           "create_task",
-        ]
+        ],
       );
       deepStrictEqual(commitKinds, ["emit_receipt", "sync_task_status"]);
       strictEqual(receiptKind, "completion");
@@ -150,20 +150,21 @@ describe("pi_extension_e2e", () => {
       ok(receiptId, "completion receipt id must be available after commit");
       ok(
         typeof receiptSlot === "number",
-        "completion receipt slot must be available after commit"
+        "completion receipt slot must be available after commit",
       );
       ok(existsSync(indexDbPath), "local sqlite index must exist after commit");
       const completionReceiptAddress = receiptAddress!;
       const completionReceiptId = receiptId!;
       const completionReceiptSlot = receiptSlot!;
-      const challengeDeadlineSlot = completionReceiptSlot + CHALLENGE_DEADLINE_SLOTS;
+      const challengeDeadlineSlot =
+        completionReceiptSlot + CHALLENGE_DEADLINE_SLOTS;
 
       const rpc = createSolanaRpc(RPC_URL);
       const client = new TrustSubstrateOnchainClient(
         createKitTransactionDispatcher({
           rpcUrl: RPC_URL,
           rpcSubscriptionsUrl: RPC_SUBSCRIPTIONS_URL,
-        })
+        }),
       );
       const reviewerIdentity = createIdentity({
         authority: firstReady.authority.address,
@@ -184,7 +185,7 @@ describe("pi_extension_e2e", () => {
       const challengeSignature = await first.challenge?.(completionReceiptId);
       ok(
         challengeSignature,
-        "challenge command must return the Surfpool signature"
+        "challenge command must return the Surfpool signature",
       );
 
       const challengeReceipt = createChallengeReceipt({
@@ -219,20 +220,20 @@ describe("pi_extension_e2e", () => {
         .send();
       ok(
         challengeAccount.value,
-        "challenge receipt PDA must exist after the live challenge command"
+        "challenge receipt PDA must exist after the live challenge command",
       );
 
       await advanceToSlot(
         client,
         rpc,
         firstReady.authority.address,
-        challengeDeadlineSlot
+        challengeDeadlineSlot,
       );
 
       const disputeSignature = await first.dispute?.(completionReceiptId);
       ok(
         disputeSignature,
-        "dispute command must return the Surfpool signature"
+        "dispute command must return the Surfpool signature",
       );
 
       const disputeReceipt = buildUnansweredChallengePayload({
@@ -270,7 +271,7 @@ describe("pi_extension_e2e", () => {
         .send();
       ok(
         stakeAccount.value,
-        "stake PDA must exist after the live stake command"
+        "stake PDA must exist after the live stake command",
       );
 
       const disputeAccount = await rpc
@@ -278,7 +279,7 @@ describe("pi_extension_e2e", () => {
         .send();
       ok(
         disputeAccount.value,
-        "dispute receipt PDA must exist after the live dispute command"
+        "dispute receipt PDA must exist after the live dispute command",
       );
 
       const indexer = new SqliteDurableIndexer({ path: indexDbPath });
@@ -286,7 +287,7 @@ describe("pi_extension_e2e", () => {
         const history = indexer.getTaskHistory(firstReady.task.taskId);
         deepStrictEqual(
           history.map(({ kind }) => kind),
-          ["completion", "challenge", "dispute"]
+          ["completion", "challenge", "dispute"],
         );
         strictEqual(history[1]?.receiptId, canonicalChallengeReceipt.receiptId);
         strictEqual(history[2]?.receiptId, canonicalDisputeReceipt.receiptId);
@@ -312,7 +313,7 @@ describe("pi_extension_e2e", () => {
       const secondReady = await second.ready;
       strictEqual(
         secondReady.identity.identityId,
-        firstReady.identity.identityId
+        firstReady.identity.identityId,
       );
       strictEqual(secondReady.task.taskId, firstReady.task.taskId);
       deepStrictEqual(
@@ -323,7 +324,7 @@ describe("pi_extension_e2e", () => {
           { kind: "initialize_cpi_authority", created: false },
           { kind: "create_identity", created: false },
           { kind: "create_task", created: false },
-        ]
+        ],
       );
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

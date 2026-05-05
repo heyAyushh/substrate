@@ -80,10 +80,10 @@ test("sqlite durable indexer restores snapshot and analytics across reopen", () 
 
     const restored = new SqliteDurableIndexer({ path });
     deepStrictEqual(restored.snapshot(), expected);
-    deepStrictEqual(
-      restored.getExecutionGraph().tasks["task-1"]?.agentIds,
-      ["agent-a", "agent-b"]
-    );
+    deepStrictEqual(restored.getExecutionGraph().tasks["task-1"]?.agentIds, [
+      "agent-a",
+      "agent-b",
+    ]);
     strictEqual(restored.getAuthorityHistory("agent-a").length, 1);
     strictEqual(restored.getIdentityStates()[0]?.tier, "bonded");
     strictEqual(restored.getAttesterRecords()[0]?.category, "builder");

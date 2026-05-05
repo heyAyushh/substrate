@@ -3,7 +3,10 @@ import { strictEqual, match } from "node:assert/strict";
 
 import { createDelegation } from "@trust-substrate/sdk";
 
-import { evaluateDelegationGate, gateToolCall } from "../src/delegation-gate.js";
+import {
+  evaluateDelegationGate,
+  gateToolCall,
+} from "../src/delegation-gate.js";
 
 const DELEGATOR = "agent-alpha";
 const DELEGATE = "agent-beta";

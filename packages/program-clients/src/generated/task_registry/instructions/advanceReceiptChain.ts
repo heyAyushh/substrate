@@ -170,7 +170,7 @@ export async function getAdvanceReceiptChainInstructionAsync<
   if (!accounts.authority.value) {
     accounts.authority.value = await getProgramDerivedAddress({
       programAddress:
-        "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp" as Address<"FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp">,
+        "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk" as Address<"FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk">,
       seeds: [
         getBytesEncoder().encode(
           new Uint8Array([

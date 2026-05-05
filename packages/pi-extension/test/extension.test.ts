@@ -14,7 +14,7 @@ const createStubHost = () => {
   const handlers: Handlers = new Map();
   const on = (
     event: string,
-    handler: (event: unknown, ctx: unknown) => unknown
+    handler: (event: unknown, ctx: unknown) => unknown,
   ) => {
     const list = handlers.get(event) ?? [];
     list.push(handler);
@@ -117,10 +117,7 @@ test("extension commits tool calls on turn_end and skips empty turns", async () 
 test("extension filters out unsupported tool names before commit", async () => {
   const { host, emit } = createStubHost();
   const commits: TurnCommitInput[] = [];
-  const clock = makeClock([
-    "2026-04-17T02:00:01Z",
-    "2026-04-17T02:00:02Z",
-  ]);
+  const clock = makeClock(["2026-04-17T02:00:01Z", "2026-04-17T02:00:02Z"]);
   const handler = createTrustSubstrateExtension({
     onTurnCommit: (input) => {
       commits.push(input);

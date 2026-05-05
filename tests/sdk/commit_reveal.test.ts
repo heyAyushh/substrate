@@ -66,7 +66,7 @@ test("mismatched reveal is rejected", () => {
       commitReceiptId: commit.receiptId,
       commitHash: commit.payload.commitHash as string,
       payload: { bid: 99 },
-    })
+    }),
   );
 });
 

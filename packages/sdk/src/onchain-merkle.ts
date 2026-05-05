@@ -67,7 +67,7 @@ export function verifyOnchainInclusion(
   leaf: Buffer,
   proof: OnchainProof,
   leafCount: number,
-  root: Buffer
+  root: Buffer,
 ): boolean {
   if (proof.index >= leafCount) {
     return false;
@@ -86,7 +86,7 @@ export function verifyOnchainInclusion(
 }
 
 function buildLayers(
-  leafHashes: ReadonlyArray<Buffer>
+  leafHashes: ReadonlyArray<Buffer>,
 ): ReadonlyArray<ReadonlyArray<Buffer>> {
   const layers: Buffer[][] = [[...leafHashes]];
   let current = layers[0];

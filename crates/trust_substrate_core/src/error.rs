@@ -228,4 +228,18 @@ pub enum TrustSubstrateError {
     AttesterTierInvalid,
     #[msg("Only the configured attester curator may change effective attester tiers")]
     AttesterCuratorMismatch,
+    #[msg("The supplied society world status is not part of the protocol vocabulary")]
+    InvalidSocietyWorldStatus,
+    #[msg("The serialized society world state exceeds the configured byte limit")]
+    SocietyWorldStateTooLarge,
+    #[msg("The society world does not belong to this identity")]
+    SocietyWorldIdentityMismatch,
+    #[msg("The society world does not belong to this task")]
+    SocietyWorldTaskMismatch,
+    #[msg("Society world tick must not move backward")]
+    SocietyWorldTickRegression,
+    #[msg("Society world sequence must not move backward")]
+    SocietyWorldSequenceRegression,
+    #[msg("A finalized society world cannot accept more updates")]
+    SocietyWorldFinalized,
 }

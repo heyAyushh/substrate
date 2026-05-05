@@ -49,7 +49,7 @@ test("hashExecutionRecord ignores execution step signatures", () => {
 
   strictEqual(
     hashExecutionRecord(unsigned).root.toString("hex"),
-    hashExecutionRecord(signed).root.toString("hex")
+    hashExecutionRecord(signed).root.toString("hex"),
   );
 });
 
@@ -66,7 +66,7 @@ test("verifyExecutionRecord separates signed, unsigned, and forged steps", () =>
       ...record(),
       steps: [signedStep, forgedStep, record().steps[1]],
     },
-    publicKey
+    publicKey,
   );
 
   strictEqual(result.signedSteps.length, 1);
@@ -82,7 +82,7 @@ test("resolveRuntimeAtSlot returns the active runtime version", () => {
       runtimeCommit: "runtime-v1",
       runtimeAuthority: "runtime-auth-1",
       validFromSlot: 10,
-    })
+    }),
   );
   history.push(
     appendRuntimeAttestation(history, {
@@ -90,7 +90,7 @@ test("resolveRuntimeAtSlot returns the active runtime version", () => {
       runtimeCommit: "runtime-v2",
       runtimeAuthority: "runtime-auth-2",
       validFromSlot: 20,
-    })
+    }),
   );
 
   deepStrictEqual(resolveRuntimeAtSlot(history, 19), history[0]);
@@ -108,7 +108,12 @@ test("deriveReputation can weight completions by execution cost", () => {
     sequence: 1,
     domain: "coding",
     payload: {
-      cost: { tokensIn: 1_000, tokensOut: 500, elapsedMs: 1_000, usdMicros: 2_500 },
+      cost: {
+        tokensIn: 1_000,
+        tokensOut: 500,
+        elapsedMs: 1_000,
+        usdMicros: 2_500,
+      },
       modelId: "gpt-test",
     },
   };

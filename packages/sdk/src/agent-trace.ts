@@ -35,7 +35,7 @@ export function hashAgentTrace(bundle: AgentTraceBundle): string {
  * reasoning, etc.) are dropped because the spec only describes file edits.
  */
 export function executionRecordToAgentTrace(
-  record: ExecutionRecord
+  record: ExecutionRecord,
 ): AgentTraceBundle {
   const edits = record.steps
     .filter((step) => step.kind === "file_edit")

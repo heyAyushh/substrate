@@ -9,14 +9,14 @@ const CORE_CONSTANTS_SOURCE = readFileSync(
     "crates",
     "trust_substrate_core",
     "src",
-    "constants.rs"
+    "constants.rs",
   ),
-  "utf8"
+  "utf8",
 );
 
 function requireByteString(name: string): string {
   const match = CORE_CONSTANTS_SOURCE.match(
-    new RegExp(`pub const ${name}: &\\[u8\\] = b"([^"]+)";`)
+    new RegExp(`pub const ${name}: &\\[u8\\] = b"([^"]+)";`),
   );
   if (!match) {
     throw new Error(`missing byte-string constant ${name} in constants.rs`);
@@ -26,7 +26,7 @@ function requireByteString(name: string): string {
 
 function requireU8(name: string): number {
   const match = CORE_CONSTANTS_SOURCE.match(
-    new RegExp(`pub const ${name}: u8 = ([^;]+);`)
+    new RegExp(`pub const ${name}: u8 = ([^;]+);`),
   );
   if (!match) {
     throw new Error(`missing u8 constant ${name} in constants.rs`);
@@ -54,13 +54,13 @@ export const RECEIPT_SEED = requireByteString("RECEIPT_SEED");
 export const DELEGATION_SEED = requireByteString("DELEGATION_SEED");
 export const CHECKPOINT_SEED = requireByteString("CHECKPOINT_SEED");
 export const LATEST_CHECKPOINT_SEED = requireByteString(
-  "LATEST_CHECKPOINT_SEED"
+  "LATEST_CHECKPOINT_SEED",
 );
 export const TASK_RECEIPT_APPLICATION_SEED = requireByteString(
-  "TASK_RECEIPT_APPLICATION_SEED"
+  "TASK_RECEIPT_APPLICATION_SEED",
 );
 export const REPUTATION_RECEIPT_APPLICATION_SEED = requireByteString(
-  "REPUTATION_RECEIPT_APPLICATION_SEED"
+  "REPUTATION_RECEIPT_APPLICATION_SEED",
 );
 
 export const ASSIGNMENT_SCOPE_BIT = requireU8("ASSIGNMENT_SCOPE_BIT");

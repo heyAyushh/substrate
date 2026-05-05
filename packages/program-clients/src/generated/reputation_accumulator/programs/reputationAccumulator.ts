@@ -83,7 +83,7 @@ import {
 } from "../pdas";
 
 export const REPUTATION_ACCUMULATOR_PROGRAM_ADDRESS =
-  "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv" as Address<"8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv">;
+  "EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs" as Address<"EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs">;
 
 export enum ReputationAccumulatorAccount {
   AppliedReputationReceipt,
@@ -244,7 +244,7 @@ export function identifyReputationAccumulatorInstruction(
 }
 
 export type ParsedReputationAccumulatorInstruction<
-  TProgram extends string = "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv",
+  TProgram extends string = "EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs",
 > =
   | ({
       instructionType: ReputationAccumulatorInstruction.ApplyReputationReceipt;

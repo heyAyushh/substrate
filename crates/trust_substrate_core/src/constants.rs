@@ -5,6 +5,7 @@ pub const PENDING_ROTATION_SEED: &[u8] = b"pending_rotation";
 pub const GUARDIAN_SET_SEED: &[u8] = b"guardian_set";
 pub const IDENTITY_BOND_SEED: &[u8] = b"bond";
 pub const TASK_SEED: &[u8] = b"task";
+pub const SOCIETY_WORLD_SEED: &[u8] = b"society_world";
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 pub const AUDIT_RECEIPT_SEED: &[u8] = b"audit_receipt";
 pub const CHALLENGE_RESPONSE_SEED: &[u8] = b"challenge_response";
@@ -74,6 +75,10 @@ pub const TASK_STATUS_ACTIVE: u8 = 1;
 pub const TASK_STATUS_COMPLETED: u8 = 2;
 pub const TASK_STATUS_DISPUTED: u8 = 3;
 pub const TASK_STATUS_RESOLVED: u8 = 4;
+pub const SOCIETY_WORLD_STATUS_ACTIVE: u8 = 0;
+pub const SOCIETY_WORLD_STATUS_COMPLETE: u8 = 1;
+pub const SOCIETY_WORLD_STATUS_FAILED: u8 = 2;
+pub const MAX_SOCIETY_WORLD_STATE_BYTES: usize = 9 * 1024;
 pub const MAX_GUARDIANS: usize = 5;
 pub const ROTATION_COOLDOWN_SLOTS: u64 = 5;
 pub const STAKE_COOLDOWN_SLOTS: u64 = 5;
@@ -151,6 +156,19 @@ pub fn is_valid_receipt_kind(kind: u8) -> bool {
     is_self_emittable_receipt_kind(kind)
         || is_system_emittable_receipt_kind(kind)
         || is_auditable_receipt_kind(kind)
+}
+
+pub fn is_valid_society_world_status(status: u8) -> bool {
+    matches!(
+        status,
+        SOCIETY_WORLD_STATUS_ACTIVE
+            | SOCIETY_WORLD_STATUS_COMPLETE
+            | SOCIETY_WORLD_STATUS_FAILED
+    )
+}
+
+pub fn hash_society_world_state(state: &[u8]) -> [u8; 32] {
+    hashv(&[b"society_world_state", state]).to_bytes()
 }
 
 pub fn derive_audit_receipt_id(

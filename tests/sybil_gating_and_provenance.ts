@@ -63,7 +63,7 @@ describe("sybil gating and provenance", () => {
     ])[0];
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -79,11 +79,11 @@ describe("sybil gating and provenance", () => {
     const domain = bytes32(77);
     const catalog =
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     if (
       !catalog.domains.some((value: number[]) =>
-        Buffer.from(value).equals(Buffer.from(domain))
+        Buffer.from(value).equals(Buffer.from(domain)),
       )
     ) {
       await reputationProgram.methods
@@ -100,7 +100,7 @@ describe("sybil gating and provenance", () => {
     ])[0];
     try {
       await attesterProgram.account.attesterRegistryConfig.fetch(
-        attesterConfig
+        attesterConfig,
       );
     } catch {
       await attesterProgram.methods
@@ -126,7 +126,7 @@ describe("sybil gating and provenance", () => {
     const builderIdentity = identityPda(builderAuthority, builderAgentId);
     const reviewerIdentity = identityPda(
       reviewerAuthority.publicKey,
-      reviewerAgentId
+      reviewerAgentId,
     );
     const reviewerBond = identityBondPda(reviewerIdentity);
     const task = taskPda(builderIdentity, taskId);
@@ -135,11 +135,11 @@ describe("sybil gating and provenance", () => {
       reviewerIdentity,
       targetReceipt,
       CHALLENGE_KIND,
-      0
+      0,
     );
     const runtimeAttestation = runtimeAttestationPda(
       builderIdentity,
-      runtimeCommit
+      runtimeCommit,
     );
     const attesterRecord = attesterRecordPda(reviewerIdentity);
 
@@ -178,7 +178,7 @@ describe("sybil gating and provenance", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        completionPayload
+        completionPayload,
       )
       .accountsStrict({
         authority: builderAuthority,
@@ -204,14 +204,14 @@ describe("sybil gating and provenance", () => {
 
     const runtimeRecord =
       await identityProgram.account.runtimeAttestation.fetch(
-        runtimeAttestation
+        runtimeAttestation,
       );
     strictEqual(runtimeRecord.identity.toBase58(), builderIdentity.toBase58());
     strictEqual(
       Buffer.from(runtimeRecord.runtimeCommit).equals(
-        Buffer.from(runtimeCommit)
+        Buffer.from(runtimeCommit),
       ),
-      true
+      true,
     );
 
     await expectAnchorError(
@@ -222,7 +222,7 @@ describe("sybil gating and provenance", () => {
           testBytes32(177),
           new anchor.BN(0),
           0,
-          new anchor.BN(20)
+          new anchor.BN(20),
         )
         .accountsStrict({
           authority: reviewerAuthority.publicKey,
@@ -238,7 +238,7 @@ describe("sybil gating and provenance", () => {
         })
         .signers([reviewerAuthority])
         .rpc(),
-      "IdentityBondRequired"
+      "IdentityBondRequired",
     );
 
     await identityProgram.methods
@@ -259,7 +259,7 @@ describe("sybil gating and provenance", () => {
         testBytes32(178),
         new anchor.BN(0),
         0,
-        new anchor.BN(20)
+        new anchor.BN(20),
       )
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
@@ -304,9 +304,8 @@ describe("sybil gating and provenance", () => {
       await identityProgram.account.agentIdentity.fetch(builderIdentity);
     strictEqual(targetIdentityRecord.openChallengeCount, 1);
 
-    const attester = await attesterProgram.account.attesterRecord.fetch(
-      attesterRecord
-    );
+    const attester =
+      await attesterProgram.account.attesterRecord.fetch(attesterRecord);
     strictEqual(attester.effectiveTier, 2);
   });
 });
@@ -337,7 +336,7 @@ function taskPda(identity: anchor.web3.PublicKey, taskId: Uint8Array) {
 function receiptPda(
   identity: anchor.web3.PublicKey,
   task: anchor.web3.PublicKey,
-  receiptId: Uint8Array
+  receiptId: Uint8Array,
 ) {
   return pda(anchor.workspace.receiptEmitter.programId, [
     seed(RECEIPT_SEED),
@@ -351,7 +350,7 @@ function auditReceiptPda(
   auditorIdentity: anchor.web3.PublicKey,
   targetReceipt: anchor.web3.PublicKey,
   kind: number,
-  round: number
+  round: number,
 ) {
   return pda(anchor.workspace.receiptEmitter.programId, [
     seed(AUDIT_RECEIPT_SEED),
@@ -364,7 +363,7 @@ function auditReceiptPda(
 
 function runtimeAttestationPda(
   identity: anchor.web3.PublicKey,
-  runtimeCommit: Uint8Array
+  runtimeCommit: Uint8Array,
 ) {
   return pda(anchor.workspace.identityRegistry.programId, [
     seed(RUNTIME_ATTESTATION_SEED),

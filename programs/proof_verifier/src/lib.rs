@@ -72,7 +72,7 @@ pub mod __cpi_client_accounts_verify_receipt_inclusion {
     pub use crate::instructions::verify_receipt_inclusion::__cpi_client_accounts_verify_receipt_inclusion::*;
 }
 
-declare_id!("4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi");
+declare_id!("7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE");
 
 #[program]
 pub mod proof_verifier {

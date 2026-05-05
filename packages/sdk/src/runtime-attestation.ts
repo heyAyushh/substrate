@@ -14,7 +14,7 @@ export interface RuntimeAttestationInput {
 
 export function appendRuntimeAttestation(
   history: ReadonlyArray<RuntimeAttestationRecord>,
-  input: RuntimeAttestationInput
+  input: RuntimeAttestationInput,
 ): RuntimeAttestationRecord {
   const latest = history
     .filter((entry) => entry.identityId === input.identityId)
@@ -30,7 +30,7 @@ export function appendRuntimeAttestation(
 
 export function resolveRuntimeAtSlot(
   history: ReadonlyArray<RuntimeAttestationRecord>,
-  slot: number
+  slot: number,
 ): RuntimeAttestationRecord | undefined {
   return [...history]
     .sort((left, right) => left.validFromSlot - right.validFromSlot)
