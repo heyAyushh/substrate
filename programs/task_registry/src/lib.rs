@@ -16,12 +16,20 @@ pub mod __client_accounts_create_task {
     pub use crate::instructions::create_task::__client_accounts_create_task::*;
 }
 
+pub mod __client_accounts_create_society_world {
+    pub use crate::instructions::create_society_world::__client_accounts_create_society_world::*;
+}
+
 pub mod __client_accounts_sync_task_status {
     pub use crate::instructions::sync_task_status::__client_accounts_sync_task_status::*;
 }
 
 pub mod __client_accounts_task_receipt_already_applied {
     pub use crate::instructions::sync_task_status::__client_accounts_task_receipt_already_applied::*;
+}
+
+pub mod __client_accounts_update_society_world {
+    pub use crate::instructions::update_society_world::__client_accounts_update_society_world::*;
 }
 
 #[cfg(feature = "cpi")]
@@ -35,6 +43,11 @@ pub mod __cpi_client_accounts_create_task {
 }
 
 #[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_create_society_world {
+    pub use crate::instructions::create_society_world::__cpi_client_accounts_create_society_world::*;
+}
+
+#[cfg(feature = "cpi")]
 pub mod __cpi_client_accounts_sync_task_status {
     pub use crate::instructions::sync_task_status::__cpi_client_accounts_sync_task_status::*;
 }
@@ -44,7 +57,12 @@ pub mod __cpi_client_accounts_task_receipt_already_applied {
     pub use crate::instructions::sync_task_status::__cpi_client_accounts_task_receipt_already_applied::*;
 }
 
-declare_id!("5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4");
+#[cfg(feature = "cpi")]
+pub mod __cpi_client_accounts_update_society_world {
+    pub use crate::instructions::update_society_world::__cpi_client_accounts_update_society_world::*;
+}
+
+declare_id!("E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4");
 
 #[program]
 pub mod task_registry {
@@ -66,6 +84,42 @@ pub mod task_registry {
         last_sequence: u64,
     ) -> Result<()> {
         instructions::advance_receipt_chain::handler(ctx, last_receipt, last_sequence)
+    }
+
+    pub fn create_society_world(
+        ctx: Context<CreateSocietyWorld>,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> Result<()> {
+        instructions::create_society_world::handler(
+            ctx,
+            current_tick,
+            last_sequence,
+            last_receipt,
+            status,
+            state,
+        )
+    }
+
+    pub fn update_society_world(
+        ctx: Context<UpdateSocietyWorld>,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> Result<()> {
+        instructions::update_society_world::handler(
+            ctx,
+            current_tick,
+            last_sequence,
+            last_receipt,
+            status,
+            state,
+        )
     }
 
     pub fn sync_task_status(ctx: Context<SyncTaskStatus>) -> Result<()> {

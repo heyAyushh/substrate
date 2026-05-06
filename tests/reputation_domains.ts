@@ -32,7 +32,7 @@ function scopedBytes32(label: string): number[] {
   return Array.from(
     createHash("sha256")
       .update(`reputation_domains:${TEST_RUN_NAMESPACE}:${label}`)
-      .digest()
+      .digest(),
   );
 }
 
@@ -52,14 +52,14 @@ function u64Le(value: number): Buffer {
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;
@@ -98,7 +98,7 @@ describe("reputation domain catalog", () => {
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
-      receiptProgram.programId
+      receiptProgram.programId,
     );
     cpiAuthority = pda;
     try {
@@ -116,7 +116,7 @@ describe("reputation domain catalog", () => {
 
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -133,10 +133,10 @@ describe("reputation domain catalog", () => {
   async function ensureDomainRegistered(domain: number[]) {
     const catalog =
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     const alreadyRegistered = catalog.domains.some((registered: number[]) =>
-      Buffer.from(registered).equals(Buffer.from(domain))
+      Buffer.from(registered).equals(Buffer.from(domain)),
     );
     if (alreadyRegistered) {
       return;
@@ -154,7 +154,7 @@ describe("reputation domain catalog", () => {
   async function createIdentityAndTask(
     agentByte: number,
     taskByte: number,
-    domain: number[] = bytes32(taskByte + 2)
+    domain: number[] = bytes32(taskByte + 2),
   ): Promise<{
     identity: anchor.web3.PublicKey;
     task: anchor.web3.PublicKey;
@@ -179,7 +179,7 @@ describe("reputation domain catalog", () => {
         .createIdentity(
           agentId,
           scopedBytes32(`policy:${agentByte}`),
-          scopedBytes32(`history:${agentByte}`)
+          scopedBytes32(`history:${agentByte}`),
         )
         .accountsStrict({
           identity,
@@ -222,7 +222,7 @@ describe("reputation domain catalog", () => {
           unregisteredDomain,
           new anchor.BN(0),
           new anchor.BN(0),
-          new anchor.BN(0)
+          new anchor.BN(0),
         )
         .accountsStrict({
           authority,
@@ -232,7 +232,7 @@ describe("reputation domain catalog", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "DomainNotRegistered"
+      "DomainNotRegistered",
     );
   });
 
@@ -241,7 +241,7 @@ describe("reputation domain catalog", () => {
     const { identity, task } = await createIdentityAndTask(
       210,
       211,
-      unregisteredDomain
+      unregisteredDomain,
     );
     const receiptId = bytes32(213);
     const [receipt] = pda(receiptProgram, [
@@ -259,7 +259,7 @@ describe("reputation domain catalog", () => {
           new anchor.BN(1),
           unregisteredDomain,
           bytes32(0),
-          bytes32(214)
+          bytes32(214),
         )
         .accountsStrict({
           authority,
@@ -272,7 +272,7 @@ describe("reputation domain catalog", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "DomainNotRegistered"
+      "DomainNotRegistered",
     );
   });
 
@@ -296,7 +296,7 @@ describe("reputation domain catalog", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        bytes32(224)
+        bytes32(224),
       )
       .accountsStrict({
         authority,
@@ -321,7 +321,7 @@ describe("reputation domain catalog", () => {
         domain,
         new anchor.BN(0),
         new anchor.BN(0),
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         authority,
@@ -335,7 +335,7 @@ describe("reputation domain catalog", () => {
     const { identity: identity2, task: task2 } = await createIdentityAndTask(
       225,
       226,
-      domain
+      domain,
     );
     const [reputation2] = pda(reputationProgram, [
       seed(REPUTATION_SEED),
@@ -357,7 +357,7 @@ describe("reputation domain catalog", () => {
           domain,
           new anchor.BN(0),
           new anchor.BN(0),
-          new anchor.BN(0)
+          new anchor.BN(0),
         )
         .accountsStrict({
           authority,
@@ -367,7 +367,7 @@ describe("reputation domain catalog", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "DomainNotRegistered"
+      "DomainNotRegistered",
     );
     const receiptId2 = bytes32(227);
     const [receipt2] = pda(receiptProgram, [
@@ -384,7 +384,7 @@ describe("reputation domain catalog", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        bytes32(228)
+        bytes32(228),
       )
       .accountsStrict({
         authority,
@@ -420,7 +420,7 @@ describe("reputation domain catalog", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        bytes32(234)
+        bytes32(234),
       )
       .accountsStrict({
         authority,
@@ -450,7 +450,7 @@ describe("reputation domain catalog", () => {
         domain,
         new anchor.BN(0),
         new anchor.BN(0),
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         authority,
@@ -500,7 +500,7 @@ describe("reputation domain catalog", () => {
         .createIdentity(
           reviewerAgentId,
           scopedBytes32("reviewer-policy:244"),
-          scopedBytes32("reviewer-history:245")
+          scopedBytes32("reviewer-history:245"),
         )
         .accountsStrict({
           identity: reviewerIdentity,
@@ -525,7 +525,7 @@ describe("reputation domain catalog", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        bytes32(247)
+        bytes32(247),
       )
       .accountsStrict({
         authority,
@@ -572,7 +572,7 @@ describe("reputation domain catalog", () => {
         bytes32(248),
         new anchor.BN(1),
         0,
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         authority,
@@ -604,7 +604,7 @@ describe("reputation domain catalog", () => {
         domain,
         new anchor.BN(0),
         new anchor.BN(0),
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         authority,
@@ -627,7 +627,7 @@ describe("reputation domain catalog", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReputationVerdictMissing"
+      "ReputationVerdictMissing",
     );
 
     const [adjudicatorConfig] = pda(disputeProgram, [
@@ -658,7 +658,7 @@ describe("reputation domain catalog", () => {
         AGENT_LOST_OUTCOME,
         new anchor.BN(1),
         VERDICT_CLASS_SAFETY,
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         adjudicator: authority,
@@ -713,7 +713,7 @@ describe("reputation domain catalog", () => {
         new anchor.BN(taskCount),
         new anchor.BN(agentCount),
         new anchor.BN(snapshotSlot),
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         operator: authority,
@@ -723,13 +723,14 @@ describe("reputation domain catalog", () => {
       })
       .rpc();
 
-    const snapshot = await reputationProgram.account.domainStatsSnapshot.fetch(
-      domainStatsSnapshot
-    );
+    const snapshot =
+      await reputationProgram.account.domainStatsSnapshot.fetch(
+        domainStatsSnapshot,
+      );
 
     strictEqual(
       Buffer.from(snapshot.domain).toString("hex"),
-      Buffer.from(domain).toString("hex")
+      Buffer.from(domain).toString("hex"),
     );
     strictEqual(snapshot.operator.toBase58(), authority.toBase58());
     strictEqual(snapshot.receiptCount.toNumber(), receiptCount);
@@ -738,7 +739,7 @@ describe("reputation domain catalog", () => {
     strictEqual(snapshot.snapshotSlot.toNumber(), snapshotSlot);
     strictEqual(
       Buffer.from(snapshot.payloadHash).toString("hex"),
-      Buffer.from(payloadHash).toString("hex")
+      Buffer.from(payloadHash).toString("hex"),
     );
   });
 
@@ -746,8 +747,8 @@ describe("reputation domain catalog", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         publicKey,
-        2 * anchor.web3.LAMPORTS_PER_SOL
-      )
+        2 * anchor.web3.LAMPORTS_PER_SOL,
+      ),
     );
   }
 });

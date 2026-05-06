@@ -10,7 +10,7 @@ use trust_substrate_core::{
     REPUTATION_RECEIPT_APPLICATION_SEED, VERDICT_SEED,
 };
 
-const DISPUTE_RESOLVER_ID: Pubkey = pubkey!("9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa");
+const DISPUTE_RESOLVER_ID: Pubkey = pubkey!("uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF");
 const DISPUTE_VERDICT_DISPUTE_RECEIPT_OFFSET: usize = 8;
 const DISPUTE_VERDICT_OUTCOME_OFFSET: usize = 72;
 const DISPUTE_VERDICT_SERIALIZED_LEN: usize = 122;

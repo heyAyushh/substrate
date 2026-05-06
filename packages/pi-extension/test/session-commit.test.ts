@@ -1,10 +1,7 @@
 import test from "node:test";
 import { deepStrictEqual, strictEqual } from "node:assert/strict";
 
-import type {
-  Address,
-  TransactionSigner,
-} from "@solana/kit";
+import type { Address, TransactionSigner } from "@solana/kit";
 import type {
   IdentityRecord,
   PiBridgeCommitInput,
@@ -55,7 +52,11 @@ const buildBindings = (): SubstrateBindings => {
 test("buildBridgeCommitInput shapes a completion-kind commit with turn-scoped recordId", () => {
   const bindings = buildBindings();
   const commit = buildBridgeCommitInput(
-    { bridge: {} as PiToolStreamBridge<ReceiptIndexWriter>, bindings, sessionId: SESSION_ID },
+    {
+      bridge: {} as PiToolStreamBridge<ReceiptIndexWriter>,
+      bindings,
+      sessionId: SESSION_ID,
+    },
     {
       turnIndex: 2,
       toolCalls: [
@@ -66,7 +67,7 @@ test("buildBridgeCommitInput shapes a completion-kind commit with turn-scoped re
           endedAt: "2026-04-17T00:00:02Z",
         },
       ],
-    }
+    },
   );
 
   strictEqual(commit.kind, "completion");
@@ -96,7 +97,7 @@ test("buildBridgeCommitInput defaults sessionId to task.taskId and applies seque
           startedAt: "2026-04-17T00:00:01Z",
         },
       ],
-    }
+    },
   );
   strictEqual(commit.recordId, `pi:${bindings.task.taskId}:turn-0`);
   strictEqual(commit.sequence, 11);
@@ -106,7 +107,9 @@ test("createSubstrateSessionCommitter commits each turn via the bridge and invok
   const bindings = buildBindings();
   const committed: PiBridgeCommitInput[] = [];
   const stubResult: PiBridgeCommitResult = {
-    execution: { record: { recordId: "r", identityId: "i", taskId: "t", steps: [] } },
+    execution: {
+      record: { recordId: "r", identityId: "i", taskId: "t", steps: [] },
+    },
     receipt: {
       receiptId: "rcpt-1",
       hash: "h",
@@ -132,7 +135,9 @@ test("createSubstrateSessionCommitter commits each turn via the bridge and invok
     },
   };
   const bridge = {
-    commit: async (input: PiBridgeCommitInput): Promise<PiBridgeCommitResult> => {
+    commit: async (
+      input: PiBridgeCommitInput,
+    ): Promise<PiBridgeCommitResult> => {
       committed.push(input);
       return stubResult;
     },

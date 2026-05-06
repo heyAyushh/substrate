@@ -59,7 +59,15 @@ export type {
   SubstrateCommandHost,
   SubstrateCommandResult,
 } from "./slash-commands.js";
+export { createPiSubstrateExtension } from "./pi-package-extension.js";
+export type {
+  PiExtensionCommandContext,
+  PiExtensionRuntimeApi,
+  PiNotificationType,
+  PiRuntimeCommandOptions,
+  PiSubstrateExtensionOptions,
+} from "./pi-package-extension.js";
 
-import { createTrustSubstrateExtension } from "./extension.js";
+import piSubstrateExtension from "./pi-package-extension.js";
 
-export default createTrustSubstrateExtension;
+export default piSubstrateExtension;

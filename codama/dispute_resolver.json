@@ -1,0 +1,22 @@
+{
+  "idl": "../target/idl/dispute_resolver.json",
+  "before": [],
+  "scripts": {
+    "js": {
+      "from": "@codama/renderers-js",
+      "args": [
+        "packages/program-clients",
+        {
+          "generatedFolder": "src/generated/dispute_resolver",
+          "deleteFolderBeforeRendering": false,
+          "formatCode": true,
+          "kitImportStrategy": "rootOnly",
+          "syncPackageJson": false,
+          "dependencyVersions": {
+            "@solana/kit": "6.8.0"
+          }
+        }
+      ]
+    }
+  }
+}

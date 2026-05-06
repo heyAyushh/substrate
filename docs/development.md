@@ -56,3 +56,53 @@ Repository pins:
 5. Run the relevant package, Rust, LiteSVM/Anchor, and Surfpool checks before moving on.
 
 The local verification order and command guidance live in `docs/testing.md`.
+
+## Live society board
+
+The society dashboard is Surfpool-backed end to end. It starts a live world
+session, advances one confirmed action at a time, stores the compact world
+state in the `task_registry` society world account, and writes a final proof
+artifact when the run completes.
+
+Build the dashboard bundle before starting the demo server:
+
+```bash
+pnpm --dir examples/multi_agent/society-ui-app build
+```
+
+Start a local Surfpool instance on the ports the society server expects:
+
+```bash
+NO_DNA=1 surfpool start \
+  --host 127.0.0.1 \
+  --port 8898 \
+  --ws-port 8897 \
+  --studio-port 18488 \
+  --no-tui \
+  --ci \
+  --offline \
+  --legacy-anchor-compatibility \
+  --airdrop-keypair-path "${HOME}/.config/solana/id.json"
+```
+
+Then start the society server from the repository root:
+
+```bash
+. ./examples/multi_agent/society-demo-env.example.sh
+pnpm society
+```
+
+For a public demo, set these before `pnpm society`:
+
+```bash
+export SUBSTRATE_PUBLIC_SOCIETY_URL="https://society.example.com"
+export SUBSTRATE_PUBLIC_RPC_URL="https://rpc.example.com"
+export SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL="https://studio.example.com"
+```
+
+Open the printed `/society` URL in a browser. Nothing starts on page load. Use
+`Go live` to create a live session, `Resume last` to reopen the latest
+server-side session intentionally, `Step` to commit one pending action at a
+time, and `Play` / `Pause` to let the server stream confirmed actions
+continuously. The server refuses to commit to a non-local RPC unless
+`SUBSTRATE_ALLOW_REMOTE_RPC=1` is set explicitly.

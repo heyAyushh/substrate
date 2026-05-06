@@ -89,18 +89,22 @@ const getHandoffTarget = (receipt: LocalReceiptRecord): string | undefined => {
 
 const cloneReceipt = (
   receipt: LocalReceiptRecord,
-  sequence: number
-): IndexedReceipt => ({
-  receiptId: receipt.receiptId,
-  slot: receipt.slot,
-  taskId: receipt.taskId,
-  actorId: receipt.actorId,
-  kind: receipt.kind,
-  domain: receipt.domain,
-  payload: { ...receipt.payload },
-  sequence,
-  dedupeKey: createDedupeKey(receipt),
-});
+  sequence: number,
+): IndexedReceipt =>
+  ({
+    receiptId: receipt.receiptId,
+    slot: receipt.slot,
+    taskId: receipt.taskId,
+    actorId: receipt.actorId,
+    kind: receipt.kind,
+    domain: receipt.domain,
+    ...(getReceiptRound(receipt) !== undefined
+      ? { round: getReceiptRound(receipt) }
+      : {}),
+    payload: { ...receipt.payload },
+    sequence: receipt.sequence ?? sequence,
+    dedupeKey: createDedupeKey(receipt),
+  }) as IndexedReceipt;
 
 const dedupeStrings = (values: string[]): string[] =>
   [...new Set(values)].sort();
@@ -133,11 +137,18 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
+const getReceiptRound = (
+  receipt: LocalReceiptRecord | IndexedReceipt,
+): number | undefined =>
+  asNumber((receipt as LocalReceiptRecord & { round?: unknown }).round) ??
+  asNumber(receipt.payload.round) ??
+  undefined;
+
 const getChallengeRound = (receipt: LocalReceiptRecord): number =>
-  asNumber(receipt.payload.round) ?? 0;
+  getReceiptRound(receipt) ?? 0;
 
 const cloneAuthorityRotation = (
-  event: AuthorityRotationEvent
+  event: AuthorityRotationEvent,
 ): AuthorityRotationEvent => ({
   eventId: event.eventId,
   slot: event.slot,
@@ -157,7 +168,7 @@ const cloneIdentityState = (state: IdentityStateView): IdentityStateView => ({
 });
 
 const cloneAttesterRecord = (
-  record: AttesterRecordView
+  record: AttesterRecordView,
 ): AttesterRecordView => ({
   identityId: record.identityId,
   category: record.category,
@@ -218,7 +229,7 @@ const parsePositiveLamports = (value: unknown): bigint | undefined => {
 };
 
 const parseStakePayloadEvent = (
-  value: unknown
+  value: unknown,
 ): ParsedStakeEvent | undefined => {
   if (!isObject(value) || value.type !== STAKE_EVENT_MARKER) {
     return undefined;
@@ -261,7 +272,7 @@ const parseStakeEvents = (receipt: IndexedReceipt): ParsedStakeEvent[] => {
     const resolution = receipt.payload.resolution;
     const identityId = asString(resolution.slashedAgentId);
     const amountLamports = parsePositiveLamports(
-      resolution.slashAmountLamports ?? resolution.slashAmount
+      resolution.slashAmountLamports ?? resolution.slashAmount,
     );
     if (identityId && amountLamports !== undefined) {
       events.push({
@@ -287,7 +298,7 @@ const createEmptyStakeState = (identityId: string): MutableStakeState => ({
 const subtractStakeLamports = (
   current: bigint,
   amount: bigint,
-  receiptId: string
+  receiptId: string,
 ): bigint => {
   if (amount > current) {
     throw new Error(`stake underflow while projecting receipt ${receiptId}`);
@@ -298,7 +309,7 @@ const subtractStakeLamports = (
 const applyStakeEvent = (
   state: MutableStakeState,
   event: ParsedStakeEvent,
-  receiptId: string
+  receiptId: string,
 ): void => {
   switch (event.kind) {
     case "initialized":
@@ -321,12 +332,12 @@ const applyStakeEvent = (
         state.activeLamports = subtractStakeLamports(
           state.activeLamports,
           event.amountLamports,
-          receiptId
+          receiptId,
         );
         state.pendingUnstakeLamports = subtractStakeLamports(
           state.pendingUnstakeLamports,
           event.amountLamports,
-          receiptId
+          receiptId,
         );
         if (state.pendingUnstakeLamports === 0n) {
           state.unstakeUnlocksAtSlot = undefined;
@@ -338,7 +349,7 @@ const applyStakeEvent = (
         state.activeLamports = subtractStakeLamports(
           state.activeLamports,
           event.amountLamports,
-          receiptId
+          receiptId,
         );
         state.slashedLamports += event.amountLamports;
         state.slashReceiptIds.push(event.disputeReceiptId ?? receiptId);
@@ -378,13 +389,13 @@ export class LocalDurableIndexer {
         payload: { ...receipt.payload },
       })),
       authorityRotations: this.sortedAuthorityRotations().map((event) =>
-        cloneAuthorityRotation(event)
+        cloneAuthorityRotation(event),
       ),
       identityStates: this.getIdentityStates().map((state) =>
-        cloneIdentityState(state)
+        cloneIdentityState(state),
       ),
       attesterRecords: this.getAttesterRecords().map((record) =>
-        cloneAttesterRecord(record)
+        cloneAttesterRecord(record),
       ),
     };
   }
@@ -407,8 +418,11 @@ export class LocalDurableIndexer {
         actorId: indexed.actorId,
         kind: indexed.kind,
         domain: indexed.domain,
+        ...(getReceiptRound(indexed) !== undefined
+          ? { round: getReceiptRound(indexed) }
+          : {}),
         payload: { ...indexed.payload },
-      };
+      } as LocalReceiptRecord;
       indexer.ingest([record]);
     }
     if (snapshot.authorityRotations) {
@@ -442,6 +456,8 @@ export class LocalDurableIndexer {
         actorId: receipt.actorId,
         kind: receipt.kind,
         domain: receipt.domain,
+        sequence: receipt.sequence ?? null,
+        round: getReceiptRound(receipt),
         payload: receipt.payload,
       });
       const existing = this.receiptsByKey.get(dedupeKey);
@@ -466,7 +482,7 @@ export class LocalDurableIndexer {
   }
 
   ingestAuthorityRotations(
-    authorityRotations: readonly AuthorityRotationEvent[]
+    authorityRotations: readonly AuthorityRotationEvent[],
   ): IngestResult {
     let accepted = 0;
     let duplicates = 0;
@@ -479,7 +495,7 @@ export class LocalDurableIndexer {
       if (existing) {
         if (existing.canonical !== canonical) {
           throw new Error(
-            `duplicate authority rotation conflict for ${dedupeKey}`
+            `duplicate authority rotation conflict for ${dedupeKey}`,
           );
         }
 
@@ -497,7 +513,9 @@ export class LocalDurableIndexer {
     return { accepted, duplicates };
   }
 
-  ingestIdentityStates(identityStates: readonly IdentityStateView[]): IngestResult {
+  ingestIdentityStates(
+    identityStates: readonly IdentityStateView[],
+  ): IngestResult {
     let accepted = 0;
     let duplicates = 0;
 
@@ -520,7 +538,7 @@ export class LocalDurableIndexer {
   }
 
   ingestAttesterRecords(
-    attesterRecords: readonly AttesterRecordView[]
+    attesterRecords: readonly AttesterRecordView[],
   ): IngestResult {
     let accepted = 0;
     let duplicates = 0;
@@ -549,7 +567,7 @@ export class LocalDurableIndexer {
 
   getAgentHistory(agentId: string): IndexedReceipt[] {
     return this.sortedReceipts().filter(
-      (receipt) => receipt.actorId === agentId
+      (receipt) => receipt.actorId === agentId,
     );
   }
 
@@ -560,7 +578,7 @@ export class LocalDurableIndexer {
         const toAgentId = getHandoffTarget(receipt);
         if (!toAgentId) {
           throw new Error(
-            `handoff receipt ${receipt.receiptId} is missing toAgentId`
+            `handoff receipt ${receipt.receiptId} is missing toAgentId`,
           );
         }
 
@@ -576,7 +594,7 @@ export class LocalDurableIndexer {
 
   getDomainSummary(domain: string): DomainSummary {
     const summaries = this.getDomainSummaries().filter(
-      (summary) => summary.domain === domain
+      (summary) => summary.domain === domain,
     );
     if (summaries.length === 0) {
       return {
@@ -676,7 +694,7 @@ export class LocalDurableIndexer {
         const toAgentId = getHandoffTarget(receipt);
         if (!toAgentId) {
           throw new Error(
-            `handoff receipt ${receipt.receiptId} is missing toAgentId`
+            `handoff receipt ${receipt.receiptId} is missing toAgentId`,
           );
         }
 
@@ -704,7 +722,7 @@ export class LocalDurableIndexer {
             receipts: [...task.receipts],
           }))
           .sort((left, right) => left.taskId.localeCompare(right.taskId))
-          .map((task) => [task.taskId, task])
+          .map((task) => [task.taskId, task]),
       ),
       agents: Object.fromEntries(
         [...agents.values()]
@@ -715,20 +733,20 @@ export class LocalDurableIndexer {
             receipts: [...agent.receipts],
           }))
           .sort((left, right) => left.agentId.localeCompare(right.agentId))
-          .map((agent) => [agent.agentId, agent])
+          .map((agent) => [agent.agentId, agent]),
       ),
       handoffChainByTask: Object.fromEntries(
         [...handoffChainByTask.entries()]
           .sort(([leftTaskId], [rightTaskId]) =>
-            leftTaskId.localeCompare(rightTaskId)
+            leftTaskId.localeCompare(rightTaskId),
           )
           .map(([taskId, chain]) => [
             taskId,
             [...chain].sort(compareBySlotThenReceiptId),
-          ])
+          ]),
       ),
       domains: Object.fromEntries(
-        this.getDomainSummaries().map((summary) => [summary.domain, summary])
+        this.getDomainSummaries().map((summary) => [summary.domain, summary]),
       ),
     };
   }
@@ -803,7 +821,7 @@ export class LocalDurableIndexer {
 
   getAgentProfile(agentId: string): AgentProfile {
     const receipts = this.sortedReceipts().filter(
-      (receipt) => receipt.actorId === agentId
+      (receipt) => receipt.actorId === agentId,
     );
 
     const profile: AgentProfile = {
@@ -856,18 +874,20 @@ export class LocalDurableIndexer {
   getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
     const attestations = this.collectAttestationCounts();
     const identityStates = new Map(
-      this.getIdentityStates().map((state) => [state.identityId, state] as const)
+      this.getIdentityStates().map(
+        (state) => [state.identityId, state] as const,
+      ),
     );
     const stakeStates = new Map(
-      this.getStakeStates().map((state) => [state.identityId, state] as const)
+      this.getStakeStates().map((state) => [state.identityId, state] as const),
     );
     const expiredCommitments =
       query.currentSlot === undefined
         ? new Set<string>()
         : new Set(
             this.getExpiredCommitments(query.currentSlot).map(
-              (commitment) => commitment.commitReceiptId
-            )
+              (commitment) => commitment.commitReceiptId,
+            ),
           );
     const scores = new Map<string, LeaderboardEntry>();
 
@@ -885,8 +905,9 @@ export class LocalDurableIndexer {
         continue;
       }
 
-      const activeLamports =
-        BigInt(stakeStates.get(receipt.actorId)?.activeLamports ?? "0");
+      const activeLamports = BigInt(
+        stakeStates.get(receipt.actorId)?.activeLamports ?? "0",
+      );
       const tier =
         identityStates.get(receipt.actorId)?.tier ??
         (activeLamports > 0n ? "bonded" : "tier0");
@@ -1088,7 +1109,7 @@ export class LocalDurableIndexer {
       }))
       .filter(
         (entry): entry is { receipt: IndexedReceipt; targetId: string } =>
-          entry.targetId === agentId
+          entry.targetId === agentId,
       )
       .map(({ receipt, targetId }) => ({
         receiptId: receipt.receiptId,
@@ -1189,7 +1210,7 @@ export class LocalDurableIndexer {
 
   getExpiredCommitments(currentSlot: number): CommitmentStatus[] {
     return this.getCommitmentStatuses(currentSlot).filter(
-      (commitment) => commitment.expired
+      (commitment) => commitment.expired,
     );
   }
 
@@ -1232,10 +1253,12 @@ export class LocalDurableIndexer {
 
   getChallengeRounds(
     targetReceiptId: string,
-    currentSlot?: number
+    currentSlot?: number,
   ): ChallengeRoundView[] {
     const receiptsById = new Map(
-      this.sortedReceipts().map((receipt) => [receipt.receiptId, receipt] as const)
+      this.sortedReceipts().map(
+        (receipt) => [receipt.receiptId, receipt] as const,
+      ),
     );
     return this.getChallengeStatuses(currentSlot)
       .map((challenge) => {
@@ -1250,22 +1273,22 @@ export class LocalDurableIndexer {
         (left, right) =>
           left.round - right.round ||
           left.slot - right.slot ||
-          left.challengeReceiptId.localeCompare(right.challengeReceiptId)
+          left.challengeReceiptId.localeCompare(right.challengeReceiptId),
       );
   }
 
   getUnansweredChallenges(currentSlot: number): ChallengeStatus[] {
     return this.getChallengeStatuses(currentSlot).filter(
-      (challenge) => challenge.expired
+      (challenge) => challenge.expired,
     );
   }
 
   isChallengeUnansweredAfter(
     challengeReceiptId: string,
-    currentSlot: number
+    currentSlot: number,
   ): boolean {
     const challenge = this.getChallengeStatuses(currentSlot).find(
-      (candidate) => candidate.challengeReceiptId === challengeReceiptId
+      (candidate) => candidate.challengeReceiptId === challengeReceiptId,
     );
     return challenge?.expired ?? false;
   }
@@ -1306,7 +1329,7 @@ export class LocalDurableIndexer {
 
 const compareAuthorityRotations = (
   left: AuthorityRotationEvent,
-  right: AuthorityRotationEvent
+  right: AuthorityRotationEvent,
 ): number => {
   if (left.slot !== right.slot) {
     return left.slot - right.slot;

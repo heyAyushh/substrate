@@ -1,7 +1,7 @@
 import test from "node:test";
 import { generateKeyPairSync } from "node:crypto";
 import { ok, strictEqual } from "node:assert/strict";
-import { generateKeyPairSigner, type Instruction } from "@solana/kit";
+import { address, generateKeyPairSigner, type Instruction } from "@solana/kit";
 import { LocalDurableIndexer } from "@trust-substrate/indexer";
 import {
   PiToolStreamBridge,
@@ -10,6 +10,10 @@ import {
   type OnchainTransactionDispatcher,
   type PiToolCall,
 } from "../../packages/sdk/src/index.js";
+
+const MEMO_PROGRAM_ADDRESS = address(
+  "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+);
 
 test("bridges pi tool calls into signed execution steps, on-chain ops, and indexer state", async () => {
   const authority = await generateKeyPairSigner();
@@ -91,18 +95,25 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
     throw new Error("expected execution verification to be present");
   }
   strictEqual(verification.signedSteps.length, 2);
-  strictEqual(sentInstructions.length, 4);
+  const protocolInstructions = sentInstructions.filter(
+    (instruction) => instruction.programAddress !== MEMO_PROGRAM_ADDRESS,
+  );
+  const memoInstructions = sentInstructions.filter(
+    (instruction) => instruction.programAddress === MEMO_PROGRAM_ADDRESS,
+  );
+  strictEqual(protocolInstructions.length, 4);
+  strictEqual(memoInstructions.length, 4);
   strictEqual(result.onchain.operations.length, 4);
   strictEqual(result.onchain.operations[0].kind, "initialize_stake");
   strictEqual(
     result.onchain.operations[0].address,
-    result.onchain.stakeAddress
+    result.onchain.stakeAddress,
   );
   strictEqual(result.onchain.operations[1].kind, "stake");
   strictEqual(result.onchain.operations[2].kind, "emit_receipt");
   strictEqual(
     result.onchain.operations[2].address,
-    result.onchain.receiptAddress
+    result.onchain.receiptAddress,
   );
   strictEqual(result.onchain.operations[3].kind, "sync_task_status");
 

@@ -52,7 +52,7 @@ describe("protocol_flow", () => {
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
-      receiptProgram.programId
+      receiptProgram.programId,
     );
     cpiAuthority = pda;
     try {
@@ -70,7 +70,7 @@ describe("protocol_flow", () => {
 
     const [historyPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("history_updater", "utf8")],
-      proofProgram.programId
+      proofProgram.programId,
     );
     historyUpdater = historyPda;
     try {
@@ -88,12 +88,12 @@ describe("protocol_flow", () => {
 
     const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("domain_catalog", "utf8")],
-      reputationProgram.programId
+      reputationProgram.programId,
     );
     domainCatalog = catalogPda;
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -111,11 +111,11 @@ describe("protocol_flow", () => {
       try {
         const catalog =
           await reputationProgram.account.reputationDomainCatalog.fetch(
-            domainCatalog
+            domainCatalog,
           );
         if (
           !catalog.domains.some((d: number[]) =>
-            Buffer.from(d).equals(Buffer.from(domain))
+            Buffer.from(d).equals(Buffer.from(domain)),
           )
         ) {
           await reputationProgram.methods
@@ -226,8 +226,8 @@ describe("protocol_flow", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         delegate.publicKey,
-        2 * anchor.web3.LAMPORTS_PER_SOL
-      )
+        2 * anchor.web3.LAMPORTS_PER_SOL,
+      ),
     );
 
     await identityProgram.methods
@@ -268,7 +268,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         previousReceipt,
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         delegate: delegate.publicKey,
@@ -291,7 +291,7 @@ describe("protocol_flow", () => {
         new anchor.BN(2),
         domain,
         pubkeyBytes(delegatedReceipt),
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         authority,
@@ -366,7 +366,7 @@ describe("protocol_flow", () => {
       .verifyReceiptInclusion(
         completionLeafHash,
         new anchor.BN(completionProof.index),
-        completionProof.siblings.map((sibling) => Array.from(sibling))
+        completionProof.siblings.map((sibling) => Array.from(sibling)),
       )
       .accountsStrict({
         checkpoint,
@@ -393,7 +393,7 @@ describe("protocol_flow", () => {
         domain,
         NO_WEIGHT_OVERRIDE,
         NO_WEIGHT_OVERRIDE,
-        NO_WEIGHT_OVERRIDE
+        NO_WEIGHT_OVERRIDE,
       )
       .accountsStrict({
         authority,
@@ -416,13 +416,11 @@ describe("protocol_flow", () => {
       })
       .rpc();
 
-    const identityAccount = await identityProgram.account.agentIdentity.fetch(
-      identity
-    );
+    const identityAccount =
+      await identityProgram.account.agentIdentity.fetch(identity);
     const taskAccount = await taskProgram.account.taskRecord.fetch(task);
-    const receiptAccount = await receiptProgram.account.receiptRecord.fetch(
-      receipt
-    );
+    const receiptAccount =
+      await receiptProgram.account.receiptRecord.fetch(receipt);
     const delegatedReceiptAccount =
       await receiptProgram.account.receiptRecord.fetch(delegatedReceipt);
     const delegationAccount =
@@ -441,16 +439,16 @@ describe("protocol_flow", () => {
     strictEqual(receiptAccount.kind, COMPLETION_RECEIPT_KIND);
     strictEqual(
       receiptAccount.viaDelegation.toBase58(),
-      anchor.web3.PublicKey.default.toBase58()
+      anchor.web3.PublicKey.default.toBase58(),
     );
     strictEqual(delegatedReceiptAccount.kind, HANDOFF_RECEIPT_KIND);
     strictEqual(
       delegatedReceiptAccount.actor.toBase58(),
-      delegate.publicKey.toBase58()
+      delegate.publicKey.toBase58(),
     );
     strictEqual(
       delegatedReceiptAccount.viaDelegation.toBase58(),
-      delegation.toBase58()
+      delegation.toBase58(),
     );
     strictEqual(delegationAccount.allowedActions, allowedActions);
     strictEqual(checkpointAccount.leafCount.toNumber(), leafCount);
@@ -458,8 +456,8 @@ describe("protocol_flow", () => {
     strictEqual(rotatedCheckpointAccount.leafCount.toNumber(), 0);
     ok(
       Buffer.from(rotatedCheckpointAccount.previousRoot).equals(
-        Buffer.from(checkpointRoot)
-      )
+        Buffer.from(checkpointRoot),
+      ),
     );
     ok(Buffer.from(rotatedCheckpointAccount.root).equals(Buffer.alloc(32, 0)));
     strictEqual(reputationAccount.completed.toNumber(), 1);
@@ -494,7 +492,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "InvalidDelegationScope"
+      "InvalidDelegationScope",
     );
 
     await delegationProgram.methods
@@ -523,7 +521,7 @@ describe("protocol_flow", () => {
           new anchor.BN(1),
           domain,
           previousReceipt,
-          payloadHash
+          payloadHash,
         )
         .accountsStrict({
           delegate: delegateKeypair.publicKey,
@@ -538,7 +536,7 @@ describe("protocol_flow", () => {
         })
         .signers([delegateKeypair])
         .rpc(),
-      "DelegationScopeMismatch"
+      "DelegationScopeMismatch",
     );
 
     const [invalidKindReceipt] = pda(receiptProgram, [
@@ -556,7 +554,7 @@ describe("protocol_flow", () => {
           new anchor.BN(1),
           domain,
           previousReceipt,
-          payloadHash
+          payloadHash,
         )
         .accountsStrict({
           authority,
@@ -569,7 +567,7 @@ describe("protocol_flow", () => {
           taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
-      "InvalidReceiptKind"
+      "InvalidReceiptKind",
     );
 
     const [wrongIdentityReceipt] = pda(receiptProgram, [
@@ -587,7 +585,7 @@ describe("protocol_flow", () => {
           new anchor.BN(1),
           domain,
           previousReceipt,
-          payloadHash
+          payloadHash,
         )
         .accountsStrict({
           authority,
@@ -600,7 +598,7 @@ describe("protocol_flow", () => {
           taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
-      "TaskIdentityMismatch"
+      "TaskIdentityMismatch",
     );
   });
 
@@ -647,7 +645,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "CheckpointEpochNotSequential"
+      "CheckpointEpochNotSequential",
     );
 
     const firstReceiptId = testBytes32(114);
@@ -672,7 +670,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         taskDomain,
         bytes32(ZERO_BYTE),
-        testBytes32(116)
+        testBytes32(116),
       )
       .accountsStrict({
         authority,
@@ -693,7 +691,7 @@ describe("protocol_flow", () => {
         new anchor.BN(2),
         taskDomain,
         pubkeyBytes(firstReceipt),
-        testBytes32(117)
+        testBytes32(117),
       )
       .accountsStrict({
         authority,
@@ -719,7 +717,7 @@ describe("protocol_flow", () => {
           identityRegistryProgram: identityProgram.programId,
         })
         .rpc(),
-      "CheckpointOrderingViolation"
+      "CheckpointOrderingViolation",
     );
 
     const overflowSetup = await createIdentityAndTask(118, 119);
@@ -729,7 +727,7 @@ describe("protocol_flow", () => {
       u64Bn(MAX_U64),
     ]);
     const latestMaxEpochCheckpoint = latestCheckpointPda(
-      overflowSetup.identity
+      overflowSetup.identity,
     );
 
     await proofProgram.methods
@@ -765,7 +763,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "CheckpointEpochOverflow"
+      "CheckpointEpochOverflow",
     );
   });
 
@@ -807,7 +805,7 @@ describe("protocol_flow", () => {
         bytes32(ZERO_BYTE),
         handoffPayloadHash,
         allowedActions,
-        new anchor.BN(0)
+        new anchor.BN(0),
       )
       .accountsStrict({
         authority,
@@ -831,7 +829,7 @@ describe("protocol_flow", () => {
         new anchor.BN(2),
         domain,
         pubkeyBytes(handoffReceipt),
-        completionPayloadHash
+        completionPayloadHash,
       )
       .accountsStrict({
         delegate: delegateKeypair.publicKey,
@@ -853,7 +851,7 @@ describe("protocol_flow", () => {
       await receiptProgram.account.receiptRecord.fetch(handoffReceipt);
     const completionReceiptAccount =
       await receiptProgram.account.receiptRecord.fetch(
-        delegatedCompletionReceipt
+        delegatedCompletionReceipt,
       );
     const taskAccount = await taskProgram.account.taskRecord.fetch(setup.task);
 
@@ -861,17 +859,17 @@ describe("protocol_flow", () => {
     strictEqual(handoffReceiptAccount.kind, HANDOFF_RECEIPT_KIND);
     strictEqual(
       handoffReceiptAccount.viaDelegation.toBase58(),
-      delegation.toBase58()
+      delegation.toBase58(),
     );
     strictEqual(completionReceiptAccount.kind, COMPLETION_RECEIPT_KIND);
     strictEqual(
       completionReceiptAccount.actor.toBase58(),
-      delegateKeypair.publicKey.toBase58()
+      delegateKeypair.publicKey.toBase58(),
     );
     strictEqual(taskAccount.lastSequence.toNumber(), 2);
     strictEqual(
       taskAccount.lastReceipt.toBase58(),
-      delegatedCompletionReceipt.toBase58()
+      delegatedCompletionReceipt.toBase58(),
     );
   });
 
@@ -904,7 +902,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        testBytes32(154)
+        testBytes32(154),
       )
       .accountsStrict({
         authority,
@@ -965,14 +963,14 @@ describe("protocol_flow", () => {
         .verifyReceiptInclusion(
           Array.from(hashLeafBytes(receiptLeaves[0])),
           new anchor.BN(proof.index),
-          proof.siblings.map((sibling) => Array.from(sibling))
+          proof.siblings.map((sibling) => Array.from(sibling)),
         )
         .accountsStrict({
           checkpoint,
           latestCheckpoint,
         })
         .rpc(),
-      "StaleCheckpoint"
+      "StaleCheckpoint",
     );
   });
 
@@ -993,11 +991,11 @@ describe("protocol_flow", () => {
     ]);
     const taskReceiptApplication = taskReceiptApplicationPda(
       setup.task,
-      receipt
+      receipt,
     );
     const reputationReceiptApplication = reputationReceiptApplicationPda(
       reputation,
-      receipt
+      receipt,
     );
 
     await receiptProgram.methods
@@ -1007,7 +1005,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        testBytes32(165)
+        testBytes32(165),
       )
       .accountsStrict({
         authority,
@@ -1047,7 +1045,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "AccountAlreadyInitialized"
+      "AccountAlreadyInitialized",
     );
 
     await taskProgram.methods
@@ -1066,7 +1064,7 @@ describe("protocol_flow", () => {
         domain,
         NO_WEIGHT_OVERRIDE,
         NO_WEIGHT_OVERRIDE,
-        NO_WEIGHT_OVERRIDE
+        NO_WEIGHT_OVERRIDE,
       )
       .accountsStrict({
         authority,
@@ -1101,7 +1099,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "AccountAlreadyInitialized"
+      "AccountAlreadyInitialized",
     );
 
     await reputationProgram.methods
@@ -1134,7 +1132,7 @@ describe("protocol_flow", () => {
     ]);
     const otherReceiptApplication = reputationReceiptApplicationPda(
       otherReputation,
-      receipt
+      receipt,
     );
 
     await receiptProgram.methods
@@ -1144,7 +1142,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        testBytes32(127)
+        testBytes32(127),
       )
       .accountsStrict({
         authority,
@@ -1163,7 +1161,7 @@ describe("protocol_flow", () => {
         domain,
         NO_WEIGHT_OVERRIDE,
         NO_WEIGHT_OVERRIDE,
-        NO_WEIGHT_OVERRIDE
+        NO_WEIGHT_OVERRIDE,
       )
       .accountsStrict({
         authority,
@@ -1186,7 +1184,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReputationIdentityMismatch"
+      "ReputationIdentityMismatch",
     );
   });
 
@@ -1207,7 +1205,7 @@ describe("protocol_flow", () => {
     ]);
     const receiptApplication = reputationReceiptApplicationPda(
       reputation,
-      receipt
+      receipt,
     );
 
     await receiptProgram.methods
@@ -1217,7 +1215,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        testBytes32(145)
+        testBytes32(145),
       )
       .accountsStrict({
         authority,
@@ -1236,7 +1234,7 @@ describe("protocol_flow", () => {
         domain,
         NO_WEIGHT_OVERRIDE,
         NO_WEIGHT_OVERRIDE,
-        NO_WEIGHT_OVERRIDE
+        NO_WEIGHT_OVERRIDE,
       )
       .accountsStrict({
         authority,
@@ -1259,7 +1257,7 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReceiptKindNotAppliedToReputation"
+      "ReceiptKindNotAppliedToReputation",
     );
   });
 
@@ -1282,7 +1280,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        testBytes32(135)
+        testBytes32(135),
       )
       .accountsStrict({
         authority,
@@ -1309,14 +1307,14 @@ describe("protocol_flow", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "TaskDisputeRequiredForResolution"
+      "TaskDisputeRequiredForResolution",
     );
   });
 
   async function createIdentityAndTask(
     agentByte: number,
     taskByte: number,
-    domain: number[] = testBytes32(ZERO_BYTE)
+    domain: number[] = testBytes32(ZERO_BYTE),
   ) {
     const agentId = testBytes32(agentByte);
     const taskId = testBytes32(taskByte);
@@ -1335,7 +1333,7 @@ describe("protocol_flow", () => {
       .createIdentity(
         agentId,
         testBytes32(agentByte + 1),
-        testBytes32(agentByte + 2)
+        testBytes32(agentByte + 2),
       )
       .accountsStrict({
         identity,
@@ -1362,8 +1360,8 @@ describe("protocol_flow", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         publicKey,
-        2 * anchor.web3.LAMPORTS_PER_SOL
-      )
+        2 * anchor.web3.LAMPORTS_PER_SOL,
+      ),
     );
   }
 
@@ -1392,13 +1390,13 @@ describe("protocol_flow", () => {
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(createdEvent.identity.toBase58(), setup.identity.toBase58());
     strictEqual(
       createdEvent.delegate.toBase58(),
-      delegateKeypair.publicKey.toBase58()
+      delegateKeypair.publicKey.toBase58(),
     );
     strictEqual(createdEvent.allowedActions, ASSIGNMENT_ACTION_MASK);
     ok(Number(createdEvent.slot) > 0);
@@ -1417,13 +1415,13 @@ describe("protocol_flow", () => {
             delegation,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(revokedEvent.identity.toBase58(), setup.identity.toBase58());
     strictEqual(
       revokedEvent.delegate.toBase58(),
-      delegateKeypair.publicKey.toBase58()
+      delegateKeypair.publicKey.toBase58(),
     );
     ok(Number(revokedEvent.revokeAtSlot) > 0);
     ok(Number(revokedEvent.slot) > 0);
@@ -1442,7 +1440,7 @@ describe("protocol_flow", () => {
     ]);
     const taskReceiptApplication = taskReceiptApplicationPda(
       setup.task,
-      receipt
+      receipt,
     );
 
     await receiptProgram.methods
@@ -1452,7 +1450,7 @@ describe("protocol_flow", () => {
         new anchor.BN(1),
         domain,
         bytes32(ZERO_BYTE),
-        payloadHash
+        payloadHash,
       )
       .accountsStrict({
         authority,
@@ -1482,7 +1480,7 @@ describe("protocol_flow", () => {
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc();
-      }
+      },
     );
 
     strictEqual(syncedEvent.identity.toBase58(), setup.identity.toBase58());
@@ -1503,7 +1501,7 @@ describe("protocol_flow", () => {
 
   function taskReceiptApplicationPda(
     task: anchor.web3.PublicKey,
-    receipt: anchor.web3.PublicKey
+    receipt: anchor.web3.PublicKey,
   ) {
     const [receiptApplication] = pda(taskProgram, [
       seed(TASK_RECEIPT_APPLICATION_SEED),
@@ -1515,7 +1513,7 @@ describe("protocol_flow", () => {
 
   function reputationReceiptApplicationPda(
     reputation: anchor.web3.PublicKey,
-    receipt: anchor.web3.PublicKey
+    receipt: anchor.web3.PublicKey,
   ) {
     const [receiptApplication] = pda(reputationProgram, [
       seed(REPUTATION_RECEIPT_APPLICATION_SEED),
@@ -1528,7 +1526,7 @@ describe("protocol_flow", () => {
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -1545,7 +1543,7 @@ function testBytes32(value: number): number[] {
   return Array.from(
     createHash("sha256")
       .update(`trust_substrate:${TEST_RUN_NAMESPACE}:${value}`)
-      .digest()
+      .digest(),
   );
 }
 
@@ -1567,7 +1565,7 @@ function u64Bn(value: anchor.BN): Buffer {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;
@@ -1596,7 +1594,7 @@ async function captureEvent<T>(
   program: Program<any>,
   eventName: string,
   action: () => Promise<void>,
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): Promise<T> {
   return new Promise(async (resolve, reject) => {
     let resolved = false;

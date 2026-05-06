@@ -64,7 +64,7 @@ export function hashStep(step: ExecutionStep): string {
 }
 
 export function hashExecutionRecord(
-  record: ExecutionRecord
+  record: ExecutionRecord,
 ): ExecutionRecordHash {
   if (record.steps.length === 0) {
     throw new Error("ExecutionRecord must contain at least one step");
@@ -77,7 +77,7 @@ export function hashExecutionRecord(
 
 export function signExecutionStep(
   step: ExecutionStep,
-  privateKey: KeyObject
+  privateKey: KeyObject,
 ): ExecutionStep {
   const message = Buffer.from(hashStep(step), "hex");
   const publicKey = createPublicKey(privateKey);
@@ -92,7 +92,7 @@ export function signExecutionStep(
 
 export function verifyExecutionRecord(
   record: ExecutionRecord,
-  runtimeAuthority: KeyObject | string
+  runtimeAuthority: KeyObject | string,
 ): ExecutionRecordVerification {
   const authorityHex =
     typeof runtimeAuthority === "string"
@@ -119,7 +119,7 @@ export function verifyExecutionRecord(
       null,
       message,
       keyObjectFromAuthority(runtimeAuthority),
-      signature
+      signature,
     );
 
     if (isValid) {
@@ -151,7 +151,7 @@ function rawPublicKeyHex(publicKey: KeyObject): string {
 }
 
 function keyObjectFromAuthority(
-  runtimeAuthority: KeyObject | string
+  runtimeAuthority: KeyObject | string,
 ): KeyObject {
   if (typeof runtimeAuthority !== "string") {
     return runtimeAuthority;
@@ -170,5 +170,8 @@ function keyObjectFromAuthority(
 function base64UrlToBytes(value: string): Uint8Array {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const paddingLength = (4 - (normalized.length % 4)) % 4;
-  return Buffer.from(normalized.padEnd(normalized.length + paddingLength, "="), "base64");
+  return Buffer.from(
+    normalized.padEnd(normalized.length + paddingLength, "="),
+    "base64",
+  );
 }

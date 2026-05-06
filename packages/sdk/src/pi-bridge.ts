@@ -8,10 +8,20 @@ import {
   type ReceiptRecord,
   type TaskRecord,
 } from "./client.js";
-import { hashExecutionRecord, type ExecutionRecordVerification } from "./execution-record.js";
+import {
+  hashExecutionRecord,
+  type ExecutionRecordVerification,
+} from "./execution-record.js";
 import { createStakeEvent } from "./stake.js";
-import { adaptAndSignPiToolCalls, adaptPiToolCalls, type PiToolCall } from "./pi-adapter.js";
-import { TrustSubstrateOnchainClient, type OnchainOperationResult } from "./onchain-client.js";
+import {
+  adaptAndSignPiToolCalls,
+  adaptPiToolCalls,
+  type PiToolCall,
+} from "./pi-adapter.js";
+import {
+  TrustSubstrateOnchainClient,
+  type OnchainOperationResult,
+} from "./onchain-client.js";
 
 export interface ReceiptIndexRecord {
   readonly receiptId: string;
@@ -21,6 +31,7 @@ export interface ReceiptIndexRecord {
   readonly kind: ReceiptKind;
   readonly domain: string;
   readonly payload: Readonly<Record<string, unknown>>;
+  readonly sequence?: number;
 }
 
 export interface ReceiptIndexWriter {
@@ -105,7 +116,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
           }),
         };
     const payloadHash = hashExecutionRecord(execution.record).root.toString(
-      "hex"
+      "hex",
     );
     const operations: OnchainOperationResult[] = [];
     const payload: Record<string, unknown> = {
@@ -176,7 +187,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
           identity: input.identityAddress,
           task: input.taskAddress,
           receipt: committedReceipt.address,
-        })
+        }),
       );
     }
 
@@ -188,6 +199,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
       kind: receipt.kind,
       domain: receipt.domain,
       payload: { ...receipt.payload },
+      sequence: receipt.sequence,
     };
     this.indexer.ingest([indexedReceipt]);
 
@@ -232,7 +244,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
           kind: "deposited",
           identityId: input.identity.identityId,
           amountLamports: input.stake.depositLamports,
-        })
+        }),
       );
     }
 

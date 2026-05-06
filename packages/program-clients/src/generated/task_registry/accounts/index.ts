@@ -7,4 +7,5 @@
  */
 
 export * from "./appliedTaskReceipt";
+export * from "./societyWorld";
 export * from "./taskRecord";

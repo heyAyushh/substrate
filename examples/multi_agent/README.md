@@ -26,10 +26,10 @@ transaction — it is an offline choreography of SDK APIs.
    The SDK's DA-proof helper rejects the submission; the rejection is
    captured in the transcript.
 4. `builder-alpha` emits a completion without DA verification (the
-   misbehaviour). `reviewer` challenges that completion with a deadline
-   slot.
+   misbehaviour). `reviewer` opens challenge round `0` against that
+   completion with a deadline slot.
 5. The challenge goes unanswered past the deadline, so `reviewer`
-   emits an `unanswered_challenge` dispute followed by a
+   finalizes the unanswered challenge as a dispute and then emits a
    `dispute_resolved` receipt with `agent_lost`, slashing 400_000 lamports
    from alpha's stake.
 6. `planner` hands off to `builder-beta`, who submits a completion with
@@ -72,22 +72,122 @@ Each step's hash contributes to the Merkle root that becomes the receipt's
 `payload_hash`, so a dispute can bind to a single tool invocation inside
 an agent's run.
 
-## Connecting a live pi-coding-agent session
+## Connecting a live Pi Mono Agent session
 
-This directory is demo-only. To let a real `pi-coding-agent` CLI session
-emit receipts onto Surfpool or devnet, install the extension package
-instead:
+The script above stays offline so it is fast and deterministic. For a live
+`pi-coding-agent` session backed by Surfpool, use the extension package. It
+declares itself as a Pi package and loads `packages/pi-extension/dist/index.js`
+as the extension entrypoint.
 
-- `packages/pi-extension/src/substrate-extension.ts` — `createSubstrateExtension`
-  loads a keypair, bootstraps identity/task PDAs, and commits a
-  `completion` receipt at every `turn_end`.
-- `packages/pi-extension/src/config.ts` — environment variables:
-  `SUBSTRATE_KEYPAIR`, `SUBSTRATE_RPC_URL`, `SUBSTRATE_RPC_SUBSCRIPTIONS_URL`,
-  `SUBSTRATE_DOMAIN`, `SUBSTRATE_IDENTITY_LABEL`, `SUBSTRATE_TASK_TITLE`,
-  `SUBSTRATE_BLOB_DIR`, `SUBSTRATE_AUTO_PROVISION_IDENTITY`,
-  `SUBSTRATE_SURFPOOL_STUDIO_URL`, `SUBSTRATE_RUN_DASHBOARD_URL`.
-- `packages/pi-extension/src/slash-commands.ts` — `/substrate-status`,
-  `/substrate-dashboard`, `/substrate-stake`, `/substrate-challenge`,
-  `/substrate-dispute`.
-- `packages/pi-extension/src/delegation-gate.ts` — gates tool calls
-  against a `DelegationRecord` scope.
+Build the on-chain programs and extension:
+
+```bash
+anchor build --ignore-keys
+pnpm --filter @trust-substrate/pi-extension build
+```
+
+Start Surfpool with the same ports used by the dashboard and extension:
+
+```bash
+NO_DNA=1 surfpool start \
+  --host 127.0.0.1 \
+  --port 8898 \
+  --ws-port 8897 \
+  --studio-port 18488 \
+  --no-tui \
+  --ci \
+  --offline \
+  --legacy-anchor-compatibility \
+  --airdrop-keypair-path "${HOME}/.config/solana/id.json"
+```
+
+Run Pi from the repository root with the extension loaded:
+
+```bash
+SUBSTRATE_KEYPAIR="${HOME}/.config/solana/id.json" \
+SUBSTRATE_RPC_URL="http://127.0.0.1:8898" \
+SUBSTRATE_WS_URL="ws://127.0.0.1:8897" \
+SUBSTRATE_SURFPOOL_STUDIO_URL="http://127.0.0.1:18488" \
+SUBSTRATE_RUN_DASHBOARD_URL="http://127.0.0.1:4173/examples/multi_agent/dashboard/index.html" \
+pi -e ./packages/pi-extension/dist/index.js
+```
+
+Inside Pi, use `/substrate-status` to print the live identity/task binding and
+`/substrate-dashboard` to print the Surfpool Studio and dashboard URLs. Each
+completed Pi turn commits a `completion` receipt through Surfpool.
+
+The live operator commands also submit real on-chain actions through the same
+local Surfpool cluster:
+
+- `/substrate-stake <lamports>` ensures the agent stake PDA exists and deposits
+  lamports into it.
+- `/substrate-challenge <receiptId>` emits a live `challenge` receipt against a
+  prior indexed receipt with a local deadline window and round metadata.
+- `/substrate-dispute <receiptId>` emits a live `dispute` receipt. If there is
+  an unanswered indexed challenge for that receipt, the payload binds to that
+  challenge; otherwise it emits a manual dispute marker against the target
+  receipt.
+
+Useful files:
+
+- `packages/pi-extension/src/substrate-extension.ts` — loads the keypair,
+  bootstraps identity/task PDAs, commits receipts at `turn_end`, and wires the
+  live stake/challenge/dispute commands.
+- `packages/pi-extension/src/config.ts` — reads the `SUBSTRATE_*` environment
+  variables used above.
+- `packages/pi-extension/src/slash-commands.ts` — defines
+  `/substrate-status`, `/substrate-dashboard`, `/substrate-stake`,
+  `/substrate-challenge`, and `/substrate-dispute`.
+- `packages/pi-extension/src/delegation-gate.ts` — gates tool calls against a
+  `DelegationRecord` scope.
+
+## Running the live society board
+
+The society board is now live-only. The browser reads a Surfpool-backed world
+session, the server advances one confirmed action at a time, and the compact
+world snapshot is written into the on-chain society world account after each
+step. When the run completes, the server also writes a proof file.
+
+Build the browser bundle:
+
+```bash
+pnpm --dir examples/multi_agent/society-ui-app build
+```
+
+Start Surfpool on the same local ports used by the server:
+
+```bash
+NO_DNA=1 surfpool start \
+  --host 127.0.0.1 \
+  --port 8898 \
+  --ws-port 8897 \
+  --studio-port 18488 \
+  --no-tui \
+  --ci \
+  --offline \
+  --legacy-anchor-compatibility \
+  --airdrop-keypair-path "${HOME}/.config/solana/id.json"
+```
+
+Start the society demo server:
+
+```bash
+. ./examples/multi_agent/society-demo-env.example.sh
+pnpm society
+```
+
+Set `SUBSTRATE_PUBLIC_SOCIETY_URL`, `SUBSTRATE_PUBLIC_RPC_URL`, and
+`SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL` when the demo is behind a named tunnel or
+public domain. The browser uses those public links while the server still writes
+to the local Surfpool RPC in `SUBSTRATE_RPC_URL`.
+
+Open the printed `/society` URL. Nothing starts on page load. `Go live`
+creates a server-owned live session, `Resume last` intentionally reopens the
+latest server-side session after a refresh, `Step` commits exactly one pending
+action, and `Play` / `Pause` streams confirmed actions until the server writes
+the final proof artifact.
+
+The curated onboarding worlds are tuned to stay live-first and responsive on
+first paint. They produce child-agent lineage, failures, inherited value,
+receipts, account links, and final proof files without offering offline preview
+or replay controls.

@@ -55,12 +55,12 @@ describe("audit_receipts", () => {
 
     const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [seed("domain_catalog")],
-      reputationProgram.programId
+      reputationProgram.programId,
     );
     domainCatalog = catalogPda;
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -80,7 +80,7 @@ describe("audit_receipts", () => {
       fixture.reviewerIdentity,
       fixture.targetReceipt,
       CHALLENGE_KIND,
-      0
+      0,
     );
 
     await receiptProgram.methods
@@ -90,7 +90,7 @@ describe("audit_receipts", () => {
         fixture.auditPayloadHash,
         new anchor.BN(0),
         0,
-        new anchor.BN(CHALLENGE_DEADLINE_SLOT)
+        new anchor.BN(CHALLENGE_DEADLINE_SLOT),
       )
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
@@ -107,21 +107,20 @@ describe("audit_receipts", () => {
       .signers([reviewerAuthority])
       .rpc();
 
-    const auditRecord = await receiptProgram.account.receiptRecord.fetch(
-      auditReceipt
-    );
+    const auditRecord =
+      await receiptProgram.account.receiptRecord.fetch(auditReceipt);
 
     strictEqual(
       auditRecord.identity.toBase58(),
-      fixture.builderIdentity.toBase58()
+      fixture.builderIdentity.toBase58(),
     );
     strictEqual(
       auditRecord.auditorIdentity.toBase58(),
-      fixture.reviewerIdentity.toBase58()
+      fixture.reviewerIdentity.toBase58(),
     );
     strictEqual(
       auditRecord.targetReceipt.toBase58(),
-      fixture.targetReceipt.toBase58()
+      fixture.targetReceipt.toBase58(),
     );
     strictEqual(auditRecord.kind, CHALLENGE_KIND);
     strictEqual(auditRecord.round, 0);
@@ -134,14 +133,14 @@ describe("audit_receipts", () => {
       fixture.reviewerIdentity,
       fixture.targetReceipt,
       CHALLENGE_KIND,
-      0
+      0,
     );
 
     await emitAuditReceipt(fixture, auditReceipt, CHALLENGE_KIND, 0);
 
     await expectError(
       emitAuditReceipt(fixture, auditReceipt, CHALLENGE_KIND, 0),
-      "already in use"
+      "already in use",
     );
   });
 
@@ -151,12 +150,12 @@ describe("audit_receipts", () => {
       fixture.reviewerIdentity,
       fixture.targetReceipt,
       COMPLETION_KIND,
-      0
+      0,
     );
 
     await expectAnchorError(
       emitAuditReceipt(fixture, auditReceipt, COMPLETION_KIND, 0),
-      "ReceiptKindNotAuditable"
+      "ReceiptKindNotAuditable",
     );
   });
 
@@ -166,7 +165,7 @@ describe("audit_receipts", () => {
       fixture.builderIdentity,
       fixture.targetReceipt,
       CHALLENGE_KIND,
-      0
+      0,
     );
 
     await expectAnchorError(
@@ -177,7 +176,7 @@ describe("audit_receipts", () => {
           fixture.auditPayloadHash,
           new anchor.BN(0),
           0,
-          new anchor.BN(CHALLENGE_DEADLINE_SLOT)
+          new anchor.BN(CHALLENGE_DEADLINE_SLOT),
         )
         .accountsStrict({
           authority: builderAuthority,
@@ -192,7 +191,7 @@ describe("audit_receipts", () => {
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
-      "ReceiptAuditorCannotTargetOwnReceipt"
+      "ReceiptAuditorCannotTargetOwnReceipt",
     );
   });
 
@@ -202,18 +201,17 @@ describe("audit_receipts", () => {
       fixture.reviewerIdentity,
       fixture.targetReceipt,
       ATTESTATION_KIND,
-      0
+      0,
     );
 
     await emitAuditReceipt(fixture, auditReceipt, ATTESTATION_KIND, 0);
 
-    const auditRecord = await receiptProgram.account.receiptRecord.fetch(
-      auditReceipt
-    );
+    const auditRecord =
+      await receiptProgram.account.receiptRecord.fetch(auditReceipt);
     strictEqual(auditRecord.kind, ATTESTATION_KIND);
     strictEqual(
       auditRecord.auditorIdentity.toBase58(),
-      fixture.reviewerIdentity.toBase58()
+      fixture.reviewerIdentity.toBase58(),
     );
   });
 
@@ -229,7 +227,7 @@ describe("audit_receipts", () => {
       fixture.reviewerIdentity,
       missingTarget,
       CHALLENGE_KIND,
-      0
+      0,
     );
 
     await expectError(
@@ -240,7 +238,7 @@ describe("audit_receipts", () => {
           fixture.auditPayloadHash,
           new anchor.BN(0),
           0,
-          new anchor.BN(0)
+          new anchor.BN(0),
         )
         .accountsStrict({
           authority: reviewerAuthority.publicKey,
@@ -256,7 +254,7 @@ describe("audit_receipts", () => {
         })
         .signers([reviewerAuthority])
         .rpc(),
-      "AccountNotInitialized"
+      "AccountNotInitialized",
     );
   });
 
@@ -365,7 +363,7 @@ describe("audit_receipts", () => {
         new anchor.BN(1),
         domain,
         bytes32(0),
-        targetPayloadHash
+        targetPayloadHash,
       )
       .accountsStrict({
         authority: builderAuthority,
@@ -395,10 +393,9 @@ describe("audit_receipts", () => {
     fixture: Awaited<ReturnType<typeof createAuditFixture>>,
     auditReceipt: anchor.web3.PublicKey,
     kind: number,
-    round: number
+    round: number,
   ) {
-    const deadlineSlot =
-      kind === CHALLENGE_KIND ? CHALLENGE_DEADLINE_SLOT : 0;
+    const deadlineSlot = kind === CHALLENGE_KIND ? CHALLENGE_DEADLINE_SLOT : 0;
 
     return receiptProgram.methods
       .emitAuditReceipt(
@@ -407,7 +404,7 @@ describe("audit_receipts", () => {
         fixture.auditPayloadHash,
         new anchor.BN(0),
         round,
-        new anchor.BN(deadlineSlot)
+        new anchor.BN(deadlineSlot),
       )
       .accountsStrict({
         authority: reviewerAuthority.publicKey,
@@ -429,8 +426,8 @@ describe("audit_receipts", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         publicKey,
-        2 * anchor.web3.LAMPORTS_PER_SOL
-      )
+        2 * anchor.web3.LAMPORTS_PER_SOL,
+      ),
     );
   }
 });
@@ -445,7 +442,7 @@ function auditReceiptPda(
   auditorIdentity: anchor.web3.PublicKey,
   targetReceipt: anchor.web3.PublicKey,
   kind: number,
-  round: number
+  round: number,
 ): anchor.web3.PublicKey {
   const receiptProgram = anchor.workspace
     .receiptEmitter as Program<ReceiptEmitter>;
@@ -460,7 +457,7 @@ function auditReceiptPda(
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -477,7 +474,7 @@ function testBytes32(value: number): number[] {
   return Array.from(
     createHash("sha256")
       .update(`audit_receipts:${TEST_RUN_NAMESPACE}:${value}`)
-      .digest()
+      .digest(),
   );
 }
 
@@ -493,7 +490,7 @@ function u16Le(value: number): Buffer {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;
@@ -517,7 +514,7 @@ async function expectError(promise: Promise<unknown>, expectedText: string) {
     const message = error?.message ?? "";
     ok(
       message.includes(expectedText),
-      `Expected error containing ${expectedText}, got: ${message}`
+      `Expected error containing ${expectedText}, got: ${message}`,
     );
     return;
   }

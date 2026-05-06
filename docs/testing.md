@@ -77,6 +77,8 @@ These checks keep the lightweight repo-consistency lane honest. They cover:
 
 - the archive snapshot script behavior
 - the shared protocol error taxonomy
+- the society preview/live stepper parity checks
+- the live session manager without requiring Surfpool
 
 ## Surfpool Final E2E
 
@@ -84,26 +86,42 @@ Surfpool replaces devnet as the final end-to-end gate.
 
 `pnpm test:surfpool` runs `scripts/surfpool-e2e.sh`, which:
 
-1. builds the Anchor workspace
-2. starts Surfpool directly at the local endpoint
-3. sets `ANCHOR_TEST_RUN` so the validator-backed TypeScript E2E suite runs instead of the default LiteSVM script
-4. lets Surfpool auto-deploy the declared Anchor program IDs
-5. runs the Anchor-backed E2E suite against Surfpool with deployment skipped
-6. provisions a disposable pi-extension signer, airdrops it on Surfpool, and runs `tests/surfpool/pi_extension_e2e.test.ts`
+1. uses the Anchor wallet as the default signer for the live pi-extension flow
+2. sets `ANCHOR_TEST_RUN` so the validator-backed TypeScript E2E suite runs instead of the default LiteSVM script
+3. delegates Surfpool startup, deployment, and teardown to `anchor test --validator surfpool`
+4. runs the validator-backed TypeScript suite from `tests/*.ts`
+5. includes `tests/surfpool/pi_extension_e2e.test.ts` in the same Surfpool-backed `ts-mocha` lane
 
 Default local endpoint:
 
 - RPC: `http://127.0.0.1:8899`
 - Websocket: `ws://127.0.0.1:8900`
 
-The harness intentionally lets Surfpool own local program deployment, then runs Anchor with `--skip-deploy`. That avoids deploying generated `target/deploy/*-keypair.json` IDs that do not match the declared program IDs used by the TypeScript tests.
+The repository now relies on Anchor's native Surfpool integration. That path
+starts a clean Surfpool validator, deploys the declared program IDs from
+`Anchor.toml`, and avoids the stale-state problems that came from reusing a
+manually started local Surfpool instance.
 
 The appended pi-extension E2E confirms a live `createSubstrateExtension` turn can:
 
 - provision or reuse the identity/task PDAs
 - initialize the domain catalog, register the task domain, and initialize the receipt emitter CPI authority
 - emit a `completion` receipt and sync task status
+- use the Anchor wallet by default for the extension signer
 - re-attach with the same signer without recreating the identity or task
+
+## Society Example Verification
+
+Use the narrowest path that matches the files you changed.
+
+1. `pnpm test:verification`
+2. Start local Surfpool on `127.0.0.1:8898` / `ws://127.0.0.1:8897`
+3. `pnpm --dir examples/multi_agent/society-ui-app build`
+4. `. ./examples/multi_agent/society-demo-env.example.sh && pnpm society`
+5. Open `/society`, verify nothing starts before `Go live`, then verify `Go live`, `Resume last`, `Start new world`, `Step`, `Play`, `Pause`, pending-versus-strict view, distinct agent colors, Surfpool account links, and the final proof link
+6. Confirm the board no longer exposes preview scrubbing, offline commit, or proof replay controls
+
+The live society UI is manual browser smoke coverage on top of the automated checks. Keep Surfpool local; the demo server intentionally rejects non-local RPC targets unless you opt in with `SUBSTRATE_ALLOW_REMOTE_RPC=1`.
 
 ## Expected Local Order
 
@@ -112,6 +130,7 @@ The appended pi-extension E2E confirms a live `createSubstrateExtension` turn ca
 3. `pnpm test:anchor`
 4. `pnpm test:verification`
 5. `pnpm test:surfpool`
+6. If you changed `examples/multi_agent/society_*` or the society UI, run the society example verification flow above
 
 Keep Surfpool as the final local gate. Devnet is not the required release gate
 for this repository.

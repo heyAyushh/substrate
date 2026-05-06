@@ -25,7 +25,7 @@ describe("receipt_chain", () => {
   before(async () => {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("cpi_authority", "utf8")],
-      receiptProgram.programId
+      receiptProgram.programId,
     );
     cpiAuthority = pda;
     try {
@@ -45,12 +45,12 @@ describe("receipt_chain", () => {
       .reputationAccumulator as Program<ReputationAccumulator>;
     const [catalogPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("domain_catalog", "utf8")],
-      reputationProgram.programId
+      reputationProgram.programId,
     );
     domainCatalog = catalogPda;
     try {
       await reputationProgram.account.reputationDomainCatalog.fetch(
-        domainCatalog
+        domainCatalog,
       );
     } catch {
       await reputationProgram.methods
@@ -90,7 +90,7 @@ describe("receipt_chain", () => {
         new anchor.BN(1),
         setup.domain,
         bytes32(0),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         authority,
@@ -111,7 +111,7 @@ describe("receipt_chain", () => {
         new anchor.BN(2),
         setup.domain,
         pubkeyBytes(setup.firstReceipt),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         delegate: delegate.publicKey,
@@ -130,7 +130,7 @@ describe("receipt_chain", () => {
     const taskState = await taskProgram.account.taskRecord.fetch(setup.task);
     strictEqual(
       (taskState as any).lastReceipt.toBase58(),
-      setup.secondReceipt.toBase58()
+      setup.secondReceipt.toBase58(),
     );
     strictEqual((taskState as any).lastSequence.toString(), "2");
   });
@@ -145,7 +145,7 @@ describe("receipt_chain", () => {
         new anchor.BN(1),
         setup.domain,
         bytes32(0),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         authority,
@@ -167,7 +167,7 @@ describe("receipt_chain", () => {
           new anchor.BN(3),
           setup.domain,
           pubkeyBytes(setup.firstReceipt),
-          setup.payloadHash
+          setup.payloadHash,
         )
         .accountsStrict({
           authority,
@@ -180,7 +180,7 @@ describe("receipt_chain", () => {
           taskRegistryProgram: taskProgram.programId,
         })
         .rpc(),
-      "ReceiptSequenceNotMonotonic"
+      "ReceiptSequenceNotMonotonic",
     );
   });
 
@@ -195,7 +195,7 @@ describe("receipt_chain", () => {
         new anchor.BN(1),
         setup.domain,
         bytes32(0),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         authority,
@@ -217,7 +217,7 @@ describe("receipt_chain", () => {
           new anchor.BN(2),
           setup.domain,
           wrongPreviousReceipt,
-          setup.payloadHash
+          setup.payloadHash,
         )
         .accountsStrict({
           delegate: delegate.publicKey,
@@ -232,7 +232,7 @@ describe("receipt_chain", () => {
         })
         .signers([delegate])
         .rpc(),
-      "ReceiptChainBroken"
+      "ReceiptChainBroken",
     );
   });
 
@@ -246,7 +246,7 @@ describe("receipt_chain", () => {
         new anchor.BN(1),
         setup.domain,
         bytes32(0),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         authority,
@@ -267,7 +267,7 @@ describe("receipt_chain", () => {
         new anchor.BN(2),
         setup.domain,
         pubkeyBytes(setup.firstReceipt),
-        setup.payloadHash
+        setup.payloadHash,
       )
       .accountsStrict({
         delegate: delegate.publicKey,
@@ -291,7 +291,7 @@ describe("receipt_chain", () => {
           new anchor.BN(3),
           setup.domain,
           pubkeyBytes(setup.firstReceipt),
-          setup.payloadHash
+          setup.payloadHash,
         )
         .accountsStrict({
           delegate: delegate.publicKey,
@@ -306,14 +306,14 @@ describe("receipt_chain", () => {
         })
         .signers([delegate])
         .rpc(),
-      "ReceiptChainBroken"
+      "ReceiptChainBroken",
     );
   });
 
   async function createTaskFixture(
     agentByte: number,
     taskByte: number,
-    receiptByte: number
+    receiptByte: number,
   ) {
     await fund(delegate.publicKey);
 
@@ -362,7 +362,7 @@ describe("receipt_chain", () => {
       .createIdentity(
         agentId,
         testBytes32(agentByte + 1),
-        testBytes32(agentByte + 2)
+        testBytes32(agentByte + 2),
       )
       .accountsStrict({
         identity,
@@ -396,11 +396,11 @@ describe("receipt_chain", () => {
     try {
       const catalog =
         await reputationProgram.account.reputationDomainCatalog.fetch(
-          domainCatalog
+          domainCatalog,
         );
       if (
         !catalog.domains.some((d: number[]) =>
-          Buffer.from(d).equals(Buffer.from(domain))
+          Buffer.from(d).equals(Buffer.from(domain)),
         )
       ) {
         await reputationProgram.methods
@@ -441,15 +441,15 @@ describe("receipt_chain", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         publicKey,
-        2 * anchor.web3.LAMPORTS_PER_SOL
-      )
+        2 * anchor.web3.LAMPORTS_PER_SOL,
+      ),
     );
   }
 });
 
 function pda<T>(
   program: Program<T>,
-  seeds: Array<Buffer>
+  seeds: Array<Buffer>,
 ): [anchor.web3.PublicKey, number] {
   return anchor.web3.PublicKey.findProgramAddressSync(seeds, program.programId);
 }
@@ -466,7 +466,7 @@ function testBytes32(value: number): number[] {
   return Array.from(
     createHash("sha256")
       .update(`receipt_chain:${TEST_RUN_NAMESPACE}:${value}`)
-      .digest()
+      .digest(),
   );
 }
 
@@ -480,7 +480,7 @@ function pubkeyBytes(value: anchor.web3.PublicKey): number[] {
 
 async function expectAnchorError(
   promise: Promise<unknown>,
-  expectedCode: string
+  expectedCode: string,
 ) {
   try {
     await promise;

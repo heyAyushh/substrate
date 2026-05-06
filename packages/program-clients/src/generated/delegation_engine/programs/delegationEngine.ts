@@ -49,7 +49,7 @@ import {
 import { findDelegationPda } from "../pdas";
 
 export const DELEGATION_ENGINE_PROGRAM_ADDRESS =
-  "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49" as Address<"HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49">;
+  "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm" as Address<"9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm">;
 
 export enum DelegationEngineAccount {
   DelegationRecord,
@@ -114,7 +114,7 @@ export function identifyDelegationEngineInstruction(
 }
 
 export type ParsedDelegationEngineInstruction<
-  TProgram extends string = "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49",
+  TProgram extends string = "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm",
 > =
   | ({
       instructionType: DelegationEngineInstruction.CreateDelegation;

@@ -55,6 +55,7 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - [Program Interface](docs/programs.md)
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
+- [Senior Reviewer Guide](docs/reviewer-guide.md)
 - [Security](docs/security.md)
 - [Production Readiness To-Do](docs/production-readiness.md)
 - [Roadmap](docs/roadmap.md)

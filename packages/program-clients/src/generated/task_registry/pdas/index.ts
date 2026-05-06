@@ -7,4 +7,5 @@
  */
 
 export * from "./receiptApplication";
+export * from "./societyWorld";
 export * from "./task";

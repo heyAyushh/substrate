@@ -3,8 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "pi": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

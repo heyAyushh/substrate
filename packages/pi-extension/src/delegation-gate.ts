@@ -19,7 +19,7 @@ export interface DelegationGateDecision {
 }
 
 export const evaluateDelegationGate = (
-  input: DelegationGateInput
+  input: DelegationGateInput,
 ): DelegationGateDecision => {
   const assertion: DelegationAssertionInput = {
     delegation: input.delegation,
@@ -48,7 +48,7 @@ export interface ToolCallGateInput {
 const DEFAULT_ACTION: ReceiptKind = "completion";
 
 export const gateToolCall = (
-  input: ToolCallGateInput
+  input: ToolCallGateInput,
 ): DelegationGateDecision => {
   if (!input.delegation) {
     return { block: false };

@@ -51,7 +51,7 @@ export function createRevealReceipt(input: RevealReceiptInput): ReceiptRecord {
   const revealHash = hashCanonical(input.payload);
   if (revealHash !== input.commitHash) {
     throw new Error(
-      `Reveal hash ${revealHash} does not match committed hash ${input.commitHash}`
+      `Reveal hash ${revealHash} does not match committed hash ${input.commitHash}`,
     );
   }
 

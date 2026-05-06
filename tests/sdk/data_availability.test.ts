@@ -57,7 +57,7 @@ test("verifyPayloadAvailable rejects a hash mismatch", async () => {
       strictEqual(err.name, "DataAvailabilityError");
       strictEqual(err.reason, "hash_mismatch");
       return true;
-    }
+    },
   );
 });
 
@@ -75,7 +75,7 @@ test("verifyPayloadAvailable rejects an unreachable blob", async () => {
       const err = error as DataAvailabilityError;
       strictEqual(err.reason, "unreachable");
       return true;
-    }
+    },
   );
 });
 
@@ -112,6 +112,6 @@ test("createVerifiedReceiptFromExecution refuses when blob is missing", async ()
           throw new Error("blob not found");
         },
       },
-    })
+    }),
   );
 });

@@ -194,7 +194,7 @@ export async function getSlashWithVerdictInstructionAsync<
   if (!accounts.verdict.value) {
     accounts.verdict.value = await getProgramDerivedAddress({
       programAddress:
-        "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa" as Address<"9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa">,
+        "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF" as Address<"uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF">,
       seeds: [
         getBytesEncoder().encode(
           new Uint8Array([118, 101, 114, 100, 105, 99, 116]),
@@ -223,7 +223,7 @@ export async function getSlashWithVerdictInstructionAsync<
   if (!accounts.treasuryVault.value) {
     accounts.treasuryVault.value = await getProgramDerivedAddress({
       programAddress:
-        "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa" as Address<"9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa">,
+        "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF" as Address<"uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF">,
       seeds: [
         getBytesEncoder().encode(
           new Uint8Array([116, 114, 101, 97, 115, 117, 114, 121]),

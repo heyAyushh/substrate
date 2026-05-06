@@ -6,7 +6,7 @@ import {
   createDisputeReceipt,
   createReceiptFromExecution,
   createStakeEvent,
-  createUnansweredChallengeDispute,
+  buildUnansweredChallengePayload,
   createVerifiedReceiptFromExecution,
   DataAvailabilityError,
   deriveReputation,
@@ -34,6 +34,7 @@ const SQLITE_PATH = join(SNAPSHOT_DIR, "indexer.sqlite");
 const DOMAIN = "coding";
 const DEADLINE_SLOT = 210;
 const CURRENT_SLOT = 300;
+const CHALLENGE_ROUND = 0;
 
 type CodingTool = "read" | "write" | "edit" | "bash";
 
@@ -64,7 +65,7 @@ const buildRecord = (
   recordId: string,
   identityId: string,
   taskId: string,
-  invocations: readonly ToolInvocation[]
+  invocations: readonly ToolInvocation[],
 ): ExecutionRecord => ({
   recordId,
   identityId,
@@ -160,7 +161,7 @@ const assertDelegatedReceipt = ({
 const stakeInitAndDeposit = (
   identityId: string,
   owner: string,
-  amount: bigint
+  amount: bigint,
 ) => [
   createStakeEvent({
     kind: "initialized",
@@ -190,7 +191,7 @@ const assignmentRecord = buildRecord(
       startedAt: "2026-04-13T10:00:01Z",
       args: { cmd: "git log -n 5 src/logging.ts" },
     },
-  ]
+  ],
 );
 
 const assignment = appendLedger(
@@ -200,7 +201,7 @@ const assignment = appendLedger(
     domain: DOMAIN,
     actorId: planner.identityId,
     sequence: nextSequence(),
-  })
+  }),
 );
 
 const plannerStakeSeed: ReceiptRecord = {
@@ -210,7 +211,7 @@ const plannerStakeSeed: ReceiptRecord = {
     stakeEvents: stakeInitAndDeposit(
       planner.identityId,
       planner.authority,
-      500_000n
+      500_000n,
     ),
   },
 };
@@ -225,7 +226,7 @@ const handoffToAlphaRecord = buildRecord(
       startedAt: "2026-04-13T10:01:00Z",
       args: { cmd: "git checkout -b alpha/logging-refactor" },
     },
-  ]
+  ],
 );
 
 const handoffToAlpha = appendLedger(
@@ -235,7 +236,7 @@ const handoffToAlpha = appendLedger(
     domain: DOMAIN,
     actorId: planner.identityId,
     sequence: nextSequence(),
-  })
+  }),
 );
 
 const plannerToAlphaDelegation = client.delegation.create({
@@ -261,7 +262,7 @@ const alphaStakeSeedPayload = {
   stakeEvents: stakeInitAndDeposit(
     alpha.identityId,
     alpha.authority,
-    1_000_000n
+    1_000_000n,
   ),
 };
 const alphaStakeSeed: ReceiptRecord = {
@@ -284,7 +285,7 @@ const alphaWorkRecord = buildRecord(
       startedAt: "2026-04-13T10:05:30Z",
       args: { cmd: "pnpm test --filter logging" },
     },
-  ]
+  ],
 );
 
 let alphaSubmitError: string | undefined;
@@ -327,27 +328,29 @@ const alphaCompletion = assertDelegatedReceipt({
   }),
 });
 
-const challenge = appendLedger(
-  createChallengeReceipt({
+const challenge = appendLedger({
+  ...createChallengeReceipt({
     actorId: reviewer.identityId,
     taskId: task.taskId,
     sequence: nextSequence(),
     domain: DOMAIN,
     targetReceiptId: alphaCompletion.receiptId,
     deadlineSlot: DEADLINE_SLOT,
-  })
-);
+  }),
+  round: CHALLENGE_ROUND,
+});
 
-const alphaDispute = appendLedger(
-  createUnansweredChallengeDispute({
+const alphaDispute = appendLedger({
+  ...buildUnansweredChallengePayload({
     actorId: reviewer.identityId,
     taskId: task.taskId,
     sequence: nextSequence(),
     domain: DOMAIN,
     challengeReceiptId: challenge.receiptId,
     targetReceiptId: alphaCompletion.receiptId,
-  })
-);
+  }),
+  round: CHALLENGE_ROUND,
+});
 
 const slashResolution = appendLedger(
   createDisputeReceipt({
@@ -359,7 +362,7 @@ const slashResolution = appendLedger(
     stepSeq: 1,
     evidenceHash: "sha256:alpha-missing-blob",
     resolution: { outcome: "agent_lost", slashAmount: 400_000n },
-  })
+  }),
 );
 
 const slashResolutionWithEvents: ReceiptRecord = {
@@ -401,7 +404,7 @@ const handoffToBetaRecord = buildRecord(
       startedAt: "2026-04-13T11:00:00Z",
       args: { cmd: "git checkout -b beta/logging-refactor" },
     },
-  ]
+  ],
 );
 
 const handoffToBeta = assertDelegatedReceipt({
@@ -426,7 +429,7 @@ const betaStakeSeed: ReceiptRecord = {
     stakeEvents: stakeInitAndDeposit(
       beta.identityId,
       beta.authority,
-      1_000_000n
+      1_000_000n,
     ),
   },
 };
@@ -451,7 +454,7 @@ const betaWorkRecord = buildRecord(
       startedAt: "2026-04-13T11:07:00Z",
       args: { cmd: "pnpm test" },
     },
-  ]
+  ],
 );
 
 const betaBlob = hashCanonical(betaWorkRecord);
@@ -491,7 +494,7 @@ const attestation = appendLedger(
       evidenceUri: "git+https://review.example/repo@abc123:NOTES.md",
       evidenceHash: "sha256:beta-review",
     },
-  })
+  }),
 );
 
 const attestationReceipt: LocalReceiptRecord = {
@@ -526,8 +529,9 @@ function toIndexed(receipt: ReceiptRecord, slot: number): LocalReceiptRecord {
     actorId: receipt.actorId,
     kind: receipt.kind,
     domain: receipt.domain,
+    ...(receipt.round !== undefined ? { round: receipt.round } : {}),
     payload: { ...receipt.payload },
-  };
+  } as LocalReceiptRecord;
 }
 
 const indexer = new SqliteDurableIndexer({
@@ -613,6 +617,7 @@ console.log(
         actor: receipt.actorId,
         kind: receipt.kind,
         receiptId: receipt.receiptId,
+        round: receipt.round,
       })),
       handoffChain: indexer.getHandoffChain(task.taskId),
       handoffInheritance,
@@ -632,6 +637,6 @@ console.log(
       sqlitePath: SQLITE_PATH,
     },
     null,
-    2
-  )
+    2,
+  ),
 );

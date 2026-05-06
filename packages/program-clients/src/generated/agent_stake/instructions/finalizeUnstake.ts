@@ -54,7 +54,7 @@ export type FinalizeUnstakeInstruction<
   TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
   TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
-    "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -160,7 +160,7 @@ export function getFinalizeUnstakeInstruction<
   // Resolve default values.
   if (!accounts.identityRegistryProgram.value) {
     accounts.identityRegistryProgram.value =
-      "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");

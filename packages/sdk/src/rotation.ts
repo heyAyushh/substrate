@@ -92,7 +92,7 @@ function assertValidSequence(sequence: number | undefined): void {
 
 function assertUniqueAuthorities(
   authorities: ReadonlyArray<string>,
-  fieldName: string
+  fieldName: string,
 ): void {
   const uniqueAuthorities = new Set<string>();
 
@@ -106,7 +106,7 @@ function assertUniqueAuthorities(
 }
 
 export function requestAuthorityRotation(
-  input: RotateAuthorityInput
+  input: RotateAuthorityInput,
 ): PendingAuthorityRotation {
   assertNonEmptyAuthority(input.newAuthority, "newAuthority");
   assertValidSlot(input.unlockSlot, "unlockSlot");
@@ -120,14 +120,14 @@ export function requestAuthorityRotation(
 }
 
 export function configureGuardianSet(
-  input: ConfigureGuardianSetInput
+  input: ConfigureGuardianSetInput,
 ): GuardianSet {
   if (
     input.guardians.length === 0 ||
     input.guardians.length > MAX_GUARDIAN_APPROVERS
   ) {
     throw new Error(
-      `guardian set must contain between 1 and ${MAX_GUARDIAN_APPROVERS} guardians`
+      `guardian set must contain between 1 and ${MAX_GUARDIAN_APPROVERS} guardians`,
     );
   }
 
@@ -149,7 +149,7 @@ export function configureGuardianSet(
 }
 
 export function createAuthorityRotationEvent(
-  input: AuthorityRotationEventInput
+  input: AuthorityRotationEventInput,
 ): AuthorityRotationEvent {
   assertNonEmptyAuthority(input.previousAuthority, "previousAuthority");
   assertNonEmptyAuthority(input.newAuthority, "newAuthority");
@@ -178,7 +178,7 @@ export function createAuthorityRotationEvent(
 }
 
 export function finalizeAuthorityRotation(
-  input: FinalizeAuthorityRotationInput
+  input: FinalizeAuthorityRotationInput,
 ): { identity: IdentityRecord; rotation: AuthorityRotationEvent } {
   assertValidSlot(input.finalizedSlot, "finalizedSlot");
   assertValidSequence(input.sequence);
@@ -210,7 +210,7 @@ export function finalizeAuthorityRotation(
 }
 
 export function emergencyRotateAuthority(
-  input: EmergencyRotateAuthorityInput
+  input: EmergencyRotateAuthorityInput,
 ): { identity: IdentityRecord; rotation: AuthorityRotationEvent } {
   assertNonEmptyAuthority(input.newAuthority, "newAuthority");
   assertValidSlot(input.finalizedSlot, "finalizedSlot");

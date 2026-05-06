@@ -26,7 +26,7 @@ export async function findReputationPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv" as Address<"8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv">,
+    programAddress = "EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs" as Address<"EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

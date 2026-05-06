@@ -23,7 +23,7 @@ export async function findIdentityBondPda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">,
+    programAddress = "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

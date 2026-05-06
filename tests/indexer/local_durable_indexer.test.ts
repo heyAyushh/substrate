@@ -6,7 +6,7 @@ import {
 } from "../../packages/indexer/src/index.js";
 
 const createReceipt = (
-  overrides: Partial<LocalReceiptRecord>
+  overrides: Partial<LocalReceiptRecord>,
 ): LocalReceiptRecord => ({
   receiptId: "receipt-1",
   slot: 1,
@@ -48,8 +48,25 @@ test("backfill ordering reconstructs history by slot", () => {
 
   deepStrictEqual(
     indexer.getTaskHistory("task-1").map((receipt) => receipt.slot),
-    [10, 20, 30]
+    [10, 20, 30],
   );
+});
+
+test("preserves explicit receipt sequences when indexing local history", () => {
+  const indexer = new LocalDurableIndexer();
+
+  indexer.ingest([
+    {
+      ...createReceipt({
+        receiptId: "receipt-50",
+        slot: 50,
+        kind: "completion",
+      }),
+      sequence: 7,
+    } as LocalReceiptRecord,
+  ]);
+
+  strictEqual(indexer.getTaskHistory("task-1")[0]?.sequence, 7);
 });
 
 test("reconstructs the execution graph from task and agent history", () => {

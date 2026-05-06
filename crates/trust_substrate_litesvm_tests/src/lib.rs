@@ -23,10 +23,11 @@ pub use trust_substrate_core::{
     GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_BOND_SEED, IDENTITY_SEED,
     LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
     REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
-    RUNTIME_ATTESTATION_SEED, SLASH_MARKER_SEED, STAKE_COOLDOWN_SLOTS, STAKE_SEED,
-    TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING,
-    TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE,
-    VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY, VERDICT_SEED,
+    RUNTIME_ATTESTATION_SEED, SLASH_MARKER_SEED, SOCIETY_WORLD_SEED,
+    SOCIETY_WORLD_STATUS_ACTIVE, SOCIETY_WORLD_STATUS_COMPLETE, STAKE_COOLDOWN_SLOTS,
+    STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED,
+    TASK_STATUS_PENDING, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT,
+    VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -278,6 +279,54 @@ impl Harness {
         domain: [u8; 32],
     ) -> TestResult<Pubkey> {
         self.create_task(identity, byte, domain)
+    }
+
+    pub fn create_society_world(
+        &mut self,
+        identity: &IdentityFixture,
+        task: Pubkey,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> TestResult<Pubkey> {
+        let society_world = society_world_pda(task);
+        let ix = self.ix_create_society_world(
+            identity.address,
+            task,
+            current_tick,
+            last_sequence,
+            last_receipt,
+            status,
+            state,
+        );
+        self.send_as_payer(ix)?;
+        Ok(society_world)
+    }
+
+    pub fn update_society_world(
+        &mut self,
+        identity: &IdentityFixture,
+        task: Pubkey,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> TestResult<Pubkey> {
+        let society_world = society_world_pda(task);
+        let ix = self.ix_update_society_world(
+            identity.address,
+            task,
+            current_tick,
+            last_sequence,
+            last_receipt,
+            status,
+            state,
+        );
+        self.send_as_payer(ix)?;
+        Ok(society_world)
     }
 
     pub fn deposit_identity_bond(&mut self, identity: &IdentityFixture) -> TestResult {
@@ -1895,6 +1944,66 @@ impl Harness {
         )
     }
 
+    fn ix_create_society_world(
+        &self,
+        identity: Pubkey,
+        task: Pubkey,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        let society_world = society_world_pda(task);
+        instruction(
+            task_registry::ID,
+            task_registry::instruction::CreateSocietyWorld {
+                current_tick,
+                last_sequence,
+                last_receipt,
+                status,
+                state,
+            }
+            .data(),
+            task_registry::accounts::CreateSocietyWorld {
+                authority: self.payer.pubkey(),
+                identity,
+                task,
+                society_world,
+                system_program: system_program::ID,
+            },
+        )
+    }
+
+    pub fn ix_update_society_world(
+        &self,
+        identity: Pubkey,
+        task: Pubkey,
+        current_tick: u32,
+        last_sequence: u64,
+        last_receipt: Pubkey,
+        status: u8,
+        state: Vec<u8>,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        instruction(
+            task_registry::ID,
+            task_registry::instruction::UpdateSocietyWorld {
+                current_tick,
+                last_sequence,
+                last_receipt,
+                status,
+                state,
+            }
+            .data(),
+            task_registry::accounts::UpdateSocietyWorld {
+                authority: self.payer.pubkey(),
+                identity,
+                task,
+                society_world: society_world_pda(task),
+            },
+        )
+    }
+
     fn ix_create_delegation(
         &self,
         identity: Pubkey,
@@ -2150,6 +2259,10 @@ pub fn task_pda(identity: Pubkey, task_id: [u8; 32]) -> Pubkey {
         &[TASK_SEED, identity.as_ref(), task_id.as_ref()],
         &task_registry::ID,
     )
+}
+
+pub fn society_world_pda(task: Pubkey) -> Pubkey {
+    pda(&[SOCIETY_WORLD_SEED, task.as_ref()], &task_registry::ID)
 }
 
 pub fn receipt_pda(identity: Pubkey, task: Pubkey, receipt_id: [u8; 32]) -> Pubkey {

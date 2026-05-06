@@ -68,7 +68,7 @@ import {
 import { findSlashMarkerPda, findStakePda } from "../pdas";
 
 export const AGENT_STAKE_PROGRAM_ADDRESS =
-  "GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ" as Address<"GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ">;
+  "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on" as Address<"47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on">;
 
 export enum AgentStakeAccount {
   SlashMarker,
@@ -193,7 +193,7 @@ export function identifyAgentStakeInstruction(
 }
 
 export type ParsedAgentStakeInstruction<
-  TProgram extends string = "GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ",
+  TProgram extends string = "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on",
 > =
   | ({
       instructionType: AgentStakeInstruction.FinalizeUnstake;

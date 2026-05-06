@@ -60,7 +60,7 @@ import {
 import { findAttesterPda, findConfigPda } from "../pdas";
 
 export const ATTESTER_REGISTRY_PROGRAM_ADDRESS =
-  "2GtbAjxWCHDFdc1B4RtF2a1tfY8ZuSwysAMJ5MJtqBxp" as Address<"2GtbAjxWCHDFdc1B4RtF2a1tfY8ZuSwysAMJ5MJtqBxp">;
+  "GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7" as Address<"GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7">;
 
 export enum AttesterRegistryAccount {
   AttesterRecord,
@@ -161,7 +161,7 @@ export function identifyAttesterRegistryInstruction(
 }
 
 export type ParsedAttesterRegistryInstruction<
-  TProgram extends string = "2GtbAjxWCHDFdc1B4RtF2a1tfY8ZuSwysAMJ5MJtqBxp",
+  TProgram extends string = "GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7",
 > =
   | ({
       instructionType: AttesterRegistryInstruction.CloseAttester;

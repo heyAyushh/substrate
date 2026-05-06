@@ -78,7 +78,7 @@ import {
 } from "../pdas";
 
 export const RECEIPT_EMITTER_PROGRAM_ADDRESS =
-  "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp" as Address<"FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp">;
+  "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk" as Address<"FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk">;
 
 export enum ReceiptEmitterAccount {
   CpiAuthority,
@@ -215,7 +215,7 @@ export function identifyReceiptEmitterInstruction(
 }
 
 export type ParsedReceiptEmitterInstruction<
-  TProgram extends string = "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp",
+  TProgram extends string = "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk",
 > =
   | ({
       instructionType: ReceiptEmitterInstruction.EmitAuditReceipt;

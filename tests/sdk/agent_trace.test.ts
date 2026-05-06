@@ -55,7 +55,7 @@ test("executionRecordToAgentTrace keeps only file_edit steps", () => {
   strictEqual(bundle.edits.length, 2);
   deepStrictEqual(
     bundle.edits.map((edit) => edit.path),
-    ["src/a.ts", "src/b.ts"]
+    ["src/a.ts", "src/b.ts"],
   );
   strictEqual(bundle.edits[0].diff, "@@-1,1+1,1@@");
 });

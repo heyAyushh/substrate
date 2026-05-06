@@ -2,16 +2,15 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  buildUnansweredChallengePayload,
+  createChallengeReceipt,
   OnchainMerkleTree,
   ReceiptLedger,
   TrustSubstrateClient,
   hashLeafBytes,
   verifyOnchainInclusion,
 } from "@trust-substrate/sdk";
-import type {
-  ReceiptKind,
-  ReceiptRecord,
-} from "@trust-substrate/sdk";
+import type { ReceiptKind, ReceiptRecord } from "@trust-substrate/sdk";
 import {
   LocalDurableIndexer,
   type LocalReceiptRecord,
@@ -21,6 +20,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_DIR = join(HERE, ".snapshot");
 const SNAPSHOT_PATH = join(SNAPSHOT_DIR, "indexer.json");
 const DOMAIN = "research";
+const INDEXER_BASE_SLOT = 100;
+const CHALLENGE_ROUND = 0;
+const CHALLENGE_DEADLINE_SLOT = INDEXER_BASE_SLOT + 10;
 
 const client = new TrustSubstrateClient();
 
@@ -43,17 +45,23 @@ const task = client.task.create({
 
 const ledger = new ReceiptLedger();
 let sequence = 0;
+const nextSequence = () => {
+  sequence += 1;
+  return sequence;
+};
+const appendRecord = (receipt: ReceiptRecord): ReceiptRecord =>
+  ledger.append(receipt);
 const appendReceipt = (
   actorId: string,
   kind: ReceiptKind,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
 ): ReceiptRecord => {
-  sequence += 1;
+  const currentSequence = nextSequence();
   const receipt = client.receipt.create({
     actorId,
     kind,
     taskId: task.taskId,
-    sequence,
+    sequence: currentSequence,
     payload: { domain: DOMAIN, ...payload },
   });
   return ledger.append(receipt);
@@ -95,10 +103,27 @@ const handoff = appendReceipt(planner.identityId, "handoff", {
 const completion = appendReceipt(builder.identityId, "completion", {
   outcome: "digest published",
 });
-const dispute = appendReceipt(planner.identityId, "dispute", {
-  targetReceiptId: completion.receiptId,
-  reason: "source attribution missing from digest",
-  evidenceHash: "sha256:evidence-attribution-gap",
+const challenge = appendRecord({
+  ...createChallengeReceipt({
+    actorId: planner.identityId,
+    taskId: task.taskId,
+    sequence: nextSequence(),
+    domain: DOMAIN,
+    targetReceiptId: completion.receiptId,
+    deadlineSlot: CHALLENGE_DEADLINE_SLOT,
+  }),
+  round: CHALLENGE_ROUND,
+});
+const dispute = appendRecord({
+  ...buildUnansweredChallengePayload({
+    actorId: planner.identityId,
+    taskId: task.taskId,
+    sequence: nextSequence(),
+    domain: DOMAIN,
+    challengeReceiptId: challenge.receiptId,
+    targetReceiptId: completion.receiptId,
+  }),
+  round: CHALLENGE_ROUND,
 });
 const resolution = appendReceipt(planner.identityId, "dispute_resolved", {
   targetReceiptId: dispute.receiptId,
@@ -114,25 +139,29 @@ const receipts = ledger.list();
 
 const indexer = new LocalDurableIndexer();
 indexer.ingest(
-  receipts.map<LocalReceiptRecord>((receipt, offset) => ({
-    receiptId: receipt.receiptId,
-    slot: 100 + offset,
-    taskId: receipt.taskId,
-    actorId: receipt.actorId,
-    kind: receipt.kind,
-    domain: receipt.domain,
-    payload: { ...receipt.payload },
-  }))
+  receipts.map<LocalReceiptRecord>(
+    (receipt, offset) =>
+      ({
+        receiptId: receipt.receiptId,
+        slot: INDEXER_BASE_SLOT + offset,
+        taskId: receipt.taskId,
+        actorId: receipt.actorId,
+        kind: receipt.kind,
+        domain: receipt.domain,
+        ...(receipt.round !== undefined ? { round: receipt.round } : {}),
+        payload: { ...receipt.payload },
+      }) as LocalReceiptRecord,
+  ),
 );
 
 mkdirSync(SNAPSHOT_DIR, { recursive: true });
 indexer.saveSnapshot(SNAPSHOT_PATH);
 
 const merkle = new OnchainMerkleTree(
-  receipts.map((receipt) => Buffer.from(receipt.hash, "hex"))
+  receipts.map((receipt) => Buffer.from(receipt.hash, "hex")),
 );
 const completionIndex = receipts.findIndex(
-  (receipt) => receipt.receiptId === completion.receiptId
+  (receipt) => receipt.receiptId === completion.receiptId,
 );
 const completionProof = merkle.getProof(completionIndex);
 const completionLeafHash = hashLeafBytes(Buffer.from(completion.hash, "hex"));
@@ -140,13 +169,13 @@ const included = verifyOnchainInclusion(
   completionLeafHash,
   completionProof,
   receipts.length,
-  merkle.root
+  merkle.root,
 );
 
 const reputation = client.reputation.derive(receipts);
 const handoffChain = indexer.getHandoffChain(task.taskId);
 const stakeEvents = receipts.flatMap((receipt) =>
-  client.stake.extractEvents(receipt)
+  client.stake.extractEvents(receipt),
 );
 const sdkStake = {
   planner: client.stake.deriveState(planner.identityId, stakeEvents),
@@ -180,10 +209,12 @@ console.log(
         receiptId: receipt.receiptId,
         kind: receipt.kind,
         actor: receipt.actorId,
+        round: receipt.round,
       })),
       assignmentReceiptId: assignment.receiptId,
       handoffReceiptId: handoff.receiptId,
       completionReceiptId: completion.receiptId,
+      challengeReceiptId: challenge.receiptId,
       disputeReceiptId: dispute.receiptId,
       resolutionReceiptId: resolution.receiptId,
       handoffChain,
@@ -201,6 +232,6 @@ console.log(
       snapshotPath: SNAPSHOT_PATH,
     },
     null,
-    2
-  )
+    2,
+  ),
 );

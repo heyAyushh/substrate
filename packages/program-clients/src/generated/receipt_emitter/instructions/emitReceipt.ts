@@ -64,7 +64,7 @@ export type EmitReceiptInstruction<
   TAccountDomainCatalog extends string | AccountMeta<string> = string,
   TAccountCpiAuthority extends string | AccountMeta<string> = string,
   TAccountTaskRegistryProgram extends string | AccountMeta<string> =
-    "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4",
+    "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -266,7 +266,7 @@ export async function getEmitReceiptInstructionAsync<
   }
   if (!accounts.taskRegistryProgram.value) {
     accounts.taskRegistryProgram.value =
-      "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">;
+      "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
@@ -390,7 +390,7 @@ export function getEmitReceiptInstruction<
   // Resolve default values.
   if (!accounts.taskRegistryProgram.value) {
     accounts.taskRegistryProgram.value =
-      "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">;
+      "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

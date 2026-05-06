@@ -125,7 +125,7 @@ pub mod __cpi_client_accounts_update_policy_root {
     pub use crate::instructions::update_policy_root::__cpi_client_accounts_update_policy_root::*;
 }
 
-declare_id!("7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv");
+declare_id!("8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun");
 
 #[program]
 pub mod identity_registry {

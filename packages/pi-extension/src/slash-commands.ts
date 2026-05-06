@@ -15,7 +15,7 @@ export interface SubstrateCommandResult {
 }
 
 export type SubstrateCommandHandler = (
-  ctx: SubstrateCommandContext
+  ctx: SubstrateCommandContext,
 ) => SubstrateCommandResult | Promise<SubstrateCommandResult>;
 
 export interface SubstrateCommandDefinition {
@@ -66,7 +66,7 @@ const parseAmount = (raw: string | undefined): bigint => {
 };
 
 const formatDashboardLinks = (
-  links: ReturnType<NonNullable<SlashCommandDeps["getDashboardLinks"]>>
+  links: ReturnType<NonNullable<SlashCommandDeps["getDashboardLinks"]>>,
 ): string => {
   const lines = [
     `studio: ${links.studioUrl}`,
@@ -76,7 +76,7 @@ const formatDashboardLinks = (
 };
 
 export const buildSubstrateCommandDefinitions = (
-  deps: SlashCommandDeps
+  deps: SlashCommandDeps,
 ): ReadonlyArray<SubstrateCommandDefinition> => [
   {
     name: "substrate-status",
@@ -114,7 +114,10 @@ export const buildSubstrateCommandDefinitions = (
       if (!deps.challenge) return { output: NOT_WIRED, blocked: true };
       const receiptId = ctx.args[0];
       if (!receiptId) {
-        return { output: "usage: /substrate-challenge <receiptId>", blocked: true };
+        return {
+          output: "usage: /substrate-challenge <receiptId>",
+          blocked: true,
+        };
       }
       const signature = await deps.challenge(receiptId);
       return { output: `challenge submitted: ${signature}` };
@@ -127,7 +130,10 @@ export const buildSubstrateCommandDefinitions = (
       if (!deps.dispute) return { output: NOT_WIRED, blocked: true };
       const receiptId = ctx.args[0];
       if (!receiptId) {
-        return { output: "usage: /substrate-dispute <receiptId>", blocked: true };
+        return {
+          output: "usage: /substrate-dispute <receiptId>",
+          blocked: true,
+        };
       }
       const signature = await deps.dispute(receiptId);
       return { output: `dispute submitted: ${signature}` };
@@ -137,7 +143,7 @@ export const buildSubstrateCommandDefinitions = (
 
 export const registerSubstrateCommands = (
   host: SubstrateCommandHost,
-  deps: SlashCommandDeps
+  deps: SlashCommandDeps,
 ): void => {
   for (const definition of buildSubstrateCommandDefinitions(deps)) {
     host.registerCommand(definition);

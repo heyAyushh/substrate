@@ -23,7 +23,7 @@ export async function findStakePda(
   config: { programAddress?: Address | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = "GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ" as Address<"GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ">,
+    programAddress = "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on" as Address<"47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on">,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

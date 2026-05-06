@@ -7,15 +7,15 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-identity_registry = "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv"
-task_registry = "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4"
-receipt_emitter = "FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp"
-delegation_engine = "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49"
-reputation_accumulator = "8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv"
-proof_verifier = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi"
-agent_stake = "GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ"
-dispute_resolver = "9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa"
-attester_registry = "2GtbAjxWCHDFdc1B4RtF2a1tfY8ZuSwysAMJ5MJtqBxp"
+agent_stake = "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on"
+attester_registry = "GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7"
+delegation_engine = "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm"
+dispute_resolver = "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF"
+identity_registry = "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun"
+proof_verifier = "7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE"
+receipt_emitter = "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk"
+reputation_accumulator = "EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs"
+task_registry = "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4"
 
 [provider]
 cluster = "localnet"
@@ -23,3 +23,5 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "if [ -n \"${ANCHOR_TEST_RUN:-}\" ]; then pnpm exec ts-mocha -p ./tsconfig.json -t 1000000 ${ANCHOR_TEST_RUN}; else cargo test -p trust_substrate_litesvm_tests; fi"
+
+[hooks]

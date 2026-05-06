@@ -51,14 +51,13 @@ export {
   createKitTransactionDispatcher,
 } from "./onchain-client.js";
 
-export {
-  PiToolStreamBridge,
-} from "./pi-bridge.js";
+export { PiToolStreamBridge } from "./pi-bridge.js";
 
 export {
   bytes32Equals,
   bytes32ToHex,
   deriveAgentIdBytes,
+  deriveAuditReceiptIdBytes,
   deriveDomainBytes,
   deriveHistoryRootBytes,
   derivePayloadHashBytes,
@@ -117,6 +116,8 @@ export {
   UNANSWERED_CHALLENGE_MARKER,
 } from "./challenge.js";
 
+export { withPayloadHash } from "./payload-hash.js";
+
 export type {
   ChallengeReceiptInput,
   ChallengeResponseReceiptInput,
@@ -138,14 +139,24 @@ export type {
 } from "./pi-adapter.js";
 
 export type {
+  OnchainAuditReceiptBinding,
   OnchainIdentityBinding,
+  OnchainIdentityBondBinding,
   OnchainOperationResult,
   OnchainReceiptBinding,
   OnchainReputationBinding,
   OnchainStakeBinding,
+  OnchainAttesterBinding,
+  OnchainDelegationBinding,
+  OnchainHistoryCheckpointBinding,
+  OnchainAdjudicatorBinding,
+  OnchainVerdictBinding,
   OnchainTaskBinding,
   OnchainTransactionCommit,
   OnchainTransactionDispatcher,
+  OnchainChallengeResponseBinding,
+  OnchainSocietyWorldBinding,
+  OnchainSocietyWorldRecord,
   TrustSubstrateDispatcherConfig,
   TrustSubstrateRpc,
   TrustSubstrateRpcSubscriptions,

@@ -2,11 +2,14 @@ import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { deepStrictEqual, ok, strictEqual, throws } from "node:assert/strict";
 import { resolve } from "node:path";
+import { address, getAddressEncoder } from "@solana/kit";
 import {
   ReceiptLedger,
   TrustSubstrateClient,
+  deriveAuditReceiptIdBytes,
   createAuthorityRotationEvent,
   createMerkleTree,
+  derivePreviousReceiptBytes,
   deriveReputation,
   verifyMerkleProof,
 } from "../../packages/sdk/src/index.js";
@@ -20,7 +23,7 @@ test("creates deterministic identity objects", () => {
 
   strictEqual(
     identity.authority,
-    "Authority1111111111111111111111111111111111"
+    "Authority1111111111111111111111111111111111",
   );
   strictEqual(identity.label, "automation-agent");
   ok(identity.identityId.length > 0);
@@ -29,7 +32,7 @@ test("creates deterministic identity objects", () => {
     client.identity.create({
       authority: "Authority1111111111111111111111111111111111",
       label: "automation-agent",
-    }).identityId
+    }).identityId,
   );
 });
 
@@ -78,6 +81,35 @@ test("rejects receipt replay attempts", () => {
   throws(() => ledger.append(receipt), /replay/i);
 });
 
+test("derives previous receipt bytes from committed receipt addresses", () => {
+  const receiptAddress = address("SysvarC1ock11111111111111111111111111111111");
+
+  deepStrictEqual(
+    derivePreviousReceiptBytes({ previousReceiptId: receiptAddress }),
+    getAddressEncoder().encode(receiptAddress),
+  );
+});
+
+test("derives audit receipt bytes from the auditor target and round", () => {
+  const auditorIdentity = address("11111111111111111111111111111111");
+  const targetReceipt = address("SysvarC1ock11111111111111111111111111111111");
+  const firstDerivation = deriveAuditReceiptIdBytes({
+    auditorIdentity,
+    targetReceipt,
+    kind: 4,
+    round: 37,
+  });
+  const secondDerivation = deriveAuditReceiptIdBytes({
+    auditorIdentity,
+    targetReceipt,
+    kind: 4,
+    round: 37,
+  });
+
+  strictEqual(firstDerivation.length, 32);
+  deepStrictEqual(firstDerivation, secondDerivation);
+});
+
 test("rejects delegation scope mismatches", () => {
   const client = new TrustSubstrateClient();
   const delegation = client.delegation.create({
@@ -92,14 +124,14 @@ test("rejects delegation scope mismatches", () => {
         delegation,
         action: "completion",
       }),
-    /scope/i
+    /scope/i,
   );
 });
 
 test("multi-agent simulation emits explicit delegation chain metadata", () => {
   const scriptPath = resolve(
     process.cwd(),
-    "../../examples/multi_agent/run.ts"
+    "../../examples/multi_agent/run.ts",
   );
   const result = spawnSync("node", ["--experimental-strip-types", scriptPath], {
     encoding: "utf8",
@@ -183,7 +215,7 @@ test("verifies merkle proofs deterministically", () => {
       proof,
       root: tree.root,
       index: 1,
-    })
+    }),
   );
 
   ok(
@@ -192,7 +224,7 @@ test("verifies merkle proofs deterministically", () => {
       proof,
       root: tree.root,
       index: 1,
-    })
+    }),
   );
 });
 
@@ -230,7 +262,7 @@ test("derives deterministic reputation from verified history", () => {
   deepStrictEqual(reputationA, reputationB);
   strictEqual(
     reputationA.domains.coordination,
-    reputationB.domains.coordination
+    reputationB.domains.coordination,
   );
   ok(reputationA.overall > 0);
 });
@@ -256,7 +288,7 @@ test("models authority rotation with sdk identity helpers", () => {
 
   strictEqual(
     finalized.identity.authority,
-    "Authority2222222222222222222222222222222222"
+    "Authority2222222222222222222222222222222222",
   );
   strictEqual(finalized.rotation.agentId, identity.identityId);
   strictEqual(finalized.rotation.mode, "normal");
@@ -293,7 +325,7 @@ test("models emergency guardian rotation with sdk identity helpers", () => {
 
   strictEqual(
     finalized.identity.authority,
-    "Authority9999999999999999999999999999999999"
+    "Authority9999999999999999999999999999999999",
   );
   strictEqual(finalized.rotation.mode, "emergency");
   strictEqual(finalized.rotation.sequence, 4);
@@ -324,7 +356,7 @@ test("rejects emergency rotation approvals that do not satisfy guardian policy",
         newAuthority: "Authority9999999999999999999999999999999999",
         finalizedSlot: 45,
       }),
-    /threshold/i
+    /threshold/i,
   );
 
   throws(
@@ -339,7 +371,7 @@ test("rejects emergency rotation approvals that do not satisfy guardian policy",
         newAuthority: "Authority9999999999999999999999999999999999",
         finalizedSlot: 46,
       }),
-    /not configured/i
+    /not configured/i,
   );
 });
 

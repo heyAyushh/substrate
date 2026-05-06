@@ -111,7 +111,7 @@ import {
 } from "../pdas";
 
 export const IDENTITY_REGISTRY_PROGRAM_ADDRESS =
-  "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv" as Address<"7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv">;
+  "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
 
 export enum IdentityRegistryAccount {
   AgentIdentity,
@@ -356,7 +356,7 @@ export function identifyIdentityRegistryInstruction(
 }
 
 export type ParsedIdentityRegistryInstruction<
-  TProgram extends string = "7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv",
+  TProgram extends string = "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
 > =
   | ({
       instructionType: IdentityRegistryInstruction.AdjustOpenChallengeCount;

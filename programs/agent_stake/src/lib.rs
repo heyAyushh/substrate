@@ -66,7 +66,7 @@ pub mod __cpi_client_accounts_stake {
     pub use crate::instructions::stake::__cpi_client_accounts_stake::*;
 }
 
-declare_id!("GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ");
+declare_id!("47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on");
 
 #[program]
 pub mod agent_stake {

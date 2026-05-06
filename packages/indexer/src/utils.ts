@@ -1,6 +1,6 @@
 export const compareBySlotThenReceiptId = (
   left: { slot: number; receiptId: string },
-  right: { slot: number; receiptId: string }
+  right: { slot: number; receiptId: string },
 ) =>
   left.slot === right.slot
     ? left.receiptId.localeCompare(right.receiptId)
@@ -16,11 +16,11 @@ export const stableStringify = (value: unknown): string => {
   }
 
   const entries = Object.entries(value as Record<string, unknown>).sort(
-    ([leftKey], [rightKey]) => leftKey.localeCompare(rightKey)
+    ([leftKey], [rightKey]) => leftKey.localeCompare(rightKey),
   );
   return `{${entries
     .map(
-      ([key, element]) => `${JSON.stringify(key)}:${stableStringify(element)}`
+      ([key, element]) => `${JSON.stringify(key)}:${stableStringify(element)}`,
     )
     .join(",")}}`;
 };

@@ -47,7 +47,7 @@ export class TurnBuffer {
 
   endToolCall(
     toolCallId: string,
-    now: () => string = defaultNow
+    now: () => string = defaultNow,
   ): BufferedToolCall | undefined {
     const entry = this.calls.get(toolCallId);
     if (!entry) return undefined;
@@ -68,7 +68,7 @@ export class TurnBuffer {
         startedAt: entry.startedAt,
         endedAt: entry.endedAt,
         model: entry.model,
-      })
+      }),
     );
   }
 

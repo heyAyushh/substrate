@@ -8,4 +8,5 @@
 
 export * from "./agentIdentity";
 export * from "./receiptRecordAccount";
+export * from "./societyWorldSynced";
 export * from "./taskStatusSynced";

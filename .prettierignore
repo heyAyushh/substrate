@@ -6,3 +6,17 @@ dist
 dist-tests
 build
 test-ledger
+.playwright-cli
+output
+test-results
+brand.md
+docs/superpowers
+examples/multi_agent/dashboard/society.html
+examples/multi_agent/dashboard/society-app
+examples/multi_agent/dashboard/society-app/**
+examples/multi_agent/dashboard/proofs
+examples/multi_agent/dashboard/proofs/**
+examples/multi_agent/society-ui
+examples/multi_agent/society-ui/**
+examples/multi_agent/society-ui-app
+examples/multi_agent/society-ui-app/**

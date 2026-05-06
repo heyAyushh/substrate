@@ -67,7 +67,7 @@ export type EmitDelegatedReceiptInstruction<
   TAccountDomainCatalog extends string | AccountMeta<string> = string,
   TAccountCpiAuthority extends string | AccountMeta<string> = string,
   TAccountTaskRegistryProgram extends string | AccountMeta<string> =
-    "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4",
+    "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -263,7 +263,7 @@ export async function getEmitDelegatedReceiptInstructionAsync<
   if (!accounts.delegation.value) {
     accounts.delegation.value = await getProgramDerivedAddress({
       programAddress:
-        "HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49" as Address<"HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49">,
+        "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm" as Address<"9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm">,
       seeds: [
         getBytesEncoder().encode(
           new Uint8Array([100, 101, 108, 101, 103, 97, 116, 105, 111, 110]),
@@ -304,7 +304,7 @@ export async function getEmitDelegatedReceiptInstructionAsync<
   }
   if (!accounts.taskRegistryProgram.value) {
     accounts.taskRegistryProgram.value =
-      "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">;
+      "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
@@ -436,7 +436,7 @@ export function getEmitDelegatedReceiptInstruction<
   // Resolve default values.
   if (!accounts.taskRegistryProgram.value) {
     accounts.taskRegistryProgram.value =
-      "5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4" as Address<"5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4">;
+      "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4" as Address<"E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4">;
   }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =

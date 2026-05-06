@@ -27,7 +27,7 @@ pub mod __cpi_client_accounts_revoke_delegation {
     pub use crate::instructions::revoke_delegation::__cpi_client_accounts_revoke_delegation::*;
 }
 
-declare_id!("HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49");
+declare_id!("9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm");
 
 #[program]
 pub mod delegation_engine {

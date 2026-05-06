@@ -60,7 +60,7 @@ test("rejects invalid stake amounts before they enter receipt payloads", () => {
         identityId: "agent-builder",
         amountLamports: 0n,
       }),
-    /positive/i
+    /positive/i,
   );
 
   throws(
@@ -70,7 +70,7 @@ test("rejects invalid stake amounts before they enter receipt payloads", () => {
         identityId: "agent-builder",
         amountLamports: "-1",
       }),
-    /positive/i
+    /positive/i,
   );
 });
 
@@ -108,6 +108,6 @@ test("extracts stake payload events and dispute resolution slashing", () => {
   strictEqual(extracted[1].disputeReceiptId, receipt.receiptId);
   strictEqual(
     deriveStakeState("agent-builder", extracted).activeLamports,
-    375_000n
+    375_000n,
   );
 });

@@ -85,7 +85,7 @@ import {
 } from "../pdas";
 
 export const PROOF_VERIFIER_PROGRAM_ADDRESS =
-  "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi" as Address<"4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi">;
+  "7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE" as Address<"7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE">;
 
 export enum ProofVerifierAccount {
   CheckpointImporter,
@@ -246,7 +246,7 @@ export function identifyProofVerifierInstruction(
 }
 
 export type ParsedProofVerifierInstruction<
-  TProgram extends string = "4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi",
+  TProgram extends string = "7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE",
 > =
   | ({
       instructionType: ProofVerifierInstruction.AppendReceiptToCheckpoint;

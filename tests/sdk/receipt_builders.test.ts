@@ -43,7 +43,7 @@ test("createReceiptFromExecution embeds payloadHash from record root", () => {
   strictEqual(receipt.payload.recordId, "rec-1");
   strictEqual(
     receipt.payload.payloadHash,
-    hashExecutionRecord(record).root.toString("hex")
+    hashExecutionRecord(record).root.toString("hex"),
   );
 });
 
@@ -107,6 +107,6 @@ test("createDisputeReceipt rejects unknown step seq", () => {
       record,
       stepSeq: 99,
       evidenceHash: "ev",
-    })
+    }),
   );
 });

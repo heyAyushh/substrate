@@ -75,7 +75,7 @@ pub mod __cpi_client_accounts_initialize_cpi_authority {
     pub use crate::instructions::initialize_cpi_authority::__cpi_client_accounts_initialize_cpi_authority::*;
 }
 
-declare_id!("FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp");
+declare_id!("FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk");
 
 #[program]
 pub mod receipt_emitter {

@@ -21,8 +21,7 @@ const CREATE_SNAPSHOT_TABLE_SQL = `
     updated_at TEXT NOT NULL
   )
 `;
-const READ_SNAPSHOT_SQL =
-  "SELECT payload FROM indexer_snapshot WHERE id = 1";
+const READ_SNAPSHOT_SQL = "SELECT payload FROM indexer_snapshot WHERE id = 1";
 const WRITE_SNAPSHOT_SQL = `
   INSERT INTO indexer_snapshot (id, payload, updated_at)
   VALUES (1, ?, ?)
@@ -38,7 +37,7 @@ export interface SqliteDurableIndexerOptions {
 }
 
 const toLocalReceiptRecord = (
-  receipt: IndexerSnapshot["receipts"][number]
+  receipt: IndexerSnapshot["receipts"][number],
 ): LocalReceiptRecord => ({
   receiptId: receipt.receiptId,
   slot: receipt.slot,
@@ -86,7 +85,7 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
   }
 
   override ingestAuthorityRotations(
-    authorityRotations: readonly AuthorityRotationEvent[]
+    authorityRotations: readonly AuthorityRotationEvent[],
   ): IngestResult {
     const result = super.ingestAuthorityRotations(authorityRotations);
     this.persistOnAcceptedWrites(result);
@@ -94,7 +93,7 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
   }
 
   override ingestIdentityStates(
-    identityStates: readonly IdentityStateView[]
+    identityStates: readonly IdentityStateView[],
   ): IngestResult {
     const result = super.ingestIdentityStates(identityStates);
     this.persistOnAcceptedWrites(result);
@@ -102,7 +101,7 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
   }
 
   override ingestAttesterRecords(
-    attesterRecords: readonly AttesterRecordView[]
+    attesterRecords: readonly AttesterRecordView[],
   ): IngestResult {
     const result = super.ingestAttesterRecords(attesterRecords);
     this.persistOnAcceptedWrites(result);
@@ -132,7 +131,8 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
   }
 
   private restoreSnapshot(snapshot: IndexerSnapshot): void {
-    const restoredSnapshot = LocalDurableIndexer.fromSnapshot(snapshot).snapshot();
+    const restoredSnapshot =
+      LocalDurableIndexer.fromSnapshot(snapshot).snapshot();
     if (restoredSnapshot.receipts.length > 0) {
       super.ingest(restoredSnapshot.receipts.map(toLocalReceiptRecord));
     }

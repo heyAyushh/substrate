@@ -2,10 +2,7 @@ import test from "node:test";
 import { deepStrictEqual, match, strictEqual } from "node:assert/strict";
 
 import type { Address, TransactionSigner } from "@solana/kit";
-import type {
-  IdentityRecord,
-  TaskRecord,
-} from "@trust-substrate/sdk";
+import type { IdentityRecord, TaskRecord } from "@trust-substrate/sdk";
 
 import {
   buildSubstrateCommandDefinitions,
@@ -102,7 +99,7 @@ test("substrate-dashboard returns default dashboard links", async () => {
   const cmd = defs.find((d) => d.name === "substrate-dashboard");
   strictEqual(cmd !== undefined, true);
   const result = await cmd!.handler({ args: [], raw: "" });
-  match(result.output, /studio: http:\/\/127\.0\.0\.1:18489/);
+  match(result.output, /studio: http:\/\/127\.0\.0\.1:18488/);
   match(
     result.output,
     /runDashboard: http:\/\/127\.0\.0\.1:4173\/examples\/multi_agent\/dashboard\/index\.html/,

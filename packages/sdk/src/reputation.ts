@@ -41,11 +41,11 @@ const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
 
 export function deriveReputation(
   history: ReadonlyArray<ReceiptRecord>,
-  options: ReputationDerivationOptions = {}
+  options: ReputationDerivationOptions = {},
 ): ReputationProfile {
   if (history.length === 0) {
     throw new Error(
-      "Reputation derivation requires at least one verified receipt"
+      "Reputation derivation requires at least one verified receipt",
     );
   }
 
@@ -56,18 +56,22 @@ export function deriveReputation(
   let overall = 0;
   const expiredCommitments = collectExpiredCommitments(
     orderedHistory,
-    options.currentSlot
+    options.currentSlot,
   );
   const preRotationDecay = getPreRotationDecay(options);
   const latestRotationSequence = getLatestRotationSequence(
     options.authorityRotations,
-    identityId
+    identityId,
   );
 
   for (const receipt of orderedHistory) {
     const weight =
       KIND_WEIGHTS[receipt.kind] *
-      getReceiptWeightFactor(receipt, latestRotationSequence, preRotationDecay) *
+      getReceiptWeightFactor(
+        receipt,
+        latestRotationSequence,
+        preRotationDecay,
+      ) *
       getCostWeightFactor(receipt, options.weightByCost ?? false);
     const domain = receipt.domain;
 
@@ -99,7 +103,7 @@ export function deriveReputation(
         receiptId: receipt.receiptId,
         sequence: receipt.sequence,
         taskId: receipt.taskId,
-      }))
+      })),
     ),
   };
 }
@@ -108,7 +112,7 @@ function getPreRotationDecay(options: ReputationDerivationOptions): number {
   const factor = options.decayPreRotationFactor ?? 1;
   if (factor <= 0 || factor > 1) {
     throw new Error(
-      "rotation decay factor must be greater than 0 and at most 1"
+      "rotation decay factor must be greater than 0 and at most 1",
     );
   }
   return factor;
@@ -116,7 +120,7 @@ function getPreRotationDecay(options: ReputationDerivationOptions): number {
 
 function getLatestRotationSequence(
   rotations: ReadonlyArray<AuthorityRotationEvent> | undefined,
-  identityId: string
+  identityId: string,
 ): number | undefined {
   if (!rotations || rotations.length === 0) {
     return undefined;
@@ -137,7 +141,7 @@ function getLatestRotationSequence(
 function getReceiptWeightFactor(
   receipt: ReceiptRecord,
   latestRotationSequence: number | undefined,
-  preRotationDecay: number
+  preRotationDecay: number,
 ): number {
   if (latestRotationSequence === undefined || preRotationDecay === 1) {
     return 1;
@@ -147,7 +151,7 @@ function getReceiptWeightFactor(
 
 function getCostWeightFactor(
   receipt: ReceiptRecord,
-  weightByCost: boolean
+  weightByCost: boolean,
 ): number {
   if (!weightByCost || receipt.kind !== "completion") {
     return 1;
@@ -162,14 +166,15 @@ function getCostWeightFactor(
   const tokensOut = asFiniteNumber(cost.tokensOut);
   const elapsedMs = asFiniteNumber(cost.elapsedMs);
   const usdMicros = asFiniteNumber(cost.usdMicros);
-  const totalCostUnits = tokensIn + tokensOut + elapsedMs / 1000 + usdMicros / 1_000_000;
+  const totalCostUnits =
+    tokensIn + tokensOut + elapsedMs / 1000 + usdMicros / 1_000_000;
 
   return totalCostUnits > 0 ? 1 + Math.log10(1 + totalCostUnits) : 1;
 }
 
 function collectExpiredCommitments(
   history: ReadonlyArray<ReceiptRecord>,
-  currentSlot?: number
+  currentSlot?: number,
 ): ReceiptRecord[] {
   if (currentSlot === undefined) {
     return [];
@@ -222,10 +227,13 @@ function asFiniteNumber(value: unknown): number {
 }
 
 function createEmptyKindVector(): Record<ReceiptKind, number> {
-  return KIND_NAMES.reduce<Record<ReceiptKind, number>>((vector, kind) => {
-    vector[kind] = 0;
-    return vector;
-  }, {} as Record<ReceiptKind, number>);
+  return KIND_NAMES.reduce<Record<ReceiptKind, number>>(
+    (vector, kind) => {
+      vector[kind] = 0;
+      return vector;
+    },
+    {} as Record<ReceiptKind, number>,
+  );
 }
 
 function compareReceipts(left: ReceiptRecord, right: ReceiptRecord): number {

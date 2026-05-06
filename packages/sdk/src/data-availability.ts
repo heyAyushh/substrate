@@ -20,7 +20,7 @@ export class DataAvailabilityError extends Error {
   constructor(
     message: string,
     uri: string,
-    reason: "unreachable" | "hash_mismatch" | "unsupported_scheme"
+    reason: "unreachable" | "hash_mismatch" | "unsupported_scheme",
   ) {
     super(message);
     this.name = "DataAvailabilityError";
@@ -30,7 +30,7 @@ export class DataAvailabilityError extends Error {
 }
 
 export async function verifyPayloadAvailable(
-  input: VerifyPayloadInput
+  input: VerifyPayloadInput,
 ): Promise<void> {
   const fetcher = input.fetcher ?? defaultFetcher;
   let result: BlobFetchResult;
@@ -40,7 +40,7 @@ export async function verifyPayloadAvailable(
     throw new DataAvailabilityError(
       `payload unreachable at ${input.uri}: ${(cause as Error).message}`,
       input.uri,
-      "unreachable"
+      "unreachable",
     );
   }
 
@@ -50,7 +50,7 @@ export async function verifyPayloadAvailable(
     throw new DataAvailabilityError(
       `payload hash mismatch at ${input.uri} (expected ${input.expectedHash}, got ${actualHash})`,
       input.uri,
-      "hash_mismatch"
+      "hash_mismatch",
     );
   }
 }
@@ -82,6 +82,6 @@ const defaultFetcher: BlobFetcher = async (uri) => {
   throw new DataAvailabilityError(
     `unsupported URI scheme for DA fetch: ${uri}`,
     uri,
-    "unsupported_scheme"
+    "unsupported_scheme",
   );
 };

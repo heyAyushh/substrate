@@ -8,7 +8,7 @@ export interface TurnCommitInput {
 }
 
 export type TurnCommitHandler = (
-  input: TurnCommitInput
+  input: TurnCommitInput,
 ) => Promise<void> | void;
 
 export interface TrustSubstrateExtensionOptions {
@@ -40,7 +40,7 @@ interface PiTurnEndEvent {
 
 type PiEventHandler<TEvent> = (
   event: TEvent,
-  ctx: unknown
+  ctx: unknown,
 ) => unknown | Promise<unknown>;
 
 export interface PiExtensionHost {
@@ -49,13 +49,13 @@ export interface PiExtensionHost {
   on(event: "tool_call", handler: PiEventHandler<PiToolCallEvent>): void;
   on(
     event: "tool_execution_end",
-    handler: PiEventHandler<PiToolExecutionEndEvent>
+    handler: PiEventHandler<PiToolExecutionEndEvent>,
   ): void;
   on(event: string, handler: PiEventHandler<unknown>): void;
 }
 
 export function createTrustSubstrateExtension(
-  options: TrustSubstrateExtensionOptions
+  options: TrustSubstrateExtensionOptions,
 ): (pi: PiExtensionHost) => void {
   return (pi) => {
     let buffer: TurnBuffer | undefined;

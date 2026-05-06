@@ -26,8 +26,10 @@ export interface AdaptPiToolCallsInput {
   readonly toolCalls: ReadonlyArray<PiToolCall>;
 }
 
-export interface SignedPiToolCalls
-  extends Omit<AdaptPiToolCallsInput, "toolCalls"> {
+export interface SignedPiToolCalls extends Omit<
+  AdaptPiToolCallsInput,
+  "toolCalls"
+> {
   readonly runtimeAuthority: KeyObject;
   readonly toolCalls: ReadonlyArray<PiToolCall>;
 }
@@ -61,7 +63,7 @@ const toStep = (seq: number, toolCall: PiToolCall): ExecutionStep => ({
 });
 
 export function adaptPiToolCalls(
-  input: AdaptPiToolCallsInput
+  input: AdaptPiToolCallsInput,
 ): ExecutionRecord {
   if (input.toolCalls.length === 0) {
     throw new Error("Pi tool stream must contain at least one tool call");
@@ -71,16 +73,18 @@ export function adaptPiToolCalls(
     recordId: input.recordId,
     identityId: input.identityId,
     taskId: input.taskId,
-    steps: input.toolCalls.map((toolCall, index) => toStep(index + 1, toolCall)),
+    steps: input.toolCalls.map((toolCall, index) =>
+      toStep(index + 1, toolCall),
+    ),
   };
 }
 
 export function adaptAndSignPiToolCalls(
-  input: SignedPiToolCalls
+  input: SignedPiToolCalls,
 ): AdaptedSignedPiToolCalls {
   const baseRecord = adaptPiToolCalls(input);
   const signedSteps = baseRecord.steps.map((step) =>
-    signExecutionStep(step, input.runtimeAuthority)
+    signExecutionStep(step, input.runtimeAuthority),
   );
   const record: ExecutionRecord = {
     ...baseRecord,

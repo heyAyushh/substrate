@@ -61,11 +61,11 @@ test("snapshot round-trip preserves execution graph", () => {
   deepStrictEqual(restored.getExecutionGraph(), original.getExecutionGraph());
   deepStrictEqual(
     restored.getHandoffChain("task-1"),
-    original.getHandoffChain("task-1")
+    original.getHandoffChain("task-1"),
   );
   deepStrictEqual(
     restored.getAuthorityHistory("agent-a"),
-    original.getAuthorityHistory("agent-a")
+    original.getAuthorityHistory("agent-a"),
   );
 });
 
@@ -92,7 +92,7 @@ test("fromSnapshot rejects unsupported snapshot versions", () => {
         version: 99 as 2,
         receipts: [],
       }),
-    /unsupported snapshot version/i
+    /unsupported snapshot version/i,
   );
 });
 

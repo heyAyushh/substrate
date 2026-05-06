@@ -86,7 +86,7 @@ export function verifyMerkleProof(input: MerkleVerificationInput): boolean {
 }
 
 function buildLayers(
-  leaves: ReadonlyArray<string>
+  leaves: ReadonlyArray<string>,
 ): ReadonlyArray<ReadonlyArray<string>> {
   const layers: string[][] = [leaves.map(hashLeaf)];
   let current = layers[0];

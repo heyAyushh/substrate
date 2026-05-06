@@ -10,7 +10,7 @@ import {
 
 const step = (
   seq: number,
-  overrides: Partial<ExecutionStep> = {}
+  overrides: Partial<ExecutionStep> = {},
 ): ExecutionStep => ({
   seq,
   kind: "tool_call",
@@ -47,7 +47,7 @@ test("hashExecutionRecord is deterministic for the same record", () => {
 test("mutating a step changes the root", () => {
   const base = hashExecutionRecord(record([step(1), step(2)]));
   const mutated = hashExecutionRecord(
-    record([step(1), step(2, { payload: { arg: 999 } })])
+    record([step(1), step(2, { payload: { arg: 999 } })]),
   );
   notStrictEqual(base.root.toString("hex"), mutated.root.toString("hex"));
 });
