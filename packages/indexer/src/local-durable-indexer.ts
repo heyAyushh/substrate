@@ -770,7 +770,7 @@ export class LocalDurableIndexer {
         existingParent !== handoff.fromAgentId
       ) {
         throw new Error(
-          `conflicting inheritance path for ${handoff.toAgentId} on task ${taskId}`
+          `conflicting inheritance path for ${handoff.toAgentId} on task ${taskId}`,
         );
       }
       parentByAgent.set(handoff.toAgentId, handoff.fromAgentId);
@@ -946,7 +946,7 @@ export class LocalDurableIndexer {
       (receipt) =>
         memberSet.has(receipt.actorId) &&
         receipt.kind !== ATTESTATION_KIND &&
-        receipt.kind in KIND_WEIGHTS
+        receipt.kind in KIND_WEIGHTS,
     );
     const byKind: Record<string, number> = {};
     const domains: Record<string, number> = {};
@@ -1009,14 +1009,14 @@ export class LocalDurableIndexer {
   }
 
   getTeamReputations(
-    teams: ReadonlyArray<TeamDefinition>
+    teams: ReadonlyArray<TeamDefinition>,
   ): TeamReputationView[] {
     return teams
       .map((team) => this.getTeamReputation(team))
       .sort(
         (left, right) =>
           right.overall - left.overall ||
-          left.teamId.localeCompare(right.teamId)
+          left.teamId.localeCompare(right.teamId),
       );
   }
 
