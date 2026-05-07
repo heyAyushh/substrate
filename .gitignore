@@ -11,6 +11,7 @@ docs/superpowers/
 .protocol-first-backups/
 **/*.rs.bk
 brand.md
+!apps/pi-console/brand.md
 node_modules/
 packages/*/dist
 packages/*/dist-tests

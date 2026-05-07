@@ -1,3 +1,4 @@
 packages:
+  - "apps/pi-console"
   - "packages/*"
   - "examples/multi_agent/society-ui-app"

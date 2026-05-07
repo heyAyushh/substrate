@@ -80,14 +80,18 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 crates/trust_substrate_core/  Shared protocol constants, errors, Merkle logic, and model tests
 crates/trust_substrate_litesvm_tests/  LiteSVM protocol integration tests
 programs/                    Anchor protocol programs
+apps/pi-console/              Parent-owned Pi Console control-plane app
 packages/sdk/                 Deterministic local SDK helpers
 packages/program-clients/     Codama-generated @solana/kit clients from Anchor IDLs
 packages/indexer/             Local durable execution graph indexer
+packages/pi-extension/        Pi agent integration package
+packages/pi-local-runtime/    Local Pi runtime bridge
+packages/mcp-server/          MCP server for Trust Substrate snapshots
 skills/trust-substrate/        Agent-facing Trust Substrate skill contract
 tests/                        TypeScript package, Surfpool, and verification tests
 scripts/                      Local automation scripts
 docs/                         Project documentation
-examples/                     Local agent simulations
+examples/                     Local simulations and Society Board demo
 ```
 
 ## Toolchain
