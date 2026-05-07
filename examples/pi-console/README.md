@@ -16,7 +16,7 @@ must not fabricate a Pi response or hidden fallback action.
 Start the example:
 
 ```bash
-pnpm --dir apps/pi-console dev
+pnpm --dir examples/pi-console dev
 ```
 
 Open the app and press **Play local simulation**. The page will run a fresh
@@ -32,8 +32,8 @@ spend a model call for that agent.
 Run the focused example checks:
 
 ```bash
-pnpm --dir apps/pi-console test
-pnpm --dir apps/pi-console build
+pnpm --dir examples/pi-console test
+pnpm --dir examples/pi-console build
 ```
 
 The production build writes a sanitized static `public/dashboard-data.json`

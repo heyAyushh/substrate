@@ -11,8 +11,9 @@ docs/superpowers/
 .protocol-first-backups/
 **/*.rs.bk
 brand.md
-!apps/pi-console/brand.md
+!examples/pi-console/brand.md
 node_modules/
+apps/pi-console/
 packages/*/dist
 packages/*/dist-tests
 examples/agent_loop/.snapshot
@@ -25,7 +26,6 @@ examples/multi_agent/society-demo-current-env.sh
 examples/multi_agent/society-ui/society-ui/
 examples/multi_agent/society-ui-app/node_modules/
 examples/multi_agent/society-ui-app/dist/
-examples/pi-console/
 test-ledger/
 .yarn
 .surfpool/

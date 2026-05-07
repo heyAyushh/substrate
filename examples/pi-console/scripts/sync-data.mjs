@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 const appRoot = path.resolve(__dirname, "..");
 const sourceSnapshotPath = path.resolve(
   appRoot,
-  "../../examples/multi_agent/.snapshot/dashboard-data.json"
+  "../multi_agent/.snapshot/dashboard-data.json"
 );
 const publicDirectoryPath = path.resolve(appRoot, "public");
 const targetSnapshotPath = path.resolve(

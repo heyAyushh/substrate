@@ -15,7 +15,7 @@ import {
 const WORKSPACE_ROOT = path.resolve(__dirname, "../..");
 const LIVE_SNAPSHOT_PATH = path.resolve(
   __dirname,
-  "../../examples/multi_agent/.snapshot/dashboard-data.json",
+  "../multi_agent/.snapshot/dashboard-data.json",
 );
 const LIVE_SNAPSHOT_ROUTE = "/__live/dashboard-data.json";
 const LIVE_SIMULATION_ROUTE = "/__live/simulate";
