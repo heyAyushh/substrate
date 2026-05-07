@@ -2,6 +2,8 @@ export * as identityRegistry from "./generated/identity_registry/index.js";
 export * as taskRegistry from "./generated/task_registry/index.js";
 export * as receiptEmitter from "./generated/receipt_emitter/index.js";
 export * as delegationEngine from "./generated/delegation_engine/index.js";
+export * as disputeResolver from "./generated/dispute_resolver/index.js";
 export * as proofVerifier from "./generated/proof_verifier/index.js";
 export * as reputationAccumulator from "./generated/reputation_accumulator/index.js";
 export * as agentStake from "./generated/agent_stake/index.js";
+export * as attesterRegistry from "./generated/attester_registry/index.js";

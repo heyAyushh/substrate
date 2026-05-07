@@ -93,6 +93,23 @@ type ChainOperationResult = {
   address: string;
   signature: string;
   slot: number;
+  actionProof?: {
+    actionEnvelope?: unknown;
+    transcriptRoot: string;
+    leafHash: string;
+    signer: string;
+    signature: string;
+    scheme: string;
+    beforeStateHash?: string;
+    beforeStateSignature?: string;
+    beforeStateScheme?: string;
+    afterStateHash?: string;
+    afterStateSignature?: string;
+    afterStateScheme?: string;
+    runtimeEvidence?: unknown;
+    submitter?: string;
+    delegation?: string;
+  };
 };
 
 type LiveProofReference = {
@@ -156,6 +173,8 @@ type SocietyLiveManagerDependencies<TChainSession> = {
     chainSession: TChainSession;
     event: SocietyEvent;
     receipt: SocietyReceipt;
+    simulation: SocietySimulationSession;
+    actionIndex: number;
   }): Promise<ChainOperationResult>;
   commitLiveAction(input: {
     sessionId: string;
@@ -220,7 +239,7 @@ export const createSocietyLiveManager = <TChainSession>(
 ) => {
   const sessions = new Map<string, LiveSessionRecord<TChainSession>>();
   let latestSessionId: string | undefined;
-  const shouldAutoPlaySessions = dependencies.autoPlaySessions ?? true;
+  const shouldAutoPlaySessions = dependencies.autoPlaySessions ?? false;
 
   const getSession = (sessionId: string) => {
     const session = sessions.get(sessionId);
@@ -311,6 +330,8 @@ export const createSocietyLiveManager = <TChainSession>(
           chainSession,
           event,
           receipt: simulation.receipts[index],
+          simulation,
+          actionIndex: index,
         });
       }
       const committedSimulation = await dependencies.syncChainSessionState({

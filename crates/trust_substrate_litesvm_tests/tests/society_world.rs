@@ -1,7 +1,7 @@
 use anchor_lang::prelude::Pubkey;
 use trust_substrate_litesvm_tests::{
-    bytes32, society_world_pda, Harness, TestResult, THIRD_DOMAIN_BYTE,
-    SOCIETY_WORLD_STATUS_ACTIVE, SOCIETY_WORLD_STATUS_COMPLETE,
+    bytes32, society_world_pda, Harness, TestResult, SOCIETY_WORLD_STATUS_ACTIVE,
+    SOCIETY_WORLD_STATUS_COMPLETE, THIRD_DOMAIN_BYTE,
 };
 
 #[test]

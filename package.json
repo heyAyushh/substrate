@@ -9,16 +9,19 @@
     "test": "pnpm test:packages && pnpm test:rust && pnpm test:anchor && pnpm test:verification",
     "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer",
     "test:rust": "cargo test --workspace --exclude trust_substrate_litesvm_tests",
-    "test:verification": "node --test --experimental-strip-types tests/verification/*.test.ts tests/verification/*.test.js",
+    "test:verification": "pnpm --filter @trust-substrate/sdk build && node --test --experimental-strip-types tests/verification/*.test.ts tests/verification/*.test.js",
     "test:litesvm": "anchor test --skip-lint --skip-local-validator --skip-deploy",
     "test:anchor": "pnpm test:litesvm",
     "test:surfpool": "./scripts/surfpool-e2e.sh",
+    "verify:qedgen": "node scripts/qedgen-e2e.mjs",
+    "verify:qedgen:scaffold": "node scripts/qedgen-e2e.mjs --allow-generated-verify-failure",
     "society": "node --experimental-strip-types examples/multi_agent/society_server.ts",
     "society:ui:build": "pnpm --dir examples/multi_agent/society-ui-app build",
     "society:ui:dev": "pnpm --dir examples/multi_agent/society-ui-app dev",
     "lint:fix": "prettier \"**/*.{js,ts}\" -w",
     "lint": "prettier \"**/*.{js,ts}\" --check && pnpm --dir examples/multi_agent/society-ui-app lint",
-    "verify:review": "pnpm lint && pnpm test:verification && pnpm society:ui:build"
+    "verify:review": "pnpm lint && pnpm test:verification && pnpm society:ui:build",
+    "verify:release": "pnpm lint && anchor build --ignore-keys && pnpm --filter @trust-substrate/program-clients build && pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && pnpm --filter @trust-substrate/pi-local-runtime build && pnpm --filter @trust-substrate/pi-extension test && pnpm test:rust && pnpm test:anchor && pnpm test:verification && pnpm test:surfpool"
   },
   "dependencies": {
     "@anchor-lang/core": "1.0.0"

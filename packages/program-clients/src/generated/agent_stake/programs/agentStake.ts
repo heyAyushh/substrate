@@ -16,6 +16,7 @@ import {
   SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
   SolanaError,
   type Address,
+  type ClientWithPayer,
   type ClientWithRpc,
   type ClientWithTransactionPlanning,
   type ClientWithTransactionSending,
@@ -34,38 +35,76 @@ import {
 import {
   getSlashMarkerCodec,
   getStakeAccountCodec,
+  getTokenStakeAccountCodec,
   type SlashMarker,
   type SlashMarkerArgs,
   type StakeAccount,
   type StakeAccountArgs,
+  type TokenStakeAccount,
+  type TokenStakeAccountArgs,
 } from "../accounts";
 import {
   getFinalizeUnstakeInstruction,
+  getFinalizeUnstakeTokenInstruction,
   getInitializeStakeInstructionAsync,
+  getInitializeTokenStakeInstructionAsync,
+  getInitializeTokenTreasuryVaultInstructionAsync,
   getRequestUnstakeInstruction,
+  getRequestUnstakeTokenInstruction,
+  getSlashTokenWithAuthorityInstructionAsync,
+  getSlashTokenWithVerdictInstructionAsync,
   getSlashWithAuthorityInstructionAsync,
   getSlashWithVerdictInstructionAsync,
   getStakeInstruction,
+  getStakeTokenInstruction,
   parseFinalizeUnstakeInstruction,
+  parseFinalizeUnstakeTokenInstruction,
   parseInitializeStakeInstruction,
+  parseInitializeTokenStakeInstruction,
+  parseInitializeTokenTreasuryVaultInstruction,
   parseRequestUnstakeInstruction,
+  parseRequestUnstakeTokenInstruction,
+  parseSlashTokenWithAuthorityInstruction,
+  parseSlashTokenWithVerdictInstruction,
   parseSlashWithAuthorityInstruction,
   parseSlashWithVerdictInstruction,
   parseStakeInstruction,
+  parseStakeTokenInstruction,
   type FinalizeUnstakeInput,
+  type FinalizeUnstakeTokenInput,
   type InitializeStakeAsyncInput,
+  type InitializeTokenStakeAsyncInput,
+  type InitializeTokenTreasuryVaultAsyncInput,
   type ParsedFinalizeUnstakeInstruction,
+  type ParsedFinalizeUnstakeTokenInstruction,
   type ParsedInitializeStakeInstruction,
+  type ParsedInitializeTokenStakeInstruction,
+  type ParsedInitializeTokenTreasuryVaultInstruction,
   type ParsedRequestUnstakeInstruction,
+  type ParsedRequestUnstakeTokenInstruction,
+  type ParsedSlashTokenWithAuthorityInstruction,
+  type ParsedSlashTokenWithVerdictInstruction,
   type ParsedSlashWithAuthorityInstruction,
   type ParsedSlashWithVerdictInstruction,
   type ParsedStakeInstruction,
+  type ParsedStakeTokenInstruction,
   type RequestUnstakeInput,
+  type RequestUnstakeTokenInput,
+  type SlashTokenWithAuthorityAsyncInput,
+  type SlashTokenWithVerdictAsyncInput,
   type SlashWithAuthorityAsyncInput,
   type SlashWithVerdictAsyncInput,
   type StakeInput,
+  type StakeTokenInput,
 } from "../instructions";
-import { findSlashMarkerPda, findStakePda } from "../pdas";
+import {
+  findSlashMarkerPda,
+  findSlashWithAuthoritySlashMarkerPda,
+  findStakePda,
+  findTokenStakePda,
+  findTreasuryTokenVaultPda,
+  findVaultPda,
+} from "../pdas";
 
 export const AGENT_STAKE_PROGRAM_ADDRESS =
   "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on" as Address<"47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on">;
@@ -73,6 +112,7 @@ export const AGENT_STAKE_PROGRAM_ADDRESS =
 export enum AgentStakeAccount {
   SlashMarker,
   StakeAccount,
+  TokenStakeAccount,
 }
 
 export function identifyAgentStakeAccount(
@@ -101,6 +141,17 @@ export function identifyAgentStakeAccount(
   ) {
     return AgentStakeAccount.StakeAccount;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([136, 175, 134, 48, 230, 48, 84, 43]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeAccount.TokenStakeAccount;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_ACCOUNT,
     { accountData: data, programName: "agentStake" },
@@ -109,11 +160,18 @@ export function identifyAgentStakeAccount(
 
 export enum AgentStakeInstruction {
   FinalizeUnstake,
+  FinalizeUnstakeToken,
   InitializeStake,
+  InitializeTokenStake,
+  InitializeTokenTreasuryVault,
   RequestUnstake,
+  RequestUnstakeToken,
+  SlashTokenWithAuthority,
+  SlashTokenWithVerdict,
   SlashWithAuthority,
   SlashWithVerdict,
   Stake,
+  StakeToken,
 }
 
 export function identifyAgentStakeInstruction(
@@ -135,6 +193,17 @@ export function identifyAgentStakeInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([139, 21, 254, 70, 232, 170, 13, 6]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.FinalizeUnstakeToken;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([33, 175, 216, 4, 116, 130, 164, 177]),
       ),
       0,
@@ -146,12 +215,67 @@ export function identifyAgentStakeInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([38, 195, 120, 45, 225, 116, 177, 189]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.InitializeTokenStake;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([87, 142, 212, 58, 58, 9, 219, 210]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.InitializeTokenTreasuryVault;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([44, 154, 110, 253, 160, 202, 54, 34]),
       ),
       0,
     )
   ) {
     return AgentStakeInstruction.RequestUnstake;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([159, 11, 149, 72, 86, 237, 131, 61]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.RequestUnstakeToken;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([134, 95, 187, 33, 27, 24, 4, 84]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.SlashTokenWithAuthority;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([220, 204, 237, 82, 35, 134, 65, 22]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.SlashTokenWithVerdict;
   }
   if (
     containsBytes(
@@ -186,6 +310,17 @@ export function identifyAgentStakeInstruction(
   ) {
     return AgentStakeInstruction.Stake;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([191, 127, 193, 101, 37, 96, 87, 211]),
+      ),
+      0,
+    )
+  ) {
+    return AgentStakeInstruction.StakeToken;
+  }
   throw new SolanaError(
     SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
     { instructionData: data, programName: "agentStake" },
@@ -199,11 +334,29 @@ export type ParsedAgentStakeInstruction<
       instructionType: AgentStakeInstruction.FinalizeUnstake;
     } & ParsedFinalizeUnstakeInstruction<TProgram>)
   | ({
+      instructionType: AgentStakeInstruction.FinalizeUnstakeToken;
+    } & ParsedFinalizeUnstakeTokenInstruction<TProgram>)
+  | ({
       instructionType: AgentStakeInstruction.InitializeStake;
     } & ParsedInitializeStakeInstruction<TProgram>)
   | ({
+      instructionType: AgentStakeInstruction.InitializeTokenStake;
+    } & ParsedInitializeTokenStakeInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.InitializeTokenTreasuryVault;
+    } & ParsedInitializeTokenTreasuryVaultInstruction<TProgram>)
+  | ({
       instructionType: AgentStakeInstruction.RequestUnstake;
     } & ParsedRequestUnstakeInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.RequestUnstakeToken;
+    } & ParsedRequestUnstakeTokenInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.SlashTokenWithAuthority;
+    } & ParsedSlashTokenWithAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.SlashTokenWithVerdict;
+    } & ParsedSlashTokenWithVerdictInstruction<TProgram>)
   | ({
       instructionType: AgentStakeInstruction.SlashWithAuthority;
     } & ParsedSlashWithAuthorityInstruction<TProgram>)
@@ -212,7 +365,10 @@ export type ParsedAgentStakeInstruction<
     } & ParsedSlashWithVerdictInstruction<TProgram>)
   | ({
       instructionType: AgentStakeInstruction.Stake;
-    } & ParsedStakeInstruction<TProgram>);
+    } & ParsedStakeInstruction<TProgram>)
+  | ({
+      instructionType: AgentStakeInstruction.StakeToken;
+    } & ParsedStakeTokenInstruction<TProgram>);
 
 export function parseAgentStakeInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,
@@ -226,6 +382,13 @@ export function parseAgentStakeInstruction<TProgram extends string>(
         ...parseFinalizeUnstakeInstruction(instruction),
       };
     }
+    case AgentStakeInstruction.FinalizeUnstakeToken: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.FinalizeUnstakeToken,
+        ...parseFinalizeUnstakeTokenInstruction(instruction),
+      };
+    }
     case AgentStakeInstruction.InitializeStake: {
       assertIsInstructionWithAccounts(instruction);
       return {
@@ -233,11 +396,46 @@ export function parseAgentStakeInstruction<TProgram extends string>(
         ...parseInitializeStakeInstruction(instruction),
       };
     }
+    case AgentStakeInstruction.InitializeTokenStake: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.InitializeTokenStake,
+        ...parseInitializeTokenStakeInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.InitializeTokenTreasuryVault: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.InitializeTokenTreasuryVault,
+        ...parseInitializeTokenTreasuryVaultInstruction(instruction),
+      };
+    }
     case AgentStakeInstruction.RequestUnstake: {
       assertIsInstructionWithAccounts(instruction);
       return {
         instructionType: AgentStakeInstruction.RequestUnstake,
         ...parseRequestUnstakeInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.RequestUnstakeToken: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.RequestUnstakeToken,
+        ...parseRequestUnstakeTokenInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.SlashTokenWithAuthority: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.SlashTokenWithAuthority,
+        ...parseSlashTokenWithAuthorityInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.SlashTokenWithVerdict: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.SlashTokenWithVerdict,
+        ...parseSlashTokenWithVerdictInstruction(instruction),
       };
     }
     case AgentStakeInstruction.SlashWithAuthority: {
@@ -259,6 +457,13 @@ export function parseAgentStakeInstruction<TProgram extends string>(
       return {
         instructionType: AgentStakeInstruction.Stake,
         ...parseStakeInstruction(instruction),
+      };
+    }
+    case AgentStakeInstruction.StakeToken: {
+      assertIsInstructionWithAccounts(instruction);
+      return {
+        instructionType: AgentStakeInstruction.StakeToken,
+        ...parseStakeTokenInstruction(instruction),
       };
     }
     default:
@@ -283,6 +488,8 @@ export type AgentStakePluginAccounts = {
     SelfFetchFunctions<SlashMarkerArgs, SlashMarker>;
   stakeAccount: ReturnType<typeof getStakeAccountCodec> &
     SelfFetchFunctions<StakeAccountArgs, StakeAccount>;
+  tokenStakeAccount: ReturnType<typeof getTokenStakeAccountCodec> &
+    SelfFetchFunctions<TokenStakeAccountArgs, TokenStakeAccount>;
 };
 
 export type AgentStakePluginInstructions = {
@@ -290,13 +497,37 @@ export type AgentStakePluginInstructions = {
     input: FinalizeUnstakeInput,
   ) => ReturnType<typeof getFinalizeUnstakeInstruction> &
     SelfPlanAndSendFunctions;
+  finalizeUnstakeToken: (
+    input: FinalizeUnstakeTokenInput,
+  ) => ReturnType<typeof getFinalizeUnstakeTokenInstruction> &
+    SelfPlanAndSendFunctions;
   initializeStake: (
     input: InitializeStakeAsyncInput,
   ) => ReturnType<typeof getInitializeStakeInstructionAsync> &
     SelfPlanAndSendFunctions;
+  initializeTokenStake: (
+    input: InitializeTokenStakeAsyncInput,
+  ) => ReturnType<typeof getInitializeTokenStakeInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  initializeTokenTreasuryVault: (
+    input: MakeOptional<InitializeTokenTreasuryVaultAsyncInput, "payer">,
+  ) => ReturnType<typeof getInitializeTokenTreasuryVaultInstructionAsync> &
+    SelfPlanAndSendFunctions;
   requestUnstake: (
     input: RequestUnstakeInput,
   ) => ReturnType<typeof getRequestUnstakeInstruction> &
+    SelfPlanAndSendFunctions;
+  requestUnstakeToken: (
+    input: RequestUnstakeTokenInput,
+  ) => ReturnType<typeof getRequestUnstakeTokenInstruction> &
+    SelfPlanAndSendFunctions;
+  slashTokenWithAuthority: (
+    input: SlashTokenWithAuthorityAsyncInput,
+  ) => ReturnType<typeof getSlashTokenWithAuthorityInstructionAsync> &
+    SelfPlanAndSendFunctions;
+  slashTokenWithVerdict: (
+    input: SlashTokenWithVerdictAsyncInput,
+  ) => ReturnType<typeof getSlashTokenWithVerdictInstructionAsync> &
     SelfPlanAndSendFunctions;
   slashWithAuthority: (
     input: SlashWithAuthorityAsyncInput,
@@ -309,16 +540,24 @@ export type AgentStakePluginInstructions = {
   stake: (
     input: StakeInput,
   ) => ReturnType<typeof getStakeInstruction> & SelfPlanAndSendFunctions;
+  stakeToken: (
+    input: StakeTokenInput,
+  ) => ReturnType<typeof getStakeTokenInstruction> & SelfPlanAndSendFunctions;
 };
 
 export type AgentStakePluginPdas = {
   stake: typeof findStakePda;
+  tokenStake: typeof findTokenStakePda;
+  vault: typeof findVaultPda;
+  treasuryTokenVault: typeof findTreasuryTokenVaultPda;
   slashMarker: typeof findSlashMarkerPda;
+  slashWithAuthoritySlashMarker: typeof findSlashWithAuthoritySlashMarkerPda;
 };
 
 export type AgentStakePluginRequirements = ClientWithRpc<
   GetAccountInfoApi & GetMultipleAccountsApi
 > &
+  ClientWithPayer &
   ClientWithTransactionPlanning &
   ClientWithTransactionSending;
 
@@ -330,6 +569,10 @@ export function agentStakeProgram() {
         accounts: {
           slashMarker: addSelfFetchFunctions(client, getSlashMarkerCodec()),
           stakeAccount: addSelfFetchFunctions(client, getStakeAccountCodec()),
+          tokenStakeAccount: addSelfFetchFunctions(
+            client,
+            getTokenStakeAccountCodec(),
+          ),
         },
         instructions: {
           finalizeUnstake: (input) =>
@@ -337,15 +580,48 @@ export function agentStakeProgram() {
               client,
               getFinalizeUnstakeInstruction(input),
             ),
+          finalizeUnstakeToken: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getFinalizeUnstakeTokenInstruction(input),
+            ),
           initializeStake: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getInitializeStakeInstructionAsync(input),
             ),
+          initializeTokenStake: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitializeTokenStakeInstructionAsync(input),
+            ),
+          initializeTokenTreasuryVault: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getInitializeTokenTreasuryVaultInstructionAsync({
+                ...input,
+                payer: input.payer ?? client.payer,
+              }),
+            ),
           requestUnstake: (input) =>
             addSelfPlanAndSendFunctions(
               client,
               getRequestUnstakeInstruction(input),
+            ),
+          requestUnstakeToken: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getRequestUnstakeTokenInstruction(input),
+            ),
+          slashTokenWithAuthority: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSlashTokenWithAuthorityInstructionAsync(input),
+            ),
+          slashTokenWithVerdict: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getSlashTokenWithVerdictInstructionAsync(input),
             ),
           slashWithAuthority: (input) =>
             addSelfPlanAndSendFunctions(
@@ -359,9 +635,23 @@ export function agentStakeProgram() {
             ),
           stake: (input) =>
             addSelfPlanAndSendFunctions(client, getStakeInstruction(input)),
+          stakeToken: (input) =>
+            addSelfPlanAndSendFunctions(
+              client,
+              getStakeTokenInstruction(input),
+            ),
         },
-        pdas: { stake: findStakePda, slashMarker: findSlashMarkerPda },
+        pdas: {
+          stake: findStakePda,
+          tokenStake: findTokenStakePda,
+          vault: findVaultPda,
+          treasuryTokenVault: findTreasuryTokenVaultPda,
+          slashMarker: findSlashMarkerPda,
+          slashWithAuthoritySlashMarker: findSlashWithAuthoritySlashMarkerPda,
+        },
       },
     };
   };
 }
+
+type MakeOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;

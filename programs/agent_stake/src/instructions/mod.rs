@@ -1,13 +1,27 @@
 pub mod finalize_unstake;
+pub mod finalize_unstake_token;
 pub mod initialize_stake;
+pub mod initialize_token_stake;
+pub mod initialize_token_treasury_vault;
 pub mod request_unstake;
+pub mod request_unstake_token;
+pub mod slash_token_with_authority;
+pub mod slash_token_with_verdict;
 pub mod slash_with_authority;
 pub mod slash_with_verdict;
 pub mod stake;
+pub mod stake_token;
 
 pub use finalize_unstake::FinalizeUnstake;
+pub use finalize_unstake_token::FinalizeUnstakeToken;
 pub use initialize_stake::InitializeStake;
+pub use initialize_token_stake::InitializeTokenStake;
+pub use initialize_token_treasury_vault::InitializeTokenTreasuryVault;
 pub use request_unstake::RequestUnstake;
+pub use request_unstake_token::RequestUnstakeToken;
+pub use slash_token_with_authority::SlashTokenWithAuthority;
+pub use slash_token_with_verdict::SlashTokenWithVerdict;
 pub use slash_with_authority::SlashWithAuthority;
 pub use slash_with_verdict::SlashWithVerdict;
 pub use stake::Stake;
+pub use stake_token::StakeToken;

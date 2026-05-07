@@ -100,6 +100,19 @@ test("starting a live society session commits genesis actions before the session
   strictEqual(started.snapshot.pendingAction, undefined);
 });
 
+test("live society sessions default to paused until the user plays or steps", async () => {
+  const { manager, committedActions } = createManager();
+  const started = await manager.startSession({
+    agents: 3,
+    ticks: 2,
+    gridSize: 8,
+    seed: "live-default-paused",
+  });
+
+  strictEqual(started.snapshot.status, "paused");
+  strictEqual(committedActions.length, 0);
+});
+
 test("latest live session snapshot follows the newest started session", async () => {
   const { manager } = createManager({
     autoPlaySessions: false,

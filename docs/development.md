@@ -100,6 +100,10 @@ export SUBSTRATE_PUBLIC_RPC_URL="https://rpc.example.com"
 export SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL="https://studio.example.com"
 ```
 
+Live write routes stay loopback-only by default even when public links are set.
+Set `SUBSTRATE_ALLOW_PUBLIC_LIVE_MUTATION=1` only for an intentional public demo
+where anyone with the URL may advance the local Surfpool session.
+
 Open the printed `/society` URL in a browser. Nothing starts on page load. Use
 `Go live` to create a live session, `Resume last` to reopen the latest
 server-side session intentionally, `Step` to commit one pending action at a

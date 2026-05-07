@@ -131,7 +131,8 @@ fn imports_trusted_checkpoint_roots_only_for_configured_governance() -> TestResu
     let imported_leaf_count = 7;
     let checkpoint = checkpoint_pda(identity.address, FIRST_EPOCH);
 
-    h.initialize_checkpoint_importer(governance.pubkey())?;
+    h.expect_checkpoint_importer_init_mismatch(governance.pubkey());
+    h.initialize_checkpoint_importer(governance.as_ref())?;
 
     let ix = h.ix_checkpoint_import(
         &identity,

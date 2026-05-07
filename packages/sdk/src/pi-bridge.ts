@@ -8,10 +8,15 @@ import {
   type ReceiptRecord,
   type TaskRecord,
 } from "./client.js";
+import { hashCanonical } from "./canonical.js";
 import {
   hashExecutionRecord,
   type ExecutionRecordVerification,
 } from "./execution-record.js";
+import {
+  buildAgentActionEnvelope,
+  type AgentActionEnvelope,
+} from "./agent-action-envelope.js";
 import { createStakeEvent } from "./stake.js";
 import {
   adaptAndSignPiToolCalls,
@@ -79,6 +84,7 @@ export interface PiBridgeCommitResult {
   readonly execution: PiBridgeExecutionResult;
   readonly receipt: ReceiptRecord;
   readonly indexedReceipt: ReceiptIndexRecord;
+  readonly actionEnvelope: AgentActionEnvelope;
   readonly onchain: {
     readonly receiptAddress: Address;
     readonly stakeAddress?: Address;
@@ -115,9 +121,8 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
             toolCalls: input.toolCalls,
           }),
         };
-    const payloadHash = hashExecutionRecord(execution.record).root.toString(
-      "hex",
-    );
+    const executionHash = hashExecutionRecord(execution.record);
+    const payloadHash = executionHash.root.toString("hex");
     const operations: OnchainOperationResult[] = [];
     const payload: Record<string, unknown> = {
       ...(input.payload ?? {}),
@@ -203,6 +208,51 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
     };
     this.indexer.ingest([indexedReceipt]);
 
+    const receiptPayloadHash = readStringPayloadHash(
+      receipt.payload.payloadHash,
+    );
+    const receiptTxSignature = requireOperationSignature(
+      committedReceipt,
+      "emit_receipt",
+    );
+    const firstSignedStep = execution.record.steps.find(
+      (step) => step.signature,
+    );
+    const actionEnvelope = buildAgentActionEnvelope({
+      agentId: input.actorId ?? input.identity.identityId,
+      identityAddress: input.identityAddress,
+      taskAddress: input.taskAddress,
+      tick: null,
+      action: input.kind,
+      args: {
+        recordId: input.recordId,
+        sequence: input.sequence,
+        toolCallCount: input.toolCalls.length,
+        ...(input.payload ? { payload: input.payload } : {}),
+      },
+      promptHash: null,
+      responseHash: null,
+      preStateHash: hashCanonical({
+        identityAddress: input.identityAddress,
+        previousReceiptId: input.previousReceiptId ?? null,
+        sequence: input.sequence - 1,
+        taskAddress: input.taskAddress,
+      }),
+      postStateHash: hashCanonical({
+        receiptAddress: committedReceipt.address,
+        receiptPayloadHash,
+        sequence: receipt.sequence,
+        slot: committedReceipt.slot,
+      }),
+      receiptAddress: committedReceipt.address,
+      receiptPayloadHash,
+      txSignature: receiptTxSignature,
+      slot: committedReceipt.slot,
+      agentSignature: firstSignedStep?.signature?.sig ?? receiptTxSignature,
+      transcriptRoot: payloadHash,
+      leafHash: executionHash.leaves[0]?.toString("hex") ?? payloadHash,
+    });
+
     return {
       execution: {
         record: execution.record,
@@ -215,6 +265,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
       },
       receipt,
       indexedReceipt,
+      actionEnvelope,
       onchain: {
         receiptAddress: committedReceipt.address,
         ...(stakeAddress ? { stakeAddress } : {}),
@@ -251,3 +302,20 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
     return events;
   }
 }
+
+const requireOperationSignature = (
+  operation: OnchainOperationResult,
+  kind: string,
+): string => {
+  if (!operation.signature) {
+    throw new Error(`${kind} did not return a transaction signature`);
+  }
+  return operation.signature;
+};
+
+const readStringPayloadHash = (value: unknown): string => {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error("Receipt payload hash missing");
+  }
+  return value;
+};

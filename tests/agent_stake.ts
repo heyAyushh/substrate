@@ -12,9 +12,25 @@ const IDENTITY_SEED = "identity";
 const TASK_SEED = "task";
 const RECEIPT_SEED = "receipt";
 const STAKE_SEED = "stake";
+const TOKEN_STAKE_SEED = "token_stake";
+const TOKEN_STAKE_VAULT_SEED = "token_stake_vault";
+const TOKEN_TREASURY_VAULT_SEED = "token_treasury_vault";
 const SLASH_MARKER_SEED = "slash_marker";
 const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
 const TREASURY_VAULT_SEED = "treasury";
+const TOKEN_PROGRAM_ID = new anchor.web3.PublicKey(
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+);
+const ZERO_PUBLIC_KEY = new anchor.web3.PublicKey(
+  "11111111111111111111111111111111",
+);
+const TOKEN_MINT_SPACE = 82;
+const TOKEN_ACCOUNT_SPACE = 165;
+const TOKEN_DECIMALS = 0;
+const TOKEN_INSTRUCTION_INITIALIZE_MINT = 0;
+const TOKEN_INSTRUCTION_INITIALIZE_ACCOUNT = 1;
+const TOKEN_INSTRUCTION_MINT_TO = 7;
+const TOKEN_OPTION_NONE = 0;
 const COMPLETION_RECEIPT_KIND = 3;
 const DISPUTE_RESOLVED_RECEIPT_KIND = 5;
 const SUBTASK_COUNT = 0;
@@ -260,6 +276,226 @@ describe("agent_stake", () => {
         })
         .rpc(),
       "AccountAlreadyInitialized",
+    );
+  });
+
+  it("stakes SPL tokens, separates unstake from slash, and pays the token treasury", async () => {
+    const agentId = bytes32(181);
+    const taskId = bytes32(182);
+    const receiptId = bytes32(183);
+    const domain = bytes32(74);
+    const payloadHash = bytes32(184);
+    const mint = await createMint(owner);
+    const ownerTokenAccount = await createTokenAccount(mint, owner);
+
+    await mintTo(mint, ownerTokenAccount, STAKE_AMOUNT);
+
+    const [identity] = pda(identityProgram, [
+      seed(IDENTITY_SEED),
+      owner.toBuffer(),
+      asBuffer(agentId),
+    ]);
+    const [task] = pda(taskProgram, [
+      seed(TASK_SEED),
+      identity.toBuffer(),
+      asBuffer(taskId),
+    ]);
+    const [receipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      identity.toBuffer(),
+      task.toBuffer(),
+      asBuffer(receiptId),
+    ]);
+    const [tokenStake] = pda(stakeProgram, [
+      seed(TOKEN_STAKE_SEED),
+      identity.toBuffer(),
+      task.toBuffer(),
+      mint.toBuffer(),
+    ]);
+    const [vault] = pda(stakeProgram, [
+      seed(TOKEN_STAKE_VAULT_SEED),
+      tokenStake.toBuffer(),
+    ]);
+    const [treasuryTokenVault] = pda(stakeProgram, [
+      seed(TOKEN_TREASURY_VAULT_SEED),
+      mint.toBuffer(),
+    ]);
+    const [slashMarker] = pda(stakeProgram, [
+      seed(SLASH_MARKER_SEED),
+      tokenStake.toBuffer(),
+      receipt.toBuffer(),
+    ]);
+
+    await identityProgram.methods
+      .createIdentity(agentId, bytes32(185), bytes32(186))
+      .accountsStrict({
+        identity,
+        authority: owner,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await taskProgram.methods
+      .createTask(taskId, bytes32(187), SUBTASK_COUNT, domain)
+      .accountsStrict({
+        authority: owner,
+        identity,
+        task,
+        identityRegistryProgram: identityProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await stakeProgram.methods
+      .initializeTokenStake(task, owner, TRUST_MODE_AUTHORITY)
+      .accountsStrict({
+        owner,
+        identity,
+        mint,
+        tokenStake,
+        vault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await stakeProgram.methods
+      .stakeToken(STAKE_AMOUNT)
+      .accountsStrict({
+        owner,
+        identity,
+        tokenStake,
+        mint,
+        ownerTokenAccount,
+        vault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        identityRegistryProgram: identityProgram.programId,
+      })
+      .rpc();
+
+    let tokenStakeAccount =
+      await stakeProgram.account.tokenStakeAccount.fetch(tokenStake);
+    strictEqual(tokenStakeAccount.amount.toString(), STAKE_AMOUNT.toString());
+    strictEqual(await tokenBalance(vault), BigInt(STAKE_AMOUNT.toString()));
+    strictEqual(await tokenBalance(ownerTokenAccount), 0n);
+
+    await stakeProgram.methods
+      .requestUnstakeToken(UNSTAKE_AMOUNT)
+      .accountsStrict({ owner, tokenStake })
+      .rpc();
+
+    await expectAnchorError(
+      stakeProgram.methods
+        .finalizeUnstakeToken()
+        .accountsStrict({
+          owner,
+          tokenStake,
+          mint,
+          ownerTokenAccount,
+          vault,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc(),
+      "StakeCooldownNotElapsed",
+    );
+
+    tokenStakeAccount =
+      await stakeProgram.account.tokenStakeAccount.fetch(tokenStake);
+    await waitForSlot(Number(tokenStakeAccount.unstakeUnlocksAt));
+
+    await stakeProgram.methods
+      .finalizeUnstakeToken()
+      .accountsStrict({
+        owner,
+        tokenStake,
+        mint,
+        ownerTokenAccount,
+        vault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    tokenStakeAccount =
+      await stakeProgram.account.tokenStakeAccount.fetch(tokenStake);
+    strictEqual(
+      tokenStakeAccount.amount.toString(),
+      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).toString(),
+    );
+    strictEqual(
+      await tokenBalance(ownerTokenAccount),
+      BigInt(UNSTAKE_AMOUNT.toString()),
+    );
+
+    await receiptProgram.methods
+      .emitReceipt(
+        receiptId,
+        DISPUTE_RESOLVED_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        payloadHash,
+      )
+      .accountsStrict({
+        authority: owner,
+        identity,
+        task,
+        receipt,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        cpiAuthority,
+        taskRegistryProgram: taskProgram.programId,
+      })
+      .rpc();
+
+    await ensureTreasuryVault(disputeProgram, owner);
+    await stakeProgram.methods
+      .initializeTokenTreasuryVault()
+      .accountsStrict({
+        payer: owner,
+        treasuryVault,
+        mint,
+        treasuryTokenVault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await stakeProgram.methods
+      .slashTokenWithAuthority(SLASH_AMOUNT)
+      .accountsStrict({
+        slashAuthority: owner,
+        tokenStake,
+        disputeReceipt: receipt,
+        slashMarker,
+        mint,
+        vault,
+        treasuryTokenVault,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    tokenStakeAccount =
+      await stakeProgram.account.tokenStakeAccount.fetch(tokenStake);
+    strictEqual(
+      tokenStakeAccount.amount.toString(),
+      STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).sub(SLASH_AMOUNT).toString(),
+    );
+    strictEqual(
+      tokenStakeAccount.slashedTotal.toString(),
+      SLASH_AMOUNT.toString(),
+    );
+    strictEqual(
+      await tokenBalance(vault),
+      BigInt(STAKE_AMOUNT.sub(UNSTAKE_AMOUNT).sub(SLASH_AMOUNT).toString()),
+    );
+    strictEqual(
+      await tokenBalance(ownerTokenAccount),
+      BigInt(UNSTAKE_AMOUNT.toString()),
+    );
+    strictEqual(
+      await tokenBalance(treasuryTokenVault),
+      BigInt(SLASH_AMOUNT.toString()),
     );
   });
 
@@ -603,6 +839,120 @@ describe("agent_stake", () => {
     );
   }
 
+  async function createMint(
+    mintAuthority: anchor.web3.PublicKey,
+  ): Promise<anchor.web3.PublicKey> {
+    const mint = anchor.web3.Keypair.generate();
+    const lamports =
+      await provider.connection.getMinimumBalanceForRentExemption(
+        TOKEN_MINT_SPACE,
+      );
+
+    await provider.sendAndConfirm(
+      new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.createAccount({
+          fromPubkey: owner,
+          newAccountPubkey: mint.publicKey,
+          lamports,
+          space: TOKEN_MINT_SPACE,
+          programId: TOKEN_PROGRAM_ID,
+        }),
+        new anchor.web3.TransactionInstruction({
+          programId: TOKEN_PROGRAM_ID,
+          keys: [
+            { pubkey: mint.publicKey, isSigner: false, isWritable: true },
+            {
+              pubkey: anchor.web3.SYSVAR_RENT_PUBKEY,
+              isSigner: false,
+              isWritable: false,
+            },
+          ],
+          data: Buffer.concat([
+            Buffer.from([TOKEN_INSTRUCTION_INITIALIZE_MINT, TOKEN_DECIMALS]),
+            mintAuthority.toBuffer(),
+            Buffer.from([TOKEN_OPTION_NONE]),
+            ZERO_PUBLIC_KEY.toBuffer(),
+          ]),
+        }),
+      ),
+      [mint],
+    );
+
+    return mint.publicKey;
+  }
+
+  async function createTokenAccount(
+    mint: anchor.web3.PublicKey,
+    tokenOwner: anchor.web3.PublicKey,
+  ): Promise<anchor.web3.PublicKey> {
+    const tokenAccount = anchor.web3.Keypair.generate();
+    const lamports =
+      await provider.connection.getMinimumBalanceForRentExemption(
+        TOKEN_ACCOUNT_SPACE,
+      );
+
+    await provider.sendAndConfirm(
+      new anchor.web3.Transaction().add(
+        anchor.web3.SystemProgram.createAccount({
+          fromPubkey: owner,
+          newAccountPubkey: tokenAccount.publicKey,
+          lamports,
+          space: TOKEN_ACCOUNT_SPACE,
+          programId: TOKEN_PROGRAM_ID,
+        }),
+        new anchor.web3.TransactionInstruction({
+          programId: TOKEN_PROGRAM_ID,
+          keys: [
+            {
+              pubkey: tokenAccount.publicKey,
+              isSigner: false,
+              isWritable: true,
+            },
+            { pubkey: mint, isSigner: false, isWritable: false },
+            { pubkey: tokenOwner, isSigner: false, isWritable: false },
+            {
+              pubkey: anchor.web3.SYSVAR_RENT_PUBKEY,
+              isSigner: false,
+              isWritable: false,
+            },
+          ],
+          data: Buffer.from([TOKEN_INSTRUCTION_INITIALIZE_ACCOUNT]),
+        }),
+      ),
+      [tokenAccount],
+    );
+
+    return tokenAccount.publicKey;
+  }
+
+  async function mintTo(
+    mint: anchor.web3.PublicKey,
+    destination: anchor.web3.PublicKey,
+    amount: anchor.BN,
+  ) {
+    await provider.sendAndConfirm(
+      new anchor.web3.Transaction().add(
+        new anchor.web3.TransactionInstruction({
+          programId: TOKEN_PROGRAM_ID,
+          keys: [
+            { pubkey: mint, isSigner: false, isWritable: true },
+            { pubkey: destination, isSigner: false, isWritable: true },
+            { pubkey: owner, isSigner: true, isWritable: false },
+          ],
+          data: Buffer.concat([
+            Buffer.from([TOKEN_INSTRUCTION_MINT_TO]),
+            encodeU64(amount),
+          ]),
+        }),
+      ),
+    );
+  }
+
+  async function tokenBalance(account: anchor.web3.PublicKey): Promise<bigint> {
+    const balance = await provider.connection.getTokenAccountBalance(account);
+    return BigInt(balance.value.amount);
+  }
+
   async function createIdentityTaskAndReceipt(input: {
     agentId: number;
     taskId: number;
@@ -776,6 +1126,12 @@ function bytes32(value: number): number[] {
 
 function asBuffer(value: number[]): Buffer {
   return Buffer.from(value);
+}
+
+function encodeU64(value: anchor.BN): Buffer {
+  const buffer = Buffer.alloc(8);
+  buffer.writeBigUInt64LE(BigInt(value.toString()));
+  return buffer;
 }
 
 async function expectAnchorError(

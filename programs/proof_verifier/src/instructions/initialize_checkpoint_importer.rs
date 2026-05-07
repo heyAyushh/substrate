@@ -1,8 +1,14 @@
-use crate::state::CheckpointImporter;
+use crate::{state::CheckpointImporter, TrustSubstrateError};
 use anchor_lang::prelude::*;
 use trust_substrate_core::CHECKPOINT_IMPORTER_SEED;
 
 pub fn handler(ctx: Context<InitializeCheckpointImporter>, authority: Pubkey) -> Result<()> {
+    require_keys_eq!(
+        ctx.accounts.payer.key(),
+        authority,
+        TrustSubstrateError::CheckpointImportAuthorityMismatch
+    );
+
     let checkpoint_importer = &mut ctx.accounts.checkpoint_importer;
     checkpoint_importer.authority = authority;
     checkpoint_importer.bump = ctx.bumps.checkpoint_importer;

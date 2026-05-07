@@ -127,7 +127,7 @@ through `LocalDurableIndexer.loadSnapshot`.
 
 ### Stake-backed dispute resolution (tasks #17, #18)
 
-[on-chain] An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL per identity, cooldown-gates unstaking, and supports two explicit slash paths: `slash_with_authority` for authority-mode stake against a real `dispute_resolved` receipt, and `slash_with_verdict` for verdict-mode stake against a `dispute_resolver` verdict account bound to a dispute receipt.
+[on-chain] An attacker who loses nothing when caught can grind the system. The `agent_stake` program escrows SOL or configured SPL-token stake per identity, cooldown-gates unstaking, and supports explicit slash paths: authority-mode slashing against a real `dispute_resolved` receipt, and verdict-mode slashing against a `dispute_resolver` verdict account bound to a dispute receipt. Slash is not unstake: unstake returns unlocked funds to the owner, while slash moves the penalty into the protocol treasury or token treasury vault.
 [on-chain] Both paths write replay markers and route funds into the protocol treasury PDA instead of a caller-chosen account.
 
 For the authoritative finding-to-defense mapping, see

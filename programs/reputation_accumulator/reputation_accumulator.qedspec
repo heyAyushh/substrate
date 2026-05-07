@@ -1,0 +1,187 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec ReputationAccumulator
+
+program_id "EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type AppliedReputationReceipt
+  | Uninitialized
+  | Active of {
+      reputation : Pubkey,
+      receipt    : Pubkey,
+      bump       : U8
+    }
+  | Closed
+
+type DomainStatsSnapshot
+  | Uninitialized
+  | Active of {
+      domain        : U64,
+      operator      : Pubkey,
+      receipt_count : U64,
+      task_count    : U64,
+      agent_count   : U64,
+      snapshot_slot : U64,
+      payload_hash  : U64,
+      bump          : U8
+    }
+  | Closed
+
+type ReceiptRecordAccount
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      receipt_id        : U64,
+      actor             : Pubkey,
+      kind              : U8,
+      sequence          : U64,
+      domain            : U64,
+      previous_receipt  : U64,
+      payload_hash      : U64,
+      via_delegation    : Pubkey,
+      auditor_identity  : Pubkey,
+      target_receipt    : Pubkey,
+      challenge_receipt : Pubkey,
+      deadline_slot     : U64,
+      round             : U16,
+      bump              : U8
+    }
+  | Closed
+
+type ReputationAccumulator
+  | Uninitialized
+  | Active of {
+      identity                : Pubkey,
+      domain                  : U64,
+      completed               : U64,
+      disputed                : U64,
+      resolved                : U64,
+      completion_weight       : U64,
+      dispute_weight          : U64,
+      dispute_resolved_weight : U64,
+      bump                    : U8
+    }
+  | Closed
+
+type ReputationDomainCatalog
+  | Uninitialized
+  | Active of {
+      curator    : Pubkey,
+      domains    : U64,
+      deprecated : U64,
+      bump       : U8
+    }
+  | Closed
+
+pda receipt_application ["reputation_receipt_application", reputation, receipt]
+pda reputation ["reputation", identity, domain]
+pda domain_catalog ["domain_catalog"]
+pda domain_stats_snapshot ["domain_stats", domain, operator, snapshot_slot]
+
+handler apply_reputation_receipt : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : readonly
+    authority : signer, writable
+    receipt : readonly
+    reputation : writable, pda [reputation]
+    receipt_application : writable, pda [receipt_application]
+    system_program : program
+  }
+}
+
+handler create_reputation_domain (domain : U64) (completion_weight : U64) (dispute_weight : U64) (dispute_resolved_weight : U64) : State.Uninitialized -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : readonly
+    authority : signer, writable
+    reputation : writable, pda [reputation]
+    domain_catalog : pda [domain_catalog]
+    system_program : program
+  }
+}
+
+handler deprecate_domain (domain : U64) : State.Active -> State.Active {
+  auth curator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    curator : signer, writable
+    domain_catalog : writable, pda [domain_catalog]
+  }
+}
+
+handler initialize_domain_catalog : State.Uninitialized -> State.Active {
+  auth curator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    curator : signer, writable
+    domain_catalog : writable, pda [domain_catalog]
+    system_program : program
+  }
+}
+
+handler register_domain (domain : U64) : State.Active -> State.Active {
+  auth curator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    curator : signer, writable
+    domain_catalog : writable, pda [domain_catalog]
+  }
+}
+
+handler reputation_receipt_already_applied : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : readonly
+    authority : signer
+    receipt : authority receipt_application
+    reputation : pda [reputation], authority receipt_application
+    receipt_application : pda [receipt_application]
+  }
+}
+
+handler write_domain_stats_snapshot (domain : U64) (receipt_count : U64) (task_count : U64) (agent_count : U64) (snapshot_slot : U64) (payload_hash : U64) : State.Active -> State.Active {
+  auth operator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    operator : signer, writable
+    domain_catalog : pda [domain_catalog]
+    domain_stats_snapshot : writable, pda [domain_stats_snapshot]
+    system_program : program
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

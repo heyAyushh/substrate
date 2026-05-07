@@ -9,6 +9,18 @@ together.
 
 ## Open Items
 
+- [ ] [on-chain] SPL token stake vaults exist, but production mint allowlists,
+      token valuation policy, and Token-2022 extension handling are not
+      finalized yet.
+  - Current boundary: `agent_stake` supports SOL/lamport escrow plus
+    identity-scoped SPL token stake vaults for configured mints. The program
+    does not yet enforce a governance mint allowlist, price/value policy, or
+    explicit Token-2022 extension policy.
+  - Done when: mint allowlists, token valuation rules, Token-2022 extension
+    handling, generated clients, LiteSVM coverage, and user docs all support
+    the intended production token policy without weakening the current SOL
+    stake path.
+
 - [ ] [on-chain] Light Protocol ZK Compression is not integrated yet.
   - Current boundary: `proof_verifier` uses local checkpoint roots and Merkle
     inclusion proofs, with no compressed account integration.
@@ -18,7 +30,7 @@ together.
     the production path.
 
 - [ ] [sdk] The TypeScript SDK is deterministic helper logic, not a production
-  RPC client.
+      RPC client.
   - Current boundary: `packages/sdk/src` derives local identities, receipts,
     proofs, reputation, stake, and challenge state without submitting
     transactions.
@@ -27,7 +39,7 @@ together.
     consumer docs state which package owns each responsibility.
 
 - [ ] [indexer] The indexer is local and durable, not a networked event
-  pipeline.
+      pipeline.
   - Current boundary: `packages/indexer/src` rebuilds local execution graphs
     from supplied receipts and persists snapshots.
   - Done when: the ingestion design covers network event sources, backfill,
@@ -43,7 +55,7 @@ together.
     chains, and downstream indexer views match the on-chain proof shape.
 
 - [ ] [on-chain] Richer sequence ordering rules across tasks and domains need
-  more tests before production use.
+      more tests before production use.
   - Current boundary: receipts enforce per-task monotonic sequences and task
     domain matching, while checkpoint append tests cover the current canonical
     ordering rule.
@@ -52,8 +64,8 @@ together.
     behavior in one documented release gate.
 
 - [ ] [on-chain] Slashing policy is authority-driven in v1. The program verifies
-  receipt ownership, identity, kind, and replay markers, but it does not parse
-  private dispute evidence or decide outcomes from payload text.
+      receipt ownership, identity, kind, and replay markers, but it does not parse
+      private dispute evidence or decide outcomes from payload text.
   - Current boundary: slashing is driven by a configured slash authority or an
     adjudicator verdict account. Programs verify account ownership, identity,
     receipt kind, trust mode, treasury, stale windows, and replay markers.

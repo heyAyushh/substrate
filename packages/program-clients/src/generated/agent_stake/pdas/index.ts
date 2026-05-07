@@ -7,4 +7,8 @@
  */
 
 export * from "./slashMarker";
+export * from "./slashWithAuthoritySlashMarker";
 export * from "./stake";
+export * from "./tokenStake";
+export * from "./treasuryTokenVault";
+export * from "./vault";

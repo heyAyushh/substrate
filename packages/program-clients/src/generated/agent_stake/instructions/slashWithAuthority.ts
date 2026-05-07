@@ -39,7 +39,7 @@ import {
   getAddressFromResolvedInstructionAccount,
   type ResolvedInstructionAccount,
 } from "@solana/kit/program-client-core";
-import { findSlashMarkerPda } from "../pdas";
+import { findSlashWithAuthoritySlashMarkerPda } from "../pdas";
 import { AGENT_STAKE_PROGRAM_ADDRESS } from "../programs";
 
 export const SLASH_WITH_AUTHORITY_DISCRIMINATOR = new Uint8Array([
@@ -194,7 +194,7 @@ export async function getSlashWithAuthorityInstructionAsync<
 
   // Resolve default values.
   if (!accounts.slashMarker.value) {
-    accounts.slashMarker.value = await findSlashMarkerPda({
+    accounts.slashMarker.value = await findSlashWithAuthoritySlashMarkerPda({
       stake: getAddressFromResolvedInstructionAccount(
         "stake",
         accounts.stake.value,

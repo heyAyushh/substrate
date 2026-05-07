@@ -7,7 +7,7 @@ use crate::{
 };
 use trust_substrate_core::{
     hash_society_world_state, is_valid_society_world_status, TrustSubstrateError,
-    MAX_SOCIETY_WORLD_STATE_BYTES, SOCIETY_WORLD_STATUS_ACTIVE, SOCIETY_WORLD_SEED,
+    MAX_SOCIETY_WORLD_STATE_BYTES, SOCIETY_WORLD_SEED, SOCIETY_WORLD_STATUS_ACTIVE,
 };
 
 #[derive(Accounts)]

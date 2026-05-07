@@ -1,0 +1,248 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec AgentStake
+
+program_id "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type DisputeVerdict
+  | Uninitialized
+  | Active of {
+      dispute_receipt  : Pubkey,
+      target_identity  : Pubkey,
+      outcome          : U8,
+      slash_amount     : U64,
+      adjudicator      : Pubkey,
+      created_at_slot  : U64,
+      bump             : U8,
+      class            : U8,
+      stale_after_slot : U64
+    }
+  | Closed
+
+type ReceiptRecord
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      receipt_id        : U64,
+      actor             : Pubkey,
+      kind              : U8,
+      sequence          : U64,
+      domain            : U64,
+      previous_receipt  : U64,
+      payload_hash      : U64,
+      via_delegation    : Pubkey,
+      auditor_identity  : Pubkey,
+      target_receipt    : Pubkey,
+      challenge_receipt : Pubkey,
+      deadline_slot     : U64,
+      round             : U16,
+      bump              : U8
+    }
+  | Closed
+
+type SlashMarker
+  | Uninitialized
+  | Active of {
+      stake           : Pubkey,
+      dispute_receipt : Pubkey,
+      verdict         : Pubkey,
+      amount          : U64,
+      bump            : U8
+    }
+  | Closed
+
+type StakeAccount
+  | Uninitialized
+  | Active of {
+      identity               : Pubkey,
+      owner                  : Pubkey,
+      slash_authority        : Pubkey,
+      trust_mode             : U8,
+      amount                 : U64,
+      pending_unstake_amount : U64,
+      unstake_unlocks_at     : U64,
+      slashed_total          : U64,
+      bump                   : U8
+    }
+  | Closed
+
+type StakeDeposited
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      amount    : U64,
+      slot      : U64
+    }
+  | Closed
+
+type StakeInitialized
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      authority       : Pubkey,
+      slash_authority : Pubkey,
+      trust_mode      : U8,
+      slot            : U64
+    }
+  | Closed
+
+type StakeSlashedByAuthority
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      slash_authority : Pubkey,
+      dispute_receipt : Pubkey,
+      amount          : U64,
+      trust_mode      : U8,
+      slot            : U64
+    }
+  | Closed
+
+type StakeSlashedWithVerdict
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      adjudicator     : Pubkey,
+      dispute_receipt : Pubkey,
+      verdict         : Pubkey,
+      amount          : U64,
+      trust_mode      : U8,
+      slot            : U64
+    }
+  | Closed
+
+type StakeUnstakeFinalized
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      amount    : U64,
+      slot      : U64
+    }
+  | Closed
+
+type StakeUnstakeRequested
+  | Uninitialized
+  | Active of {
+      identity               : Pubkey,
+      authority              : Pubkey,
+      amount                 : U64,
+      pending_unstake_amount : U64,
+      unlocks_at_slot        : U64,
+      slot                   : U64
+    }
+  | Closed
+
+type TreasuryVault
+  | Uninitialized
+  | Active of {
+      bump : U8
+    }
+  | Closed
+
+pda stake ["stake", identity]
+pda slash_marker ["slash_marker", stake, dispute_receipt]
+pda verdict ["verdict", dispute_receipt]
+pda treasury_vault ["treasury"]
+
+handler finalize_unstake : State.Active -> State.Closed {
+  auth owner
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    owner : signer, writable
+    identity : writable
+    stake : writable, pda [stake]
+    identity_registry_program : readonly
+  }
+}
+
+handler initialize_stake (slash_authority : Pubkey) (trust_mode : U8) : State.Uninitialized -> State.Active {
+  auth owner
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    owner : signer, writable
+    identity : readonly
+    stake : writable, pda [stake]
+    system_program : program
+  }
+}
+
+handler request_unstake (amount : U64) : State.Active -> State.Active {
+  auth owner
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    owner : signer
+    stake : writable, pda [stake]
+  }
+}
+
+handler slash_with_authority (amount : U64) : State.Active -> State.Active {
+  auth slash_authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    slash_authority : signer, writable
+    stake : writable, pda [stake]
+    dispute_receipt : readonly
+    slash_marker : writable, pda [slash_marker]
+    treasury_vault : writable, pda [treasury_vault]
+    system_program : program
+  }
+}
+
+handler slash_with_verdict : State.Active -> State.Closed {
+  auth adjudicator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    adjudicator : signer, writable
+    stake : writable, pda [stake]
+    dispute_receipt : readonly
+    verdict : pda [verdict]
+    slash_marker : writable, pda [slash_marker]
+    treasury_vault : writable, pda [treasury_vault]
+    system_program : program
+  }
+}
+
+handler stake (amount : U64) : State.Active -> State.Active {
+  auth owner
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    owner : signer, writable
+    identity : writable
+    stake : writable, pda [stake]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

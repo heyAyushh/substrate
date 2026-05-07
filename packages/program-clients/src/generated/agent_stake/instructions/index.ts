@@ -7,8 +7,15 @@
  */
 
 export * from "./finalizeUnstake";
+export * from "./finalizeUnstakeToken";
 export * from "./initializeStake";
+export * from "./initializeTokenStake";
+export * from "./initializeTokenTreasuryVault";
 export * from "./requestUnstake";
+export * from "./requestUnstakeToken";
+export * from "./slashTokenWithAuthority";
+export * from "./slashTokenWithVerdict";
 export * from "./slashWithAuthority";
 export * from "./slashWithVerdict";
 export * from "./stake";
+export * from "./stakeToken";

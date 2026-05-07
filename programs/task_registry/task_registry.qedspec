@@ -1,0 +1,145 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec TaskRegistry
+
+program_id "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type AppliedTaskReceipt
+  | Uninitialized
+  | Active of {
+      task    : Pubkey,
+      receipt : Pubkey,
+      bump    : U8
+    }
+  | Closed
+
+type ReceiptRecordAccount
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      receipt_id        : U64,
+      actor             : Pubkey,
+      kind              : U8,
+      sequence          : U64,
+      domain            : U64,
+      previous_receipt  : U64,
+      payload_hash      : U64,
+      via_delegation    : Pubkey,
+      auditor_identity  : Pubkey,
+      target_receipt    : Pubkey,
+      challenge_receipt : Pubkey,
+      deadline_slot     : U64,
+      round             : U16,
+      bump              : U8
+    }
+  | Closed
+
+type TaskRecord
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      task_id         : U64,
+      domain          : U64,
+      subtask_root    : U64,
+      subtask_count   : U16,
+      status          : U8,
+      completed_count : U32,
+      disputed_count  : U32,
+      resolved_count  : U32,
+      last_receipt    : Pubkey,
+      last_sequence   : U64,
+      bump            : U8
+    }
+  | Closed
+
+type TaskStatusSynced
+  | Uninitialized
+  | Active of {
+      identity   : Pubkey,
+      task       : Pubkey,
+      receipt    : Pubkey,
+      kind       : U8,
+      new_status : U8,
+      slot       : U64
+    }
+  | Closed
+
+pda authority ["cpi_authority"]
+pda task ["task", identity, task_id]
+pda receipt_application ["task_receipt_application", task, receipt]
+
+handler advance_receipt_chain (last_receipt : Pubkey) (last_sequence : U64) : State.Active -> State.Active {
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    task : writable, pda [task]
+    identity : readonly
+    authority : pda [authority]
+  }
+}
+
+handler create_task (task_id : U64) (subtask_root : U64) (subtask_count : U16) (domain : U64) : State.Uninitialized -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable, pda [authority]
+    identity : writable
+    task : writable, pda [task]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler sync_task_status : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable, pda [authority]
+    identity : writable
+    task : writable, pda [task]
+    receipt : readonly
+    receipt_application : writable, pda [receipt_application]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler task_receipt_already_applied : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, pda [authority]
+    identity : readonly
+    task : pda [task], authority receipt_application
+    receipt : authority receipt_application
+    receipt_application : pda [receipt_application]
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

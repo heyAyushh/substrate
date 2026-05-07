@@ -6,6 +6,11 @@ Trust Substrate is a local Solana trust layer for autonomous agents. It stores
 an append-only execution graph and derives reputation from verified history
 instead of writing a mutable score.
 
+The protocol is the product. Pi Console, the Society Board, and other examples
+are clients that exercise the same identity, task, delegation, receipt,
+checkpoint, reputation, stake, and dispute surfaces. A demo can display protocol
+state, but it must not become the authority that invents or validates truth.
+
 ## What Is Here
 
 This repository contains a local protocol baseline:
@@ -22,12 +27,16 @@ This is not a production deployment. The current goal is a correct local
 baseline that can be hardened before networked indexing, compression
 integrations, or production deployment. The active production-readiness
 checklist is tracked in [Production Readiness To-Do](docs/production-readiness.md).
+The current deploy-ready target is Surfpool/local Solana with stable program
+IDs, generated clients, and release gates that can be rerun before any public
+network deployment.
 
 ## Protocol Programs
 
 The workspace has these deployable Anchor programs:
 
 - `identity_registry`
+- `attester_registry`
 - `task_registry`
 - `receipt_emitter`
 - `delegation_engine`
@@ -44,6 +53,8 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - remote event streaming or Geyser ingestion
 - production RPC orchestration beyond the generated local client package
 - mainnet deployment hardening
+- production SPL token mint allowlists, token valuation, and Token-2022
+  extension policy
 - full multi-hop delegation proof chains
 - automated dispute outcome decisions from private receipt payload text
 - production claims around cross-task and cross-domain ordering until the
@@ -55,6 +66,8 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 - [Program Interface](docs/programs.md)
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
+- [Deployment Readiness](docs/deployment-readiness.md)
+- [Agent Skill Contract](docs/agent-skill.md)
 - [Senior Reviewer Guide](docs/reviewer-guide.md)
 - [Security](docs/security.md)
 - [Production Readiness To-Do](docs/production-readiness.md)
@@ -70,6 +83,7 @@ programs/                    Anchor protocol programs
 packages/sdk/                 Deterministic local SDK helpers
 packages/program-clients/     Codama-generated @solana/kit clients from Anchor IDLs
 packages/indexer/             Local durable execution graph indexer
+skills/trust-substrate/        Agent-facing Trust Substrate skill contract
 tests/                        TypeScript package, Surfpool, and verification tests
 scripts/                      Local automation scripts
 docs/                         Project documentation
@@ -148,14 +162,18 @@ The current local path is:
 
 1. Create an agent identity PDA.
 2. Create a task PDA under that identity.
-3. Emit ordered receipts for meaningful execution steps.
-4. Create scoped delegation records for handoffs.
-5. Checkpoint receipt history roots.
-6. Apply receipts to derived reputation state.
-7. Escrow stake for agents that opt into slashable dispute resolution.
-8. Rebuild the execution graph, handoff inheritance, and team reputation views through the local indexer.
+3. Register attestation capability when a workflow needs attester evidence.
+4. Emit ordered receipts for meaningful execution steps.
+5. Create scoped delegation records for handoffs.
+6. Checkpoint receipt history roots.
+7. Apply receipts to derived reputation state.
+8. Escrow stake for agents that opt into slashable dispute resolution.
+9. Rebuild the execution graph, handoff inheritance, and team reputation views through the local indexer.
 
 Receipts are the source of truth. Reputation is derived from that receipt graph.
+JSON artifacts are proof artifacts only when they are signed and chain-bound to
+an agent identity, receipt payload hash, transaction signature, and Merkle
+transcript root.
 
 ## Useful Commands
 

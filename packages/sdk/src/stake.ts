@@ -10,12 +10,18 @@ export type StakeEventKind =
   | "unstake_finalized"
   | "slashed";
 
+export type StakeAssetKind = "sol" | "spl_token";
+
 export interface StakeEventInput {
   readonly kind: StakeEventKind;
   readonly identityId: string;
   readonly ownerId?: string;
   readonly slashAuthorityId?: string;
+  readonly assetKind?: StakeAssetKind;
+  readonly mintId?: string;
+  readonly tokenProgramId?: string;
   readonly amountLamports?: bigint | number | string;
+  readonly amountBaseUnits?: bigint | number | string;
   readonly unlocksAtSlot?: number;
   readonly disputeReceiptId?: string;
 }
@@ -27,9 +33,23 @@ export interface StakeEvent {
   readonly identityId: string;
   readonly ownerId?: string;
   readonly slashAuthorityId?: string;
+  readonly assetKind?: StakeAssetKind;
+  readonly mintId?: string;
+  readonly tokenProgramId?: string;
   readonly amountLamports?: string;
+  readonly amountBaseUnits?: string;
   readonly unlocksAtSlot?: number;
   readonly disputeReceiptId?: string;
+}
+
+export interface TokenStakeState {
+  readonly mintId: string;
+  readonly tokenProgramId?: string;
+  readonly activeBaseUnits: bigint;
+  readonly pendingUnstakeBaseUnits: bigint;
+  readonly unstakeUnlocksAtSlot?: number;
+  readonly slashedBaseUnits: bigint;
+  readonly slashReceiptIds: ReadonlyArray<string>;
 }
 
 export interface StakeState {
@@ -41,7 +61,18 @@ export interface StakeState {
   readonly unstakeUnlocksAtSlot?: number;
   readonly slashedLamports: bigint;
   readonly slashReceiptIds: ReadonlyArray<string>;
+  readonly tokenStakes: ReadonlyArray<TokenStakeState>;
 }
+
+type MutableTokenStakeState = {
+  mintId: string;
+  tokenProgramId?: string;
+  activeBaseUnits: bigint;
+  pendingUnstakeBaseUnits: bigint;
+  unstakeUnlocksAtSlot?: number;
+  slashedBaseUnits: bigint;
+  slashReceiptIds: string[];
+};
 
 const AMOUNT_REQUIRED_KINDS = new Set<StakeEventKind>([
   "deposited",
@@ -65,19 +96,19 @@ const asSlot = (value: unknown): number | undefined =>
     ? value
     : undefined;
 
-const parsePositiveLamports = (value: unknown): bigint => {
+const parsePositiveAmount = (value: unknown, label: string): bigint => {
   if (typeof value === "bigint") {
     if (value > 0n) {
       return value;
     }
-    throw new Error("stake amount must be positive");
+    throw new Error(`${label} must be positive`);
   }
 
   if (typeof value === "number") {
     if (Number.isSafeInteger(value) && value > 0) {
       return BigInt(value);
     }
-    throw new Error("stake amount must be a positive safe integer");
+    throw new Error(`${label} must be a positive safe integer`);
   }
 
   if (typeof value === "string" && /^[0-9]+$/.test(value)) {
@@ -87,11 +118,32 @@ const parsePositiveLamports = (value: unknown): bigint => {
     }
   }
 
-  throw new Error("stake amount must be positive");
+  throw new Error(`${label} must be positive`);
 };
+
+const parsePositiveLamports = (value: unknown): bigint =>
+  parsePositiveAmount(value, "stake amount");
+
+const parsePositiveBaseUnits = (value: unknown): bigint =>
+  parsePositiveAmount(value, "token stake amount");
 
 const parseOptionalPositiveLamports = (value: unknown): bigint | undefined =>
   value === undefined ? undefined : parsePositiveLamports(value);
+
+const parseOptionalPositiveBaseUnits = (value: unknown): bigint | undefined =>
+  value === undefined ? undefined : parsePositiveBaseUnits(value);
+
+const isStakeAssetKind = (value: unknown): value is StakeAssetKind =>
+  value === "sol" || value === "spl_token";
+
+const resolveAssetKind = (input: StakeEventInput): StakeAssetKind => {
+  if (input.assetKind) {
+    return input.assetKind;
+  }
+  return input.mintId || input.amountBaseUnits !== undefined
+    ? "spl_token"
+    : "sol";
+};
 
 const subtractLamports = (
   current: bigint,
@@ -104,6 +156,8 @@ const subtractLamports = (
   return current - amount;
 };
 
+const subtractBaseUnits = subtractLamports;
+
 const normalizeStakeEvent = (
   input: StakeEventInput,
   eventIdOverride?: string,
@@ -112,16 +166,36 @@ const normalizeStakeEvent = (
     throw new Error("stake event identityId is required");
   }
 
-  const amount = AMOUNT_REQUIRED_KINDS.has(input.kind)
-    ? parsePositiveLamports(input.amountLamports)
-    : parseOptionalPositiveLamports(input.amountLamports);
+  const assetKind = resolveAssetKind(input);
+  if (assetKind === "spl_token" && !input.mintId) {
+    throw new Error("token stake event mintId is required");
+  }
+
+  const amountLamports =
+    assetKind === "sol"
+      ? AMOUNT_REQUIRED_KINDS.has(input.kind)
+        ? parsePositiveLamports(input.amountLamports)
+        : parseOptionalPositiveLamports(input.amountLamports)
+      : undefined;
+  const amountBaseUnits =
+    assetKind === "spl_token"
+      ? AMOUNT_REQUIRED_KINDS.has(input.kind)
+        ? parsePositiveBaseUnits(input.amountBaseUnits)
+        : parseOptionalPositiveBaseUnits(input.amountBaseUnits)
+      : undefined;
+
   const event: Omit<StakeEvent, "eventId"> = {
     type: STAKE_EVENT_MARKER,
     kind: input.kind,
     identityId: input.identityId,
     ownerId: input.ownerId,
     slashAuthorityId: input.slashAuthorityId,
-    amountLamports: amount?.toString(),
+    assetKind: assetKind === "spl_token" ? assetKind : undefined,
+    mintId: assetKind === "spl_token" ? input.mintId : undefined,
+    tokenProgramId:
+      assetKind === "spl_token" ? input.tokenProgramId : undefined,
+    amountLamports: amountLamports?.toString(),
+    amountBaseUnits: amountBaseUnits?.toString(),
     unlocksAtSlot: input.unlocksAtSlot,
     disputeReceiptId: input.disputeReceiptId,
   };
@@ -148,6 +222,10 @@ const eventFromRecord = (value: unknown): StakeEvent | undefined => {
     return undefined;
   }
 
+  const candidateAssetKind = candidate.assetKind;
+  const assetKind = isStakeAssetKind(candidateAssetKind)
+    ? candidateAssetKind
+    : undefined;
   const eventId = asNonEmptyString(candidate.eventId);
   return normalizeStakeEvent(
     {
@@ -155,7 +233,15 @@ const eventFromRecord = (value: unknown): StakeEvent | undefined => {
       identityId,
       ownerId: asNonEmptyString(candidate.ownerId),
       slashAuthorityId: asNonEmptyString(candidate.slashAuthorityId),
+      assetKind,
+      mintId: asNonEmptyString(candidate.mintId),
+      tokenProgramId: asNonEmptyString(candidate.tokenProgramId),
       amountLamports: candidate.amountLamports as
+        | bigint
+        | number
+        | string
+        | undefined,
+      amountBaseUnits: candidate.amountBaseUnits as
         | bigint
         | number
         | string
@@ -189,14 +275,37 @@ export function extractStakeEventsFromReceipt(
   const resolution = receipt.payload.resolution;
   if (receipt.kind === "dispute_resolved" && isObject(resolution)) {
     const slashedAgentId = asNonEmptyString(resolution.slashedAgentId);
-    const slashAmount =
+    const slashedMintId = asNonEmptyString(
+      resolution.slashedMintId ?? resolution.mintId,
+    );
+    const slashedTokenProgramId = asNonEmptyString(
+      resolution.slashedTokenProgramId ?? resolution.tokenProgramId,
+    );
+    const slashAmountBaseUnits =
+      resolution.slashAmountBaseUnits ?? resolution.slashAmountTokenBaseUnits;
+    const slashAmountLamports =
       resolution.slashAmountLamports ?? resolution.slashAmount;
-    if (slashedAgentId && slashAmount !== undefined) {
+
+    if (slashedAgentId && slashedMintId && slashAmountBaseUnits !== undefined) {
       events.push(
         createStakeEvent({
           kind: "slashed",
           identityId: slashedAgentId,
-          amountLamports: slashAmount as string | number | bigint,
+          assetKind: "spl_token",
+          mintId: slashedMintId,
+          tokenProgramId: slashedTokenProgramId,
+          amountBaseUnits: slashAmountBaseUnits as string | number | bigint,
+          disputeReceiptId: receipt.receiptId,
+        }),
+      );
+    }
+
+    if (slashedAgentId && slashAmountLamports !== undefined) {
+      events.push(
+        createStakeEvent({
+          kind: "slashed",
+          identityId: slashedAgentId,
+          amountLamports: slashAmountLamports as string | number | bigint,
           disputeReceiptId: receipt.receiptId,
         }),
       );
@@ -217,6 +326,7 @@ export function deriveStakeState(
   let unstakeUnlocksAtSlot: number | undefined;
   let slashedLamports = 0n;
   const slashReceiptIds: string[] = [];
+  const tokenStates = new Map<string, MutableTokenStakeState>();
 
   for (const event of events) {
     if (event.identityId !== identityId) {
@@ -227,37 +337,85 @@ export function deriveStakeState(
       case "initialized":
         ownerId = event.ownerId ?? ownerId;
         slashAuthorityId = event.slashAuthorityId ?? slashAuthorityId;
+        if ((event.assetKind ?? "sol") === "spl_token" && event.mintId) {
+          getTokenState(tokenStates, event);
+        }
         break;
       case "deposited":
-        activeLamports += parsePositiveLamports(event.amountLamports);
+        if ((event.assetKind ?? "sol") === "spl_token") {
+          getTokenState(tokenStates, event).activeBaseUnits +=
+            parsePositiveBaseUnits(event.amountBaseUnits);
+        } else {
+          activeLamports += parsePositiveLamports(event.amountLamports);
+        }
         break;
       case "unstake_requested":
-        pendingUnstakeLamports = parsePositiveLamports(event.amountLamports);
-        unstakeUnlocksAtSlot = event.unlocksAtSlot;
+        if ((event.assetKind ?? "sol") === "spl_token") {
+          const tokenState = getTokenState(tokenStates, event);
+          tokenState.pendingUnstakeBaseUnits = parsePositiveBaseUnits(
+            event.amountBaseUnits,
+          );
+          tokenState.unstakeUnlocksAtSlot = event.unlocksAtSlot;
+        } else {
+          pendingUnstakeLamports = parsePositiveLamports(event.amountLamports);
+          unstakeUnlocksAtSlot = event.unlocksAtSlot;
+        }
         break;
       case "unstake_finalized": {
-        const amount = parsePositiveLamports(event.amountLamports);
-        activeLamports = subtractLamports(
-          activeLamports,
-          amount,
-          "finalizing unstake",
-        );
-        pendingUnstakeLamports = subtractLamports(
-          pendingUnstakeLamports,
-          amount,
-          "clearing pending unstake",
-        );
-        if (pendingUnstakeLamports === 0n) {
-          unstakeUnlocksAtSlot = undefined;
+        if ((event.assetKind ?? "sol") === "spl_token") {
+          const amount = parsePositiveBaseUnits(event.amountBaseUnits);
+          const tokenState = getTokenState(tokenStates, event);
+          tokenState.activeBaseUnits = subtractBaseUnits(
+            tokenState.activeBaseUnits,
+            amount,
+            "finalizing token unstake",
+          );
+          tokenState.pendingUnstakeBaseUnits = subtractBaseUnits(
+            tokenState.pendingUnstakeBaseUnits,
+            amount,
+            "clearing pending token unstake",
+          );
+          if (tokenState.pendingUnstakeBaseUnits === 0n) {
+            tokenState.unstakeUnlocksAtSlot = undefined;
+          }
+        } else {
+          const amount = parsePositiveLamports(event.amountLamports);
+          activeLamports = subtractLamports(
+            activeLamports,
+            amount,
+            "finalizing unstake",
+          );
+          pendingUnstakeLamports = subtractLamports(
+            pendingUnstakeLamports,
+            amount,
+            "clearing pending unstake",
+          );
+          if (pendingUnstakeLamports === 0n) {
+            unstakeUnlocksAtSlot = undefined;
+          }
         }
         break;
       }
       case "slashed": {
-        const amount = parsePositiveLamports(event.amountLamports);
-        activeLamports = subtractLamports(activeLamports, amount, "slashing");
-        slashedLamports += amount;
-        if (event.disputeReceiptId) {
-          slashReceiptIds.push(event.disputeReceiptId);
+        if ((event.assetKind ?? "sol") === "spl_token") {
+          const amount = parsePositiveBaseUnits(event.amountBaseUnits);
+          const tokenState = getTokenState(tokenStates, event);
+          tokenState.activeBaseUnits = subtractBaseUnits(
+            tokenState.activeBaseUnits,
+            amount,
+            "token slashing",
+          );
+          tokenState.slashedBaseUnits += amount;
+          if (event.disputeReceiptId) {
+            tokenState.slashReceiptIds.push(event.disputeReceiptId);
+          }
+        } else {
+          const amount = parsePositiveLamports(event.amountLamports);
+          activeLamports = subtractLamports(activeLamports, amount, "slashing");
+          slashedLamports += amount;
+          if (event.disputeReceiptId) {
+            slashReceiptIds.push(event.disputeReceiptId);
+          }
         }
         break;
       }
@@ -273,8 +431,49 @@ export function deriveStakeState(
     unstakeUnlocksAtSlot,
     slashedLamports,
     slashReceiptIds: [...new Set(slashReceiptIds)].sort(),
+    tokenStakes: [...tokenStates.values()]
+      .map((state) => ({
+        mintId: state.mintId,
+        tokenProgramId: state.tokenProgramId,
+        activeBaseUnits: state.activeBaseUnits,
+        pendingUnstakeBaseUnits: state.pendingUnstakeBaseUnits,
+        unstakeUnlocksAtSlot: state.unstakeUnlocksAtSlot,
+        slashedBaseUnits: state.slashedBaseUnits,
+        slashReceiptIds: [...new Set(state.slashReceiptIds)].sort(),
+      }))
+      .sort((left, right) => left.mintId.localeCompare(right.mintId)),
   };
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+const tokenStakeKey = (event: StakeEvent): string => {
+  if (!event.mintId) {
+    throw new Error("token stake event mintId is required");
+  }
+  return `${event.tokenProgramId ?? ""}:${event.mintId}`;
+};
+
+const getTokenState = (
+  states: Map<string, MutableTokenStakeState>,
+  event: StakeEvent,
+): MutableTokenStakeState => {
+  const key = tokenStakeKey(event);
+  const existing = states.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const state: MutableTokenStakeState = {
+    mintId: event.mintId!,
+    tokenProgramId: event.tokenProgramId,
+    activeBaseUnits: 0n,
+    pendingUnstakeBaseUnits: 0n,
+    unstakeUnlocksAtSlot: undefined,
+    slashedBaseUnits: 0n,
+    slashReceiptIds: [],
+  };
+  states.set(key, state);
+  return state;
+};

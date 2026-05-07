@@ -1,4 +1,16 @@
 export {
+  AGENT_ACTION_ENVELOPE_SCHEMA_VERSION,
+  assertAgentActionEnvelopeChainBound,
+  buildAgentActionEnvelope,
+  hashAgentActionEnvelope,
+} from "./agent-action-envelope.js";
+
+export type {
+  AgentActionEnvelope,
+  AgentActionEnvelopeInput,
+} from "./agent-action-envelope.js";
+
+export {
   TrustSubstrateClient,
   ReceiptLedger,
   assertDelegationAllowed,
@@ -202,10 +214,12 @@ export type {
 } from "./receipt-builders.js";
 
 export type {
+  StakeAssetKind,
   StakeEvent,
   StakeEventInput,
   StakeEventKind,
   StakeState,
+  TokenStakeState,
 } from "./stake.js";
 
 export type { AgentTraceBundle, AgentTraceFileEdit } from "./agent-trace.js";

@@ -40,8 +40,8 @@ The main protected assets are:
 - [on-chain] receipt identity, task, and reputation domain checks
 - [on-chain] task-domain scoping so receipt emission rejects task and receipt domain mismatches
 - [on-chain] reputation identity ownership checks before accumulation
-- [on-chain] stake ownership and slash authority checks
-- [on-chain] stake PDA constraints on stake, unstake, and slash writes
+- [on-chain] SOL and SPL token stake ownership and slash authority checks
+- [on-chain] stake PDA constraints on stake, unstake, token vault, and slash writes
 - [on-chain] slash markers keyed by stake and dispute-resolution receipt to reject replay
 - [on-chain] protocol-specific errors for authority, task, delegation, checkpoint, reputation, and mirror-account type failures
 - [on-chain] task status transitions derived from receipt records
@@ -60,6 +60,7 @@ The main protected assets are:
 These are intentional current boundaries:
 
 - [on-chain] Light Protocol ZK Compression is not integrated yet.
+- [on-chain] SPL token stake vaults exist, but production mint allowlists, token valuation policy, and Token-2022 extension handling are not finalized yet.
 - [sdk] The TypeScript SDK is deterministic helper logic, not a production RPC client.
 - [indexer] The indexer is local and durable, not a networked event pipeline.
 - [on-chain] Multi-hop handoff proofs are not fully modeled yet.

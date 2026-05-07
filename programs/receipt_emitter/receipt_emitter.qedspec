@@ -1,0 +1,260 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec ReceiptEmitter
+
+program_id "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type AuditReceiptCommitted
+  | Uninitialized
+  | Active of {
+      auditor_identity : Pubkey,
+      target_identity  : Pubkey,
+      target_receipt   : Pubkey,
+      audit_receipt    : Pubkey,
+      actor            : Pubkey,
+      kind             : U8,
+      sequence         : U64,
+      domain           : U64,
+      round            : U16
+    }
+  | Closed
+
+type ChallengeResponseCommitted
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      challenge_receipt : Pubkey,
+      response_receipt  : Pubkey,
+      actor             : Pubkey,
+      domain            : U64
+    }
+  | Closed
+
+type CpiAuthority
+  | Uninitialized
+  | Active of {
+      bump : U8
+    }
+  | Closed
+
+type DelegationRecord
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      delegate        : Pubkey,
+      allowed_actions : U8,
+      expires_at_slot : U64,
+      revoke_at_slot  : U64,
+      revoked         : Bool,
+      bump            : U8
+    }
+  | Closed
+
+type ReceiptCommitted
+  | Uninitialized
+  | Active of {
+      identity       : Pubkey,
+      task           : Pubkey,
+      receipt_id     : U64,
+      actor          : Pubkey,
+      kind           : U8,
+      sequence       : U64,
+      domain         : U64,
+      via_delegation : Pubkey
+    }
+  | Closed
+
+type ReceiptRecord
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      receipt_id        : U64,
+      actor             : Pubkey,
+      kind              : U8,
+      sequence          : U64,
+      domain            : U64,
+      previous_receipt  : U64,
+      payload_hash      : U64,
+      via_delegation    : Pubkey,
+      auditor_identity  : Pubkey,
+      target_receipt    : Pubkey,
+      challenge_receipt : Pubkey,
+      deadline_slot     : U64,
+      round             : U16,
+      bump              : U8
+    }
+  | Closed
+
+type ReputationDomainCatalog
+  | Uninitialized
+  | Active of {
+      curator    : Pubkey,
+      domains    : U64,
+      deprecated : U64,
+      bump       : U8
+    }
+  | Closed
+
+type TaskRecord
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      task_id         : U64,
+      domain          : U64,
+      subtask_root    : U64,
+      subtask_count   : U16,
+      status          : U8,
+      completed_count : U32,
+      disputed_count  : U32,
+      resolved_count  : U32,
+      last_receipt    : Pubkey,
+      last_sequence   : U64,
+      bump            : U8
+    }
+  | Closed
+
+pda audit_receipt ["audit_receipt", auditor_identity, target_receipt, kind, round]
+pda cpi_authority ["cpi_authority"]
+pda challenge_response ["challenge_response", challenge]
+pda delegation ["delegation", identity, delegate]
+pda receipt ["receipt", identity, task, receipt_id]
+
+handler emit_audit_receipt (kind : U8) (domain : U64) (payload_hash : U64) (sequence : U64) (round : U16) (deadline_slot : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    auditor_identity : readonly
+    identity_bond : readonly
+    target_identity : writable
+    target_receipt : readonly
+    audit_receipt : writable, pda [audit_receipt]
+    domain_catalog : readonly
+    cpi_authority : pda [cpi_authority]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler emit_challenge_response (payload_hash : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    target_identity : writable
+    challenge : readonly
+    challenge_response : writable, pda [challenge_response]
+    cpi_authority : pda [cpi_authority]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler emit_delegated_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) : State.Active -> State.Active {
+  auth delegate
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    delegate : signer, writable
+    identity : readonly
+    delegation : pda [delegation]
+    task : writable
+    receipt : writable, pda [receipt]
+    domain_catalog : readonly
+    cpi_authority : pda [cpi_authority]
+    task_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler emit_handoff_grant (receipt_id : U64) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) (allowed_actions : U8) (expires_at_slot : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    delegate : readonly
+    task : writable
+    receipt : writable, pda [receipt]
+    delegation : writable, pda [delegation]
+    domain_catalog : readonly
+    cpi_authority : pda [cpi_authority]
+    task_registry_program : readonly
+    delegation_engine_program : readonly
+    system_program : program
+  }
+}
+
+handler emit_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    task : writable
+    receipt : writable, pda [receipt]
+    domain_catalog : readonly
+    cpi_authority : pda [cpi_authority]
+    task_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler finalize_unanswered_challenge : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    target_identity : writable
+    challenge : readonly
+    target_receipt : readonly
+    challenge_response : pda [challenge_response]
+    audit_receipt : writable, pda [audit_receipt]
+    cpi_authority : pda [cpi_authority]
+    identity_registry_program : readonly
+    system_program : program
+  }
+}
+
+handler initialize_cpi_authority : State.Uninitialized -> State.Active {
+  auth payer
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    payer : signer, writable
+    cpi_authority : writable, pda [cpi_authority]
+    system_program : program
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

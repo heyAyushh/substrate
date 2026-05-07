@@ -133,6 +133,26 @@ test("createSubstrateSessionCommitter commits each turn via the bridge and invok
       receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
       operations: [],
     },
+    actionEnvelope: {
+      schemaVersion: 1,
+      agentId: "identity-xyz",
+      identityAddress: bindings.identityAddress,
+      taskAddress: bindings.taskAddress,
+      tick: null,
+      action: "completion",
+      args: { recordId: "r", sequence: 1 },
+      promptHash: null,
+      responseHash: null,
+      preStateHash: "a".repeat(64),
+      postStateHash: "b".repeat(64),
+      receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
+      receiptPayloadHash: "p".repeat(64),
+      txSignature: "tx-signature",
+      slot: 42,
+      agentSignature: "tx-signature",
+      transcriptRoot: "c".repeat(64),
+      leafHash: "d".repeat(64),
+    },
   };
   const bridge = {
     commit: async (
@@ -169,4 +189,95 @@ test("createSubstrateSessionCommitter commits each turn via the bridge and invok
   strictEqual(committed[0]?.sequence, 1);
   strictEqual(callbacks.length, 1);
   strictEqual(callbacks[0]?.receipt.receiptId, "rcpt-1");
+});
+
+test("createSubstrateSessionCommitter exposes the chain-bound action envelope", async () => {
+  const bindings = buildBindings();
+  const stubResult: PiBridgeCommitResult = {
+    execution: {
+      record: { recordId: "r", identityId: "i", taskId: "t", steps: [] },
+    },
+    receipt: {
+      receiptId: "rcpt-1",
+      hash: "h",
+      actorId: "a",
+      kind: "completion",
+      taskId: "task-xyz",
+      payload: {
+        payloadHash: "p".repeat(64),
+      },
+      sequence: 1,
+      domain: "general",
+    },
+    indexedReceipt: {
+      receiptId: "rcpt-1",
+      slot: 42,
+      taskId: "task-xyz",
+      actorId: "a",
+      kind: "completion",
+      domain: "general",
+      payload: {
+        payloadHash: "p".repeat(64),
+      },
+    } as ReceiptIndexRecord,
+    onchain: {
+      receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
+      operations: [
+        {
+          kind: "emit_receipt",
+          address: "RCT11111111111111111111111111111111111111111" as Address,
+          slot: 42,
+          signature: "tx-signature",
+        },
+      ],
+    },
+    actionEnvelope: {
+      schemaVersion: 1,
+      agentId: "identity-xyz",
+      identityAddress: bindings.identityAddress,
+      taskAddress: bindings.taskAddress,
+      tick: null,
+      action: "completion",
+      args: { recordId: "r", sequence: 1 },
+      promptHash: null,
+      responseHash: null,
+      preStateHash: "a".repeat(64),
+      postStateHash: "b".repeat(64),
+      receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
+      receiptPayloadHash: "p".repeat(64),
+      txSignature: "tx-signature",
+      slot: 42,
+      agentSignature: "tx-signature",
+      transcriptRoot: "c".repeat(64),
+      leafHash: "d".repeat(64),
+    },
+  };
+  const bridge = {
+    commit: async (): Promise<PiBridgeCommitResult> => stubResult,
+  } as unknown as PiToolStreamBridge<ReceiptIndexWriter>;
+
+  const callbacks: PiBridgeCommitResult[] = [];
+  const handler = createSubstrateSessionCommitter({
+    bridge,
+    bindings,
+    sessionId: SESSION_ID,
+    onCommitted: (result) => {
+      callbacks.push(result);
+    },
+  });
+
+  await handler({
+    turnIndex: 0,
+    toolCalls: [
+      {
+        tool: "read",
+        args: { path: "src/a.ts" },
+        startedAt: "2026-04-17T00:00:01Z",
+      },
+    ],
+  });
+
+  strictEqual(callbacks[0]?.actionEnvelope?.agentId, "identity-xyz");
+  strictEqual(callbacks[0]?.actionEnvelope?.txSignature, "tx-signature");
+  strictEqual(callbacks[0]?.actionEnvelope?.receiptPayloadHash, "p".repeat(64));
 });

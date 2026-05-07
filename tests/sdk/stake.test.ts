@@ -74,6 +74,65 @@ test("rejects invalid stake amounts before they enter receipt payloads", () => {
   );
 });
 
+test("derives SPL token stake state separately from SOL stake", () => {
+  const identityId = "agent-builder";
+  const mintId = "mint-convoy-fuel";
+  const events = [
+    createStakeEvent({
+      kind: "initialized",
+      identityId,
+      assetKind: "spl_token",
+      mintId,
+      tokenProgramId: "spl-token",
+    }),
+    createStakeEvent({
+      kind: "deposited",
+      identityId,
+      assetKind: "spl_token",
+      mintId,
+      tokenProgramId: "spl-token",
+      amountBaseUnits: "1000000",
+    }),
+    createStakeEvent({
+      kind: "unstake_requested",
+      identityId,
+      assetKind: "spl_token",
+      mintId,
+      tokenProgramId: "spl-token",
+      amountBaseUnits: "250000",
+      unlocksAtSlot: 70,
+    }),
+    createStakeEvent({
+      kind: "unstake_finalized",
+      identityId,
+      assetKind: "spl_token",
+      mintId,
+      tokenProgramId: "spl-token",
+      amountBaseUnits: "250000",
+    }),
+    createStakeEvent({
+      kind: "slashed",
+      identityId,
+      assetKind: "spl_token",
+      mintId,
+      tokenProgramId: "spl-token",
+      amountBaseUnits: "100000",
+      disputeReceiptId: "token-dispute-resolution",
+    }),
+  ];
+
+  const state = deriveStakeState(identityId, events);
+
+  strictEqual(state.activeLamports, 0n);
+  strictEqual(state.tokenStakes.length, 1);
+  const tokenStake = state.tokenStakes[0]!;
+  strictEqual(tokenStake.mintId, mintId);
+  strictEqual(tokenStake.activeBaseUnits, 650_000n);
+  strictEqual(tokenStake.pendingUnstakeBaseUnits, 0n);
+  strictEqual(tokenStake.slashedBaseUnits, 100_000n);
+  deepStrictEqual(tokenStake.slashReceiptIds, ["token-dispute-resolution"]);
+});
+
 test("extracts stake payload events and dispute resolution slashing", () => {
   const client = new TrustSubstrateClient();
   const stakeEvent = client.stake.createEvent({

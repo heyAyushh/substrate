@@ -580,6 +580,38 @@
       : DEFAULT_SCENARIO;
   };
 
+  const normalizeActionSource = (input) => {
+    const source =
+      input && input.actionSource && typeof input.actionSource === "object"
+        ? input.actionSource
+        : {};
+    const kind =
+      source.kind === "pi-agent" ||
+      source.kind === "pi-llm" ||
+      source.kind === "external"
+        ? source.kind
+        : "simulation";
+    const fallbackDriver =
+      kind === "pi-agent" || kind === "pi-llm"
+        ? `${kind}-driver`
+        : "society-board-deterministic-driver";
+
+    return {
+      kind,
+      driver:
+        typeof source.driver === "string" && source.driver.trim().length > 0
+          ? source.driver.trim()
+          : fallbackDriver,
+      ...(typeof source.runtimeSessionId === "string"
+        ? { runtimeSessionId: source.runtimeSessionId }
+        : {}),
+      ...(typeof source.modelId === "string"
+        ? { modelId: source.modelId }
+        : {}),
+      ...(typeof source.note === "string" ? { note: source.note } : {}),
+    };
+  };
+
   const normalizeConfig = (input) => {
     const gridSize = clampInteger(
       input && input.gridSize,
@@ -714,6 +746,7 @@
         scenarioDefaults.spawnSpacing,
       ),
       heroArchetype: requestedHeroArchetype && requestedHeroArchetype.name,
+      actionSource: normalizeActionSource(input),
     };
   };
 

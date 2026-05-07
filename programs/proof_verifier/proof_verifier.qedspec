@@ -1,0 +1,313 @@
+// Proof Verifier QEDGen scaffold
+//
+// Scope: the checkpoint lifecycle for receipt history. Merkle roots and leaves
+// are modeled as scalar digests in the current DSL scaffold so the spec can
+// focus on authority, staleness, append safety, and epoch sequencing.
+
+spec ProofVerifier
+
+program_id "7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE"
+
+const MAX_U64 = 18_446_744_073_709_551_615
+
+type HistoryCheckpoint
+  | Uninitialized
+  | Active of {
+      identity                 : Pubkey,
+      epoch                    : U64,
+      imported                 : Bool,
+      root                     : U64,
+      previous_root            : U64,
+      leaf_count               : U64,
+      latest_committed_receipt : Pubkey,
+      latest_task              : Pubkey,
+      latest_sequence          : U64,
+      bump                     : U8,
+    }
+
+type AgentIdentity = {
+  authority : Pubkey,
+}
+
+type LatestCheckpoint = {
+  identity   : Pubkey,
+  checkpoint : Pubkey,
+  epoch      : U64,
+  root       : U64,
+  bump       : U8,
+}
+
+type ReceiptRecord = {
+  identity : Pubkey,
+  task     : Pubkey,
+  sequence : U64,
+}
+
+type CheckpointImporter
+  | Uninitialized
+  | Active of {
+      authority : Pubkey,
+      bump      : U8,
+    }
+
+type HistoryUpdater
+  | Uninitialized
+  | Active of {
+      bump : U8,
+    }
+
+type Error
+  | CheckpointAuthorityMismatch
+  | CheckpointImportAuthorityMismatch
+  | CheckpointReceiptIdentityMismatch
+  | StaleCheckpoint
+  | CheckpointImportedIsReadOnly
+  | CheckpointReceiptAlreadyAppended
+  | CheckpointOrderingViolation
+  | CheckpointEpochNotSequential
+  | ProofIndexOutOfRange
+  | MathOverflow
+
+pda checkpoint ["checkpoint", identity, epoch]
+// Ghost PDA namespace for the previous epoch checkpoint. The deployed account
+// still uses CHECKPOINT_SEED with previous_checkpoint.epoch; the separate tag
+// keeps QEDGen from modeling the previous and new epoch accounts as aliases.
+pda previous_checkpoint ["previous_checkpoint", identity, previous_epoch]
+pda latest_checkpoint ["latest_checkpoint", identity]
+pda history_updater ["history_updater"]
+pda checkpoint_importer ["checkpoint_importer"]
+
+event CheckpointCreated {
+  identity   : Pubkey,
+  epoch      : U64,
+  root       : U64,
+  leaf_count : U64,
+}
+
+event CheckpointImported {
+  identity   : Pubkey,
+  epoch      : U64,
+  root       : U64,
+  leaf_count : U64,
+}
+
+event CheckpointReceiptAppended {
+  identity   : Pubkey,
+  checkpoint : Pubkey,
+  receipt    : Pubkey,
+  root       : U64,
+  leaf_count : U64,
+}
+
+event CheckpointRotated {
+  identity      : Pubkey,
+  epoch         : U64,
+  previous_root : U64,
+  new_root      : U64,
+  leaf_count    : U64,
+}
+
+event InclusionVerified {
+  identity   : Pubkey,
+  checkpoint : Pubkey,
+  receipt    : U64,
+}
+
+handler initialize_checkpoint (epoch : U64) : HistoryCheckpoint.Uninitialized -> HistoryCheckpoint.Active {
+  // Authority is checked through identity.authority below. QEDGen's `auth`
+  // shorthand only binds direct state fields, and HistoryCheckpoint does not
+  // store authority.
+  permissionless
+
+  accounts {
+    identity : writable, type AgentIdentity
+    authority : signer, writable
+    checkpoint : writable, pda [checkpoint]
+    latest_checkpoint : writable, type LatestCheckpoint, pda [latest_checkpoint]
+    history_updater : pda [history_updater]
+    identity_registry_program : readonly
+    system_program : program
+  }
+
+  requires epoch > 0
+  requires identity.authority == authority else CheckpointAuthorityMismatch
+
+  effect {
+    identity := identity
+    epoch := epoch
+    imported := false
+    root := 0
+    previous_root := 0
+    leaf_count := 0
+    latest_sequence := 0
+  }
+
+  emits CheckpointCreated
+}
+
+handler initialize_history_updater : HistoryUpdater.Uninitialized -> HistoryUpdater.Active {
+  permissionless
+
+  accounts {
+    payer : signer, writable
+    history_updater : writable, type HistoryUpdater, pda [history_updater]
+    system_program : program
+  }
+
+  effect {
+    bump := 0
+  }
+}
+
+handler initialize_checkpoint_importer (authority : Pubkey) : CheckpointImporter.Uninitialized -> CheckpointImporter.Active {
+  permissionless
+
+  accounts {
+    payer : signer, writable
+    checkpoint_importer : writable, type CheckpointImporter, pda [checkpoint_importer]
+    system_program : program
+  }
+
+  requires payer == authority else CheckpointImportAuthorityMismatch
+
+  effect {
+    authority := authority
+    bump := 0
+  }
+}
+
+handler checkpoint_import (epoch : U64) (root : U64) (leaf_count : U64) : HistoryCheckpoint.Uninitialized -> HistoryCheckpoint.Active {
+  // Import authority is checked through the CheckpointImporter account below.
+  permissionless
+
+  accounts {
+    identity : writable
+    authority : signer, writable
+    checkpoint_importer : type CheckpointImporter, pda [checkpoint_importer]
+    checkpoint : writable, pda [checkpoint]
+    latest_checkpoint : writable, type LatestCheckpoint, pda [latest_checkpoint]
+    history_updater : pda [history_updater]
+    identity_registry_program : readonly
+    system_program : program
+  }
+
+  requires epoch > 0
+  requires checkpoint_importer.authority == authority else CheckpointImportAuthorityMismatch
+
+  effect {
+    identity := identity
+    epoch := epoch
+    imported := true
+    root := root
+    previous_root := 0
+    leaf_count := leaf_count
+    latest_sequence := 0
+  }
+
+  emits CheckpointImported
+}
+
+handler append_receipt_to_checkpoint : HistoryCheckpoint.Active -> HistoryCheckpoint.Active {
+  permissionless
+
+  accounts {
+    identity : writable
+    checkpoint : writable, pda [checkpoint]
+    latest_checkpoint : writable, type LatestCheckpoint, pda [latest_checkpoint]
+    receipt : readonly, type ReceiptRecord
+    history_updater : pda [history_updater]
+    identity_registry_program : readonly
+  }
+
+  requires receipt.identity == state.identity else CheckpointReceiptIdentityMismatch
+  requires latest_checkpoint.checkpoint == checkpoint else StaleCheckpoint
+  requires not state.imported else CheckpointImportedIsReadOnly
+  requires state.leaf_count + 1 <= MAX_U64
+  requires state.leaf_count == 0 implies receipt.sequence == 1 else CheckpointOrderingViolation
+  requires state.leaf_count == 0 or receipt != state.latest_committed_receipt else CheckpointReceiptAlreadyAppended
+  requires state.leaf_count == 0 or receipt.task != state.latest_task or receipt.sequence == state.latest_sequence + 1 else CheckpointOrderingViolation
+
+  effect {
+    leaf_count += 1
+    latest_committed_receipt := receipt
+    latest_task := receipt.task
+    latest_sequence := receipt.sequence
+  }
+
+  ensures state.leaf_count == old(state.leaf_count) + 1
+  ensures state.latest_committed_receipt == receipt
+  ensures state.latest_sequence == receipt.sequence
+
+  emits CheckpointReceiptAppended
+}
+
+handler rotate_checkpoint (new_epoch : U64) : HistoryCheckpoint.Active -> HistoryCheckpoint.Active {
+  // Authority is checked through identity.authority below. QEDGen's `auth`
+  // shorthand only binds direct state fields, and HistoryCheckpoint does not
+  // store authority.
+  permissionless
+
+  accounts {
+    identity : writable, type AgentIdentity
+    authority : signer, writable
+    previous_checkpoint : pda [previous_checkpoint]
+    checkpoint : writable, pda [checkpoint]
+    latest_checkpoint : writable, type LatestCheckpoint, pda [latest_checkpoint]
+    history_updater : pda [history_updater]
+    identity_registry_program : readonly
+    system_program : program
+  }
+
+  requires identity.authority == authority else CheckpointAuthorityMismatch
+  requires latest_checkpoint.checkpoint == previous_checkpoint else StaleCheckpoint
+  requires new_epoch == state.epoch + 1 else CheckpointEpochNotSequential
+
+  effect {
+    identity := identity
+    epoch := new_epoch
+    imported := false
+    previous_root := state.root
+    root := 0
+    leaf_count := 0
+    latest_sequence := 0
+  }
+
+  ensures state.previous_root == old(state.root)
+  ensures state.leaf_count == 0
+
+  emits CheckpointRotated
+}
+
+handler verify_receipt_inclusion (leaf : U64) (leaf_index : U64) (siblings : U64) : HistoryCheckpoint.Active -> HistoryCheckpoint.Active {
+  permissionless
+
+  accounts {
+    checkpoint : pda [checkpoint]
+    latest_checkpoint : type LatestCheckpoint, pda [latest_checkpoint]
+  }
+
+  requires leaf_index < state.leaf_count else ProofIndexOutOfRange
+  requires latest_checkpoint.checkpoint == checkpoint else StaleCheckpoint
+
+  ensures state.leaf_count == old(state.leaf_count)
+  ensures state.root == old(state.root)
+
+  emits InclusionVerified
+}
+
+invariant imported_checkpoint_has_no_local_cursor
+  "imported checkpoints never accept local appends and initialize their local receipt cursor to zero"
+
+invariant empty_checkpoint_has_zero_sequence
+  "freshly initialized and rotated checkpoints reset both leaf_count and latest_sequence to zero"
+
+invariant latest_pointer_gates_mutation "append and inclusion checks must use the latest checkpoint pointer"
+
+invariant sequential_rotation "rotation advances one epoch at a time and carries the prior root forward"
+
+cover checkpoint_lifecycle [
+  initialize_checkpoint,
+  append_receipt_to_checkpoint,
+  verify_receipt_inclusion,
+  rotate_checkpoint
+]

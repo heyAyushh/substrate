@@ -139,6 +139,20 @@ export interface OnchainStakeBinding {
   readonly address: Address;
 }
 
+export interface OnchainTokenStakeBinding {
+  readonly address: Address;
+  readonly vault: Address;
+  readonly identity: Address;
+  readonly scope: Address;
+  readonly mint: Address;
+}
+
+export interface OnchainTreasuryTokenVaultBinding {
+  readonly treasuryVault: Address;
+  readonly treasuryTokenVault: Address;
+  readonly mint: Address;
+}
+
 export interface OnchainIdentityBondBinding {
   readonly address: Address;
 }
@@ -305,6 +319,8 @@ type CpiAuthorityPdaModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/pdas/cpiAuthority.js");
 type EmitReceiptInstructionModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitReceipt.js");
+type EmitDelegatedReceiptInstructionModule =
+  typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitDelegatedReceipt.js");
 type EmitAuditReceiptInstructionModule =
   typeof import("../../program-clients/dist/generated/receipt_emitter/instructions/emitAuditReceipt.js");
 type EmitChallengeResponseInstructionModule =
@@ -367,12 +383,40 @@ type AppendReceiptToCheckpointInstructionModule =
   typeof import("../../program-clients/dist/generated/proof_verifier/instructions/appendReceiptToCheckpoint.js");
 type StakePdaModule =
   typeof import("../../program-clients/dist/generated/agent_stake/pdas/stake.js");
+type TokenStakePdaModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/pdas/tokenStake.js");
+type TokenStakeVaultPdaModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/pdas/vault.js");
+type TreasuryTokenVaultPdaModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/pdas/treasuryTokenVault.js");
 type StakeAccountModule =
   typeof import("../../program-clients/dist/generated/agent_stake/accounts/stakeAccount.js");
 type InitializeStakeInstructionModule =
   typeof import("../../program-clients/dist/generated/agent_stake/instructions/initializeStake.js");
+type InitializeTokenStakeInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/initializeTokenStake.js");
+type InitializeTokenTreasuryVaultInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/initializeTokenTreasuryVault.js");
 type StakeInstructionModule =
   typeof import("../../program-clients/dist/generated/agent_stake/instructions/stake.js");
+type StakeTokenInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/stakeToken.js");
+type RequestUnstakeInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/requestUnstake.js");
+type RequestUnstakeTokenInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/requestUnstakeToken.js");
+type FinalizeUnstakeInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/finalizeUnstake.js");
+type FinalizeUnstakeTokenInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/finalizeUnstakeToken.js");
+type SlashWithAuthorityInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/slashWithAuthority.js");
+type SlashWithVerdictInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/slashWithVerdict.js");
+type SlashTokenWithAuthorityInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/slashTokenWithAuthority.js");
+type SlashTokenWithVerdictInstructionModule =
+  typeof import("../../program-clients/dist/generated/agent_stake/instructions/slashTokenWithVerdict.js");
 type AdjudicatorConfigPdaModule =
   typeof import("../../program-clients/dist/generated/dispute_resolver/pdas/adjudicatorConfig.js");
 type TreasuryVaultPdaModule =
@@ -469,6 +513,10 @@ const loadCpiAuthorityPdaModule = lazyModule<CpiAuthorityPdaModule>(
 const loadEmitReceiptInstructionModule =
   lazyModule<EmitReceiptInstructionModule>(
     "./generated/receipt_emitter/instructions/emitReceipt.js",
+  );
+const loadEmitDelegatedReceiptInstructionModule =
+  lazyModule<EmitDelegatedReceiptInstructionModule>(
+    "./generated/receipt_emitter/instructions/emitDelegatedReceipt.js",
   );
 const loadEmitAuditReceiptInstructionModule =
   lazyModule<EmitAuditReceiptInstructionModule>(
@@ -582,6 +630,15 @@ const loadAppendReceiptToCheckpointInstructionModule =
 const loadStakePdaModule = lazyModule<StakePdaModule>(
   "./generated/agent_stake/pdas/stake.js",
 );
+const loadTokenStakePdaModule = lazyModule<TokenStakePdaModule>(
+  "./generated/agent_stake/pdas/tokenStake.js",
+);
+const loadTokenStakeVaultPdaModule = lazyModule<TokenStakeVaultPdaModule>(
+  "./generated/agent_stake/pdas/vault.js",
+);
+const loadTreasuryTokenVaultPdaModule = lazyModule<TreasuryTokenVaultPdaModule>(
+  "./generated/agent_stake/pdas/treasuryTokenVault.js",
+);
 const loadStakeAccountModule = lazyModule<StakeAccountModule>(
   "./generated/agent_stake/accounts/stakeAccount.js",
 );
@@ -589,9 +646,52 @@ const loadInitializeStakeInstructionModule =
   lazyModule<InitializeStakeInstructionModule>(
     "./generated/agent_stake/instructions/initializeStake.js",
   );
+const loadInitializeTokenStakeInstructionModule =
+  lazyModule<InitializeTokenStakeInstructionModule>(
+    "./generated/agent_stake/instructions/initializeTokenStake.js",
+  );
+const loadInitializeTokenTreasuryVaultInstructionModule =
+  lazyModule<InitializeTokenTreasuryVaultInstructionModule>(
+    "./generated/agent_stake/instructions/initializeTokenTreasuryVault.js",
+  );
 const loadStakeInstructionModule = lazyModule<StakeInstructionModule>(
   "./generated/agent_stake/instructions/stake.js",
 );
+const loadStakeTokenInstructionModule = lazyModule<StakeTokenInstructionModule>(
+  "./generated/agent_stake/instructions/stakeToken.js",
+);
+const loadRequestUnstakeInstructionModule =
+  lazyModule<RequestUnstakeInstructionModule>(
+    "./generated/agent_stake/instructions/requestUnstake.js",
+  );
+const loadRequestUnstakeTokenInstructionModule =
+  lazyModule<RequestUnstakeTokenInstructionModule>(
+    "./generated/agent_stake/instructions/requestUnstakeToken.js",
+  );
+const loadFinalizeUnstakeInstructionModule =
+  lazyModule<FinalizeUnstakeInstructionModule>(
+    "./generated/agent_stake/instructions/finalizeUnstake.js",
+  );
+const loadFinalizeUnstakeTokenInstructionModule =
+  lazyModule<FinalizeUnstakeTokenInstructionModule>(
+    "./generated/agent_stake/instructions/finalizeUnstakeToken.js",
+  );
+const loadSlashWithAuthorityInstructionModule =
+  lazyModule<SlashWithAuthorityInstructionModule>(
+    "./generated/agent_stake/instructions/slashWithAuthority.js",
+  );
+const loadSlashWithVerdictInstructionModule =
+  lazyModule<SlashWithVerdictInstructionModule>(
+    "./generated/agent_stake/instructions/slashWithVerdict.js",
+  );
+const loadSlashTokenWithAuthorityInstructionModule =
+  lazyModule<SlashTokenWithAuthorityInstructionModule>(
+    "./generated/agent_stake/instructions/slashTokenWithAuthority.js",
+  );
+const loadSlashTokenWithVerdictInstructionModule =
+  lazyModule<SlashTokenWithVerdictInstructionModule>(
+    "./generated/agent_stake/instructions/slashTokenWithVerdict.js",
+  );
 const loadAdjudicatorConfigPdaModule = lazyModule<AdjudicatorConfigPdaModule>(
   "./generated/dispute_resolver/pdas/adjudicatorConfig.js",
 );
@@ -892,6 +992,64 @@ export class TrustSubstrateOnchainClient {
       }),
     );
     return { address };
+  }
+
+  async bindTokenStake(input: {
+    readonly identity: Address;
+    readonly scope: Address;
+    readonly mint: Address;
+  }): Promise<OnchainTokenStakeBinding> {
+    const { findTokenStakePda } = await loadTokenStakePdaModule();
+    const { findVaultPda } = await loadTokenStakeVaultPdaModule();
+    const address = addressFromPda(
+      await findTokenStakePda({
+        identity: input.identity,
+        scope: input.scope,
+        mint: input.mint,
+      }),
+    );
+    const vault = addressFromPda(
+      await findVaultPda({
+        tokenStake: address,
+      }),
+    );
+    return {
+      address,
+      vault,
+      identity: input.identity,
+      scope: input.scope,
+      mint: input.mint,
+    };
+  }
+
+  async bindTokenStakeVault(input: {
+    readonly tokenStake: Address;
+  }): Promise<Address> {
+    const { findVaultPda } = await loadTokenStakeVaultPdaModule();
+    return addressFromPda(
+      await findVaultPda({
+        tokenStake: input.tokenStake,
+      }),
+    );
+  }
+
+  async bindTreasuryTokenVault(input: {
+    readonly mint: Address;
+  }): Promise<OnchainTreasuryTokenVaultBinding> {
+    const { findTreasuryVaultPda } = await loadTreasuryVaultPdaModule();
+    const { findTreasuryTokenVaultPda } =
+      await loadTreasuryTokenVaultPdaModule();
+    const treasuryVault = addressFromPda(await findTreasuryVaultPda());
+    const treasuryTokenVault = addressFromPda(
+      await findTreasuryTokenVaultPda({
+        mint: input.mint,
+      }),
+    );
+    return {
+      treasuryVault,
+      treasuryTokenVault,
+      mint: input.mint,
+    };
   }
 
   async bindAttester(input: {
@@ -1535,6 +1693,439 @@ export class TrustSubstrateOnchainClient {
     return { ...binding, ...commit };
   }
 
+  async requestUnstake(input: {
+    readonly owner: TransactionSigner;
+    readonly stake: Address;
+    readonly amount: bigint;
+  }): Promise<OnchainOperationResult & { readonly stake: Address }> {
+    if (input.amount <= 0n) {
+      throw new Error("Unstake amount must be positive");
+    }
+
+    const { getRequestUnstakeInstruction } =
+      await loadRequestUnstakeInstructionModule();
+    const commit = await this.sendOperation(
+      "request_unstake",
+      getRequestUnstakeInstruction({
+        owner: input.owner,
+        stake: input.stake,
+        amount: input.amount,
+      }),
+      input.owner,
+      input.stake,
+      [`stake ${input.stake}`, `amount ${input.amount.toString()}`],
+    );
+    return { ...commit, stake: input.stake };
+  }
+
+  async finalizeUnstake(input: {
+    readonly owner: TransactionSigner;
+    readonly identity: Address;
+    readonly stake: Address;
+  }): Promise<OnchainOperationResult & { readonly stake: Address }> {
+    const { getFinalizeUnstakeInstruction } =
+      await loadFinalizeUnstakeInstructionModule();
+    const commit = await this.sendOperation(
+      "finalize_unstake",
+      getFinalizeUnstakeInstruction({
+        owner: input.owner,
+        identity: input.identity,
+        stake: input.stake,
+      }),
+      input.owner,
+      input.stake,
+      [`identity ${input.identity}`, `stake ${input.stake}`],
+    );
+    return { ...commit, stake: input.stake };
+  }
+
+  async initializeTokenTreasuryVault(input: {
+    readonly payer: TransactionSigner;
+    readonly mint: Address;
+    readonly tokenProgram?: Address;
+  }): Promise<OnchainTreasuryTokenVaultBinding & OnchainOperationResult> {
+    const { getInitializeTokenTreasuryVaultInstructionAsync } =
+      await loadInitializeTokenTreasuryVaultInstructionModule();
+    const binding = await this.bindTreasuryTokenVault(input);
+    const commit = await this.sendOperation(
+      "initialize_token_treasury_vault",
+      getInitializeTokenTreasuryVaultInstructionAsync({
+        payer: input.payer,
+        treasuryVault: binding.treasuryVault,
+        mint: input.mint,
+        treasuryTokenVault: binding.treasuryTokenVault,
+        tokenProgram: input.tokenProgram,
+      }),
+      input.payer,
+      binding.treasuryTokenVault,
+      [`mint ${input.mint}`, `treasury ${binding.treasuryVault}`],
+    );
+    return { ...binding, ...commit };
+  }
+
+  async initializeTokenStake(input: {
+    readonly owner: TransactionSigner;
+    readonly identity: Address;
+    readonly scope: Address;
+    readonly mint: Address;
+    readonly slashAuthority: Address;
+    readonly trustMode: number;
+    readonly tokenProgram?: Address;
+  }): Promise<OnchainTokenStakeBinding & OnchainOperationResult> {
+    const { getInitializeTokenStakeInstructionAsync } =
+      await loadInitializeTokenStakeInstructionModule();
+    const binding = await this.bindTokenStake(input);
+    const commit = await this.sendOperation(
+      "initialize_token_stake",
+      getInitializeTokenStakeInstructionAsync({
+        owner: input.owner,
+        identity: input.identity,
+        mint: input.mint,
+        tokenStake: binding.address,
+        vault: binding.vault,
+        scope: input.scope,
+        slashAuthority: input.slashAuthority,
+        trustMode: input.trustMode,
+        tokenProgram: input.tokenProgram,
+      }),
+      input.owner,
+      binding.address,
+      [
+        `identity ${input.identity}`,
+        `scope ${input.scope}`,
+        `mint ${input.mint}`,
+      ],
+    );
+    return { ...binding, ...commit };
+  }
+
+  async stakeToken(input: {
+    readonly owner: TransactionSigner;
+    readonly identity: Address;
+    readonly scope: Address;
+    readonly mint: Address;
+    readonly ownerTokenAccount: Address;
+    readonly amount: bigint;
+    readonly tokenProgram?: Address;
+  }): Promise<OnchainTokenStakeBinding & OnchainOperationResult> {
+    if (input.amount <= 0n) {
+      throw new Error("Token stake amount must be positive");
+    }
+
+    const { getStakeTokenInstruction } =
+      await loadStakeTokenInstructionModule();
+    const binding = await this.bindTokenStake(input);
+    const commit = await this.sendOperation(
+      "stake_token",
+      getStakeTokenInstruction({
+        owner: input.owner,
+        identity: input.identity,
+        tokenStake: binding.address,
+        mint: input.mint,
+        ownerTokenAccount: input.ownerTokenAccount,
+        vault: binding.vault,
+        tokenProgram: input.tokenProgram,
+        amount: input.amount,
+      }),
+      input.owner,
+      binding.address,
+      [
+        `identity ${input.identity}`,
+        `mint ${input.mint}`,
+        `amount ${input.amount.toString()}`,
+      ],
+    );
+    return { ...binding, ...commit };
+  }
+
+  async requestUnstakeToken(input: {
+    readonly owner: TransactionSigner;
+    readonly tokenStake: Address;
+    readonly amount: bigint;
+  }): Promise<OnchainOperationResult & { readonly tokenStake: Address }> {
+    if (input.amount <= 0n) {
+      throw new Error("Token unstake amount must be positive");
+    }
+
+    const { getRequestUnstakeTokenInstruction } =
+      await loadRequestUnstakeTokenInstructionModule();
+    const commit = await this.sendOperation(
+      "request_unstake_token",
+      getRequestUnstakeTokenInstruction({
+        owner: input.owner,
+        tokenStake: input.tokenStake,
+        amount: input.amount,
+      }),
+      input.owner,
+      input.tokenStake,
+      [`token_stake ${input.tokenStake}`, `amount ${input.amount.toString()}`],
+    );
+    return { ...commit, tokenStake: input.tokenStake };
+  }
+
+  async finalizeUnstakeToken(input: {
+    readonly owner: TransactionSigner;
+    readonly tokenStake: Address;
+    readonly mint: Address;
+    readonly ownerTokenAccount: Address;
+    readonly vault?: Address;
+    readonly tokenProgram?: Address;
+  }): Promise<
+    OnchainOperationResult & {
+      readonly tokenStake: Address;
+      readonly vault: Address;
+    }
+  > {
+    const { getFinalizeUnstakeTokenInstruction } =
+      await loadFinalizeUnstakeTokenInstructionModule();
+    const vault =
+      input.vault ??
+      (await this.bindTokenStakeVault({
+        tokenStake: input.tokenStake,
+      }));
+    const commit = await this.sendOperation(
+      "finalize_unstake_token",
+      getFinalizeUnstakeTokenInstruction({
+        owner: input.owner,
+        tokenStake: input.tokenStake,
+        mint: input.mint,
+        ownerTokenAccount: input.ownerTokenAccount,
+        vault,
+        tokenProgram: input.tokenProgram,
+      }),
+      input.owner,
+      input.tokenStake,
+      [`token_stake ${input.tokenStake}`, `mint ${input.mint}`],
+    );
+    return { ...commit, tokenStake: input.tokenStake, vault };
+  }
+
+  async slashWithAuthority(input: {
+    readonly slashAuthority: TransactionSigner;
+    readonly stake: Address;
+    readonly disputeReceipt: Address;
+    readonly amount: bigint;
+    readonly slashMarker?: Address;
+    readonly treasuryVault?: Address;
+  }): Promise<
+    OnchainOperationResult & {
+      readonly stake: Address;
+      readonly disputeReceipt: Address;
+    }
+  > {
+    if (input.amount <= 0n) {
+      throw new Error("Slash amount must be positive");
+    }
+
+    const { getSlashWithAuthorityInstructionAsync } =
+      await loadSlashWithAuthorityInstructionModule();
+    const treasuryVault =
+      input.treasuryVault ?? (await this.bindAdjudicator()).treasuryVault;
+    const commit = await this.sendOperation(
+      "slash_with_authority",
+      getSlashWithAuthorityInstructionAsync({
+        slashAuthority: input.slashAuthority,
+        stake: input.stake,
+        disputeReceipt: input.disputeReceipt,
+        slashMarker: input.slashMarker,
+        treasuryVault,
+        amount: input.amount,
+      }),
+      input.slashAuthority,
+      input.stake,
+      [
+        `stake ${input.stake}`,
+        `dispute ${input.disputeReceipt}`,
+        `amount ${input.amount.toString()}`,
+      ],
+    );
+    return {
+      ...commit,
+      stake: input.stake,
+      disputeReceipt: input.disputeReceipt,
+    };
+  }
+
+  async slashWithVerdict(input: {
+    readonly adjudicator: TransactionSigner;
+    readonly stake: Address;
+    readonly disputeReceipt: Address;
+    readonly verdict?: Address;
+    readonly slashMarker?: Address;
+    readonly treasuryVault?: Address;
+  }): Promise<
+    OnchainOperationResult & {
+      readonly stake: Address;
+      readonly disputeReceipt: Address;
+      readonly verdict: Address;
+    }
+  > {
+    const { getSlashWithVerdictInstructionAsync } =
+      await loadSlashWithVerdictInstructionModule();
+    const verdict =
+      input.verdict ??
+      (
+        await this.bindVerdict({
+          disputeReceipt: input.disputeReceipt,
+        })
+      ).address;
+    const commit = await this.sendOperation(
+      "slash_with_verdict",
+      getSlashWithVerdictInstructionAsync({
+        adjudicator: input.adjudicator,
+        stake: input.stake,
+        disputeReceipt: input.disputeReceipt,
+        verdict,
+        slashMarker: input.slashMarker,
+        treasuryVault: input.treasuryVault,
+      }),
+      input.adjudicator,
+      input.stake,
+      [
+        `stake ${input.stake}`,
+        `dispute ${input.disputeReceipt}`,
+        `verdict ${verdict}`,
+      ],
+    );
+    return {
+      ...commit,
+      stake: input.stake,
+      disputeReceipt: input.disputeReceipt,
+      verdict,
+    };
+  }
+
+  async slashTokenWithAuthority(input: {
+    readonly slashAuthority: TransactionSigner;
+    readonly tokenStake: Address;
+    readonly disputeReceipt: Address;
+    readonly mint: Address;
+    readonly amount: bigint;
+    readonly vault?: Address;
+    readonly slashMarker?: Address;
+    readonly treasuryTokenVault?: Address;
+    readonly tokenProgram?: Address;
+  }): Promise<
+    OnchainOperationResult & {
+      readonly tokenStake: Address;
+      readonly disputeReceipt: Address;
+      readonly vault: Address;
+      readonly treasuryTokenVault: Address;
+    }
+  > {
+    if (input.amount <= 0n) {
+      throw new Error("Token slash amount must be positive");
+    }
+
+    const { getSlashTokenWithAuthorityInstructionAsync } =
+      await loadSlashTokenWithAuthorityInstructionModule();
+    const vault =
+      input.vault ??
+      (await this.bindTokenStakeVault({
+        tokenStake: input.tokenStake,
+      }));
+    const treasuryTokenVault =
+      input.treasuryTokenVault ??
+      (await this.bindTreasuryTokenVault({ mint: input.mint }))
+        .treasuryTokenVault;
+    const commit = await this.sendOperation(
+      "slash_token_with_authority",
+      getSlashTokenWithAuthorityInstructionAsync({
+        slashAuthority: input.slashAuthority,
+        tokenStake: input.tokenStake,
+        disputeReceipt: input.disputeReceipt,
+        slashMarker: input.slashMarker,
+        mint: input.mint,
+        vault,
+        treasuryTokenVault,
+        tokenProgram: input.tokenProgram,
+        amount: input.amount,
+      }),
+      input.slashAuthority,
+      input.tokenStake,
+      [
+        `token_stake ${input.tokenStake}`,
+        `dispute ${input.disputeReceipt}`,
+        `amount ${input.amount.toString()}`,
+      ],
+    );
+    return {
+      ...commit,
+      tokenStake: input.tokenStake,
+      disputeReceipt: input.disputeReceipt,
+      vault,
+      treasuryTokenVault,
+    };
+  }
+
+  async slashTokenWithVerdict(input: {
+    readonly adjudicator: TransactionSigner;
+    readonly tokenStake: Address;
+    readonly disputeReceipt: Address;
+    readonly mint: Address;
+    readonly vault?: Address;
+    readonly verdict?: Address;
+    readonly slashMarker?: Address;
+    readonly treasuryTokenVault?: Address;
+    readonly tokenProgram?: Address;
+  }): Promise<
+    OnchainOperationResult & {
+      readonly tokenStake: Address;
+      readonly disputeReceipt: Address;
+      readonly verdict: Address;
+      readonly vault: Address;
+      readonly treasuryTokenVault: Address;
+    }
+  > {
+    const { getSlashTokenWithVerdictInstructionAsync } =
+      await loadSlashTokenWithVerdictInstructionModule();
+    const verdict =
+      input.verdict ??
+      (
+        await this.bindVerdict({
+          disputeReceipt: input.disputeReceipt,
+        })
+      ).address;
+    const vault =
+      input.vault ??
+      (await this.bindTokenStakeVault({
+        tokenStake: input.tokenStake,
+      }));
+    const treasuryTokenVault =
+      input.treasuryTokenVault ??
+      (await this.bindTreasuryTokenVault({ mint: input.mint }))
+        .treasuryTokenVault;
+    const commit = await this.sendOperation(
+      "slash_token_with_verdict",
+      getSlashTokenWithVerdictInstructionAsync({
+        adjudicator: input.adjudicator,
+        tokenStake: input.tokenStake,
+        disputeReceipt: input.disputeReceipt,
+        verdict,
+        slashMarker: input.slashMarker,
+        mint: input.mint,
+        vault,
+        treasuryTokenVault,
+        tokenProgram: input.tokenProgram,
+      }),
+      input.adjudicator,
+      input.tokenStake,
+      [
+        `token_stake ${input.tokenStake}`,
+        `dispute ${input.disputeReceipt}`,
+        `verdict ${verdict}`,
+      ],
+    );
+    return {
+      ...commit,
+      tokenStake: input.tokenStake,
+      disputeReceipt: input.disputeReceipt,
+      verdict,
+      vault,
+      treasuryTokenVault,
+    };
+  }
+
   async emitReceipt(input: {
     readonly authority: TransactionSigner;
     readonly identity: Address;
@@ -1562,6 +2153,41 @@ export class TrustSubstrateOnchainClient {
         payloadHash: binding.payloadHash,
       }),
       input.authority,
+      binding.address,
+      receiptExplorerMemoDetails(input.receipt),
+    );
+    return { ...binding, ...commit };
+  }
+
+  async emitDelegatedReceipt(input: {
+    readonly delegate: TransactionSigner;
+    readonly identity: Address;
+    readonly delegation: Address;
+    readonly task: Address;
+    readonly domainCatalog: Address;
+    readonly receipt: ReceiptRecord;
+  }): Promise<OnchainReceiptBinding & OnchainOperationResult> {
+    const { getEmitDelegatedReceiptInstructionAsync } =
+      await loadEmitDelegatedReceiptInstructionModule();
+    const binding = await this.bindReceipt(input);
+    const kind = RECEIPT_KIND_CODES[input.receipt.kind];
+    const commit = await this.sendOperation(
+      "emit_delegated_receipt",
+      getEmitDelegatedReceiptInstructionAsync({
+        delegate: input.delegate,
+        identity: input.identity,
+        delegation: input.delegation,
+        task: input.task,
+        receipt: binding.address,
+        domainCatalog: input.domainCatalog,
+        receiptId: binding.receiptId,
+        kind,
+        sequence: BigInt(input.receipt.sequence),
+        domain: binding.domain,
+        previousReceipt: binding.previousReceipt,
+        payloadHash: binding.payloadHash,
+      }),
+      input.delegate,
       binding.address,
       receiptExplorerMemoDetails(input.receipt),
     );

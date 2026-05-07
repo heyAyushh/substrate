@@ -1,0 +1,89 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec DelegationEngine
+
+program_id "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type DelegationCreated
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      delegate        : Pubkey,
+      allowed_actions : U8,
+      expires_at_slot : U64,
+      slot            : U64
+    }
+  | Closed
+
+type DelegationRecord
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      delegate        : Pubkey,
+      allowed_actions : U8,
+      expires_at_slot : U64,
+      revoke_at_slot  : U64,
+      revoked         : Bool,
+      bump            : U8
+    }
+  | Closed
+
+type DelegationRevoked
+  | Uninitialized
+  | Active of {
+      identity       : Pubkey,
+      delegate       : Pubkey,
+      revoke_at_slot : U64,
+      slot           : U64
+    }
+  | Closed
+
+pda delegation ["delegation", identity, delegate]
+
+handler create_delegation (allowed_actions : U8) (expires_at_slot : U64) : State.Uninitialized -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    delegate : readonly
+    delegation : writable, pda [delegation]
+    system_program : program
+  }
+}
+
+handler revoke_delegation (revoke_at_slot : U64) : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : authority delegation
+    delegation : writable, pda [delegation]
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

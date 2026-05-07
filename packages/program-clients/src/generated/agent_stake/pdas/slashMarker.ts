@@ -15,7 +15,7 @@ import {
 } from "@solana/kit";
 
 export type SlashMarkerSeeds = {
-  stake: Address;
+  tokenStake: Address;
   disputeReceipt: Address;
 };
 
@@ -34,7 +34,7 @@ export async function findSlashMarkerPda(
           115, 108, 97, 115, 104, 95, 109, 97, 114, 107, 101, 114,
         ]),
       ),
-      getAddressEncoder().encode(seeds.stake),
+      getAddressEncoder().encode(seeds.tokenStake),
       getAddressEncoder().encode(seeds.disputeReceipt),
     ],
   });

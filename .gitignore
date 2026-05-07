@@ -15,6 +15,7 @@ packages/*/dist
 packages/*/dist-tests
 examples/agent_loop/.snapshot
 examples/multi_agent/.snapshot
+examples/multi_agent/.society-identities/
 examples/multi_agent/dashboard/society.html
 examples/multi_agent/dashboard/society-app/
 examples/multi_agent/dashboard/proofs/
@@ -22,6 +23,11 @@ examples/multi_agent/society-demo-current-env.sh
 examples/multi_agent/society-ui/society-ui/
 examples/multi_agent/society-ui-app/node_modules/
 examples/multi_agent/society-ui-app/dist/
+examples/pi-console/.git/
+examples/pi-console/.snapshot/
+examples/pi-console/dist/
+examples/pi-console/node_modules/
+examples/pi-console/test-results/
 test-ledger/
 .yarn
 .surfpool/

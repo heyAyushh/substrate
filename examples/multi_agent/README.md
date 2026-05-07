@@ -146,7 +146,25 @@ Useful files:
 The society board is now live-only. The browser reads a Surfpool-backed world
 session, the server advances one confirmed action at a time, and the compact
 world snapshot is written into the on-chain society world account after each
-step. When the run completes, the server also writes a proof file.
+step. Each agent gets a local identity folder under
+`examples/multi_agent/.society-identities/`, holds its own Solana keypair, signs
+its action transcript entry before submission, signs the after-action state
+commitment, and submits the action receipt through an on-chain delegation from
+the society task identity. The browser board only reads the committed Surfpool
+world state; it is not the validator. The final proof file includes the Merkle
+transcript root. Each live action also carries the canonical action envelope
+linking the agent id, identity address, task address, before/after state hashes,
+receipt payload hash, transaction signature, slot, agent signature, and
+transcript leaf. Model-backed Pi launch is still explicit; the board does not
+send hidden Pi/LLM prompts.
+
+To make live steps ask Pi, run a Pi local-runtime server such as the Pi console
+dev server, then set `SUBSTRATE_SOCIETY_PI_ACTIONS=1`. The society server sends
+the acting agent a system prompt containing commit-ready allowed actions for the
+current tick, plus identity, delegation, and receipt context. Pi must return
+strict JSON selecting one allowed action before the delegated receipt is emitted.
+If Pi is disabled, missing, refuses, or returns a mismatched action, no fake
+response is substituted.
 
 Build the browser bundle:
 
@@ -179,15 +197,27 @@ pnpm society
 Set `SUBSTRATE_PUBLIC_SOCIETY_URL`, `SUBSTRATE_PUBLIC_RPC_URL`, and
 `SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL` when the demo is behind a named tunnel or
 public domain. The browser uses those public links while the server still writes
-to the local Surfpool RPC in `SUBSTRATE_RPC_URL`.
+to the local Surfpool RPC in `SUBSTRATE_RPC_URL`. Live write routes stay
+loopback-only unless `SUBSTRATE_ALLOW_PUBLIC_LIVE_MUTATION=1` is set for an
+intentional public demo.
 
 Open the printed `/society` URL. Nothing starts on page load. `Go live`
-creates a server-owned live session, `Resume last` intentionally reopens the
-latest server-side session after a refresh, `Step` commits exactly one pending
-action, and `Play` / `Pause` streams confirmed actions until the server writes
-the final proof artifact.
+creates a paused server-owned live session, `Resume last` intentionally reopens
+the latest server-side session after a refresh, `Step` commits exactly one
+pending action, and `Play` / `Pause` streams confirmed actions until the server
+writes the final proof artifact.
 
 The curated onboarding worlds are tuned to stay live-first and responsive on
 first paint. They produce child-agent lineage, failures, inherited value,
 receipts, account links, and final proof files without offering offline preview
 or replay controls.
+
+The Surfpool panel includes a protocol evidence graph plus a program coverage
+card for all nine deployable Trust Substrate programs. The task program is the
+board anchor: it owns the society task and Surfpool world state that the browser
+reads. The other programs add supporting trust evidence for identity,
+attestation, delegation, receipts, history proofs, reputation, stake, and
+disputes. The evidence graph indexes readable records per program and marks
+missing evidence visibly instead of treating absence as proof. The card also
+names the boundary where the board does not auto-play a deeper capability, such
+as delegation revocation or adversarial dispute escalation.

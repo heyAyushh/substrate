@@ -31,15 +31,7 @@ import {
 } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Empty, EmptyDescription } from "@/components/ui/empty"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-  FieldSet,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -150,6 +142,67 @@ type ProgramNode = {
   role: string
 }
 
+type ProgramWiringStep = {
+  name: string
+  action: string
+  demoRole: "board-primary" | "supporting-trust-program"
+  status: "wired"
+  expectedRecords: number
+  demoSurface: string
+  evidence: string
+  boundary: string
+}
+
+type ProgramWiringPlan = {
+  programs: ProgramWiringStep[]
+  summary: {
+    totalPrograms: number
+    compressedBatches: number
+    tokenizedAgents: number
+    emittedReceipts: number
+  }
+}
+
+type ProtocolEvidenceRecord = {
+  label: string
+  source: "account" | "operation" | "receipt" | "action-envelope"
+  address?: string
+  signature?: string
+  slot?: number
+  agentId?: string
+  receiptId?: string
+  txSignature?: string
+  hash?: string
+  note?: string
+}
+
+type ProtocolProgramEvidence = {
+  name: string
+  demoRole: "board-primary" | "supporting-trust-program"
+  demoSurface: string
+  boundary: string
+  status: "present" | "missing"
+  expectedRecords: number
+  records: ProtocolEvidenceRecord[]
+  missing: string[]
+}
+
+type ProtocolEvidenceGraph = {
+  schemaVersion: number
+  graphHash: string
+  generatedAt: string
+  programs: ProtocolProgramEvidence[]
+  summary: {
+    totalPrograms: number
+    presentPrograms: number
+    missingPrograms: number
+    records: number
+    receipts: number
+    actionEnvelopes: number
+    transactions: number
+  }
+}
+
 type TokenizedAgent = {
   agentId: string
   agentName: string
@@ -236,6 +289,11 @@ type SocietyResult = {
     receiptsPerCompressedTx: number
     seed: string
     initialCells?: Cell[]
+    actionSource?: {
+      kind: "simulation" | "pi-agent" | "pi-llm" | "external"
+      driver: string
+      note?: string
+    }
   }
   agents: CellAgent[]
   grid: {
@@ -299,6 +357,21 @@ type CommitProofReference = {
   status: "prepared" | "committed" | "failed"
 }
 
+type AgentActionEnvelope = {
+  agentId: string
+  identityAddress: string
+  taskAddress: string
+  tick: number | null
+  action: string
+  receiptAddress: string
+  receiptPayloadHash: string
+  txSignature: string
+  slot: number
+  agentSignature: string
+  transcriptRoot: string
+  leafHash: string
+}
+
 type LiveCommittedAction = {
   address: string
   signature: string
@@ -307,6 +380,30 @@ type LiveCommittedAction = {
   action: string
   tick: number
   agentId: string
+  actionProof?: {
+    actionEnvelope?: AgentActionEnvelope
+    transcriptRoot: string
+    leafHash: string
+    signer: string
+    signature: string
+    scheme: string
+    beforeStateHash?: string
+    beforeStateSignature?: string
+    beforeStateScheme?: string
+    afterStateHash?: string
+    afterStateSignature?: string
+    afterStateScheme?: string
+    runtimeEvidence?: {
+      kind: "pi-action"
+      provider: string
+      modelId: string
+      promptHash: string
+      responseHash: string
+      decisionHash: string
+    }
+    submitter?: string
+    delegation?: string
+  }
 }
 
 type LiveSessionSnapshot = {
@@ -336,6 +433,12 @@ type LiveStartResponse = {
 type LiveAgentAccount = {
   agentId: string
   agentName?: string
+  authority: {
+    address: string
+    identityDirectory: string
+    keypairPath: string
+    created: boolean
+  }
   startingTokens: string
   tokenProgram: string
   identity: {
@@ -352,6 +455,10 @@ type LiveAgentAccount = {
     address: string
     signature?: string
     slot?: number
+  }
+  funding?: {
+    lamports: string
+    signature?: string
   }
 }
 
@@ -384,6 +491,18 @@ type LiveAdjudicatorAccount = {
 
 type AgentAccountLike = LiveAgentAccount
 
+type LiveSetupStatus = {
+  stakeAsset: string
+  requestedAgentCount: number
+  readyAgentCount: number
+  fundedAgentCount: number
+  identityAccountCount: number
+  delegationAccountCount: number
+  solStakeAccountCount: number
+  protocolOperationCount: number
+  worldReady: boolean
+}
+
 type LiveSessionAccountSnapshot = {
   sessionId: string
   rpcUrl: string
@@ -397,7 +516,10 @@ type LiveSessionAccountSnapshot = {
     address: string
     status: number
   }
+  setup: LiveSetupStatus
   agentAccounts: LiveAgentAccount[]
+  programPlan: ProgramWiringPlan
+  protocolEvidence: ProtocolEvidenceGraph
 }
 
 type PublicLinkConfig = {
@@ -434,6 +556,7 @@ const LIVE_WORLD_STATUS_ACTIVE = 0
 const LIVE_WORLD_STATUS_COMPLETE = 1
 const LIVE_PROGRAMS: ProgramNode[] = [
   { name: "identity_registry", role: "who owns the main identity" },
+  { name: "attester_registry", role: "who can attest to identity evidence" },
   { name: "task_registry", role: "the live world account" },
   { name: "receipt_emitter", role: "action receipts" },
   { name: "delegation_engine", role: "who may act for whom" },
@@ -497,6 +620,12 @@ const SECTION_CARD_CLASS =
 const SECTION_HEADER_CLASS = "border-b border-border/80 py-3"
 const PANEL_SURFACE_CLASS =
   "rounded-lg border border-border/80 bg-background/35 p-3 shadow-none backdrop-blur-[3px]"
+const PLAYGROUND_DETAIL_PANEL_CLASS =
+  "rounded-lg border border-border/80 bg-background/35 p-3 shadow-none backdrop-blur-[3px]"
+const INTERACTIVE_PANEL_CLASS =
+  "rounded-lg border border-border/80 bg-background/35 p-3 text-left shadow-none backdrop-blur-[3px] transition-[border-color,background-color,box-shadow,transform] duration-150 hover:border-foreground/35 hover:bg-background/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-y-px"
+const SELECTED_PANEL_CLASS =
+  "border-primary/75 bg-background/45 ring-2 ring-primary/50"
 const METRIC_SURFACE_CLASS =
   "rounded-lg border border-border/75 bg-background/30 p-3 shadow-none backdrop-blur-[2px]"
 const GRAPH_SURFACE_CLASS =
@@ -508,15 +637,25 @@ const GRAPH_FULLSCREEN_SVG_CLASS = "block h-svh w-full"
 const PLAYGROUND_FULLSCREEN_BUTTON_CLASS =
   "size-10 border-border bg-background/40 text-foreground backdrop-blur-[3px] hover:bg-background/60"
 const PLAYGROUND_FULLSCREEN_CLASS =
-  "society-playground-fullscreen h-svh overflow-auto bg-background p-3 fullscreen:bg-background"
+  "society-playground-fullscreen grid h-svh max-h-svh grid-rows-[auto_minmax(0,1fr)_auto_auto_auto] content-stretch overflow-hidden bg-background p-2 fullscreen:bg-background md:p-3"
+const PLAYGROUND_STACK_CLASS =
+  "relative grid min-h-0 min-w-0 content-start gap-1.5"
+const PLAYGROUND_BOARD_SURFACE_CLASS = "relative"
+const PLAYGROUND_FULLSCREEN_BOARD_CLASS = "min-h-0 overflow-hidden"
+const PLAYGROUND_CANVAS_CLASS =
+  "block h-[520px] w-full rounded-md bg-transparent max-md:h-[420px] focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+const PLAYGROUND_FULLSCREEN_CANVAS_CLASS = "h-full min-h-0"
+const PREPARATION_STEP_DETAIL_CLASS =
+  "mt-1 whitespace-normal break-words font-mono text-xs leading-5 text-muted-foreground"
 const AGENT_IMAGE_CLASS =
   "size-8 shrink-0 rounded-md border border-border bg-background/40"
 const EVENT_IMAGE_CLASS =
   "size-6 shrink-0 rounded-md border border-border bg-background/40"
 const EMPTY_STATE_CLASS =
   "min-h-32 rounded-lg border border-dashed border-border bg-background/20 backdrop-blur-[3px]"
+const PLAYGROUND_EMPTY_STATE_CLASS =
+  "min-h-20 rounded-lg border border-dashed border-border bg-background/20 backdrop-blur-[3px]"
 const numberFormat = new Intl.NumberFormat("en-US")
-const numericPattern = /^[0-9]+$/
 const BOARD_FIELD_FILL = "rgba(0,0,0,0)"
 const BOARD_FIELD_BORDER = "rgba(255,255,255,0.96)"
 const NEWBORN_AGENT_FILL = "rgba(255,255,255,0.96)"
@@ -525,7 +664,12 @@ const DEATH_AGENT_FILL = "rgba(255,255,255,0.08)"
 const DEATH_MARK_BORDER = "rgba(255,255,255,0.82)"
 const DEATH_MARK_STRIPE = "rgba(255,255,255,0.42)"
 const BOARD_PREVIOUS_CELL_BORDER = "rgba(255,255,255,0.58)"
+const BOARD_SELECTED_CELL_BORDER = "rgba(255,255,255,0.98)"
+const BOARD_HOVER_CELL_BORDER = "rgba(255,255,255,0.74)"
+const BOARD_SELECTION_GLOW = "rgba(255,255,255,0.26)"
 const BOARD_MARK_LINE_WIDTH = 3
+const BOARD_SELECTION_LINE_WIDTH = 2
+const BOARD_SELECTION_GLOW_BLUR = 8
 const BOARD_STRIPE_SPACING = 4
 const BOARD_STRIPE_WIDTH = 1
 const BOARD_DASH_LENGTH = 3
@@ -561,6 +705,7 @@ const ONBOARDING_PROOF_POINTS = [
   ["Parent link", "Birth creates a child agent with its own identity."],
   ["Surfpool", "Accounts and actions are inspectable in Studio and Explorer."],
 ]
+const SOCIETY_TOKEN_SYMBOL = "$SUBSOL"
 
 type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>
 
@@ -588,6 +733,12 @@ const formatTokenDelta = (value: number | undefined) => {
   return value > 0 ? `+${format(value)}` : format(value)
 }
 
+const formatSocietyTokenAmount = (value: number | string | undefined) =>
+  `${format(value)} ${SOCIETY_TOKEN_SYMBOL}`
+
+const formatSocietyTokenDelta = (value: number | undefined) =>
+  `${formatTokenDelta(value)} ${SOCIETY_TOKEN_SYMBOL}`
+
 const formatAgentName = (agentId: string, frame: TimelineFrame) =>
   frame.leaderboard.find((agent) => agent.id === agentId)?.name ||
   short(agentId, 4)
@@ -606,7 +757,7 @@ const buildFixedBoardCommentary = ({
   if (!liveSnapshot || !latestEvent) {
     return {
       label: "No world is open in this browser.",
-      detail: `Click Go live to create Surfpool records. Board preview: tick ${format(
+      detail: `Launch from onboarding to prepare paused Surfpool records. Board preview: tick ${format(
         frame.tick
       )}, ${format(frame.liveAgents)} agents, ${format(
         frame.liveCells
@@ -636,7 +787,7 @@ const buildFixedBoardCommentary = ({
     } ${latestEvent.action} at square ${format(latestEvent.cell.x)},${format(
       latestEvent.cell.y
     )}.`,
-    detail: `Receipt ${latestEvent.receiptKind}; token change ${formatTokenDelta(
+    detail: `Receipt ${latestEvent.receiptKind}; ${SOCIETY_TOKEN_SYMBOL} change ${formatTokenDelta(
       latestEvent.tokenDelta
     )}; committed actions ${format(liveSnapshot.committedActions.length)}.`,
   }
@@ -758,6 +909,11 @@ function buildSimulationConfig(
     gridSize,
     receiptsPerCompressedTx: parseIntegerInput(form.receiptsPerCompressedTx, 4),
     seed: form.seed || OPTIMAL_FORM.seed,
+    actionSource: {
+      kind: "pi-agent",
+      driver: "pi-agent-delegated-submitter",
+      note: "Agents hold local keypairs and submit delegated receipts; model prompts are still explicit.",
+    },
     scenario:
       form.pattern === "custom"
         ? "genesis"
@@ -966,7 +1122,9 @@ function App() {
   const [isStartingLive, setIsStartingLive] = React.useState(false)
   const [isResumingLive, setIsResumingLive] = React.useState(false)
   const [isSendingLiveCommand, setIsSendingLiveCommand] = React.useState(false)
-  const [liveStatus, setLiveStatus] = React.useState("Idle: click Go live")
+  const [liveStatus, setLiveStatus] = React.useState(
+    "Idle: launch from onboarding"
+  )
   const [liveColorAgentIds, setLiveColorAgentIds] = React.useState<string[]>([])
   const [liveAccounts, setLiveAccounts] =
     React.useState<LiveSessionAccountSnapshot>()
@@ -1174,6 +1332,13 @@ function App() {
       push("Treasury vault", liveAccounts.adjudicator.treasuryVault)
     }
     for (const agentAccount of liveAccounts.agentAccounts) {
+      if (agentAccount.authority?.address) {
+        push(
+          `${agentAccount.agentName} signer`,
+          agentAccount.authority.address,
+          agentAccount.funding?.signature
+        )
+      }
       push(
         `${agentAccount.agentName} identity`,
         agentAccount.identity.address,
@@ -1187,7 +1352,7 @@ function App() {
         )
       }
       push(
-        `${agentAccount.agentName} stake`,
+        `${agentAccount.agentName} SOL stake`,
         agentAccount.stake.address,
         agentAccount.stake.signature
       )
@@ -1202,6 +1367,7 @@ function App() {
     undefined
   const currentRpcUrl = liveAccounts?.rpcUrl ?? publicLinks.rpcUrl
   const currentStudioUrl = liveAccounts?.studioUrl ?? publicLinks.studioUrl
+  const requestedAgentCount = parseIntegerInput(form.agents, 6)
 
   React.useEffect(() => {
     let cancelled = false
@@ -1300,7 +1466,9 @@ function App() {
       nextHeroArchetype?: string
     } = {}) => {
       setIsStartingLive(true)
-      setLiveStatus("Writing first Surfpool records")
+      setLiveStatus(
+        `Preparing ${parseIntegerInput(nextForm.agents, 6)} agents on Surfpool`
+      )
       setLiveColorAgentIds([])
       setLiveAccounts(undefined)
       setLiveAccountsError(undefined)
@@ -1333,9 +1501,11 @@ function App() {
         )
         setHoveredAgentId(undefined)
         setActiveTab("events")
+        return true
       } catch (error) {
         setLiveSnapshot(undefined)
         setLiveStatus(`Live start failed: ${(error as Error).message}`)
+        return false
       } finally {
         setIsStartingLive(false)
       }
@@ -1371,7 +1541,7 @@ function App() {
       setActiveTab("events")
     } catch {
       setLiveSnapshot(undefined)
-      setLiveStatus("No latest world found. Click Go live.")
+      setLiveStatus("No latest world found. Launch from onboarding.")
     } finally {
       setIsResumingLive(false)
     }
@@ -1424,7 +1594,7 @@ function App() {
       setSelectedTemplateId(nextTemplate.id)
       setForm(nextTemplate.form)
       setCustomCells(undefined)
-      clearLiveSessionView("World selected. Click Go live to start it.")
+      clearLiveSessionView("World selected. Launch from onboarding when ready.")
     },
     [availableTemplates, clearLiveSessionView]
   )
@@ -1434,7 +1604,7 @@ function App() {
       `${form.seed}-${selectedTemplateId}`
     )
     setSelectedArchetype(nextChoice.id)
-    clearLiveSessionView("Agent selected. Click Go live to start it.")
+    clearLiveSessionView("Agent selected. Launch from onboarding when ready.")
   }, [clearLiveSessionView, form.seed, selectedTemplateId])
 
   const selectAgentView = React.useCallback(
@@ -1458,6 +1628,15 @@ function App() {
       writeExperienceLocation("world", selectedAgentId, true)
     }
   }, [heroAgent, selectedAgentId])
+
+  const startOnboardingLiveWorld = React.useCallback(async () => {
+    if (liveSnapshot) {
+      enterSociety()
+      return
+    }
+    const didStart = await startLiveSession()
+    if (didStart) enterSociety()
+  }, [enterSociety, liveSnapshot, startLiveSession])
 
   React.useEffect(() => {
     return () => {
@@ -1580,6 +1759,12 @@ function App() {
         "y" in pendingAction.payloadExtras.movedFrom
           ? keyForCell(pendingAction.payloadExtras.movedFrom as Cell)
           : undefined
+      const selectedBoardAgent = selectedAgentId
+        ? frame.agents.find((agent) => agent.id === selectedAgentId)
+        : undefined
+      const hoveredBoardAgent = hoveredAgentId
+        ? frame.agents.find((agent) => agent.id === hoveredAgentId)
+        : undefined
 
       context.clearRect(0, 0, width, height)
       if (BOARD_FIELD_FILL !== "rgba(0,0,0,0)") {
@@ -1648,6 +1833,34 @@ function App() {
         )
       }
 
+      const drawAgentSelectionRing = (
+        cell: Cell,
+        strokeStyle: string,
+        shouldGlow: boolean
+      ) => {
+        const x = offsetX + cell.x * cellSize
+        const y = offsetY + cell.y * cellSize
+        const sizePx = Math.max(cellSize - 1, 1)
+        const lineWidth = Math.max(scale * BOARD_SELECTION_LINE_WIDTH, 1)
+        context.save()
+        context.lineWidth = lineWidth
+        context.strokeStyle = strokeStyle
+        if (shouldGlow) {
+          context.shadowColor = BOARD_SELECTION_GLOW
+          context.shadowBlur = Math.max(
+            scale * BOARD_SELECTION_GLOW_BLUR,
+            BOARD_SELECTION_GLOW_BLUR
+          )
+        }
+        context.strokeRect(
+          x + lineWidth / 2,
+          y + lineWidth / 2,
+          Math.max(sizePx - lineWidth, 0),
+          Math.max(sizePx - lineWidth, 0)
+        )
+        context.restore()
+      }
+
       for (const founder of customFounderCells) {
         drawCellRect(founder, NEWBORN_AGENT_FILL)
       }
@@ -1662,6 +1875,17 @@ function App() {
 
       for (const cell of frame.deaths) {
         drawDeathCell(cell, pendingTargetKey === keyForCell(cell))
+      }
+
+      if (selectedBoardAgent) {
+        drawAgentSelectionRing(
+          selectedBoardAgent,
+          BOARD_SELECTED_CELL_BORDER,
+          true
+        )
+      }
+      if (hoveredBoardAgent && hoveredBoardAgent.id !== selectedBoardAgent?.id) {
+        drawAgentSelectionRing(hoveredBoardAgent, BOARD_HOVER_CELL_BORDER, false)
       }
 
       if (pendingSourceKey && pendingSourceKey !== pendingTargetKey) {
@@ -1710,6 +1934,8 @@ function App() {
     liveDisplayMode,
     liveSnapshot,
     playgroundFullscreen.isFullscreen,
+    selectedAgentId,
+    hoveredAgentId,
   ])
 
   React.useEffect(() => {
@@ -1747,16 +1973,9 @@ function App() {
     setForm(nextForm)
     setCustomCells(nextCustomCells)
     setHoveredAgentId(undefined)
-    clearLiveSessionView("Configuration changed. Click Go live to start it.")
-  }
-
-  const setNumericField = (key: keyof SimulationForm, value: string) => {
-    if (value && !numericPattern.test(value)) return
-    updateSimulationForm({ ...form, [key]: value })
-  }
-
-  const setTextField = (key: keyof SimulationForm, value: string) => {
-    updateSimulationForm({ ...form, [key]: value })
+    clearLiveSessionView(
+      "Configuration changed. Launch from onboarding when ready."
+    )
   }
 
   const toggleCell = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1767,7 +1986,7 @@ function App() {
       cell && frame.agents.find((candidate) => sameCell(candidate, cell))
 
     if (agent) {
-      selectAgentView(agent.id, onboardingComplete ? "agents" : "world")
+      selectAgentView(agent.id, "world")
       return
     }
 
@@ -1794,6 +2013,15 @@ function App() {
     const agent =
       cell && frame.agents.find((candidate) => sameCell(candidate, cell))
     setHoveredAgentId(agent ? agent.id : undefined)
+  }
+
+  const handleBoardKeyDown = (
+    event: React.KeyboardEvent<HTMLCanvasElement>
+  ) => {
+    if (!selectedAgent) return
+    if (event.key !== "Enter" && event.key !== " ") return
+    event.preventDefault()
+    selectAgentView(selectedAgent.id, "agents")
   }
 
   return (
@@ -1839,8 +2067,8 @@ function App() {
         </header>
 
         {activeView === "world" ? (
-          <section className="grid gap-3 lg:grid-cols-[320px_minmax(0,1fr)_320px]">
-            <Card className={SECTION_CARD_CLASS}>
+          <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(280px,320px)_minmax(420px,1fr)_minmax(280px,320px)]">
+            <Card className={cn(SECTION_CARD_CLASS, "min-w-0")}>
               <CardHeader className={SECTION_HEADER_CLASS}>
                 <CardTitle>World Story</CardTitle>
                 <CardAction>
@@ -1869,13 +2097,14 @@ function App() {
                     </p>
                     <p className="mt-2 text-xs text-foreground">
                       {activeTemplate?.cue ||
-                        "Pick a world, then click Go live to write records on Surfpool."}
+                        "Pick a world in onboarding, then launch the Surfpool session from that flow."}
                     </p>
                     <div className="mt-3 grid gap-1 text-xs text-muted-foreground">
                       <p>Template: {activeTemplate?.name || "Custom world"}</p>
+                      <p>Agents: {format(requestedAgentCount)}</p>
                       <p>Follow: {selectedArchetype}</p>
                       <p>
-                        Record: actions, lineage, and trust stay linked.
+                        Record: signed actions, transcript roots, lineage, and trust stay linked.
                       </p>
                     </div>
                   </div>
@@ -1886,10 +2115,13 @@ function App() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="grid gap-1">
                         <p className="text-sm text-foreground">
-                          World controls
+                          World status
                         </p>
                         <p className="font-mono text-xs text-muted-foreground">
                           {liveStatus}
+                        </p>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          The board reads the signed Surfpool world state.
                         </p>
                       </div>
                       <Badge variant={hasLiveSession ? "secondary" : "outline"}>
@@ -1897,17 +2129,44 @@ function App() {
                       </Badge>
                     </div>
                     <div className="grid gap-2">
+                      <LivePreparationPanel
+                        requestedAgentCount={requestedAgentCount}
+                        liveAccounts={liveAccounts}
+                        isStartingLive={isStartingLive}
+                        isResumingLive={isResumingLive}
+                        isLoadingLiveAccounts={isLoadingLiveAccounts}
+                        liveAccountsError={liveAccountsError}
+                        hasLiveSession={hasLiveSession}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant={
+                            liveDisplayMode === "pending"
+                              ? "secondary"
+                              : "outline"
+                          }
+                          onClick={() => setLiveDisplayMode("pending")}
+                        >
+                          Pending
+                        </Button>
+                        <Button
+                          variant={
+                            liveDisplayMode === "strict"
+                              ? "secondary"
+                              : "outline"
+                          }
+                          onClick={() => setLiveDisplayMode("strict")}
+                        >
+                          Strict
+                        </Button>
+                      </div>
                       <Button
-                        variant="secondary"
+                        variant="outline"
                         size="lg"
-                        onClick={() => void startLiveSession()}
-                        disabled={isStartingLive || isResumingLive}
+                        onClick={reconnectLiveSession}
+                        disabled={!liveSnapshot}
                       >
-                        {isStartingLive
-                          ? "Writing records"
-                          : hasLiveSession
-                            ? "Start new world"
-                            : "Go live"}
+                        Reconnect stream
                       </Button>
                       {!hasLiveSession && (
                         <Button
@@ -1940,167 +2199,13 @@ function App() {
                     </div>
                   </div>
                 )}
-
-                {onboardingComplete && (
-                  <details className="rounded-lg border border-border/70 bg-background/25 p-3">
-                    <summary className="cursor-pointer list-none text-sm text-foreground">
-                      Advanced setup
-                    </summary>
-                    <FieldSet className="mt-3">
-                      <FieldGroup className="gap-3">
-                        <Field>
-                          <FieldLabel htmlFor="pattern">Pattern</FieldLabel>
-                          <NativeSelect
-                            id="pattern"
-                            value={form.pattern}
-                            onChange={(event) => {
-                              updateSimulationForm(
-                                { ...form, pattern: event.target.value },
-                                undefined
-                              )
-                            }}
-                          >
-                            <NativeSelectOption value="empire">
-                              Empire Ascent
-                            </NativeSelectOption>
-                            <NativeSelectOption value="reactor">
-                              Reactor Breach
-                            </NativeSelectOption>
-                            <NativeSelectOption value="genesis">
-                              Genesis bloom
-                            </NativeSelectOption>
-                            <NativeSelectOption value="frontier">
-                              Frontier
-                            </NativeSelectOption>
-                            <NativeSelectOption value="convoy">
-                              Convoy pressure
-                            </NativeSelectOption>
-                            <NativeSelectOption value="clear">
-                              Clear
-                            </NativeSelectOption>
-                            <NativeSelectOption value="custom">
-                              Custom
-                            </NativeSelectOption>
-                          </NativeSelect>
-                        </Field>
-                        <div className="grid grid-cols-2 gap-2">
-                          <NumberField
-                            id="agents"
-                            label="Agents"
-                            value={form.agents}
-                            onChange={(value) =>
-                              setNumericField("agents", value)
-                            }
-                          />
-                          <NumberField
-                            id="ticks"
-                            label="Ticks"
-                            value={form.ticks}
-                            onChange={(value) =>
-                              setNumericField("ticks", value)
-                            }
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <NumberField
-                            id="tokens"
-                            label="Birth grant"
-                            value={form.initialTokens}
-                            onChange={(value) =>
-                              setNumericField("initialTokens", value)
-                            }
-                          />
-                          <NumberField
-                            id="grid"
-                            label="Grid"
-                            value={form.gridSize}
-                            onChange={(value) =>
-                              setNumericField("gridSize", value)
-                            }
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <NumberField
-                            id="income"
-                            label="Stipend"
-                            value={form.universalIncome}
-                            onChange={(value) =>
-                              setNumericField("universalIncome", value)
-                            }
-                          />
-                          <NumberField
-                            id="living-cost"
-                            label="Living cost"
-                            value={form.livingCost}
-                            onChange={(value) =>
-                              setNumericField("livingCost", value)
-                            }
-                          />
-                        </div>
-                        <NumberField
-                          id="batch"
-                          label="Receipts per batch"
-                          value={form.receiptsPerCompressedTx}
-                          onChange={(value) =>
-                            setNumericField("receiptsPerCompressedTx", value)
-                          }
-                        />
-                        <Field>
-                          <FieldLabel htmlFor="seed">Seed</FieldLabel>
-                          <Input
-                            id="seed"
-                            autoComplete="off"
-                            spellCheck={false}
-                            value={form.seed}
-                            onChange={(event) =>
-                              setTextField("seed", event.target.value)
-                            }
-                          />
-                        </Field>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            variant={
-                              liveDisplayMode === "pending"
-                                ? "secondary"
-                                : "outline"
-                            }
-                            onClick={() => setLiveDisplayMode("pending")}
-                          >
-                            Pending
-                          </Button>
-                          <Button
-                            variant={
-                              liveDisplayMode === "strict"
-                                ? "secondary"
-                                : "outline"
-                            }
-                            onClick={() => setLiveDisplayMode("strict")}
-                          >
-                            Strict
-                          </Button>
-                        </div>
-                        <Button
-                          variant="outline"
-                          onClick={reconnectLiveSession}
-                          disabled={!liveSnapshot}
-                        >
-                          Reconnect stream
-                        </Button>
-                        <FieldDescription>
-                          Use this only when you need to change the run shape.
-                          The board remains the source of truth.
-                        </FieldDescription>
-                      </FieldGroup>
-                    </FieldSet>
-                  </details>
-                )}
               </CardContent>
             </Card>
 
             <section
               ref={playgroundRef}
               className={cn(
-                "relative grid min-h-0 content-start gap-2.5",
+                PLAYGROUND_STACK_CLASS,
                 playgroundFullscreen.isFullscreen && PLAYGROUND_FULLSCREEN_CLASS
               )}
             >
@@ -2137,23 +2242,43 @@ function App() {
                   </Button>
                 </div>
               </div>
-              <div className="relative">
+              <div
+                className={cn(
+                  PLAYGROUND_BOARD_SURFACE_CLASS,
+                  playgroundFullscreen.isFullscreen &&
+                    PLAYGROUND_FULLSCREEN_BOARD_CLASS
+                )}
+              >
                 <canvas
                   ref={canvasRef}
                   className={cn(
-                    "block h-[520px] w-full bg-transparent max-md:h-[420px]",
+                    PLAYGROUND_CANVAS_CLASS,
+                    hoveredAgent
+                      ? "cursor-pointer"
+                      : liveSnapshot
+                        ? "cursor-default"
+                        : "cursor-crosshair",
                     playgroundFullscreen.isFullscreen &&
-                      "min-h-[420px] flex-1 md:h-[calc(100svh-230px)]"
+                      PLAYGROUND_FULLSCREEN_CANVAS_CLASS
                   )}
+                  tabIndex={0}
+                  role="button"
                   onClick={toggleCell}
+                  onKeyDown={handleBoardKeyDown}
                   onMouseMove={inspectAgentAtPointer}
                   onMouseLeave={() => setHoveredAgentId(undefined)}
                   title={
                     hoveredAgent
                       ? `${hoveredAgent.name} - id ${hoveredAgent.identityId} - board ${hoveredAgent.x},${hoveredAgent.y}`
-                      : "Hover an agent after Go live to see details"
+                      : selectedAgent
+                        ? `Selected ${selectedAgent.name}. Press Enter or Space to open its agent card.`
+                        : "Hover an agent after launch to see details"
                   }
-                  aria-label="Agent society board"
+                  aria-label={
+                    selectedAgent
+                      ? `Agent society board. Selected ${selectedAgent.name}. Press Enter or Space to open its agent card.`
+                      : "Agent society board"
+                  }
                 />
                 {boardLayout && deathBursts.length > 0 && (
                   <div
@@ -2183,6 +2308,9 @@ function App() {
               <IdentityInspector
                 agent={inspectedAgent}
                 isHovering={Boolean(hoveredAgent)}
+                isSelected={Boolean(
+                  selectedAgent && inspectedAgent?.id === selectedAgent.id
+                )}
               />
               {liveSnapshot ? (
                 <div className="grid gap-2">
@@ -2245,8 +2373,8 @@ function App() {
                   <AlertDescription>
                     <span>
                       {isStartingLive
-                        ? "Writing the first Surfpool records. Public tunnel starts can take about 30 seconds."
-                        : "Nothing is being written from this browser. Use World controls to create or resume a Surfpool session."}
+                        ? "Preparing Surfpool records, agent identities, delegation, and SOL stake. Public tunnel starts can take about 30 seconds."
+                        : "Nothing is being written from this browser. Launch from onboarding or resume the last Surfpool session."}
                     </span>
                   </AlertDescription>
                   <FixedCommentaryLine commentary={fixedBoardCommentary} />
@@ -2255,7 +2383,12 @@ function App() {
               <MetricGrid items={worldMetricItems} />
             </section>
 
-            <Card className={SECTION_CARD_CLASS}>
+            <Card
+              className={cn(
+                SECTION_CARD_CLASS,
+                "min-w-0 lg:col-span-2 xl:col-span-1"
+              )}
+            >
               <CardHeader className={SECTION_HEADER_CLASS}>
                 <CardTitle>Agents</CardTitle>
                 <CardAction>
@@ -2367,13 +2500,18 @@ function App() {
           liveWindow={onboardingLiveWindow}
           liveStatus={liveStatus}
           fixedBoardCommentary={fixedBoardCommentary}
+          requestedAgentCount={requestedAgentCount}
+          isStartingLive={isStartingLive}
+          hasLiveSession={hasLiveSession}
           selectedArchetype={selectedArchetype}
           selectedAgent={selectedAgent}
           selectedAgentEvents={selectedAgentEvents}
           onChooseTemplate={(templateId) => applyTemplate(templateId)}
           onChooseArchetype={(archetypeId) => {
             setSelectedArchetype(archetypeId)
-            clearLiveSessionView("Agent selected. Click Go live to start it.")
+            clearLiveSessionView(
+              "Agent selected. Launch from onboarding when ready."
+            )
           }}
           onRandomizeArchetype={randomizeArchetype}
           onNextStep={() =>
@@ -2384,7 +2522,7 @@ function App() {
           onPreviousStep={() =>
             setOnboardingStep((current) => Math.max(current - 1, 0))
           }
-          onEnterSociety={enterSociety}
+          onStartLiveWorld={() => void startOnboardingLiveWorld()}
         />
       )}
       <style>{`
@@ -2424,7 +2562,7 @@ function AgentFocusPanel({
   }
 
   return (
-    <div className={PANEL_SURFACE_CLASS}>
+    <div className={PLAYGROUND_DETAIL_PANEL_CLASS}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 gap-2">
           <AgentImage agent={agent} />
@@ -2447,7 +2585,7 @@ function AgentFocusPanel({
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs tabular-nums">
         <p>score {format(agent.score)}</p>
-        <p>tokens {format(agent.tokens)}</p>
+        <p>{formatSocietyTokenAmount(agent.tokens)}</p>
         <p>trust {format(agent.reputation ?? 0)}</p>
         <p>inherited {format(agent.inheritedReputation ?? 0)}</p>
         <p>heartbeats {format(agent.livenessProofs ?? 0)}</p>
@@ -2479,6 +2617,154 @@ function AgentFocusPanel({
           <Badge variant="destructive">{liveAccountsError}</Badge>
         )}
       </div>
+    </div>
+  )
+}
+
+type PreparationStepStatus = "waiting" | "active" | "done" | "error"
+
+function LivePreparationPanel({
+  requestedAgentCount,
+  liveAccounts,
+  isStartingLive,
+  isResumingLive,
+  isLoadingLiveAccounts,
+  liveAccountsError,
+  hasLiveSession,
+}: {
+  requestedAgentCount: number
+  liveAccounts?: LiveSessionAccountSnapshot
+  isStartingLive: boolean
+  isResumingLive: boolean
+  isLoadingLiveAccounts: boolean
+  liveAccountsError?: string
+  hasLiveSession: boolean
+}) {
+  const setup = liveAccounts?.setup
+  const agentTarget = setup?.requestedAgentCount ?? requestedAgentCount
+  const isWorking = isStartingLive || isResumingLive || isLoadingLiveAccounts
+  const countStatus = (readyCount: number | undefined): PreparationStepStatus => {
+    if (liveAccountsError && !liveAccounts) return "error"
+    if (!setup) return isWorking ? "active" : "waiting"
+    if (agentTarget === 0) return "done"
+    return (readyCount ?? 0) >= agentTarget ? "done" : "active"
+  }
+  const surfpoolStatus: PreparationStepStatus = liveAccountsError
+    ? "error"
+    : liveAccounts || hasLiveSession
+      ? "done"
+      : isWorking
+        ? "active"
+        : "waiting"
+  const protocolStatus: PreparationStepStatus = liveAccountsError
+    ? "error"
+    : setup
+      ? "done"
+      : isWorking || hasLiveSession
+        ? "active"
+        : "waiting"
+  const worldStatus: PreparationStepStatus = liveAccountsError
+    ? "error"
+    : setup?.worldReady
+      ? "done"
+      : isWorking || hasLiveSession
+        ? "active"
+        : "waiting"
+  const steps: Array<{
+    label: string
+    detail: string
+    status: PreparationStepStatus
+  }> = [
+    {
+      label: "Surfpool RPC",
+      detail: liveAccounts?.rpcUrl ?? "waiting for local RPC confirmation",
+      status: surfpoolStatus,
+    },
+    {
+      label: "Protocol accounts",
+      detail: setup
+        ? `${format(setup.protocolOperationCount)} setup transactions observed`
+        : "identity, task, checkpoint, adjudicator, and world setup",
+      status: protocolStatus,
+    },
+    {
+      label: "Agent identities",
+      detail: setup
+        ? `${format(setup.identityAccountCount)}/${format(agentTarget)} identities`
+        : `${format(agentTarget)} identities will be created before play`,
+      status: countStatus(setup?.identityAccountCount),
+    },
+    {
+      label: "Delegations",
+      detail: setup
+        ? `${format(setup.delegationAccountCount)}/${format(agentTarget)} delegated submitters`
+        : "each agent gets a scoped delegated submitter",
+      status: countStatus(setup?.delegationAccountCount),
+    },
+    {
+      label: "SOL stake",
+      detail: setup
+        ? `${format(setup.solStakeAccountCount)}/${format(agentTarget)} stake accounts funded`
+        : "birth grants are deposited as SOL lamports for this demo",
+      status: countStatus(setup?.solStakeAccountCount),
+    },
+    {
+      label: "World account",
+      detail: setup?.worldReady
+        ? short(liveAccounts?.world.address, 5)
+        : "board will read this account after setup",
+      status: worldStatus,
+    },
+  ]
+
+  return (
+    <div className={PLAYGROUND_DETAIL_PANEL_CLASS}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-normal">Agent readiness</p>
+          <p className="mt-1 whitespace-normal break-words text-xs leading-5 text-muted-foreground">
+            Surfpool setup waits for agent keys, identities, delegation, and SOL
+            stake before Play or Step.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">
+            {setup
+              ? `${format(setup.readyAgentCount)}/${format(agentTarget)} ready`
+              : `${format(agentTarget)} planned`}
+          </Badge>
+          <Badge variant="outline">{setup?.stakeAsset ?? "SOL"} stake</Badge>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2">
+        {steps.map((step) => (
+          <div
+            key={step.label}
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 rounded-md border border-border/70 bg-background/35 p-2"
+          >
+            <div className="min-w-0">
+              <p className="text-xs text-foreground">{step.label}</p>
+            </div>
+            <Badge
+              variant={
+                step.status === "error"
+                  ? "destructive"
+                  : step.status === "done"
+                    ? "secondary"
+                    : "outline"
+              }
+            >
+              {step.status}
+            </Badge>
+            <p className={cn(PREPARATION_STEP_DETAIL_CLASS, "col-span-2")}>
+              {step.detail}
+            </p>
+          </div>
+        ))}
+      </div>
+      {liveAccountsError && (
+        <p className="mt-2 text-xs text-destructive">{liveAccountsError}</p>
+      )}
     </div>
   )
 }
@@ -2536,10 +2822,8 @@ function AgentsPage({
                 key={agent.id}
                 type="button"
                 className={cn(
-                  PANEL_SURFACE_CLASS,
-                  "text-left transition-colors hover:border-white/40 hover:bg-background/45",
-                  selectedAgent?.id === agent.id &&
-                    "border-white/70 bg-background/55 shadow-[0_0_0_1px_rgba(255,255,255,0.24)]"
+                  INTERACTIVE_PANEL_CLASS,
+                  selectedAgent?.id === agent.id && SELECTED_PANEL_CLASS
                 )}
                 onClick={() => onSelectAgent(agent.id)}
               >
@@ -2570,7 +2854,7 @@ function AgentsPage({
                 <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs tabular-nums">
                   <p>score {format(agent.score)}</p>
                   <p>trust {format(agent.reputation ?? 0)}</p>
-                  <p>tokens {format(agent.tokens)}</p>
+                  <p>{formatSocietyTokenAmount(agent.tokens)}</p>
                   <p>children {format(agent.descendants)}</p>
                 </div>
               </button>
@@ -2751,7 +3035,7 @@ function AgentDetailTabs({
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs tabular-nums xl:grid-cols-4">
             <p>score {format(agent.score)}</p>
-            <p>tokens {format(agent.tokens)}</p>
+            <p>{formatSocietyTokenAmount(agent.tokens)}</p>
             <p>trust {format(agent.reputation ?? 0)}</p>
             <p>earned {format(agent.earnedReputation ?? 0)}</p>
             <p>inherited {format(agent.inheritedReputation ?? 0)}</p>
@@ -2777,9 +3061,13 @@ function AgentDetailTabs({
             </p>
             <p>Children: {format(agent.descendants)}</p>
             <p>
-              Starting grant: {format(agent.startingTokens ?? agent.tokens)}
+              Starting {SOCIETY_TOKEN_SYMBOL}:{" "}
+              {format(agent.startingTokens ?? agent.tokens)}
             </p>
-            <p>Tokens from parent: {format(agent.inheritedTokens ?? 0)}</p>
+            <p>
+              {SOCIETY_TOKEN_SYMBOL} from parent:{" "}
+              {format(agent.inheritedTokens ?? 0)}
+            </p>
           </div>
         </div>
       </div>
@@ -2840,7 +3128,7 @@ function AgentDetailTabs({
                       <p className="mt-2 font-mono text-xs text-muted-foreground">
                         cell {event.cell.x},{event.cell.y} -{" "}
                         {event.tokenDelta >= 0 ? "+" : ""}
-                        {format(event.tokenDelta)} tok
+                        {formatSocietyTokenDelta(event.tokenDelta)}
                       </p>
                     </div>
                   ))}
@@ -2978,6 +3266,13 @@ function AgentAccountPanel({
   }
 
   const rows: Array<{ label: string; address: string; signature?: string }> = []
+  if (account.authority?.address) {
+    rows.push({
+      label: "Agent signer",
+      address: account.authority.address,
+      signature: account.funding?.signature,
+    })
+  }
   rows.push({
     label: "Identity",
     address: account.identity.address,
@@ -2991,13 +3286,13 @@ function AgentAccountPanel({
     })
   }
   rows.push({
-    label: "Stake",
+    label: "SOL Stake",
     address: account.stake.address,
     signature: account.stake.signature,
   })
 
   return (
-    <div className="grid gap-2 md:grid-cols-3">
+    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
       {rows.map((row) => (
         <div key={row.label} className={PANEL_SURFACE_CLASS}>
           <p className="text-xs font-normal">{row.label}</p>
@@ -3069,6 +3364,9 @@ function OnboardingOverlay({
   liveWindow,
   liveStatus,
   fixedBoardCommentary,
+  requestedAgentCount,
+  isStartingLive,
+  hasLiveSession,
   selectedArchetype,
   selectedAgent,
   selectedAgentEvents,
@@ -3077,7 +3375,7 @@ function OnboardingOverlay({
   onRandomizeArchetype,
   onNextStep,
   onPreviousStep,
-  onEnterSociety,
+  onStartLiveWorld,
 }: {
   step: number
   missionModel: OnboardingMissionModel
@@ -3086,6 +3384,9 @@ function OnboardingOverlay({
   liveWindow: OnboardingLiveWindowModel
   liveStatus: string
   fixedBoardCommentary: FixedBoardCommentary
+  requestedAgentCount: number
+  isStartingLive: boolean
+  hasLiveSession: boolean
   selectedArchetype: string
   selectedAgent?: CellAgent
   selectedAgentEvents: SocietyEvent[]
@@ -3094,7 +3395,7 @@ function OnboardingOverlay({
   onRandomizeArchetype: () => void
   onNextStep: () => void
   onPreviousStep: () => void
-  onEnterSociety: () => void
+  onStartLiveWorld: () => void
 }) {
   const canGoBack = step > 0
   const isFinalStep = step >= MAX_ONBOARDING_STEP
@@ -3133,15 +3434,22 @@ function OnboardingOverlay({
     }
     return missionModel.focusMoment?.title || "Ready now"
   }
+  const launchActionLabel = hasLiveSession
+    ? "Enter live board"
+    : `Prepare ${format(requestedAgentCount)} agents and start live world`
   const actionButton = isFinalStep ? (
     <Button
       variant="secondary"
       size="lg"
-      onClick={onEnterSociety}
+      onClick={onStartLiveWorld}
+      disabled={isStartingLive}
+      aria-busy={isStartingLive}
       className="min-w-52"
     >
       <ArrowRight data-icon="inline-start" />
-      {missionModel.primaryActionLabel}
+      {isStartingLive
+        ? `Preparing ${format(requestedAgentCount)} agents`
+        : launchActionLabel}
     </Button>
   ) : (
     <Button
@@ -3313,7 +3621,8 @@ function OnboardingOverlay({
                       </p>
                       <p className="mt-2 max-w-3xl text-xs leading-5 text-muted-foreground">
                         The world still runs for everyone. Following one agent
-                        makes the parent links, token changes, and receipts
+                        makes the parent links, {SOCIETY_TOKEN_SYMBOL} changes,
+                        and receipts
                         easier to read.
                       </p>
                     </div>
@@ -3434,7 +3743,9 @@ function OnboardingOverlay({
                       <p className="max-w-3xl text-sm leading-6 text-foreground md:text-base">
                         {missionModel.focusMoment
                           ? missionModel.focusMoment.whyItMatters
-                          : "You can enter the live board now. Events will appear as the agents move."}
+                          : `The next click prepares ${format(
+                              requestedAgentCount
+                            )} agents from this onboarding setup, creates their accounts, and opens the live board.`}
                       </p>
                     </div>
                     {selectedAgent && (
@@ -3493,16 +3804,6 @@ function OnboardingOverlay({
                   >
                     <ArrowLeft data-icon="inline-start" />
                     Back
-                  </Button>
-                )}
-                {!isFinalStep && (
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={onEnterSociety}
-                    className="min-w-40"
-                  >
-                    Enter now
                   </Button>
                 )}
                 {actionButton}
@@ -3607,31 +3908,6 @@ function FixedCommentaryLine({
   )
 }
 
-function NumberField({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Input
-        id={id}
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </Field>
-  )
-}
-
 function MetricGrid({ items }: { items: Array<[string, number | string]> }) {
   return (
     <div className="grid grid-cols-6 gap-2 max-lg:grid-cols-3 max-md:grid-cols-2">
@@ -3652,7 +3928,7 @@ function RuleList() {
     ["Birth", "child agent identity"],
     ["Heartbeat", "liveness receipt"],
     ["Resources", "finite squares"],
-    ["Cost", "tokens paid each tick"],
+    ["Cost", `${SOCIETY_TOKEN_SYMBOL} paid each tick`],
     ["Inheritance", "value can pass down"],
     ["Commit", "receipts land on Surfpool"],
   ]
@@ -3671,12 +3947,20 @@ function RuleList() {
 function IdentityInspector({
   agent,
   isHovering,
+  isSelected,
 }: {
   agent?: CellAgent
   isHovering: boolean
+  isSelected: boolean
 }) {
   if (!agent) {
-    return <EmptyState>Hover an agent after Go live to see details.</EmptyState>
+    return (
+      <Empty className={PLAYGROUND_EMPTY_STATE_CLASS}>
+        <EmptyDescription>
+          Hover an agent after launch to see details.
+        </EmptyDescription>
+      </Empty>
+    )
   }
 
   return (
@@ -3691,7 +3975,9 @@ function IdentityInspector({
             </p>
           </div>
         </div>
-        <Badge variant="outline">{isHovering ? "hover" : "top"}</Badge>
+        <Badge variant={isSelected ? "secondary" : "outline"}>
+          {isHovering ? "hover" : isSelected ? "selected on board" : "top"}
+        </Badge>
       </div>
       {agent.archetype ? (
         <p className="mt-2 text-xs text-muted-foreground">
@@ -3704,7 +3990,7 @@ function IdentityInspector({
         </p>
         <p>age {format(agent.age ?? 0)}</p>
         <p>heartbeats {format(agent.livenessProofs ?? 0)}</p>
-        <p>tokens {format(agent.tokens)}</p>
+        <p>{formatSocietyTokenAmount(agent.tokens)}</p>
       </div>
     </div>
   )
@@ -3732,7 +4018,7 @@ function AgentRow({ agent }: { agent: CellAgent }) {
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-xs tabular-nums">
         <p>{format(agent.score)} score</p>
-        <p>{format(agent.tokens)} tokens</p>
+        <p>{formatSocietyTokenAmount(agent.tokens)}</p>
         <p>{format(agent.age ?? 0)} age</p>
         <p>{format(agent.livenessProofs ?? 0)} heartbeats</p>
         <p>{format(agent.startingTokens ?? agent.tokens)} start</p>
@@ -3790,10 +4076,7 @@ function EventList({
           <button
             key={event.id}
             type="button"
-            className={cn(
-              PANEL_SURFACE_CLASS,
-              "text-left transition-colors hover:border-white/40 hover:bg-background/45"
-            )}
+            className={INTERACTIVE_PANEL_CLASS}
             onClick={() => onSelectAgent?.(event.agentId)}
           >
             <div className="flex items-center justify-between gap-2">
@@ -3816,7 +4099,7 @@ function EventList({
             <p className="mt-1 text-xs text-muted-foreground">{event.note}</p>
             <p className="mt-2 font-mono text-xs text-muted-foreground">
               tick {event.tick} - {event.tokenDelta >= 0 ? "+" : ""}
-              {format(event.tokenDelta)} tok
+              {formatSocietyTokenDelta(event.tokenDelta)}
             </p>
             {event.parentIds.length > 0 && (
               <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -4277,9 +4560,10 @@ function SurfpoolPanel({
           ]}
         />
         <SurfpoolLinks rpcUrl={rpcUrl} studioUrl={studioUrl} />
+        <ProgramCoverageCard fallbackPrograms={LIVE_PROGRAMS} />
         <EmptyState>
-          Click Go live to load the Surfpool session, world account, and
-          agent accounts.
+          Launch from onboarding to prepare the Surfpool session, world account,
+          and agent accounts. Press Step or Play when you want actions to run.
         </EmptyState>
       </div>
     )
@@ -4295,10 +4579,36 @@ function SurfpoolPanel({
           ["World", short(liveAccounts?.world.address, 5)],
           ["Status", liveWorldStatusLabel(liveAccounts?.world.status)],
           ["Accounts", accountItems.length],
+          [
+            "Agents ready",
+            liveAccounts?.setup
+              ? `${format(liveAccounts.setup.readyAgentCount)}/${format(
+                  liveAccounts.setup.requestedAgentCount
+                )}`
+              : "checking",
+          ],
+          [
+            "SOL stake",
+            liveAccounts?.setup
+              ? `${format(liveAccounts.setup.solStakeAccountCount)}/${format(
+                  liveAccounts.setup.requestedAgentCount
+                )}`
+              : "checking",
+          ],
           ["Proof file", proof ? short(proof.hash, 5) : "pending"],
         ]}
       />
       <SurfpoolLinks rpcUrl={rpcUrl} studioUrl={studioUrl} />
+      {liveAccounts?.protocolEvidence && (
+        <ProtocolEvidenceCard
+          evidence={liveAccounts.protocolEvidence}
+          rpcUrl={rpcUrl}
+        />
+      )}
+      <ProgramCoverageCard
+        programPlan={liveAccounts?.programPlan}
+        fallbackPrograms={LIVE_PROGRAMS}
+      />
       {proof && <ProofCard proof={proof} />}
       {liveSnapshot.committedActions.length > 0 && (
         <ScrollArea className="h-[220px] pr-2">
@@ -4324,6 +4634,287 @@ function SurfpoolPanel({
               item={item}
               rpcUrl={rpcUrl}
             />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function ProtocolEvidenceCard({
+  evidence,
+  rpcUrl,
+}: {
+  evidence: ProtocolEvidenceGraph
+  rpcUrl: string
+}) {
+  return (
+    <div className={PANEL_SURFACE_CLASS}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-xs font-normal">Protocol evidence graph</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This is what the board can read from Trust Substrate records. Missing
+            program evidence stays visible instead of being treated as proof.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">
+            {evidence.summary.presentPrograms}/{evidence.summary.totalPrograms}{" "}
+            present
+          </Badge>
+          <Badge
+            variant={
+              evidence.summary.missingPrograms === 0 ? "outline" : "destructive"
+            }
+          >
+            {evidence.summary.missingPrograms} missing
+          </Badge>
+          <Badge variant="outline">
+            {evidence.summary.actionEnvelopes} envelopes
+          </Badge>
+        </div>
+      </div>
+      <MetricGrid
+        items={[
+          ["Graph", short(evidence.graphHash, 5)],
+          ["Records", evidence.summary.records],
+          ["Receipts", evidence.summary.receipts],
+          ["Tx links", evidence.summary.transactions],
+          ["Generated", evidence.generatedAt.slice(11, 19)],
+          ["Schema", evidence.schemaVersion],
+        ]}
+      />
+      <ScrollArea className="mt-3 h-[340px] pr-2">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {evidence.programs.map((program) => (
+            <ProtocolProgramEvidenceCard
+              key={program.name}
+              program={program}
+              rpcUrl={rpcUrl}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  )
+}
+
+function ProtocolProgramEvidenceCard({
+  program,
+  rpcUrl,
+}: {
+  program: ProtocolProgramEvidence
+  rpcUrl: string
+}) {
+  const visibleRecords = program.records.slice(0, 3)
+
+  return (
+    <div className="rounded-md border border-border/70 bg-background/30 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate font-mono text-xs">{program.name}</p>
+        <Badge
+          variant={program.status === "present" ? "secondary" : "destructive"}
+        >
+          {program.status}
+        </Badge>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {program.demoRole === "board-primary"
+          ? "Board/world anchor"
+          : "Supporting evidence"}
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {program.demoSurface}
+      </p>
+      <div className="mt-2 grid gap-1">
+        {visibleRecords.map((record, index) => (
+          <ProtocolEvidenceRecordRow
+            key={`${program.name}-${record.source}-${record.label}-${index}`}
+            record={record}
+            rpcUrl={rpcUrl}
+          />
+        ))}
+        {program.records.length > visibleRecords.length && (
+          <p className="font-mono text-[11px] text-muted-foreground">
+            +{program.records.length - visibleRecords.length} more records
+          </p>
+        )}
+        {program.missing.map((missing) => (
+          <p key={missing} className="text-xs text-destructive">
+            {missing}
+          </p>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        Boundary: {program.boundary}
+      </p>
+      {program.expectedRecords > 0 && (
+        <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+          expected records {program.expectedRecords}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ProtocolEvidenceRecordRow({
+  record,
+  rpcUrl,
+}: {
+  record: ProtocolEvidenceRecord
+  rpcUrl: string
+}) {
+  const address = record.address
+  const tx = record.txSignature || record.signature
+
+  return (
+    <div className="rounded border border-border/60 bg-background/25 p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="truncate text-xs">{record.label}</p>
+        <Badge variant="outline">{record.source}</Badge>
+      </div>
+      <div className="mt-1 grid gap-1 font-mono text-[11px] text-muted-foreground">
+        {record.agentId && <p>agent {short(record.agentId, 5)}</p>}
+        {record.receiptId && <p>receipt {short(record.receiptId, 5)}</p>}
+        {address && <p>address {short(address, 5)}</p>}
+        {tx && <p>tx {short(tx, 5)}</p>}
+        {record.hash && <p>hash {short(record.hash, 5)}</p>}
+        {record.slot !== undefined && <p>slot {record.slot}</p>}
+        {record.note && <p>{record.note}</p>}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {address && (
+          <Button variant="secondary" size="sm" asChild>
+            <a href={accountHref(address)} target="_blank" rel="noreferrer">
+              Account
+            </a>
+          </Button>
+        )}
+        {address && (
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={solanaExplorerHref({
+                kind: "address",
+                value: address,
+                rpcUrl,
+              })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Explorer
+            </a>
+          </Button>
+        )}
+        {tx && (
+          <Button variant="secondary" size="sm" asChild>
+            <a href={transactionHref(tx)} target="_blank" rel="noreferrer">
+              Tx
+            </a>
+          </Button>
+        )}
+        {tx && (
+          <Button variant="outline" size="sm" asChild>
+            <a
+              href={solanaExplorerHref({
+                kind: "tx",
+                value: tx,
+                rpcUrl,
+              })}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Explorer tx
+            </a>
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProgramCoverageCard({
+  programPlan,
+  fallbackPrograms,
+}: {
+  programPlan?: ProgramWiringPlan
+  fallbackPrograms: ProgramNode[]
+}) {
+  const fallbackRoles = new Map(
+    fallbackPrograms.map((program) => [program.name, program.role])
+  )
+  const programs =
+    programPlan?.programs ??
+    fallbackPrograms.map((program) => ({
+      name: program.name,
+      action: program.role,
+      demoRole:
+        program.name === "task_registry"
+          ? ("board-primary" as const)
+          : ("supporting-trust-program" as const),
+      status: "wired" as const,
+      expectedRecords: 0,
+      demoSurface: "Loaded when the Surfpool session starts",
+      evidence: "Session proof and account links appear after onboarding launch",
+      boundary: "No chain state is created before an explicit user action",
+    }))
+
+  return (
+    <div className={PANEL_SURFACE_CLASS}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-normal">Program coverage</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Task program is the board anchor. Supporting trust programs add
+            identity, receipts, proofs, stake, reputation, attestation,
+            delegation, and dispute evidence.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{programs.length} programs</Badge>
+          {programPlan && (
+            <Badge variant="secondary">
+              {programPlan.summary.emittedReceipts} receipts
+            </Badge>
+          )}
+        </div>
+      </div>
+      <ScrollArea className="mt-3 h-[260px] pr-2">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {programs.map((program) => (
+            <div key={program.name} className="rounded-md border border-border/70 bg-background/30 p-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate font-mono text-xs">{program.name}</p>
+                <Badge
+                  variant={
+                    program.demoRole === "board-primary"
+                      ? "secondary"
+                      : "outline"
+                  }
+                >
+                  {program.demoRole === "board-primary"
+                    ? "board anchor"
+                    : program.status}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {program.demoSurface}
+              </p>
+              <p className="mt-2 text-xs">
+                {fallbackRoles.get(program.name) ?? program.action}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Evidence: {program.evidence}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Boundary: {program.boundary}
+              </p>
+              {program.expectedRecords > 0 && (
+                <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                  expected records {program.expectedRecords}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       </ScrollArea>
@@ -4399,6 +4990,37 @@ function LiveActionCard({
       <p className="mt-2 font-mono text-xs break-all text-muted-foreground">
         {action.address}
       </p>
+      {action.actionProof && (
+        <div className="mt-2 grid gap-1 rounded-md border border-border/70 bg-background/30 p-2 font-mono text-[11px] text-muted-foreground">
+          <p>root {short(action.actionProof.transcriptRoot, 6)}</p>
+          <p>leaf {short(action.actionProof.leafHash, 6)}</p>
+          <p>signed {short(action.actionProof.signature, 6)}</p>
+          {action.actionProof.beforeStateHash && (
+            <p>before {short(action.actionProof.beforeStateHash, 6)}</p>
+          )}
+          {action.actionProof.afterStateHash && (
+            <p>after {short(action.actionProof.afterStateHash, 6)}</p>
+          )}
+          {action.actionProof.runtimeEvidence && (
+            <p>pi {short(action.actionProof.runtimeEvidence.responseHash, 6)}</p>
+          )}
+          {action.actionProof.actionEnvelope && (
+            <>
+              <p>
+                envelope tx{" "}
+                {short(action.actionProof.actionEnvelope.txSignature, 6)}
+              </p>
+              <p>
+                envelope receipt{" "}
+                {short(action.actionProof.actionEnvelope.receiptAddress, 6)}
+              </p>
+            </>
+          )}
+          {action.actionProof.submitter && (
+            <p>agent {short(action.actionProof.submitter, 6)}</p>
+          )}
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button variant="secondary" asChild>
           <a
@@ -4432,7 +5054,9 @@ function ProofCard({ proof }: { proof: CommitProofReference }) {
   return (
     <div className={PANEL_SURFACE_CLASS}>
       <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-xs font-normal">Session proof file</p>
+        <p className="truncate text-xs font-normal">
+          Session proof file with action transcript root
+        </p>
         <Badge variant="outline">{proof.status}</Badge>
       </div>
       <p className="mt-2 font-mono text-xs break-all text-muted-foreground">

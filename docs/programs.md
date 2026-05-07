@@ -625,6 +625,74 @@ Behavior:
 - rejects empty or premature unstake requests
 - transfers the unlocked lamports back to the owner
 
+### `agent_stake.initialize_token_stake`
+
+Signature:
+
+- `initialize_token_stake(ctx, scope, slash_authority, trust_mode)`
+
+Behavior:
+
+- requires the signer to match `identity.authority`
+- initializes an identity, scope, and mint scoped token stake PDA
+- initializes the stake vault PDA for the selected SPL token mint
+- stores the stake owner, slash authority, trust mode, mint, token program, and
+  vault address
+
+### `agent_stake.initialize_token_treasury_vault`
+
+Signature:
+
+- `initialize_token_treasury_vault(ctx)`
+
+Behavior:
+
+- initializes the protocol token treasury vault PDA for a mint
+- uses the `dispute_resolver` treasury PDA as the token account authority
+- lets token slash instructions move penalties to a deterministic treasury
+  destination
+
+### `agent_stake.stake_token`
+
+Signature:
+
+- `stake_token(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the token stake owner
+- constrains the token stake PDA by identity, scope, mint, and bump
+- transfers checked SPL tokens from the owner token account into the stake vault
+- increments the active token stake amount
+
+### `agent_stake.request_unstake_token`
+
+Signature:
+
+- `request_unstake_token(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the token stake owner
+- constrains the token stake PDA by identity, scope, mint, and bump
+- records a pending token unstake amount and unlock slot
+
+### `agent_stake.finalize_unstake_token`
+
+Signature:
+
+- `finalize_unstake_token(ctx)`
+
+Behavior:
+
+- requires the signer to match the token stake owner
+- constrains the token stake PDA and vault by identity, scope, mint, and bump
+- rejects empty or premature token unstake requests
+- transfers checked SPL tokens from the stake vault back to the owner token
+  account
+
 ### `agent_stake.slash_with_authority`
 
 Signature:
@@ -643,6 +711,23 @@ Behavior:
 - initializes a slash marker keyed by stake and receipt to reject replay
 - transfers slashed lamports to the protocol treasury PDA owned by `dispute_resolver`
 
+### `agent_stake.slash_token_with_authority`
+
+Signature:
+
+- `slash_token_with_authority(ctx, amount)`
+
+Behavior:
+
+- rejects zero amounts
+- requires the signer to match the configured slash authority
+- requires `token_stake.trust_mode == TRUST_MODE_AUTHORITY`
+- constrains the token stake PDA by identity, scope, mint, and bump
+- requires the receipt identity to match the token stake identity
+- requires `DISPUTE_RESOLVED_KIND`
+- initializes a slash marker keyed by token stake and receipt to reject replay
+- transfers checked SPL tokens from the stake vault to the token treasury vault
+
 ### `agent_stake.slash_with_verdict`
 
 Signature:
@@ -658,6 +743,24 @@ Behavior:
 - requires non-safety verdicts to remain inside their `stale_after_slot`
 - initializes a slash marker keyed by stake and dispute receipt to reject replay
 - transfers the verdict-defined slash amount to the protocol treasury PDA owned by `dispute_resolver`
+
+### `agent_stake.slash_token_with_verdict`
+
+Signature:
+
+- `slash_token_with_verdict(ctx)`
+
+Behavior:
+
+- requires `token_stake.trust_mode == TRUST_MODE_VERDICT`
+- requires a `dispute_resolver` verdict PDA bound to the supplied dispute receipt
+- requires the verdict adjudicator to sign
+- requires `AGENT_LOST_OUTCOME`
+- requires non-safety verdicts to remain inside their `stale_after_slot`
+- initializes a slash marker keyed by token stake and dispute receipt to reject
+  replay
+- transfers the verdict-defined SPL token amount from the stake vault to the
+  token treasury vault
 
 ### `dispute_resolver.register_adjudicator`
 

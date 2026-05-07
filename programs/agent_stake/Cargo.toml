@@ -16,6 +16,7 @@ no-idl = []
 no-log-ix-name = []
 idl-build = [
     "anchor-lang/idl-build",
+    "anchor-spl/idl-build",
     "dispute_resolver/idl-build",
     "identity_registry/idl-build",
     "receipt_emitter/idl-build",
@@ -24,6 +25,7 @@ idl-build = [
 
 [dependencies]
 anchor-lang = { version = "1.0.0", features = ["init-if-needed"] }
+anchor-spl = "1.0.0"
 dispute_resolver = { path = "../dispute_resolver", features = ["cpi"] }
 identity_registry = { path = "../identity_registry", features = ["cpi"] }
 receipt_emitter = { path = "../receipt_emitter", features = ["cpi"] }

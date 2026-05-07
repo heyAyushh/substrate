@@ -8,7 +8,8 @@ import { existsSync } from "node:fs";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { sign as signBytes, randomUUID, type KeyObject } from "node:crypto";
+import type { KeyPairSigner } from "@solana/kit";
 
 import {
   TrustSubstrateOnchainClient,
@@ -22,13 +23,28 @@ import {
 import { hashCanonical } from "@trust-substrate/sdk/canonical";
 
 import { loadKeyPairSignerFromFile } from "../../packages/pi-extension/src/keypair.ts";
+import { loadOrCreateSocietyAgentIdentity } from "./society_agent_identities.ts";
 import {
+  buildAgentActionEnvelopeForSignedSocietyAction,
   buildProgramWiringPlan,
+  buildSocietyActionTranscript,
   selectCommitBatches,
   writeCommitProofArtifact,
   type CommitProofChainEvidence,
   type CommitProofReference,
+  type ProgramWiringPlan,
+  type SocietyActionSignature,
+  type SocietyActionTranscript,
 } from "./society_commit_artifacts.ts";
+import {
+  requestSocietyPiAction,
+  type SocietyPiActionEvidence,
+  type SocietyPiProvider,
+} from "./society_pi_action_driver.ts";
+import {
+  buildProtocolEvidenceGraph,
+  type ProtocolEvidenceGraph,
+} from "./society_protocol_evidence.ts";
 import {
   shouldApplyLiveReputation,
   shouldSyncLiveTaskStatus,
@@ -36,9 +52,11 @@ import {
 import { createSocietyLiveManager } from "./society_live.ts";
 
 const require = createRequire(import.meta.url);
-const { packOnchainSocietyWorldState } = require("./society_core.js") as {
-  packOnchainSocietyWorldState: (session: unknown) => Uint8Array;
-};
+const { finalizeLiveSocietySession, packOnchainSocietyWorldState } =
+  require("./society_core.js") as {
+    finalizeLiveSocietySession: (session: unknown) => SocietyRunPayload;
+    packOnchainSocietyWorldState: (session: unknown) => Uint8Array;
+  };
 
 interface SocietyCompressedReceipt {
   readonly receiptId: string;
@@ -56,9 +74,14 @@ interface SocietyCompressedTx {
 interface SocietyTokenizedAgent {
   readonly agentId: string;
   readonly agentName?: string;
+  readonly agentIdentityId?: string;
   readonly sourceEventId?: string;
   readonly sourceReceiptId?: string;
   readonly tick?: number;
+  readonly cell?: {
+    readonly x: number;
+    readonly y: number;
+  };
   readonly startingTokens: number | string;
   readonly tokenProgram?: string;
 }
@@ -68,8 +91,15 @@ interface SocietyEvent {
   readonly tick?: number;
   readonly agentId: string;
   readonly agentName?: string;
+  readonly actorIdentityId?: string;
   readonly action: string;
-  readonly tokenDelta: number;
+  readonly receiptKind?: string;
+  readonly tokenDelta: number | string;
+  readonly cell?: {
+    readonly x: number;
+    readonly y: number;
+  };
+  readonly payloadExtras?: Record<string, unknown>;
 }
 
 interface SocietyRunPayload {
@@ -95,7 +125,7 @@ interface SocietyLiveEvent {
   readonly actorIdentityId?: string;
   readonly action: string;
   readonly receiptKind?: string;
-  readonly tokenDelta?: number;
+  readonly tokenDelta?: number | string;
   readonly cell: {
     readonly x: number;
     readonly y: number;
@@ -144,6 +174,12 @@ interface SocietyLiveSimulationSession {
 interface SocietyLiveAgentAccount {
   readonly agentId: string;
   readonly agentName?: string;
+  readonly authority: {
+    readonly address: string;
+    readonly identityDirectory: string;
+    readonly keypairPath: string;
+    readonly created: boolean;
+  };
   readonly startingTokens: string;
   readonly tokenProgram: string;
   readonly identity: {
@@ -161,10 +197,22 @@ interface SocietyLiveAgentAccount {
     readonly signature?: string;
     readonly slot?: number;
   };
+  readonly funding?: {
+    readonly lamports: string;
+    readonly signature?: string;
+  };
+}
+
+interface SocietyLiveAgentRuntime {
+  readonly agentId: string;
+  readonly signer: KeyPairSigner;
+  readonly actionSigningKey: KeyObject;
+  readonly account: SocietyLiveAgentAccount;
 }
 
 interface SocietyLiveChainSession {
   readonly sessionId: string;
+  readonly runId: string;
   readonly commitId: string;
   readonly createdAt: string;
   readonly rpcUrl: string;
@@ -202,7 +250,10 @@ interface SocietyLiveChainSession {
   readonly operations: unknown[];
   readonly agentAccounts: SocietyLiveAgentAccount[];
   readonly agentAccountsById: Map<string, SocietyLiveAgentAccount>;
+  readonly agentRuntimesById: Map<string, SocietyLiveAgentRuntime>;
+  readonly piActionsByEventId: Map<string, SocietyPiActionEvidence>;
   readonly committedReceipts: unknown[];
+  programPlan: ProgramWiringPlan;
   worldStatus: number;
   previousReceiptId?: string;
   dispute?: {
@@ -210,6 +261,18 @@ interface SocietyLiveChainSession {
     readonly verdict: string;
     readonly verdictSignature: string;
   };
+}
+
+interface SocietyLiveSetupStatus {
+  readonly stakeAsset: string;
+  readonly requestedAgentCount: number;
+  readonly readyAgentCount: number;
+  readonly fundedAgentCount: number;
+  readonly identityAccountCount: number;
+  readonly delegationAccountCount: number;
+  readonly solStakeAccountCount: number;
+  readonly protocolOperationCount: number;
+  readonly worldReady: boolean;
 }
 
 interface SocietyLiveSessionAccountSnapshot {
@@ -225,7 +288,10 @@ interface SocietyLiveSessionAccountSnapshot {
     readonly address: string;
     readonly status: number;
   };
+  readonly setup: SocietyLiveSetupStatus;
   readonly agentAccounts: ReadonlyArray<SocietyLiveAgentAccount>;
+  readonly programPlan: ProgramWiringPlan;
+  readonly protocolEvidence: ProtocolEvidenceGraph;
 }
 
 const REPO_ROOT = resolve(join(import.meta.dirname, "../.."));
@@ -238,8 +304,13 @@ const TRUST_MODE_VERDICT = 0;
 const SOCIETY_ATTESTER_CATEGORY = "society-simulation";
 const SOCIETY_ATTESTER_TIER = 1;
 const SOCIETY_CHECKPOINT_EPOCH = 0n;
+const AGENT_LOST_OUTCOME = 1;
 const NO_FAULT_OUTCOME = 2;
 const VERDICT_CLASS_SAFETY = 0;
+const SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS = 1n;
+const SOCIETY_ADVERSARIAL_DEATH_TASK_TITLE = "Society adversarial death";
+const SOCIETY_ADVERSARIAL_DEATH_TASK_DESCRIPTION =
+  "Agent-owned dispute task for automatic Society death slashing.";
 const DEFAULT_RPC_URL = "http://127.0.0.1:8898";
 const DEFAULT_RPC_SUBSCRIPTIONS_URL = "ws://127.0.0.1:8897";
 const DEFAULT_SURFPOOL_STUDIO_URL = "http://127.0.0.1:18488";
@@ -254,18 +325,40 @@ const PUBLIC_SOCIETY_URL_ENV = "SUBSTRATE_PUBLIC_SOCIETY_URL";
 const PUBLIC_RPC_URL_ENV = "SUBSTRATE_PUBLIC_RPC_URL";
 const PUBLIC_SURFPOOL_STUDIO_URL_ENV = "SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL";
 const REMOTE_RPC_ALLOW_ENV = "SUBSTRATE_ALLOW_REMOTE_RPC";
+const PUBLIC_LIVE_MUTATION_ALLOW_ENV = "SUBSTRATE_ALLOW_PUBLIC_LIVE_MUTATION";
 const KEYPAIR_ENV = "SUBSTRATE_KEYPAIR";
+const SOCIETY_AGENT_IDENTITY_DIR_ENV = "SUBSTRATE_SOCIETY_AGENT_IDENTITY_DIR";
+const SOCIETY_AGENT_AIRDROP_LAMPORTS_ENV =
+  "SUBSTRATE_SOCIETY_AGENT_AIRDROP_LAMPORTS";
+const SOCIETY_PI_ACTIONS_ENABLED_ENV = "SUBSTRATE_SOCIETY_PI_ACTIONS";
+const SOCIETY_PI_RUNTIME_URL_ENV = "SUBSTRATE_SOCIETY_PI_RUNTIME_URL";
+const SOCIETY_PI_PROVIDER_ENV = "SUBSTRATE_SOCIETY_PI_PROVIDER";
+const SOCIETY_PI_MODEL_ENV = "SUBSTRATE_SOCIETY_PI_MODEL";
 const DEFAULT_KEYPAIR_PATH = join(homedir(), ".config/solana/id.json");
+const DEFAULT_AGENT_IDENTITY_DIR = join(EXAMPLE_ROOT, ".society-identities");
+const DEFAULT_AGENT_AIRDROP_LAMPORTS = 2_000_000_000n;
+const DEFAULT_PI_RUNTIME_URL = "http://127.0.0.1:5173";
+const DEFAULT_PI_PROVIDER: SocietyPiProvider = "openai-codex";
+const DEFAULT_PI_MODEL_ID = "gpt-5.4-mini";
 const SOCIETY_DOMAIN = "society";
 const ZERO_ADDRESS = "11111111111111111111111111111111";
 const SOCIETY_WORLD_STATUS_ACTIVE = 0;
 const SOCIETY_WORLD_READ_RETRY_ATTEMPTS = 20;
 const SOCIETY_WORLD_READ_RETRY_DELAY_MS = 250;
+const AIRDROP_CONFIRMATION_ATTEMPTS = 40;
+const AIRDROP_CONFIRMATION_DELAY_MS = 250;
+const LOOPBACK_REMOTE_ADDRESSES = new Set([
+  "127.0.0.1",
+  "::1",
+  "::ffff:127.0.0.1",
+]);
 const LEGACY_SOCIETY_PAGE_PATH = "/examples/multi_agent/dashboard/society.html";
 const REMOVED_OFFLINE_COMMIT_MESSAGE =
   "Offline society commit has been removed. Start a Surfpool live session at /society instead.";
 const SOCIETY_WORLD_STATUS_COMPLETE = 1;
 const TOKEN_PROGRAM_AGENT_STAKE = "agent_stake";
+const SOL_STAKE_ASSET_LABEL = "SOL";
+const FALLBACK_AGENT_SETUP_CELL = Object.freeze({ x: 0, y: 0 });
 const SOCIETY_APP_PATH = "/dashboard/society-app/index.html";
 const LEGACY_SOCIETY_PAGE_PATHS = new Set([
   LEGACY_SOCIETY_PAGE_PATH,
@@ -281,6 +374,7 @@ const RPC_HEALTH_REQUEST = {
   id: 1,
   method: "getLatestBlockhash",
 };
+const RPC_SIGNATURE_STATUS_COMMITMENT = "processed";
 const DELEGATION_FULL_SCOPE = Object.values(RECEIPT_SCOPE_BITS).reduce(
   (mask, bit) => mask | bit,
   0,
@@ -371,6 +465,42 @@ const readLocalSurfpoolStudioUrl = (): string =>
 const readKeypairPath = (): string =>
   readOptionalEnv(KEYPAIR_ENV) ?? DEFAULT_KEYPAIR_PATH;
 
+const readSocietyAgentIdentityRoot = (): string =>
+  readOptionalEnv(SOCIETY_AGENT_IDENTITY_DIR_ENV) ?? DEFAULT_AGENT_IDENTITY_DIR;
+
+const readSocietyAgentAirdropLamports = (): bigint => {
+  const configured = readOptionalEnv(SOCIETY_AGENT_AIRDROP_LAMPORTS_ENV);
+  if (!configured) return DEFAULT_AGENT_AIRDROP_LAMPORTS;
+  if (!/^[0-9]+$/.test(configured)) {
+    throw new Error(
+      `${SOCIETY_AGENT_AIRDROP_LAMPORTS_ENV} must be a non-negative lamport amount`,
+    );
+  }
+  return BigInt(configured);
+};
+
+const readSocietyPiActionsEnabled = (): boolean =>
+  readOptionalEnv(SOCIETY_PI_ACTIONS_ENABLED_ENV) === "1";
+
+const readSocietyPiProvider = (): SocietyPiProvider => {
+  const configured = readOptionalEnv(SOCIETY_PI_PROVIDER_ENV);
+  if (!configured) return DEFAULT_PI_PROVIDER;
+  if (configured === "openai-codex" || configured === "anthropic") {
+    return configured;
+  }
+  throw new Error(
+    `${SOCIETY_PI_PROVIDER_ENV} must be openai-codex or anthropic`,
+  );
+};
+
+const readSocietyPiActionConfig = () => ({
+  enabled: readSocietyPiActionsEnabled(),
+  runtimeUrl:
+    readOptionalEnv(SOCIETY_PI_RUNTIME_URL_ENV) ?? DEFAULT_PI_RUNTIME_URL,
+  provider: readSocietyPiProvider(),
+  modelId: readOptionalEnv(SOCIETY_PI_MODEL_ENV) ?? DEFAULT_PI_MODEL_ID,
+});
+
 const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
 const normalizeSocietyUrl = (url: string): string => {
@@ -393,6 +523,43 @@ const buildRequestSocietyUrl = (
     readHeaderValue(request.headers["x-forwarded-proto"]) ?? "http";
   return normalizeSocietyUrl(`${protocol}://${host}`);
 };
+
+const isLocalHostname = (hostname: string): boolean =>
+  hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1";
+
+const isLoopbackRemoteAddress = (remoteAddress: string | undefined): boolean =>
+  remoteAddress !== undefined && LOOPBACK_REMOTE_ADDRESSES.has(remoteAddress);
+
+const readRequestHost = (request: IncomingMessage): string | undefined =>
+  readHeaderValue(request.headers["x-forwarded-host"]) ??
+  readHeaderValue(request.headers.host);
+
+const isLocalRequestHost = (request: IncomingMessage): boolean => {
+  const host = readRequestHost(request);
+  if (!host) return false;
+
+  try {
+    return isLocalHostname(new URL(`http://${host}`).hostname);
+  } catch {
+    return false;
+  }
+};
+
+const isLiveMutationRequest = (
+  request: IncomingMessage,
+  requestUrl: URL,
+): boolean => {
+  if (request.method !== "POST") return false;
+  if (requestUrl.pathname === "/api/society/live/start") return true;
+  return /^\/api\/society\/live\/[^/]+\/(?:play|pause|step)$/.test(
+    requestUrl.pathname,
+  );
+};
+
+const canAcceptLiveMutationRequest = (request: IncomingMessage): boolean =>
+  (isLoopbackRemoteAddress(request.socket.remoteAddress) &&
+    isLocalRequestHost(request)) ||
+  readOptionalEnv(PUBLIC_LIVE_MUTATION_ALLOW_ENV) === "1";
 
 const requireLocalRpc = (rpcUrl: string): void => {
   if (readOptionalEnv(REMOTE_RPC_ALLOW_ENV) === "1") return;
@@ -422,6 +589,63 @@ const assertRpcReady = async (rpcUrl: string): Promise<void> => {
       `Surfpool RPC is not reachable at ${rpcUrl}. Start Surfpool on the configured local RPC port before committing.`,
     );
   }
+};
+
+const postRpc = async <TResult>(
+  rpcUrl: string,
+  method: string,
+  params: ReadonlyArray<unknown>,
+): Promise<TResult> => {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params,
+    }),
+  });
+  const payload = (await response.json()) as {
+    result?: TResult;
+    error?: { message?: string };
+  };
+  if (!response.ok || payload.error || payload.result === undefined) {
+    throw new Error(
+      payload.error?.message ?? `RPC ${method} returned ${response.status}`,
+    );
+  }
+  return payload.result;
+};
+
+const requestAgentAirdrop = async (
+  rpcUrl: string,
+  agentAddress: string,
+  lamports: bigint,
+): Promise<string | undefined> => {
+  if (lamports === 0n) return undefined;
+  if (lamports > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error("Agent airdrop amount exceeds safe JSON-RPC integer range");
+  }
+  const signature = await postRpc<string>(rpcUrl, "requestAirdrop", [
+    agentAddress,
+    Number(lamports),
+  ]);
+  for (let attempt = 0; attempt < AIRDROP_CONFIRMATION_ATTEMPTS; attempt += 1) {
+    const status = await postRpc<{
+      value?: ReadonlyArray<{ confirmationStatus?: string | null } | null>;
+    }>(rpcUrl, "getSignatureStatuses", [[signature]]);
+    const confirmationStatus = status.value?.[0]?.confirmationStatus ?? null;
+    if (
+      confirmationStatus === RPC_SIGNATURE_STATUS_COMMITMENT ||
+      confirmationStatus === "confirmed" ||
+      confirmationStatus === "finalized"
+    ) {
+      return signature;
+    }
+    await wait(AIRDROP_CONFIRMATION_DELAY_MS);
+  }
+  return signature;
 };
 
 const displayRpcUrl = (rpcUrl: string): string =>
@@ -548,6 +772,82 @@ const normalizeTokenizedAgents = (
   return tokenizedAgents;
 };
 
+const selectInitialLiveAgentSetupEvents = (
+  run: SocietyRunPayload,
+): SocietyLiveEvent[] => {
+  const events = run.events ?? [];
+  return normalizeTokenizedAgents(run).map((agent) => {
+    const sourceEvent =
+      events.find((event) => event.id === agent.sourceEventId) ??
+      events.find(
+        (event) =>
+          event.agentId === agent.agentId &&
+          (event.action === "genesis" || event.action === "birth"),
+      );
+    return {
+      id:
+        sourceEvent?.id ??
+        agent.sourceEventId ??
+        `agent_setup_${agent.agentId}`,
+      tick: sourceEvent?.tick ?? agent.tick ?? 0,
+      agentId: agent.agentId,
+      agentName: sourceEvent?.agentName ?? agent.agentName ?? agent.agentId,
+      actorIdentityId:
+        sourceEvent?.actorIdentityId ?? agent.agentIdentityId ?? agent.agentId,
+      action: sourceEvent?.action ?? "genesis",
+      receiptKind: sourceEvent?.receiptKind,
+      tokenDelta: agent.startingTokens,
+      cell: sourceEvent?.cell ?? agent.cell ?? FALLBACK_AGENT_SETUP_CELL,
+      payloadExtras: sourceEvent?.payloadExtras,
+    };
+  });
+};
+
+const prepareInitialLiveAgentAccounts = async (
+  chainSession: SocietyLiveChainSession,
+  run: SocietyRunPayload,
+): Promise<void> => {
+  const setupEvents = selectInitialLiveAgentSetupEvents(run);
+  for (const event of setupEvents) {
+    await ensureLiveAgentAccount(chainSession, event);
+  }
+};
+
+const buildLiveSetupStatus = (
+  chainSession: SocietyLiveChainSession,
+): SocietyLiveSetupStatus => {
+  const agentAccounts = chainSession.agentAccounts;
+  const requestedAgentCount = Math.max(
+    chainSession.programPlan.summary.tokenizedAgents,
+    agentAccounts.length,
+  );
+  return {
+    stakeAsset: SOL_STAKE_ASSET_LABEL,
+    requestedAgentCount,
+    readyAgentCount: agentAccounts.filter(
+      (account) =>
+        account.authority.address &&
+        account.identity.address &&
+        account.delegation.address &&
+        account.stake.address,
+    ).length,
+    fundedAgentCount: agentAccounts.filter(
+      (account) => account.funding?.signature,
+    ).length,
+    identityAccountCount: agentAccounts.filter(
+      (account) => account.identity.address,
+    ).length,
+    delegationAccountCount: agentAccounts.filter(
+      (account) => account.delegation.address,
+    ).length,
+    solStakeAccountCount: agentAccounts.filter(
+      (account) => account.stake.address,
+    ).length,
+    protocolOperationCount: chainSession.operations.length,
+    worldReady: Boolean(chainSession.world.address),
+  };
+};
+
 const buildBatchReceipt = (
   run: SocietyRunPayload,
   batch: SocietyCompressedTx,
@@ -629,6 +929,24 @@ const describeError = (error: unknown): string => {
   return details.join(" :: ");
 };
 
+const requireTransactionSignature = (
+  value: { readonly signature?: string },
+  context: string,
+): string => {
+  if (!value.signature) {
+    throw new Error(`${context} did not return a transaction signature`);
+  }
+  return value.signature;
+};
+
+const requireReceiptPayloadHash = (receipt: ReceiptRecord): string => {
+  const payloadHash = receipt.payload.payloadHash;
+  if (typeof payloadHash !== "string" || payloadHash.length === 0) {
+    throw new Error(`Receipt ${receipt.receiptId} is missing payloadHash`);
+  }
+  return payloadHash;
+};
+
 const commitSocietyRun = async (run: SocietyRunPayload) => {
   if (!run.runId) {
     throw new Error("Run payload must include runId and compressedTxs");
@@ -656,22 +974,33 @@ const commitSocietyRun = async (run: SocietyRunPayload) => {
   let chainAdjudicator: unknown;
   let chainDispute: unknown;
 
-  const buildChainEvidence = (): CommitProofChainEvidence => ({
-    rpcUrl,
-    studioUrl,
-    programPlan,
-    identity: chainIdentity,
-    task: chainTask,
-    reputation: chainReputation,
-    checkpoint: chainCheckpoint,
-    adjudicator: chainAdjudicator,
-    dispute: chainDispute,
-    agentAccounts,
-    committedReceipts,
-    operations,
-    totalBatches: batches.length,
-    committedBatchCount: committedReceipts.length,
-  });
+  const buildChainEvidence = (): CommitProofChainEvidence => {
+    const chain = {
+      rpcUrl,
+      studioUrl,
+      programPlan,
+      identity: chainIdentity,
+      task: chainTask,
+      reputation: chainReputation,
+      checkpoint: chainCheckpoint,
+      adjudicator: chainAdjudicator,
+      dispute: chainDispute,
+      agentAccounts,
+      committedReceipts,
+      operations,
+      totalBatches: batches.length,
+      committedBatchCount: committedReceipts.length,
+    } satisfies CommitProofChainEvidence;
+
+    return {
+      ...chain,
+      protocolEvidence: buildProtocolEvidenceGraph({
+        programPlan,
+        chain,
+        generatedAt: createdAt,
+      }),
+    };
+  };
 
   const { artifact: preparedArtifact, reference: preparedProof } =
     await writeCommitProofArtifact({
@@ -1125,22 +1454,218 @@ const commitSocietyRun = async (run: SocietyRunPayload) => {
 const buildLiveChainEvidence = (
   chainSession: SocietyLiveChainSession,
   run: SocietyRunPayload,
-): CommitProofChainEvidence => ({
-  rpcUrl: chainSession.rpcUrl,
-  studioUrl: chainSession.studioUrl,
-  programPlan: buildProgramWiringPlan(run),
-  identity: chainSession.identity,
-  task: chainSession.task,
-  reputation: chainSession.reputation,
-  checkpoint: chainSession.checkpoint,
-  adjudicator: chainSession.adjudicator,
-  dispute: chainSession.dispute,
-  agentAccounts: chainSession.agentAccounts,
-  committedReceipts: chainSession.committedReceipts,
-  operations: chainSession.operations,
-  totalBatches: chainSession.committedReceipts.length,
-  committedBatchCount: chainSession.committedReceipts.length,
-});
+): CommitProofChainEvidence => {
+  const programPlan = buildProgramWiringPlan(run);
+  const chain = {
+    rpcUrl: chainSession.rpcUrl,
+    studioUrl: chainSession.studioUrl,
+    programPlan,
+    identity: chainSession.identity,
+    task: chainSession.task,
+    world: {
+      address: chainSession.world.address,
+      status: chainSession.worldStatus,
+    },
+    reputation: chainSession.reputation,
+    checkpoint: chainSession.checkpoint,
+    adjudicator: chainSession.adjudicator,
+    dispute: chainSession.dispute,
+    agentAccounts: chainSession.agentAccounts,
+    committedReceipts: chainSession.committedReceipts,
+    operations: chainSession.operations,
+    totalBatches: chainSession.committedReceipts.length,
+    committedBatchCount: chainSession.committedReceipts.length,
+  } satisfies CommitProofChainEvidence;
+
+  return {
+    ...chain,
+    protocolEvidence: buildProtocolEvidenceGraph({
+      programPlan,
+      chain,
+      generatedAt: chainSession.createdAt,
+    }),
+  };
+};
+
+const buildSignedLiveActionTranscript = (
+  chainSession: SocietyLiveChainSession,
+  run: SocietyRunPayload,
+  options: {
+    readonly afterActionFrame?: unknown;
+  } = {},
+): SocietyActionTranscript => {
+  const runWithId = {
+    ...run,
+    runId: typeof run.runId === "string" ? run.runId : chainSession.runId,
+  };
+  return buildSocietyActionTranscript(runWithId, {
+    source: {
+      kind: "pi-agent",
+      driver: "pi-agent-delegated-submitter",
+      runtimeSessionId: chainSession.sessionId,
+      note: "Each action is signed by the acting agent keypair before it is submitted. The board only reads committed Surfpool state; model launch is explicit and no Pi/LLM prompt is sent automatically.",
+    },
+    resolveStateCommitments: (context) => {
+      const runEvents = Array.isArray(run.events) ? run.events : [];
+      const latestEvent = runEvents[runEvents.length - 1];
+      const latestEventId =
+        latestEvent && typeof latestEvent.id === "string"
+          ? latestEvent.id
+          : undefined;
+      if (!options.afterActionFrame || context.eventId !== latestEventId) {
+        return {};
+      }
+
+      return {
+        afterStateHash: hashCanonical({
+          phase: "after-action",
+          liveSessionId: chainSession.sessionId,
+          runId: context.runId,
+          eventId: context.eventId,
+          sequence: context.sequence,
+          receiptHash: context.receiptHash,
+          frameHash: hashCanonical(options.afterActionFrame),
+        }),
+      };
+    },
+    resolveRuntimeEvidence: (context) => {
+      const evidence = chainSession.piActionsByEventId.get(context.eventId);
+      if (!evidence) return undefined;
+      return {
+        kind: "pi-action",
+        provider: evidence.provider,
+        modelId: evidence.modelId,
+        promptHash: evidence.promptHash,
+        responseHash: evidence.responseHash,
+        decisionHash: evidence.decisionHash,
+        decision: evidence.decision,
+      };
+    },
+    signAction: (actionHash, action): SocietyActionSignature => {
+      const runtime = chainSession.agentRuntimesById.get(action.agentId);
+      if (!runtime) {
+        throw new Error(
+          `Missing local agent identity keypair for ${action.agentId}`,
+        );
+      }
+      return {
+        scheme: "ed25519/solana-agent-keypair",
+        signer: runtime.signer.address,
+        value: signBytes(
+          null,
+          Buffer.from(actionHash, "hex"),
+          runtime.actionSigningKey,
+        ).toString("hex"),
+      };
+    },
+  });
+};
+
+const shouldRequestPiAction = (event: SocietyLiveEvent): boolean =>
+  event.action !== "genesis";
+
+const maybeRequestPiAction = async ({
+  chainSession,
+  event,
+  receipt,
+  frame,
+  agentRuntime,
+}: {
+  readonly chainSession: SocietyLiveChainSession;
+  readonly event: SocietyLiveEvent;
+  readonly receipt: SocietyLiveReceipt;
+  readonly frame?: SocietyLiveFrame;
+  readonly agentRuntime: SocietyLiveAgentRuntime;
+}): Promise<SocietyPiActionEvidence | undefined> => {
+  const config = readSocietyPiActionConfig();
+  if (!config.enabled || !shouldRequestPiAction(event)) return undefined;
+
+  const existing = chainSession.piActionsByEventId.get(event.id);
+  if (existing) return existing;
+
+  const evidence = await requestSocietyPiAction({
+    sessionId: chainSession.sessionId,
+    runId: chainSession.runId,
+    commitId: chainSession.commitId,
+    runtimeUrl: config.runtimeUrl,
+    provider: config.provider,
+    modelId: config.modelId,
+    agent: {
+      id: event.agentId,
+      name: event.agentName,
+      signer: agentRuntime.signer.address,
+      identity: agentRuntime.account.identity.address,
+      delegation: agentRuntime.account.delegation.address,
+    },
+    event: {
+      id: event.id,
+      tick: event.tick,
+      agentId: event.agentId,
+      action: event.action,
+      receiptKind: event.receiptKind,
+      tokenDelta: event.tokenDelta,
+      cell: event.cell,
+      note:
+        typeof event.payloadExtras?.note === "string"
+          ? event.payloadExtras.note
+          : undefined,
+    },
+    allowedActions: [
+      {
+        id: event.id,
+        action: event.action,
+        receiptKind: event.receiptKind,
+        tokenDelta: event.tokenDelta,
+        cell: event.cell,
+        note:
+          typeof event.payloadExtras?.note === "string"
+            ? event.payloadExtras.note
+            : event.note,
+      },
+    ],
+    receipt: {
+      receiptId: receipt.receiptId,
+      kind: receipt.kind,
+      payloadHash: receipt.payloadHash,
+    },
+    world: {
+      beforeReceipt: chainSession.previousReceiptId,
+      afterFrame: frame,
+    },
+  });
+  chainSession.piActionsByEventId.set(event.id, evidence);
+  chainSession.operations.push({
+    kind: "pi_action_decision",
+    eventId: event.id,
+    agentId: event.agentId,
+    provider: evidence.provider,
+    modelId: evidence.modelId,
+    promptHash: evidence.promptHash,
+    responseHash: evidence.responseHash,
+    decisionHash: evidence.decisionHash,
+  });
+  return evidence;
+};
+
+const buildCommittedPrefixRun = (
+  run: SocietyRunPayload,
+  eventId: string,
+): SocietyRunPayload => {
+  const events = Array.isArray(run.events) ? run.events : [];
+  const eventIndex = events.findIndex((event) => event.id === eventId);
+  if (eventIndex === -1) {
+    throw new Error(
+      `Cannot build transcript prefix for unknown event ${eventId}`,
+    );
+  }
+  return {
+    ...run,
+    events: events.slice(0, eventIndex + 1),
+    receipts: Array.isArray(run.receipts)
+      ? run.receipts.slice(0, eventIndex + 1)
+      : run.receipts,
+  };
+};
 
 const initializeSocietyLiveChainSession = async (
   sessionId: string,
@@ -1182,7 +1707,10 @@ const initializeSocietyLiveChainSession = async (
   const operations: unknown[] = [];
   const agentAccounts: SocietyLiveAgentAccount[] = [];
   const agentAccountsById = new Map<string, SocietyLiveAgentAccount>();
+  const agentRuntimesById = new Map<string, SocietyLiveAgentRuntime>();
+  const piActionsByEventId = new Map<string, SocietyPiActionEvidence>();
   const committedReceipts: unknown[] = [];
+  const programPlan = buildProgramWiringPlan(run);
 
   operations.push(await client.ensureDomainCatalog({ curator: authority }));
   operations.push(
@@ -1248,8 +1776,9 @@ const initializeSocietyLiveChainSession = async (
     task: taskCommit.address,
   });
 
-  return {
+  const chainSession: SocietyLiveChainSession = {
     sessionId,
+    runId: run.runId,
     commitId,
     createdAt,
     rpcUrl,
@@ -1287,9 +1816,15 @@ const initializeSocietyLiveChainSession = async (
     operations,
     agentAccounts,
     agentAccountsById,
+    agentRuntimesById,
+    piActionsByEventId,
     committedReceipts,
+    programPlan,
     worldStatus: SOCIETY_WORLD_STATUS_ACTIVE,
   };
+
+  await prepareInitialLiveAgentAccounts(chainSession, run);
+  return chainSession;
 };
 
 const syncSocietyWorldState = async ({
@@ -1358,19 +1893,43 @@ const syncSocietyWorldState = async ({
     );
   }
   chainSession.worldStatus = world.status;
+  chainSession.programPlan = buildProgramWiringPlan(
+    finalizeLiveSocietySession(simulation),
+  );
   return simulation;
 };
 
 const ensureLiveAgentAccount = async (
   chainSession: SocietyLiveChainSession,
   event: SocietyLiveEvent,
-) => {
-  const existing = chainSession.agentAccountsById.get(event.agentId);
+): Promise<SocietyLiveAgentRuntime> => {
+  const existing = chainSession.agentRuntimesById.get(event.agentId);
   if (existing) return existing;
 
   const amount = parsePositiveTokenAmount(event.tokenDelta);
   if (!amount) {
     throw new Error(`Missing starting token amount for ${event.agentId}`);
+  }
+  const identityMaterial = await loadOrCreateSocietyAgentIdentity({
+    rootDirectory: readSocietyAgentIdentityRoot(),
+    sessionId: chainSession.sessionId,
+    agentId: event.agentId,
+    agentName: event.agentName,
+  });
+  const airdropLamports = readSocietyAgentAirdropLamports();
+  const fundingSignature = await requestAgentAirdrop(
+    chainSession.rpcUrl,
+    identityMaterial.signer.address,
+    airdropLamports,
+  );
+  if (fundingSignature) {
+    chainSession.operations.push({
+      kind: "fund_agent_identity",
+      agentId: event.agentId,
+      address: identityMaterial.signer.address,
+      signature: fundingSignature,
+      lamports: airdropLamports.toString(),
+    });
   }
 
   const agentIdentityLabel = [
@@ -1380,11 +1939,11 @@ const ensureLiveAgentAccount = async (
     event.actorIdentityId ?? event.agentId,
   ].join("-");
   const agentIdentity = createIdentity({
-    authority: chainSession.authority.address,
+    authority: identityMaterial.signer.address,
     label: agentIdentityLabel,
   });
   const agentIdentityCommit = await chainSession.client.ensureIdentity({
-    authority: chainSession.authority,
+    authority: identityMaterial.signer,
     identity: agentIdentity,
   });
   chainSession.operations.push({
@@ -1396,7 +1955,7 @@ const ensureLiveAgentAccount = async (
   const delegationCommit = await chainSession.client.ensureDelegation({
     authority: chainSession.authority,
     identity: chainSession.identity.address,
-    delegate: agentIdentityCommit.address,
+    delegate: identityMaterial.signer.address,
     allowedActions: DELEGATION_FULL_SCOPE,
   });
   chainSession.operations.push({
@@ -1404,7 +1963,7 @@ const ensureLiveAgentAccount = async (
     agentId: event.agentId,
   });
   const stakeInit = await chainSession.client.ensureStake({
-    owner: chainSession.authority,
+    owner: identityMaterial.signer,
     identity: agentIdentityCommit.address,
     slashAuthority: chainSession.authority.address,
     trustMode: TRUST_MODE_VERDICT,
@@ -1416,7 +1975,7 @@ const ensureLiveAgentAccount = async (
     tokenAmount: amount.toString(),
   });
   const stakeDeposit = await chainSession.client.stake({
-    owner: chainSession.authority,
+    owner: identityMaterial.signer,
     identity: agentIdentityCommit.address,
     amount,
   });
@@ -1430,6 +1989,12 @@ const ensureLiveAgentAccount = async (
   const account: SocietyLiveAgentAccount = {
     agentId: event.agentId,
     agentName: event.agentName ?? event.agentId,
+    authority: {
+      address: identityMaterial.signer.address,
+      identityDirectory: identityMaterial.directory,
+      keypairPath: identityMaterial.keypairPath,
+      created: identityMaterial.created,
+    },
     startingTokens: amount.toString(),
     tokenProgram: TOKEN_PROGRAM_AGENT_STAKE,
     identity: {
@@ -1447,26 +2012,55 @@ const ensureLiveAgentAccount = async (
       signature: stakeDeposit.signature,
       slot: stakeDeposit.slot,
     },
+    ...(fundingSignature
+      ? {
+          funding: {
+            lamports: airdropLamports.toString(),
+            signature: fundingSignature,
+          },
+        }
+      : {}),
+  };
+  const runtime: SocietyLiveAgentRuntime = {
+    agentId: event.agentId,
+    signer: identityMaterial.signer,
+    actionSigningKey: identityMaterial.actionSigningKey,
+    account,
   };
   chainSession.agentAccounts.push(account);
   chainSession.agentAccountsById.set(event.agentId, account);
-  return account;
+  chainSession.agentRuntimesById.set(event.agentId, runtime);
+  return runtime;
 };
 
 const buildLiveChainReceipt = (
   chainSession: SocietyLiveChainSession,
   event: SocietyLiveEvent,
   receipt: SocietyLiveReceipt,
+  actionTranscript: SocietyActionTranscript,
+  agentRuntime: SocietyLiveAgentRuntime,
+  piAction?: SocietyPiActionEvidence,
 ): ReceiptRecord => {
+  const signedAction = actionTranscript.actions.find(
+    (action) => action.eventId === event.id,
+  );
+  if (!signedAction) {
+    throw new Error(`Missing signed action transcript entry for ${event.id}`);
+  }
   const payload = {
     ...(receipt.payload ?? {}),
     liveSessionId: chainSession.sessionId,
     commitId: chainSession.commitId,
     offlineReceiptId: receipt.receiptId,
     offlinePayloadHash: receipt.payloadHash,
+    actionTranscriptRoot: actionTranscript.root,
+    signedAction,
+    ...(piAction ? { piAction } : {}),
+    logicalAgentId: event.agentId,
+    logicalActorIdentityId: event.actorIdentityId ?? null,
   };
   return createReceipt({
-    actorId: event.actorIdentityId ?? event.agentId,
+    actorId: agentRuntime.signer.address,
     kind: receipt.kind ?? event.receiptKind ?? "completion",
     taskId: chainSession.task.id,
     sequence: chainSession.committedReceipts.length + 1,
@@ -1478,35 +2072,222 @@ const buildLiveChainReceipt = (
   });
 };
 
+const readAdversarialDeathReason = (event: SocietyLiveEvent): string => {
+  const reason = event.payloadExtras?.reason;
+  return typeof reason === "string" && reason.length > 0
+    ? reason
+    : "society death rule";
+};
+
+const maybeSlashAdversarialDeath = async ({
+  chainSession,
+  event,
+  agentRuntime,
+  sourceReceipt,
+  committedKind,
+}: {
+  chainSession: SocietyLiveChainSession;
+  event: SocietyLiveEvent;
+  agentRuntime: SocietyLiveAgentRuntime;
+  sourceReceipt: {
+    readonly address: string;
+    readonly signature?: string;
+    readonly slot: number;
+  };
+  committedKind: string;
+}) => {
+  if (event.action !== "death") return undefined;
+  if (committedKind !== "dispute") {
+    throw new Error(
+      `Death event ${event.id} must commit a dispute receipt before slashing`,
+    );
+  }
+
+  const reason = readAdversarialDeathReason(event);
+  const agentDisputeTask = createTask({
+    identityId: agentRuntime.account.identity.id,
+    title: `${SOCIETY_ADVERSARIAL_DEATH_TASK_TITLE}: ${event.id}`,
+    domain: SOCIETY_DOMAIN,
+    description: SOCIETY_ADVERSARIAL_DEATH_TASK_DESCRIPTION,
+    subtasks: [`death:${event.id}`, `reason:${reason}`],
+  });
+  const taskCommit = await chainSession.client.ensureTask({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    task: agentDisputeTask,
+  });
+  chainSession.operations.push({
+    ...taskCommit,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+
+  const payload = {
+    domain: SOCIETY_DOMAIN,
+    action: "adversarial_death_slash",
+    sourceAction: event.action,
+    sourceEventId: event.id,
+    sourceReceipt: sourceReceipt.address,
+    sourceReceiptSignature: sourceReceipt.signature,
+    reason,
+    slashAmountLamports: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS.toString(),
+    agentId: event.agentId,
+    agentIdentity: agentRuntime.account.identity.address,
+    stake: agentRuntime.account.stake.address,
+    boardIdentity: chainSession.identity.address,
+    boardTask: chainSession.task.address,
+  };
+  const disputeReceipt = createReceipt({
+    actorId: agentRuntime.signer.address,
+    kind: "dispute",
+    taskId: agentDisputeTask.taskId,
+    sequence: 1,
+    payload: {
+      ...payload,
+      payloadHash: hashCanonical(payload),
+    },
+  });
+  const committedDisputeReceipt = await chainSession.client.emitReceipt({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    task: taskCommit.address,
+    domainCatalog: chainSession.domainCatalogAddress,
+    receipt: disputeReceipt,
+  });
+  chainSession.operations.push({
+    ...committedDisputeReceipt,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+  const taskSync = await chainSession.client.syncTaskStatus({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    task: taskCommit.address,
+    receipt: committedDisputeReceipt.address,
+  });
+  chainSession.operations.push({
+    ...taskSync,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+  const verdictCommit = await chainSession.client.ensureVerdict({
+    adjudicator: chainSession.authority,
+    disputeReceipt: committedDisputeReceipt.address,
+    outcome: AGENT_LOST_OUTCOME,
+    slashAmount: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS,
+    class: VERDICT_CLASS_SAFETY,
+    staleAfterSlot: 0n,
+  });
+  chainSession.operations.push({
+    ...verdictCommit,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+  const slashCommit = await chainSession.client.slashWithVerdict({
+    adjudicator: chainSession.authority,
+    stake: agentRuntime.account.stake.address,
+    disputeReceipt: committedDisputeReceipt.address,
+    verdict: verdictCommit.address,
+    treasuryVault: chainSession.adjudicator.treasuryVault,
+  });
+  chainSession.operations.push({
+    ...slashCommit,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+
+  const adversarialSlash = {
+    batchId: `adversarial_slash_${event.id}`,
+    receiptId: disputeReceipt.receiptId,
+    sourceReceiptCount: 1,
+    address: committedDisputeReceipt.address,
+    actor: agentRuntime.signer.address,
+    signature: committedDisputeReceipt.signature,
+    slot: committedDisputeReceipt.slot,
+    task: {
+      address: taskCommit.address,
+      signature: taskCommit.signature,
+    },
+    verdict: {
+      address: verdictCommit.address,
+      signature: verdictCommit.signature,
+    },
+    slash: {
+      address: slashCommit.address,
+      signature: slashCommit.signature,
+      stake: agentRuntime.account.stake.address,
+      amount: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS.toString(),
+      disputeReceipt: committedDisputeReceipt.address,
+    },
+    source: {
+      eventId: event.id,
+      receiptAddress: sourceReceipt.address,
+      reason,
+    },
+  };
+  chainSession.committedReceipts.push(adversarialSlash);
+  return adversarialSlash;
+};
+
 const commitLiveActionReceipt = async ({
   chainSession,
   event,
   receipt,
+  frame,
+  simulation,
   committedLabel,
   sourceReceiptCount,
 }: {
   chainSession: SocietyLiveChainSession;
   event: SocietyLiveEvent;
   receipt: SocietyLiveReceipt;
+  frame?: SocietyLiveFrame;
+  simulation: SocietyRunPayload;
   committedLabel: string;
   sourceReceiptCount: number;
 }) => {
-  if (event.action === "genesis" || event.action === "birth") {
-    await ensureLiveAgentAccount(chainSession, event);
-  }
+  const agentRuntime =
+    chainSession.agentRuntimesById.get(event.agentId) ??
+    (await ensureLiveAgentAccount(chainSession, event));
+  const piAction = await maybeRequestPiAction({
+    chainSession,
+    event,
+    receipt,
+    frame,
+    agentRuntime,
+  });
 
-  const chainReceipt = buildLiveChainReceipt(chainSession, event, receipt);
+  const actionTranscript = buildSignedLiveActionTranscript(
+    chainSession,
+    buildCommittedPrefixRun(simulation, event.id),
+    frame ? { afterActionFrame: frame } : {},
+  );
+  const signedAction = actionTranscript.actions.find(
+    (action) => action.eventId === event.id,
+  );
+  if (!signedAction) {
+    throw new Error(`Missing signed action transcript entry for ${event.id}`);
+  }
+  const chainReceipt = buildLiveChainReceipt(
+    chainSession,
+    event,
+    receipt,
+    actionTranscript,
+    agentRuntime,
+    piAction,
+  );
   const committedKind = receipt.kind ?? event.receiptKind ?? "completion";
-  const committedReceipt = await chainSession.client.emitReceipt({
-    authority: chainSession.authority,
+  const committedReceipt = await chainSession.client.emitDelegatedReceipt({
+    delegate: agentRuntime.signer,
     identity: chainSession.identity.address,
+    delegation: agentRuntime.account.delegation.address,
     task: chainSession.task.address,
     domainCatalog: chainSession.domainCatalogAddress,
     receipt: chainReceipt,
   });
   chainSession.operations.push(committedReceipt);
   const checkpointAppend = await chainSession.client.appendReceiptToCheckpoint({
-    feePayer: chainSession.authority,
+    feePayer: agentRuntime.signer,
     identity: chainSession.identity.address,
     checkpoint: chainSession.checkpoint.address,
     latestCheckpoint: chainSession.checkpoint.latestCheckpoint,
@@ -1532,7 +2313,7 @@ const commitLiveActionReceipt = async ({
     kind: committedKind,
   })
     ? await chainSession.client.applyReputationReceipt({
-        authority: chainSession.authority,
+        authority: agentRuntime.signer,
         identity: chainSession.identity.address,
         receipt: committedReceipt.address,
         reputation: chainSession.reputation.address,
@@ -1541,17 +2322,63 @@ const commitLiveActionReceipt = async ({
   if (reputationApply) {
     chainSession.operations.push(reputationApply);
   }
+  const adversarialSlash = await maybeSlashAdversarialDeath({
+    chainSession,
+    event,
+    agentRuntime,
+    sourceReceipt: committedReceipt,
+    committedKind,
+  });
+  const actionEnvelope = buildAgentActionEnvelopeForSignedSocietyAction({
+    signedAction,
+    identityAddress: chainSession.identity.address,
+    taskAddress: chainSession.task.address,
+    receiptAddress: committedReceipt.address,
+    receiptPayloadHash: requireReceiptPayloadHash(chainReceipt),
+    txSignature: requireTransactionSignature(
+      committedReceipt,
+      "emit delegated receipt",
+    ),
+    slot: committedReceipt.slot,
+    transcriptRoot: actionTranscript.root,
+    args: {
+      committedKind,
+      eventId: event.id,
+      receiptId: receipt.receiptId,
+      sourceReceiptCount,
+    },
+  });
+  const actionProof = {
+    transcriptRoot: actionTranscript.root,
+    leafHash: signedAction.leafHash,
+    signer: signedAction.signature.signer,
+    signature: signedAction.signature.value,
+    scheme: signedAction.signature.scheme,
+    beforeStateHash: signedAction.beforeState.stateHash,
+    beforeStateSignature: signedAction.beforeState.signature.value,
+    beforeStateScheme: signedAction.beforeState.signature.scheme,
+    afterStateHash: signedAction.afterState.stateHash,
+    afterStateSignature: signedAction.afterState.signature.value,
+    afterStateScheme: signedAction.afterState.signature.scheme,
+    runtimeEvidence: signedAction.runtimeEvidence,
+    submitter: agentRuntime.signer.address,
+    delegation: agentRuntime.account.delegation.address,
+    actionEnvelope,
+  };
   chainSession.committedReceipts.push({
     batchId: committedLabel,
     receiptId: receipt.receiptId,
     sourceReceiptCount,
     address: committedReceipt.address,
+    actor: agentRuntime.signer.address,
+    delegation: agentRuntime.account.delegation.address,
     signature: committedReceipt.signature,
     slot: committedReceipt.slot,
     checkpoint: {
       address: chainSession.checkpoint.address,
       signature: checkpointAppend.signature,
     },
+    actionProof,
     ...(reputationApply
       ? {
           reputation: {
@@ -1562,13 +2389,18 @@ const commitLiveActionReceipt = async ({
       : {}),
   });
   chainSession.previousReceiptId = committedReceipt.address;
-  return committedReceipt;
+  return {
+    ...committedReceipt,
+    actionProof,
+    ...(adversarialSlash ? { adversarialSlash } : {}),
+  };
 };
 
 const finalizeSocietyLiveChainSession = async (
   chainSession: SocietyLiveChainSession,
   run: SocietyRunPayload,
 ) => {
+  const actionTranscript = buildSignedLiveActionTranscript(chainSession, run);
   const { artifact: preparedArtifact, reference: preparedProof } =
     await writeCommitProofArtifact({
       proofDirectory: PROOF_DIRECTORY,
@@ -1577,6 +2409,7 @@ const finalizeSocietyLiveChainSession = async (
       commitId: chainSession.commitId,
       status: "prepared",
       createdAt: chainSession.createdAt,
+      actionTranscript,
       chain: buildLiveChainEvidence(chainSession, run),
     });
 
@@ -1655,6 +2488,7 @@ const finalizeSocietyLiveChainSession = async (
     status: "committed",
     createdAt: chainSession.createdAt,
     preparedProofHash: preparedArtifact.proofHash,
+    actionTranscript,
     chain: buildLiveChainEvidence(chainSession, run),
   });
 
@@ -1677,19 +2511,28 @@ const societyLiveManager = createSocietyLiveManager({
       simulation: simulation as SocietyLiveSimulationSession,
       completed,
     }),
-  commitGenesisAction: async ({ chainSession, event, receipt }) =>
+  commitGenesisAction: async ({ chainSession, event, receipt, simulation }) =>
     commitLiveActionReceipt({
       chainSession,
       event,
       receipt,
+      simulation,
       committedLabel: event.id,
       sourceReceiptCount: 1,
     }),
-  commitLiveAction: async ({ chainSession, event, receipt }) =>
+  commitLiveAction: async ({
+    chainSession,
+    event,
+    receipt,
+    frame,
+    simulation,
+  }) =>
     commitLiveActionReceipt({
       chainSession,
       event,
       receipt,
+      frame,
+      simulation,
       committedLabel: event.id,
       sourceReceiptCount: 1,
     }),
@@ -1719,21 +2562,34 @@ const writeSseMessage = (response: ServerResponse, payload: unknown) => {
 
 const buildLiveSessionAccountSnapshot = (
   session: ReturnType<typeof societyLiveManager.getSession>,
-): SocietyLiveSessionAccountSnapshot => ({
-  sessionId: session.id,
-  rpcUrl: displayRpcUrl(session.chainSession.rpcUrl),
-  studioUrl: displayStudioUrl(session.chainSession.studioUrl),
-  identity: session.chainSession.identity,
-  task: session.chainSession.task,
-  reputation: session.chainSession.reputation,
-  checkpoint: session.chainSession.checkpoint,
-  adjudicator: session.chainSession.adjudicator,
-  world: {
-    address: session.chainSession.world.address,
-    status: session.chainSession.worldStatus,
-  },
-  agentAccounts: session.chainSession.agentAccounts,
-});
+): SocietyLiveSessionAccountSnapshot => {
+  const run = finalizeLiveSocietySession(
+    session.simulation as SocietyLiveSimulationSession,
+  );
+  const chainEvidence = buildLiveChainEvidence(session.chainSession, run);
+  if (!chainEvidence.protocolEvidence) {
+    throw new Error("Live protocol evidence graph was not built");
+  }
+
+  return {
+    sessionId: session.id,
+    rpcUrl: displayRpcUrl(session.chainSession.rpcUrl),
+    studioUrl: displayStudioUrl(session.chainSession.studioUrl),
+    identity: session.chainSession.identity,
+    task: session.chainSession.task,
+    reputation: session.chainSession.reputation,
+    checkpoint: session.chainSession.checkpoint,
+    adjudicator: session.chainSession.adjudicator,
+    world: {
+      address: session.chainSession.world.address,
+      status: session.chainSession.worldStatus,
+    },
+    setup: buildLiveSetupStatus(session.chainSession),
+    agentAccounts: session.chainSession.agentAccounts,
+    programPlan: session.chainSession.programPlan,
+    protocolEvidence: chainEvidence.protocolEvidence,
+  };
+};
 
 const serveStatic = async (
   request: IncomingMessage,
@@ -1776,6 +2632,17 @@ const handleRequest = async (
 ) => {
   try {
     const requestUrl = new URL(request.url ?? "/", "http://localhost");
+    if (
+      isLiveMutationRequest(request, requestUrl) &&
+      !canAcceptLiveMutationRequest(request)
+    ) {
+      writeJson(response, 403, {
+        error:
+          "Public live mutation is disabled. Use the local loopback URL or set SUBSTRATE_ALLOW_PUBLIC_LIVE_MUTATION=1 for an intentional public demo.",
+      });
+      return;
+    }
+
     if (request.method === "GET" && requestUrl.pathname === "/api/health") {
       writeJson(response, 200, {
         ok: true,

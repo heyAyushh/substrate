@@ -13,6 +13,8 @@ export const DEFAULT_RUN_DASHBOARD_URL =
   "http://127.0.0.1:4173/examples/multi_agent/dashboard/index.html";
 
 const DEFAULT_KEYPAIR_SUBPATH = ".config/solana/id.json";
+const RPC_SUBSCRIPTIONS_URL_ENV = "SUBSTRATE_RPC_SUBSCRIPTIONS_URL";
+const LEGACY_WS_URL_ENV = "SUBSTRATE_WS_URL";
 
 export interface ExtensionConfig {
   readonly rpcUrl: string;
@@ -49,7 +51,9 @@ export function loadExtensionConfig(
   return {
     rpcUrl: env.SUBSTRATE_RPC_URL ?? DEFAULT_RPC_URL,
     rpcSubscriptionsUrl:
-      env.SUBSTRATE_RPC_SUBSCRIPTIONS_URL ?? DEFAULT_RPC_SUBSCRIPTIONS_URL,
+      env[RPC_SUBSCRIPTIONS_URL_ENV] ??
+      env[LEGACY_WS_URL_ENV] ??
+      DEFAULT_RPC_SUBSCRIPTIONS_URL,
     keypairPath:
       env.SUBSTRATE_KEYPAIR ?? resolve(home, DEFAULT_KEYPAIR_SUBPATH),
     domain: env.SUBSTRATE_DOMAIN ?? DEFAULT_DOMAIN,

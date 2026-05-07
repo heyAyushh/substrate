@@ -18,6 +18,7 @@ const ROADMAP_DOC = readFileSync(join(REPO_ROOT, "docs", "roadmap.md"), "utf8");
 const normalizeText = (text) => text.replace(/\s+/g, " ").trim();
 
 const REQUIRED_READINESS_GAPS = [
+  "SPL token stake vaults exist, but production mint allowlists, token valuation policy, and Token-2022 extension handling are not finalized yet.",
   "Light Protocol ZK Compression is not integrated yet.",
   "The TypeScript SDK is deterministic helper logic, not a production RPC client.",
   "The indexer is local and durable, not a networked event pipeline.",
@@ -44,4 +45,40 @@ test("project entry points link the production readiness todo", () => {
 
   ok(README_DOC.includes(readinessTodoPath), "README must link the todo");
   ok(ROADMAP_DOC.includes(readinessTodoPath), "roadmap must link the todo");
+});
+
+test("deployment docs separate Trust Substrate skill from QEDgen", () => {
+  const deploymentDoc = readFileSync(
+    join(REPO_ROOT, "docs", "deployment-readiness.md"),
+    "utf8",
+  );
+  const agentSkillDoc = readFileSync(
+    join(REPO_ROOT, "docs", "agent-skill.md"),
+    "utf8",
+  );
+  const skillFile = readFileSync(
+    join(REPO_ROOT, "skills", "trust-substrate", "SKILL.md"),
+    "utf8",
+  );
+
+  ok(
+    deploymentDoc.includes("Surfpool/local Solana"),
+    "deployment docs must name Surfpool/local Solana as the current target",
+  );
+  ok(
+    deploymentDoc.includes("SOL/lamports"),
+    "deployment docs must state the current SOL stake boundary",
+  );
+  ok(
+    deploymentDoc.includes("Add production SPL token mint allowlists"),
+    "deployment docs must keep SPL token policy as upcoming work",
+  );
+  ok(
+    normalizeText(agentSkillDoc).includes("separate from QEDgen"),
+    "agent skill docs must not confuse Trust Substrate skill with QEDgen",
+  );
+  ok(
+    skillFile.includes("Choose one allowed action"),
+    "the agent skill must require the agent to choose from allowed actions",
+  );
 });

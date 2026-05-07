@@ -1,0 +1,9 @@
+export const LOCAL_RUNTIME_ROUTE = "/__local/runtime";
+export const LOCAL_CHAT_ROUTE = "/__local/chat";
+export const LOCAL_CHAT_STREAM_ROUTE = "/__local/chat/stream";
+export const LOCAL_RUNTIME_SENTINEL_KEY = "__local-runtime__";
+export const LOCAL_RUNTIME_ACTIVITY_EVENT = "pi-console:local-runtime-activity";
+export const DEFAULT_CODEX_MODEL_ID = "gpt-5.4-mini";
+export const DEFAULT_CLAUDE_MODEL_ID = "claude-sonnet-4-6";
+export const DEFAULT_OPENAI_MODEL_ID = "gpt-5.4-mini";
+export const DEFAULT_COMMAND_TIMEOUT_MS = 10 * 60 * 1000;

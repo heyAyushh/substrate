@@ -123,6 +123,27 @@ const buildStubBridge = (): {
             `RCT${String(commits.length).padStart(41, "0")}` as Address,
           operations: [],
         },
+        actionEnvelope: {
+          schemaVersion: 1,
+          agentId: record.actorId,
+          identityAddress: input.identityAddress,
+          taskAddress: input.taskAddress,
+          tick: null,
+          action: input.kind,
+          args: { recordId: input.recordId, sequence: input.sequence },
+          promptHash: null,
+          responseHash: null,
+          preStateHash: "a".repeat(64),
+          postStateHash: "b".repeat(64),
+          receiptAddress:
+            `RCT${String(commits.length).padStart(41, "0")}` as Address,
+          receiptPayloadHash: "p".repeat(64),
+          txSignature: `tx-${commits.length}`,
+          slot: commits.length,
+          agentSignature: `tx-${commits.length}`,
+          transcriptRoot: "c".repeat(64),
+          leafHash: "d".repeat(64),
+        },
       };
     },
   } as unknown as PiToolStreamBridge<ReceiptIndexWriter>;

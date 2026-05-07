@@ -138,6 +138,14 @@ pub enum TrustSubstrateError {
     StakeReceiptKindMismatch,
     #[msg("This dispute receipt has already been used for slashing")]
     StakeSlashAlreadyApplied,
+    #[msg("The token stake mint does not match the supplied mint")]
+    StakeTokenMintMismatch,
+    #[msg("The token stake vault does not match the supplied vault")]
+    StakeTokenVaultMismatch,
+    #[msg("The token program does not match this token stake position")]
+    StakeTokenProgramMismatch,
+    #[msg("The token treasury vault does not match the supplied mint")]
+    StakeTokenTreasuryVaultMismatch,
     #[msg("The supplied verdict outcome is not part of the protocol vocabulary")]
     InvalidVerdictOutcome,
     #[msg("The supplied verdict class is not part of the protocol vocabulary")]

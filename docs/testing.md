@@ -38,6 +38,11 @@ Run the verification contract:
 pnpm test:verification
 ```
 
+`pnpm test:verification` first builds the SDK, which compiles the committed
+Codama program clients into `packages/program-clients/dist`, then runs the
+TypeScript verification tests. This keeps transaction-size, program-client, and
+shared protocol-artifact checks from depending on ignored build output.
+
 Run the Anchor flow directly:
 
 ```bash
@@ -49,6 +54,38 @@ Run the Surfpool end-to-end gate:
 ```bash
 pnpm test:surfpool
 ```
+
+Run the QEDGen end-to-end gate:
+
+```bash
+pnpm verify:qedgen
+```
+
+That command checks every committed `.qedspec`, enforces the semantic
+`proof_verifier.qedspec` check against the Anchor source, generates
+proof-verifier Anchor/proptest/Kani/Lean artifacts in a temporary sandbox, and
+then runs `qedgen verify` on those generated artifacts. The sandbox is kept so
+the generated output can be inspected.
+
+Current state: the source drift and generated artifact stages pass for
+`proof_verifier`, but strict generated backend verification is expected to fail
+until QEDGen's generated Anchor scaffold compiles for the account-binding
+patterns used here. To run the same path while allowing that known generator
+blocker, use:
+
+```bash
+pnpm verify:qedgen:scaffold
+```
+
+Run the full release gate:
+
+```bash
+pnpm verify:release
+```
+
+That command runs lint, Anchor build, package builds, Pi extension tests, Pi
+Console checks, Rust tests, LiteSVM/Anchor, verification, and Surfpool. Surfpool
+still runs last.
 
 ## Anchor Test Flow
 
@@ -77,8 +114,22 @@ These checks keep the lightweight repo-consistency lane honest. They cover:
 
 - the archive snapshot script behavior
 - the shared protocol error taxonomy
+- QEDGen scaffold coverage for each deployable Anchor program
+- the local `qedgen check --spec programs/proof_verifier/proof_verifier.qedspec --anchor-project programs/proof_verifier --json` contract
 - the society preview/live stepper parity checks
 - the live session manager without requiring Surfpool
+
+The proof verifier QEDGen spec is the semantic scaffold for checkpoint history
+behavior:
+
+```bash
+qedgen check --spec programs/proof_verifier/proof_verifier.qedspec --anchor-project programs/proof_verifier --json
+```
+
+The other program `.qedspec` files are committed as parseable scaffolds. They
+are useful for coverage and drift visibility, but they still report
+high-priority semantic gaps until their guards/effects are filled from the Rust
+source.
 
 ## Surfpool Final E2E
 

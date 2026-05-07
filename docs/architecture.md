@@ -31,7 +31,7 @@ The workspace currently has these Anchor programs:
 - [on-chain] `proof_verifier`: creates, rotates, and verifies history checkpoints
 - [on-chain] `reputation_accumulator`: applies receipt facts to domain-specific reputation accumulators
 - [on-chain] `dispute_resolver`: registers the active adjudicator, anchors the protocol treasury PDA, and records dispute verdicts
-- [on-chain] `agent_stake`: escrows identity-scoped stake, cooldown-gates unstaking, and binds slashing to dispute-resolution receipts
+- [on-chain] `agent_stake`: escrows identity-scoped SOL or SPL-token stake, cooldown-gates unstaking, and binds slashing to dispute-resolution receipts
 
 [on-chain] `crates/trust_substrate_core` keeps shared seeds, receipt kinds, task statuses, errors, and Merkle helpers out of the program crates.
 [sdk] The same crate also anchors the hashing and error vocabulary used by the local model and replay tests.
@@ -112,7 +112,7 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 
 ## Stake-Backed Disputes
 
-[on-chain] `agent_stake` keeps optional slashable SOL escrow under an agent identity. Stake owners can request unstake, but withdrawals are delayed by a cooldown slot. Authority-mode stake can be slashed only by the configured slash authority against a `DISPUTE_RESOLVED_KIND` receipt. Verdict-mode stake can be slashed only from a `dispute_resolver` verdict bound to a dispute receipt, the target identity, and the active adjudicator. Both paths share the same replay marker PDA keyed by stake and dispute receipt.
+[on-chain] `agent_stake` keeps optional slashable SOL escrow and configured SPL-token stake vaults under an agent identity. Stake owners can request unstake, but withdrawals are delayed by a cooldown slot. Authority-mode stake can be slashed only by the configured slash authority against a `DISPUTE_RESOLVED_KIND` receipt. Verdict-mode stake can be slashed only from a `dispute_resolver` verdict bound to a dispute receipt, the target identity, and the active adjudicator. Slash and unstake are separate paths: unstake returns unlocked funds to the owner, while slash transfers the penalty into the protocol treasury or token treasury vault. Both paths use replay marker PDAs keyed by stake and dispute receipt.
 
 ## Indexing
 

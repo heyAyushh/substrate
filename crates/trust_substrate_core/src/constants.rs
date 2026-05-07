@@ -17,6 +17,9 @@ pub const TREASURY_VAULT_SEED: &[u8] = b"treasury";
 pub const VERDICT_SEED: &[u8] = b"verdict";
 pub const REPUTATION_SEED: &[u8] = b"reputation";
 pub const STAKE_SEED: &[u8] = b"stake";
+pub const TOKEN_STAKE_SEED: &[u8] = b"token_stake";
+pub const TOKEN_STAKE_VAULT_SEED: &[u8] = b"token_stake_vault";
+pub const TOKEN_TREASURY_VAULT_SEED: &[u8] = b"token_treasury_vault";
 pub const SLASH_MARKER_SEED: &[u8] = b"slash_marker";
 pub const LATEST_CHECKPOINT_SEED: &[u8] = b"latest_checkpoint";
 pub const TASK_RECEIPT_APPLICATION_SEED: &[u8] = b"task_receipt_application";
@@ -161,9 +164,7 @@ pub fn is_valid_receipt_kind(kind: u8) -> bool {
 pub fn is_valid_society_world_status(status: u8) -> bool {
     matches!(
         status,
-        SOCIETY_WORLD_STATUS_ACTIVE
-            | SOCIETY_WORLD_STATUS_COMPLETE
-            | SOCIETY_WORLD_STATUS_FAILED
+        SOCIETY_WORLD_STATUS_ACTIVE | SOCIETY_WORLD_STATUS_COMPLETE | SOCIETY_WORLD_STATUS_FAILED
     )
 }
 

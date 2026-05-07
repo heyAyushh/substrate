@@ -1,0 +1,314 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec IdentityRegistry
+
+program_id "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type AuthorityRotated
+  | Uninitialized
+  | Active of {
+      identity           : Pubkey,
+      previous_authority : Pubkey,
+      new_authority      : Pubkey,
+      slot               : U64,
+      mode               : U8
+    }
+  | Closed
+
+type AuthorityRotationRequested
+  | Uninitialized
+  | Active of {
+      identity           : Pubkey,
+      previous_authority : Pubkey,
+      new_authority      : Pubkey,
+      unlock_slot        : U64,
+      slot               : U64
+    }
+  | Closed
+
+type GuardianSet
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      guardians : U64,
+      threshold : U8,
+      bump      : U8
+    }
+  | Closed
+
+type GuardianSetInitialized
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      guardians : U64,
+      threshold : U8,
+      slot      : U64
+    }
+  | Closed
+
+type IdentityBond
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      amount    : U64,
+      bump      : U8
+    }
+  | Closed
+
+type IdentityBondDeposited
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      amount    : U64,
+      slot      : U64
+    }
+  | Closed
+
+type IdentityBondWithdrawn
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      amount    : U64,
+      slot      : U64
+    }
+  | Closed
+
+type IdentityChallengeCountAdjusted
+  | Uninitialized
+  | Active of {
+      identity             : Pubkey,
+      authority            : Pubkey,
+      open_challenge_count : U32,
+      delta                : I8,
+      slot                 : U64
+    }
+  | Closed
+
+type IdentityStakeActivitySynced
+  | Uninitialized
+  | Active of {
+      identity     : Pubkey,
+      authority    : Pubkey,
+      active_stake : Bool,
+      slot         : U64
+    }
+  | Closed
+
+type IdentityTaskCountAdjusted
+  | Uninitialized
+  | Active of {
+      identity        : Pubkey,
+      authority       : Pubkey,
+      open_task_count : U32,
+      delta           : I8,
+      slot            : U64
+    }
+  | Closed
+
+type PendingAuthorityRotation
+  | Uninitialized
+  | Active of {
+      identity           : Pubkey,
+      previous_authority : Pubkey,
+      new_authority      : Pubkey,
+      unlock_slot        : U64,
+      bump               : U8
+    }
+  | Closed
+
+type RuntimeAttestation
+  | Uninitialized
+  | Active of {
+      identity          : Pubkey,
+      runtime_commit    : U64,
+      runtime_authority : Pubkey,
+      valid_from_slot   : U64,
+      bump              : U8
+    }
+  | Closed
+
+type RuntimeAttestationAppended
+  | Uninitialized
+  | Active of {
+      identity            : Pubkey,
+      runtime_attestation : Pubkey,
+      runtime_authority   : Pubkey,
+      runtime_commit      : U64,
+      valid_from_slot     : U64
+    }
+  | Closed
+
+pda runtime_attestation ["runtime_attestation", identity, runtime_commit]
+pda identity ["identity", authority, agent_id]
+pda identity_bond ["bond", identity]
+pda pending_rotation ["pending_rotation", identity]
+pda guardian_set ["guardian_set", identity]
+
+handler adjust_open_challenge_count (delta : I8) : State.Active -> State.Active {
+  auth challenge_authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    challenge_authority : signer
+    identity : writable, pda [identity]
+  }
+}
+
+handler adjust_open_task_count (delta : I8) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer
+    identity : writable, pda [identity]
+  }
+}
+
+handler append_runtime_attestation (runtime_commit : U64) (runtime_authority : Pubkey) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : pda [identity]
+    runtime_attestation : writable, pda [runtime_attestation]
+    system_program : program
+  }
+}
+
+handler create_identity (agent_id : U64) (policy_root : U64) (history_root : U64) : State.Uninitialized -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : writable, pda [identity]
+    authority : signer, writable
+    system_program : program
+  }
+}
+
+handler deposit_identity_bond : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : writable, pda [identity]
+    identity_bond : writable, pda [identity_bond]
+    system_program : program
+  }
+}
+
+handler emergency_rotate_authority (new_authority : Pubkey) : State.Active -> State.Active {
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : writable, pda [identity]
+    guardian_set : pda [guardian_set]
+    refund_recipient : writable
+    pending_rotation : writable, pda [pending_rotation]
+  }
+}
+
+handler finalize_authority_rotation : State.Active -> State.Closed {
+  auth caller
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    caller : signer, writable
+    identity : writable, pda [identity]
+    pending_rotation : writable, pda [pending_rotation]
+  }
+}
+
+handler initialize_guardian_set (guardians : U64) (threshold : U8) : State.Uninitialized -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : writable, pda [identity]
+    guardian_set : writable, pda [guardian_set]
+    system_program : program
+  }
+}
+
+handler rotate_authority (new_authority : Pubkey) (unlock_slot : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : writable, pda [identity]
+    pending_rotation : writable, pda [pending_rotation]
+    system_program : program
+  }
+}
+
+handler set_stake_active (active_stake : Bool) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer
+    identity : writable, pda [identity]
+  }
+}
+
+handler update_history_root (new_root : U64) : State.Active -> State.Active {
+  auth history_updater
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : writable, pda [identity]
+    history_updater : signer
+  }
+}
+
+handler update_policy_root (new_root : U64) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    identity : writable, pda [identity]
+    authority : signer
+  }
+}
+
+handler withdraw_identity_bond : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable, authority identity_bond
+    identity : writable, pda [identity], authority identity_bond
+    identity_bond : writable, pda [identity_bond]
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

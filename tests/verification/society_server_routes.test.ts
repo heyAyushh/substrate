@@ -2,6 +2,7 @@ import test from "node:test";
 import { once } from "node:events";
 import { strictEqual, ok } from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { createServer as createNetServer, type AddressInfo } from "node:net";
 
 const SERVER_START_TIMEOUT_MS = 60_000;
@@ -9,6 +10,7 @@ const SERVER_POLL_INTERVAL_MS = 250;
 const PUBLIC_SOCIETY_URL = "https://society.example.invalid/society";
 const PUBLIC_RPC_URL = "https://rpc.example.invalid";
 const PUBLIC_STUDIO_URL = "https://studio.example.invalid";
+const SOCIETY_SERVER_SOURCE_PATH = "examples/multi_agent/society_server.ts";
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -158,6 +160,27 @@ test("society server derives the public app URL from forwarded headers", async (
   }
 });
 
+test("society server blocks tunneled live mutations by default", async () => {
+  const server = await startServer();
+  try {
+    const response = await fetch(server.url("/api/society/live/start"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-host": "demo.example.invalid",
+        "x-forwarded-proto": "https",
+      },
+      body: JSON.stringify({ agents: 1, ticks: 1, gridSize: 6 }),
+    });
+
+    strictEqual(response.status, 403);
+    const payload = (await response.json()) as { error?: string };
+    ok(payload.error?.includes("Public live mutation is disabled"));
+  } finally {
+    await server.stop();
+  }
+});
+
 test("legacy society page redirects people to the live board", async () => {
   const server = await startServer();
   try {
@@ -174,4 +197,76 @@ test("legacy society page redirects people to the live board", async () => {
   } finally {
     await server.stop();
   }
+});
+
+test("society live start prepares configured agents before first action", async () => {
+  const source = await readFile(SOCIETY_SERVER_SOURCE_PATH, "utf8");
+  const prepareFunctionIndex = source.indexOf(
+    "const prepareInitialLiveAgentAccounts",
+  );
+  const prepareCallIndex = source.indexOf(
+    "await prepareInitialLiveAgentAccounts(chainSession, run)",
+  );
+  const returnIndex = source.indexOf("return chainSession", prepareCallIndex);
+
+  ok(
+    prepareFunctionIndex > -1,
+    "server must have an explicit initial agent preparation pass",
+  );
+  ok(
+    prepareCallIndex > prepareFunctionIndex,
+    "live start must call the initial agent preparation pass",
+  );
+  ok(
+    returnIndex > prepareCallIndex,
+    "initial agent accounts must be prepared before the live session is returned",
+  );
+  ok(
+    source.includes("stakeAsset: SOL_STAKE_ASSET_LABEL"),
+    "live account payload should identify the SOL stake asset",
+  );
+});
+
+test("society live death path records a verdict and slashes agent stake", async () => {
+  const source = await readFile(SOCIETY_SERVER_SOURCE_PATH, "utf8");
+  const slashFunctionIndex = source.indexOf("const maybeSlashAdversarialDeath");
+  const deathGuardIndex = source.indexOf(
+    'event.action !== "death"',
+    slashFunctionIndex,
+  );
+  const agentTaskIndex = source.indexOf("createTask({", slashFunctionIndex);
+  const agentReceiptIndex = source.indexOf(
+    "identity: agentRuntime.account.identity.address",
+    slashFunctionIndex,
+  );
+  const verdictIndex = source.indexOf(
+    "outcome: AGENT_LOST_OUTCOME",
+    slashFunctionIndex,
+  );
+  const slashIndex = source.indexOf("slashWithVerdict", slashFunctionIndex);
+
+  ok(
+    slashFunctionIndex > -1,
+    "server must have an explicit adversarial death slash path",
+  );
+  ok(
+    deathGuardIndex > slashFunctionIndex,
+    "slash path must only run for death actions",
+  );
+  ok(
+    agentTaskIndex > slashFunctionIndex,
+    "slash path must create an agent-owned dispute task",
+  );
+  ok(
+    agentReceiptIndex > slashFunctionIndex,
+    "slash path must emit the dispute receipt under the agent identity",
+  );
+  ok(
+    verdictIndex > slashFunctionIndex,
+    "slash path must record an agent-lost verdict",
+  );
+  ok(
+    slashIndex > verdictIndex,
+    "slash path must slash only after the verdict exists",
+  );
 });

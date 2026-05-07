@@ -23,11 +23,11 @@ pub use trust_substrate_core::{
     GUARDIAN_SET_SEED, HANDOFF_KIND, HANDOFF_SCOPE_BIT, IDENTITY_BOND_SEED, IDENTITY_SEED,
     LATEST_CHECKPOINT_SEED, NO_FAULT_OUTCOME, PENDING_ROTATION_SEED, RECEIPT_SEED,
     REPUTATION_RECEIPT_APPLICATION_SEED, REPUTATION_SEED, ROTATION_COOLDOWN_SLOTS,
-    RUNTIME_ATTESTATION_SEED, SLASH_MARKER_SEED, SOCIETY_WORLD_SEED,
-    SOCIETY_WORLD_STATUS_ACTIVE, SOCIETY_WORLD_STATUS_COMPLETE, STAKE_COOLDOWN_SLOTS,
-    STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_COMPLETED,
-    TASK_STATUS_PENDING, TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT,
-    VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY, VERDICT_CLASS_SAFETY, VERDICT_SEED,
+    RUNTIME_ATTESTATION_SEED, SLASH_MARKER_SEED, SOCIETY_WORLD_SEED, SOCIETY_WORLD_STATUS_ACTIVE,
+    SOCIETY_WORLD_STATUS_COMPLETE, STAKE_COOLDOWN_SLOTS, STAKE_SEED, TASK_RECEIPT_APPLICATION_SEED,
+    TASK_SEED, TASK_STATUS_COMPLETED, TASK_STATUS_PENDING, TREASURY_VAULT_SEED,
+    TRUST_MODE_AUTHORITY, TRUST_MODE_VERDICT, VERDICT_CLASS_PERFORMANCE, VERDICT_CLASS_POLICY,
+    VERDICT_CLASS_SAFETY, VERDICT_SEED,
 };
 
 pub const DOMAIN_BYTE: u8 = 77;
@@ -655,10 +655,15 @@ impl Harness {
         Ok(checkpoint)
     }
 
-    pub fn initialize_checkpoint_importer(&mut self, authority: Pubkey) -> TestResult {
-        let ix = self.ix_initialize_checkpoint_importer(authority);
-        self.send_as_payer(ix)?;
+    pub fn initialize_checkpoint_importer(&mut self, authority: &Keypair) -> TestResult {
+        let ix = self.ix_initialize_checkpoint_importer(authority.pubkey(), authority.pubkey());
+        self.send(ix, &[authority])?;
         Ok(())
+    }
+
+    pub fn expect_checkpoint_importer_init_mismatch(&mut self, authority: Pubkey) {
+        let ix = self.ix_initialize_checkpoint_importer(self.payer.pubkey(), authority);
+        self.expect_err_as_payer(ix, "CheckpointImportAuthorityMismatch");
     }
 
     pub fn checkpoint_import(
@@ -1624,13 +1629,14 @@ impl Harness {
 
     fn ix_initialize_checkpoint_importer(
         &self,
+        payer: Pubkey,
         authority: Pubkey,
     ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             proof_verifier::ID,
             proof_verifier::instruction::InitializeCheckpointImporter { authority }.data(),
             proof_verifier::accounts::InitializeCheckpointImporter {
-                payer: self.payer.pubkey(),
+                payer,
                 checkpoint_importer: checkpoint_importer_pda(),
                 system_program: system_program::ID,
             },

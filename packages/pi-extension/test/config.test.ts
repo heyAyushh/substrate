@@ -63,3 +63,28 @@ test("loadExtensionConfig lets env override each setting", () => {
   strictEqual(config.surfpoolStudioUrl, "http://127.0.0.1:18490");
   strictEqual(config.runDashboardUrl, "http://127.0.0.1:4174/live");
 });
+
+test("loadExtensionConfig accepts the society demo websocket alias", () => {
+  const config = loadExtensionConfig({
+    env: {
+      SUBSTRATE_WS_URL: "ws://127.0.0.1:8897",
+    },
+    home: "/tmp/home",
+    cwd: "/tmp/cwd",
+  });
+
+  strictEqual(config.rpcSubscriptionsUrl, "ws://127.0.0.1:8897");
+});
+
+test("loadExtensionConfig prefers the canonical websocket variable", () => {
+  const config = loadExtensionConfig({
+    env: {
+      SUBSTRATE_RPC_SUBSCRIPTIONS_URL: "ws://127.0.0.1:8900",
+      SUBSTRATE_WS_URL: "ws://127.0.0.1:8897",
+    },
+    home: "/tmp/home",
+    cwd: "/tmp/cwd",
+  });
+
+  strictEqual(config.rpcSubscriptionsUrl, "ws://127.0.0.1:8900");
+});

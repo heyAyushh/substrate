@@ -8,3 +8,4 @@
 
 export * from "./slashMarker";
 export * from "./stakeAccount";
+export * from "./tokenStakeAccount";

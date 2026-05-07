@@ -1,0 +1,33 @@
+{
+  "name": "@trust-substrate/pi-local-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/client.js",
+  "types": "dist/client.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./vite": {
+      "types": "./dist/vite-plugin.d.ts",
+      "import": "./dist/vite-plugin.js",
+      "default": "./dist/vite-plugin.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@mariozechner/pi-agent-core": "0.67.6",
+    "@mariozechner/pi-ai": "0.67.6",
+    "@mariozechner/pi-web-ui": "0.67.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "vite": "^8.0.4"
+  }
+}

@@ -1,0 +1,127 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec DisputeResolver
+
+program_id "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF"
+
+type AdjudicatorConfig
+  | Active of {
+      governance  : Pubkey,
+      adjudicator : Pubkey,
+      bump        : U8
+    }
+
+type AdjudicatorRegistered
+  | Active of {
+      governance     : Pubkey,
+      adjudicator    : Pubkey,
+      treasury_vault : Pubkey,
+      slot           : U64
+    }
+
+type DisputeVerdict
+  | Active of {
+      dispute_receipt  : Pubkey,
+      target_identity  : Pubkey,
+      outcome          : U8,
+      slash_amount     : U64,
+      adjudicator      : Pubkey,
+      created_at_slot  : U64,
+      bump             : U8,
+      class            : U8,
+      stale_after_slot : U64
+    }
+
+type ReceiptRecord
+  | Active of {
+      identity          : Pubkey,
+      task              : Pubkey,
+      receipt_id        : U64,
+      actor             : Pubkey,
+      kind              : U8,
+      sequence          : U64,
+      domain            : U64,
+      previous_receipt  : U64,
+      payload_hash      : U64,
+      via_delegation    : Pubkey,
+      auditor_identity  : Pubkey,
+      target_receipt    : Pubkey,
+      challenge_receipt : Pubkey,
+      deadline_slot     : U64,
+      round             : U16,
+      bump              : U8
+    }
+
+type TreasuryVault
+  | Active of {
+      bump : U8
+    }
+
+type VerdictChallenged
+  | Active of {
+      verdict         : Pubkey,
+      dispute_receipt : Pubkey,
+      challenger      : Pubkey,
+      adjudicator     : Pubkey,
+      slot            : U64
+    }
+
+type VerdictRecorded
+  | Active of {
+      dispute_receipt  : Pubkey,
+      target_identity  : Pubkey,
+      outcome          : U8,
+      slash_amount     : U64,
+      class            : U8,
+      stale_after_slot : U64,
+      adjudicator      : Pubkey,
+      slot             : U64
+    }
+
+pda adjudicator_config ["adjudicator_config"]
+pda verdict ["verdict", dispute_receipt]
+pda treasury_vault ["treasury"]
+
+handler challenge_verdict : State.Active -> State.Active {
+  auth challenger
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    challenger : signer
+    verdict : writable, pda [verdict]
+  }
+}
+
+handler record_verdict (outcome : U8) (slash_amount : U64) (class : U8) (stale_after_slot : U64) : State.Active -> State.Active {
+  auth adjudicator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    adjudicator : signer, writable
+    adjudicator_config : pda [adjudicator_config]
+    dispute_receipt : readonly
+    verdict : writable, pda [verdict]
+    system_program : program
+  }
+}
+
+handler register_adjudicator (adjudicator : Pubkey) : State.Active -> State.Active {
+  auth governance
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    governance : signer, writable
+    adjudicator_config : writable, pda [adjudicator_config]
+    treasury_vault : writable, pda [treasury_vault]
+    system_program : program
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"

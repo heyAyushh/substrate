@@ -48,7 +48,7 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
   const dispatcher: OnchainTransactionDispatcher = {
     send: async (instructions) => {
       sentInstructions.push(...instructions);
-      return { slot: 222 };
+      return { slot: 222, signature: "bridge-tx-signature" };
     },
   };
   const onchain = new TrustSubstrateOnchainClient(dispatcher);
@@ -125,4 +125,18 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
   const stakeState = bridge.indexer.getStakeState(localIdentity.identityId);
   strictEqual(stakeState.activeLamports, "750000");
   ok(result.receipt.payload.payloadHash);
+  strictEqual(result.actionEnvelope.agentId, localIdentity.identityId);
+  strictEqual(result.actionEnvelope.identityAddress, identityBinding.address);
+  strictEqual(result.actionEnvelope.taskAddress, taskBinding.address);
+  strictEqual(
+    result.actionEnvelope.receiptAddress,
+    result.onchain.receiptAddress,
+  );
+  strictEqual(result.actionEnvelope.txSignature, "bridge-tx-signature");
+  strictEqual(
+    result.actionEnvelope.receiptPayloadHash,
+    result.receipt.payload.payloadHash,
+  );
+  strictEqual(result.actionEnvelope.transcriptRoot.length, 64);
+  strictEqual(result.actionEnvelope.leafHash.length, 64);
 });

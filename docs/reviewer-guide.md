@@ -13,6 +13,12 @@ It separates what is implemented from what is intentionally out of scope.
 - The live society board is Surfpool-backed. `Go live` creates a server-owned
   session, writes the society world account, commits agent actions, exposes
   account and transaction links, and writes a final proof artifact.
+- Society Board is an example consumer. `task_registry` anchors the board world;
+  the other programs provide supporting trust evidence such as identity,
+  attestation, delegation, receipts, checkpoints, reputation, stake, and
+  disputes.
+- Action JSON is only reviewer-facing proof evidence when it is signed and bound
+  to a receipt payload hash, transaction signature, and Merkle transcript root.
 - The browser does not auto-start or auto-resume hidden sessions. `Go live` and
   `Resume last` are explicit user actions.
 
@@ -36,6 +42,7 @@ For the full list of accepted gaps, see
    and instruction responsibilities.
 3. Review the on-chain program split:
    - `programs/identity_registry`
+   - `programs/attester_registry`
    - `programs/task_registry`
    - `programs/receipt_emitter`
    - `programs/delegation_engine`

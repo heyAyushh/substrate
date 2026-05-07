@@ -1,0 +1,140 @@
+// Generated from Anchor IDL — review and complete TODO items
+//
+// Auto-derived: state fields, handlers, contexts, PDAs, errors
+// TODO: guards, effects, lifecycle transitions, properties, invariants
+
+spec AttesterRegistry
+
+program_id "GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7"
+
+type AgentIdentity
+  | Uninitialized
+  | Active of {
+      authority            : Pubkey,
+      agent_id             : U64,
+      policy_root          : U64,
+      history_root         : U64,
+      tier                 : U8,
+      open_task_count      : U32,
+      open_challenge_count : U32,
+      active_stake         : Bool,
+      bump                 : U8
+    }
+  | Closed
+
+type AttesterClosed
+  | Uninitialized
+  | Active of {
+      identity  : Pubkey,
+      authority : Pubkey,
+      slot      : U64
+    }
+  | Closed
+
+type AttesterRecord
+  | Uninitialized
+  | Active of {
+      identity           : Pubkey,
+      authority          : Pubkey,
+      category           : String,
+      self_declared_tier : U8,
+      effective_tier     : U8,
+      bond_lamports      : U64,
+      bump               : U8
+    }
+  | Closed
+
+type AttesterRegistered
+  | Uninitialized
+  | Active of {
+      identity           : Pubkey,
+      authority          : Pubkey,
+      category           : String,
+      self_declared_tier : U8,
+      effective_tier     : U8,
+      bond_lamports      : U64,
+      slot               : U64
+    }
+  | Closed
+
+type AttesterRegistryConfig
+  | Uninitialized
+  | Active of {
+      curator : Pubkey,
+      bump    : U8
+    }
+  | Closed
+
+type AttesterRegistryInitialized
+  | Uninitialized
+  | Active of {
+      curator : Pubkey,
+      slot    : U64
+    }
+  | Closed
+
+type AttesterTierUpdated
+  | Uninitialized
+  | Active of {
+      identity       : Pubkey,
+      curator        : Pubkey,
+      previous_tier  : U8,
+      effective_tier : U8,
+      slot           : U64
+    }
+  | Closed
+
+pda attester ["attester", identity]
+pda config ["attester_config"]
+
+handler close_attester : State.Active -> State.Closed {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    attester : writable, pda [attester]
+  }
+}
+
+handler initialize_registry : State.Uninitialized -> State.Active {
+  auth curator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    curator : signer, writable
+    config : writable, pda [config]
+    system_program : program
+  }
+}
+
+handler register_attester (category : String) (self_declared_tier : U8) : State.Active -> State.Active {
+  auth authority
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    identity_bond : readonly
+    config : pda [config]
+    attester : writable, pda [attester]
+    system_program : program
+  }
+}
+
+handler set_attester_tier (effective_tier : U8) : State.Active -> State.Active {
+  auth curator
+  // TODO: Add guard clause
+  // TODO: Add effect block
+  accounts {
+    curator : signer, writable
+    config : pda [config]
+    attester : writable, pda [attester]
+  }
+}
+
+// TODO: Add properties
+// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+
+// TODO: Add invariants
+// Example: invariant conservation "total tokens preserved"
