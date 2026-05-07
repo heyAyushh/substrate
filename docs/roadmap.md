@@ -7,7 +7,8 @@ wallets, memory, receipts, delegation, and reputation that can be audited
 later.
 
 The execution graph is the record. Scores, profiles, and trust views are
-derived from that graph.
+derived from that graph for display, while canonical domain reputation is
+applied by the reputation program.
 
 ## Production Readiness To-Do
 
@@ -31,12 +32,12 @@ Open follow-ups:
 
 - explicit multi-hop handoff proof chains
 - on-chain proof constraints for handoff chains beyond local reconstruction
-- clearer authority-chain display in the agent simulation
+- clearer authority-chain display in example integrations
 
 ## Off-Chain Storage
 
 The on-chain programs anchor only what must be globally ordered. Execution
-records, evidence bundles, and agent-trace exports live off-chain. See
+records, evidence bundles, and Cursor Agent Trace exports live off-chain. See
 `docs/off-chain-storage.md` for the split, supported blob backends, replay
 model, and durability requirements.
 

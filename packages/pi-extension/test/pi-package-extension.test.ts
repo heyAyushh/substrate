@@ -42,6 +42,7 @@ const buildBootstrap = (): BootstrapResult => {
     taskAddress: "Task111111111111111111111111111111111111111" as Address,
     domainCatalogAddress:
       "Dcat111111111111111111111111111111111111111" as Address,
+    reputationAddress: "Repu111111111111111111111111111111111111111" as Address,
     operations: [],
   };
 };

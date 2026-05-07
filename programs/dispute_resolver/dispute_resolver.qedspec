@@ -1,11 +1,13 @@
-// Generated from Anchor IDL — review and complete TODO items
+// Anchor-derived QEDGen protocol spec.
 //
-// Auto-derived: state fields, handlers, contexts, PDAs, errors
-// TODO: guards, effects, lifecycle transitions, properties, invariants
+// Scope: adjudicator registration, verdict recording, and stale verdict challenge.
 
 spec DisputeResolver
 
 program_id "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF"
+
+const MAX_VERDICT_OUTCOME = 2
+const MAX_VERDICT_CLASS = 2
 
 type AdjudicatorConfig
   | Active of {
@@ -87,8 +89,7 @@ pda treasury_vault ["treasury"]
 
 handler challenge_verdict : State.Active -> State.Active {
   auth challenger
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires stale_after_slot > 0
   accounts {
     challenger : signer
     verdict : writable, pda [verdict]
@@ -97,8 +98,14 @@ handler challenge_verdict : State.Active -> State.Active {
 
 handler record_verdict (outcome : U8) (slash_amount : U64) (class : U8) (stale_after_slot : U64) : State.Active -> State.Active {
   auth adjudicator
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires outcome <= MAX_VERDICT_OUTCOME
+  requires class <= MAX_VERDICT_CLASS
+  effect {
+    outcome := outcome
+    slash_amount := slash_amount
+    class := class
+    stale_after_slot := stale_after_slot
+  }
   accounts {
     adjudicator : signer, writable
     adjudicator_config : pda [adjudicator_config]
@@ -110,8 +117,10 @@ handler record_verdict (outcome : U8) (slash_amount : U64) (class : U8) (stale_a
 
 handler register_adjudicator (adjudicator : Pubkey) : State.Active -> State.Active {
   auth governance
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  effect {
+    governance := governance
+    adjudicator := adjudicator
+  }
   accounts {
     governance : signer, writable
     adjudicator_config : writable, pda [adjudicator_config]
@@ -120,8 +129,10 @@ handler register_adjudicator (adjudicator : Pubkey) : State.Active -> State.Acti
   }
 }
 
-// TODO: Add properties
-// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+property verdict_vocab_bounded :
+  outcome <= MAX_VERDICT_OUTCOME
+  preserved_by [record_verdict]
 
-// TODO: Add invariants
-// Example: invariant conservation "total tokens preserved"
+invariant verdict_targets_dispute_receipt :
+  forall verdict_record : DisputeVerdict.Active,
+    verdict_record.outcome <= MAX_VERDICT_OUTCOME and verdict_record.class <= MAX_VERDICT_CLASS

@@ -88,32 +88,43 @@ test("getAgentProfile aggregates domains, kinds, models, tools", () => {
   strictEqual(profile.kinds.handoff, 1);
 });
 
-test("getAgentLeaderboard ranks by weighted score", () => {
+test("getAgentLeaderboard ranks by program-backed weighted score", () => {
   const indexer = new LocalDurableIndexer();
   indexer.ingest([
     stakeReceipt("stake-a", 0, "agent-a", "100"),
     stakeReceipt("stake-b", 0, "agent-b", "100"),
-    receipt({
-      receiptId: "r1",
-      slot: 1,
-      taskId: "t1",
-      actorId: "agent-a",
-      kind: "completion",
-    }),
-    receipt({
-      receiptId: "r2",
-      slot: 2,
-      taskId: "t2",
-      actorId: "agent-b",
-      kind: "dispute",
-    }),
-    receipt({
-      receiptId: "r3",
-      slot: 3,
-      taskId: "t3",
-      actorId: "agent-b",
-      kind: "completion",
-    }),
+  ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "5",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "5",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "1",
+    },
+    {
+      identityId: "agent-b",
+      domain: "ops",
+      completed: "1",
+      disputed: "1",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "5",
+      weightedDisputed: "4",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "9",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "3",
+    },
   ]);
 
   const board = indexer.getAgentLeaderboard();
@@ -131,20 +142,6 @@ test("attestedOnly leaderboard filters unattested agents", () => {
     stakeReceipt("stake-a", 0, "agent-a", "100"),
     stakeReceipt("stake-b", 0, "agent-b", "100"),
     receipt({
-      receiptId: "r1",
-      slot: 1,
-      taskId: "t1",
-      actorId: "agent-a",
-      kind: "completion",
-    }),
-    receipt({
-      receiptId: "r2",
-      slot: 2,
-      taskId: "t1",
-      actorId: "agent-b",
-      kind: "completion",
-    }),
-    receipt({
       receiptId: "r3",
       slot: 3,
       taskId: "t1",
@@ -152,6 +149,38 @@ test("attestedOnly leaderboard filters unattested agents", () => {
       kind: "attestation",
       payload: { target: "agent-a", kind: "kyc" },
     }),
+  ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "5",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "5",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "1",
+    },
+    {
+      identityId: "agent-b",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "5",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "5",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "2",
+    },
   ]);
   indexer.ingestAttesterRecords([
     {
@@ -171,22 +200,38 @@ test("attestedOnly leaderboard filters unattested agents", () => {
 
 test("tier0 leaderboard opt-in includes unbonded identities", () => {
   const indexer = new LocalDurableIndexer();
-  indexer.ingest([
-    stakeReceipt("stake-bonded", 0, "agent-bonded", "100"),
-    receipt({
-      receiptId: "bonded-completion",
-      slot: 1,
-      taskId: "t-bonded",
-      actorId: "agent-bonded",
-      kind: "completion",
-    }),
-    receipt({
-      receiptId: "tier0-completion",
-      slot: 2,
-      taskId: "t-tier0",
-      actorId: "agent-tier0",
-      kind: "completion",
-    }),
+  indexer.ingest([stakeReceipt("stake-bonded", 0, "agent-bonded", "100")]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-bonded",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "5",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "5",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "1",
+    },
+    {
+      identityId: "agent-tier0",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "4",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "4",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "2",
+    },
   ]);
 
   const defaultBoard = indexer.getAgentLeaderboard();
@@ -331,7 +376,14 @@ test("getAgentTraceBundle projects file edit receipts", () => {
       taskId: "t1",
       actorId: "agent-a",
       kind: "file_edit",
-      payload: { path: "src/a.ts", afterHash: "aa" },
+      payload: {
+        path: "src/a.ts",
+        startLine: 4,
+        endLine: 8,
+        afterHash: "aa",
+        model: "openai/gpt-4o-mini",
+        conversationUrl: "https://agent.example/conversations/1",
+      },
     }),
     receipt({
       receiptId: "r2",
@@ -353,13 +405,25 @@ test("getAgentTraceBundle projects file edit receipts", () => {
 
   const bundle = indexer.getAgentTraceBundle("t1");
   strictEqual(bundle.version, "0.1.0");
-  strictEqual(bundle.taskId, "t1");
-  deepStrictEqual(bundle.agentIds, ["agent-a", "agent-b"]);
-  strictEqual(bundle.edits.length, 2);
-  ok(
-    bundle.edits.every(
-      (edit) => typeof edit.path === "string" && edit.path.length > 0,
-    ),
+  strictEqual(bundle.id, "df481bba-7af3-5a42-a0db-aeddf73b4ffa");
+  strictEqual(bundle.timestamp, "1970-01-01T00:00:01.000Z");
+  deepStrictEqual(bundle.metadata["dev.trust-substrate"].agentIds, [
+    "agent-a",
+    "agent-b",
+  ]);
+  strictEqual(bundle.files.length, 2);
+  deepStrictEqual(
+    bundle.files.map((file) => file.path),
+    ["src/a.ts", "src/b.ts"],
+  );
+  deepStrictEqual(bundle.files[0].conversations[0].ranges[0], {
+    start_line: 4,
+    end_line: 8,
+    content_hash: "aa",
+  });
+  strictEqual(
+    bundle.files[0].conversations[0].contributor?.model_id,
+    "openai/gpt-4o-mini",
   );
 });
 

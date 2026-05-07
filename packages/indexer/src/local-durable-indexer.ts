@@ -1,11 +1,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { compareBySlotThenReceiptId, stableStringify } from "./utils.js";
 import {
   type AgentHistoryView,
   type AgentAttestation,
   type AgentProfile,
   type AgentTraceExportBundle,
-  type AgentTraceExportEdit,
+  type AgentTraceExportStep,
+  type AgentTraceFile,
+  type AgentTraceConversation,
   type AttesterRecordView,
   type AuthorityRotationEvent,
   type AuthorityRotation,
@@ -21,6 +24,8 @@ import {
   type LeaderboardEntry,
   type LeaderboardQuery,
   type LocalReceiptRecord,
+  type ProgramBackedReputationView,
+  type ReputationReplayMismatch,
   type StakeStateView,
   type TaskInheritanceView,
   type TaskHistoryView,
@@ -45,6 +50,7 @@ const CHALLENGE_RESPONSE_KIND = "challenge_response";
 const COMMIT_MARKER = "trust-substrate.commit";
 const REVEAL_MARKER = "trust-substrate.reveal";
 const STAKE_EVENT_MARKER = "trust-substrate.stake_event";
+const AGENT_LOST_OUTCOME = "agent_lost";
 
 const SNAPSHOT_VERSION = 2 as const;
 
@@ -68,12 +74,18 @@ interface StoredAttesterRecord {
   canonical: string;
 }
 
+interface StoredProgramReputation {
+  reputation: ProgramBackedReputationView;
+  canonical: string;
+}
+
 export interface IndexerSnapshot {
   readonly version: typeof SNAPSHOT_VERSION;
   readonly receipts: ReadonlyArray<IndexedReceipt>;
   readonly authorityRotations?: ReadonlyArray<AuthorityRotationEvent>;
   readonly identityStates?: ReadonlyArray<IdentityStateView>;
   readonly attesterRecords?: ReadonlyArray<AttesterRecordView>;
+  readonly programReputations?: ReadonlyArray<ProgramBackedReputationView>;
 }
 
 const createDedupeKey = (receipt: LocalReceiptRecord): string =>
@@ -109,8 +121,23 @@ const cloneReceipt = (
 const dedupeStrings = (values: string[]): string[] =>
   [...new Set(values)].sort();
 
+const parseBigintString = (value: string | undefined): bigint => {
+  if (value === undefined || !/^[0-9]+$/.test(value)) return 0n;
+  return BigInt(value);
+};
+
+const bigintToScore = (value: bigint): number => {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER)) return Number.MAX_SAFE_INTEGER;
+  return Number(value);
+};
+
 const asString = (value: unknown): string | undefined =>
   typeof value === "string" && value.length > 0 ? value : undefined;
+
+const asPositiveInteger = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
 
 const isFileEditReceipt = (receipt: LocalReceiptRecord): boolean => {
   if (receipt.kind === "file_edit") {
@@ -126,6 +153,78 @@ const isFileEditReceipt = (receipt: LocalReceiptRecord): boolean => {
   );
 };
 
+const uuidFromText = (text: string): string => {
+  const hex = createHash("sha256").update(`agent-trace:${text}`).digest("hex");
+  const bytes = hex.slice(0, 32).split("");
+  bytes[12] = "5";
+  bytes[16] = ((Number.parseInt(bytes[16], 16) & 0x3) | 0x8).toString(16);
+  const uuidHex = bytes.join("");
+  return [
+    uuidHex.slice(0, 8),
+    uuidHex.slice(8, 12),
+    uuidHex.slice(12, 16),
+    uuidHex.slice(16, 20),
+    uuidHex.slice(20, 32),
+  ].join("-");
+};
+
+const firstReceiptTimestamp = (
+  receipts: ReadonlyArray<IndexedReceipt>,
+): string => {
+  const firstSlot = receipts[0]?.slot ?? 0;
+  return new Date(firstSlot * 1000).toISOString();
+};
+
+const agentTraceFiles = (
+  conversationsByPath: ReadonlyMap<string, AgentTraceConversation[]>,
+): AgentTraceFile[] =>
+  [...conversationsByPath.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([path, conversations]) => ({ path, conversations }));
+
+const receiptToAgentTraceConversation = (
+  receipt: IndexedReceipt,
+): AgentTraceConversation => {
+  const startLine = asPositiveInteger(receipt.payload.startLine) ?? 1;
+  const endLine = asPositiveInteger(receipt.payload.endLine) ?? startLine;
+  return {
+    url: asString(receipt.payload.conversationUrl),
+    contributor: {
+      type: "ai",
+      model_id: asString(receipt.payload.model),
+    },
+    ranges: [
+      {
+        start_line: startLine,
+        end_line: Math.max(startLine, endLine),
+        content_hash:
+          asString(receipt.payload.contentHash) ??
+          asString(receipt.payload.afterHash),
+      },
+    ],
+    related: agentTraceRelatedResources(receipt),
+  };
+};
+
+const agentTraceRelatedResources = (
+  receipt: IndexedReceipt,
+): { type: string; url: string }[] | undefined => {
+  const related = [
+    agentTraceRelatedResource("session", asString(receipt.payload.sessionUrl)),
+    agentTraceRelatedResource("prompt", asString(receipt.payload.promptUrl)),
+    agentTraceRelatedResource("receipt", asString(receipt.payload.receiptUrl)),
+  ].filter((resource): resource is { type: string; url: string } =>
+    Boolean(resource),
+  );
+  return related.length > 0 ? related : undefined;
+};
+
+const agentTraceRelatedResource = (
+  type: string,
+  url: string | undefined,
+): { type: string; url: string } | undefined =>
+  url ? { type, url } : undefined;
+
 const isCommitReceipt = (receipt: LocalReceiptRecord): boolean =>
   receipt.payload.type === COMMIT_MARKER ||
   receipt.payload.commitMarker === true;
@@ -136,6 +235,16 @@ const isRevealReceipt = (receipt: LocalReceiptRecord): boolean =>
 
 const asNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const asOptionalString = (value: unknown): string | undefined => {
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) {
+    return value.toString();
+  }
+  return undefined;
+};
 
 const getReceiptRound = (
   receipt: LocalReceiptRecord | IndexedReceipt,
@@ -176,6 +285,24 @@ const cloneAttesterRecord = (
   effectiveTier: record.effectiveTier,
 });
 
+const cloneProgramReputation = (
+  reputation: ProgramBackedReputationView,
+): ProgramBackedReputationView => ({
+  identityId: reputation.identityId,
+  domain: reputation.domain,
+  completed: reputation.completed,
+  disputed: reputation.disputed,
+  resolved: reputation.resolved,
+  attested: reputation.attested,
+  weightedCompleted: reputation.weightedCompleted,
+  weightedDisputed: reputation.weightedDisputed,
+  weightedResolved: reputation.weightedResolved,
+  weightedAttested: reputation.weightedAttested,
+  reviewerWeightSum: reputation.reviewerWeightSum,
+  slashPenaltySum: reputation.slashPenaltySum,
+  lastAppliedSlot: asOptionalString(reputation.lastAppliedSlot),
+});
+
 type StakeEventKind =
   | "initialized"
   | "deposited"
@@ -206,6 +333,16 @@ interface MutableStakeState {
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
+
+const isAgentLostResolution = (receipt: IndexedReceipt): boolean =>
+  isObject(receipt.payload.resolution) &&
+  receipt.payload.resolution.outcome === AGENT_LOST_OUTCOME;
+
+const getReceiptReputationIdentityId = (receipt: IndexedReceipt): string =>
+  asString(receipt.payload.identityId) ??
+  asString(receipt.payload.actorIdentityId) ??
+  asString(receipt.payload.logicalActorIdentityId) ??
+  receipt.actorId;
 
 const isStakeEventKind = (value: unknown): value is StakeEventKind =>
   value === "initialized" ||
@@ -380,6 +517,10 @@ export class LocalDurableIndexer {
     string,
     StoredAttesterRecord
   >();
+  private readonly programReputationsByKey = new Map<
+    string,
+    StoredProgramReputation
+  >();
 
   snapshot(): IndexerSnapshot {
     return {
@@ -396,6 +537,9 @@ export class LocalDurableIndexer {
       ),
       attesterRecords: this.getAttesterRecords().map((record) =>
         cloneAttesterRecord(record),
+      ),
+      programReputations: this.getProgramReputations().map((reputation) =>
+        cloneProgramReputation(reputation),
       ),
     };
   }
@@ -433,6 +577,9 @@ export class LocalDurableIndexer {
     }
     if (snapshot.attesterRecords) {
       indexer.ingestAttesterRecords(snapshot.attesterRecords);
+    }
+    if (snapshot.programReputations) {
+      indexer.ingestProgramReputations(snapshot.programReputations);
     }
     return indexer;
   }
@@ -558,6 +705,28 @@ export class LocalDurableIndexer {
       accepted += 1;
     }
 
+    return { accepted, duplicates };
+  }
+
+  ingestProgramReputations(
+    reputations: readonly ProgramBackedReputationView[],
+  ): IngestResult {
+    let accepted = 0;
+    let duplicates = 0;
+    for (const reputation of reputations) {
+      const canonical = stableStringify(reputation);
+      const key = `${reputation.identityId}:${reputation.domain}`;
+      const existing = this.programReputationsByKey.get(key);
+      if (existing?.canonical === canonical) {
+        duplicates += 1;
+        continue;
+      }
+      this.programReputationsByKey.set(key, {
+        reputation: cloneProgramReputation(reputation),
+        canonical,
+      });
+      accepted += 1;
+    }
     return { accepted, duplicates };
   }
 
@@ -872,6 +1041,65 @@ export class LocalDurableIndexer {
   }
 
   getAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
+    const programReputations = this.getProgramReputations().filter(
+      (reputation) =>
+        query.domain === undefined || reputation.domain === query.domain,
+    );
+    if (programReputations.length === 0) {
+      return [];
+    }
+
+    const attestations = this.collectAttestationCounts();
+    const identityStates = new Map(
+      this.getIdentityStates().map(
+        (state) => [state.identityId, state] as const,
+      ),
+    );
+    const stakeStates = new Map(
+      this.getStakeStates().map((state) => [state.identityId, state] as const),
+    );
+
+    let entries = programReputations.map((reputation) => {
+      const activeLamports = parseBigintString(
+        stakeStates.get(reputation.identityId)?.activeLamports,
+      );
+      const tier =
+        identityStates.get(reputation.identityId)?.tier ??
+        (activeLamports > 0n ? "bonded" : "tier0");
+      const score =
+        parseBigintString(reputation.weightedCompleted) +
+        parseBigintString(reputation.weightedResolved) +
+        parseBigintString(reputation.weightedAttested) -
+        parseBigintString(reputation.weightedDisputed);
+
+      return {
+        agentId: reputation.identityId,
+        score: bigintToScore(score),
+        receiptCount: bigintToScore(
+          parseBigintString(reputation.completed) +
+            parseBigintString(reputation.disputed) +
+            parseBigintString(reputation.resolved) +
+            parseBigintString(reputation.attested),
+        ),
+        domain: query.domain,
+        attestations: attestations.get(reputation.identityId) ?? 0,
+        tier,
+      };
+    });
+
+    if (!query.tier0) {
+      entries = entries.filter((entry) => entry.tier !== "tier0");
+    }
+    if (query.attestedOnly) {
+      entries = entries.filter((entry) => entry.attestations > 0);
+    }
+    return entries.sort(
+      (left, right) =>
+        right.score - left.score || left.agentId.localeCompare(right.agentId),
+    );
+  }
+
+  getLegacyAgentLeaderboard(query: LeaderboardQuery = {}): LeaderboardEntry[] {
     const attestations = this.collectAttestationCounts();
     const identityStates = new Map(
       this.getIdentityStates().map(
@@ -1032,6 +1260,128 @@ export class LocalDurableIndexer {
       .sort((left, right) => left.identityId.localeCompare(right.identityId));
   }
 
+  getProgramReputations(): ProgramBackedReputationView[] {
+    return [...this.programReputationsByKey.values()]
+      .map(({ reputation }) => cloneProgramReputation(reputation))
+      .sort(
+        (left, right) =>
+          left.identityId.localeCompare(right.identityId) ||
+          left.domain.localeCompare(right.domain),
+      );
+  }
+
+  getReputationReplayMismatches(): ReputationReplayMismatch[] {
+    const replayed = this.replayLegacyReputationCounts();
+    const mismatches: ReputationReplayMismatch[] = [];
+    for (const program of this.getProgramReputations()) {
+      const key = `${program.identityId}:${program.domain}`;
+      const local = replayed.get(key) ?? {
+        completed: 0n,
+        disputed: 0n,
+        resolved: 0n,
+        attested: 0n,
+        latestSlot: 0n,
+      };
+      for (const field of [
+        "completed",
+        "disputed",
+        "resolved",
+        "attested",
+      ] as const) {
+        const replayedValue = local[field].toString();
+        const programValue = program[field];
+        if (replayedValue !== programValue) {
+          mismatches.push({
+            identityId: program.identityId,
+            domain: program.domain,
+            scope: "legacy_receipt_replay",
+            field,
+            replayedValue,
+            programValue,
+          });
+        }
+      }
+      for (const [weightedField, countField] of [
+        ["weightedCompleted", "completed"],
+        ["weightedDisputed", "disputed"],
+        ["weightedResolved", "resolved"],
+        ["weightedAttested", "attested"],
+      ] as const) {
+        const minimumValue = parseBigintString(program[countField]);
+        const programValue = parseBigintString(program[weightedField]);
+        if (programValue < minimumValue) {
+          mismatches.push({
+            identityId: program.identityId,
+            domain: program.domain,
+            scope: "weighted_reputation_minimum",
+            field: weightedField,
+            replayedValue: minimumValue.toString(),
+            programValue: programValue.toString(),
+          });
+        }
+      }
+      const lastAppliedSlot = parseBigintString(program.lastAppliedSlot);
+      if (local.latestSlot > 0n && lastAppliedSlot < local.latestSlot) {
+        mismatches.push({
+          identityId: program.identityId,
+          domain: program.domain,
+          scope: "last_applied_slot_replay",
+          field: "lastAppliedSlot",
+          replayedValue: local.latestSlot.toString(),
+          programValue: lastAppliedSlot.toString(),
+        });
+      }
+    }
+    return mismatches;
+  }
+
+  private replayLegacyReputationCounts(): Map<
+    string,
+    {
+      completed: bigint;
+      disputed: bigint;
+      resolved: bigint;
+      attested: bigint;
+      latestSlot: bigint;
+    }
+  > {
+    const counts = new Map<
+      string,
+      {
+        completed: bigint;
+        disputed: bigint;
+        resolved: bigint;
+        attested: bigint;
+        latestSlot: bigint;
+      }
+    >();
+    for (const receipt of this.sortedReceipts()) {
+      const identityId = getReceiptReputationIdentityId(receipt);
+      const key = `${identityId}:${receipt.domain}`;
+      const current = counts.get(key) ?? {
+        completed: 0n,
+        disputed: 0n,
+        resolved: 0n,
+        attested: 0n,
+        latestSlot: 0n,
+      };
+      if (receipt.kind === "completion") {
+        current.completed += 1n;
+      } else if (receipt.kind === "dispute") {
+        current.disputed += 1n;
+      } else if (receipt.kind === "dispute_resolved") {
+        if (!isAgentLostResolution(receipt)) {
+          current.resolved += 1n;
+        }
+      } else if (receipt.kind === ATTESTATION_KIND) {
+        current.attested += 1n;
+      }
+      current.latestSlot = BigInt(receipt.slot);
+      counts.set(key, current);
+    }
+    return counts;
+  }
+
   getStakeState(identityId: string): StakeStateView {
     const state = createEmptyStakeState(identityId);
     for (const receipt of this.sortedReceipts()) {
@@ -1140,35 +1490,52 @@ export class LocalDurableIndexer {
   getAgentTraceBundle(taskId: string): AgentTraceExportBundle {
     const receipts = this.getTaskHistory(taskId);
     const agentIds = new Set<string>();
-    const edits: AgentTraceExportEdit[] = [];
+    const receiptIds: string[] = [];
+    const steps: AgentTraceExportStep[] = [];
+    const conversationsByPath = new Map<string, AgentTraceConversation[]>();
 
     for (const receipt of receipts) {
       agentIds.add(receipt.actorId);
+      receiptIds.push(receipt.receiptId);
       if (!isFileEditReceipt(receipt)) {
         continue;
       }
 
-      edits.push({
+      const path =
+        asString(receipt.payload.path) ?? asString(receipt.payload.file) ?? "";
+      if (path.length === 0) {
+        continue;
+      }
+      const step = {
         receiptId: receipt.receiptId,
         seq: receipt.sequence,
-        path:
-          asString(receipt.payload.path) ??
-          asString(receipt.payload.file) ??
-          "",
+        path,
         slot: receipt.slot,
         actorId: receipt.actorId,
         beforeHash: asString(receipt.payload.beforeHash),
         afterHash: asString(receipt.payload.afterHash),
         diff: asString(receipt.payload.diff),
-      });
+      };
+      steps.push(step);
+      conversationsByPath.set(path, [
+        ...(conversationsByPath.get(path) ?? []),
+        receiptToAgentTraceConversation(receipt),
+      ]);
     }
 
     return {
       version: "0.1.0",
-      traceId: taskId,
-      taskId,
-      agentIds: [...agentIds].sort(),
-      edits,
+      id: uuidFromText(taskId),
+      timestamp: firstReceiptTimestamp(receipts),
+      files: agentTraceFiles(conversationsByPath),
+      metadata: {
+        "dev.trust-substrate": {
+          taskId,
+          agentIds: [...agentIds].sort(),
+          receiptIds,
+          steps,
+        },
+      },
     };
   }
 

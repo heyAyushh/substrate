@@ -37,7 +37,7 @@ const createReceipt = (
     taskId: string;
     actorId: string;
     kind: string;
-  }
+  },
 ): LocalReceiptRecord => ({
   domain: "ops",
   payload: {},
@@ -89,6 +89,23 @@ const createSnapshotFile = (projectRoot: string): string => {
       payload: { outcome: "accepted", tool: "builder" },
     }),
   ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-alpha",
+      domain: "ops",
+      completed: "0",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "3",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "1",
+      slashPenaltySum: "0",
+      lastAppliedSlot: String(COMPLETION_SLOT),
+    },
+  ]);
 
   const snapshotPath = join(projectRoot, "snapshots", "indexer.json");
   mkdirSync(dirname(snapshotPath), { recursive: true });
@@ -105,7 +122,7 @@ test("resolveSnapshotPath keeps reads inside the project root", () => {
       projectRoot,
       snapshotPath: "snapshots/indexer.json",
     }),
-    snapshotPath
+    snapshotPath,
   );
 
   throws(
@@ -114,7 +131,7 @@ test("resolveSnapshotPath keeps reads inside the project root", () => {
         projectRoot,
         snapshotPath: "../outside.json",
       }),
-    /outside the project root/
+    /outside the project root/,
   );
 
   throws(
@@ -123,7 +140,7 @@ test("resolveSnapshotPath keeps reads inside the project root", () => {
         projectRoot,
         snapshotPath: ".mcp.json",
       }),
-    /hidden file/
+    /hidden file/,
   );
 });
 
@@ -142,7 +159,7 @@ test("createSnapshotSummary returns graph and leaderboard context", () => {
   strictEqual(summary.agentCount, EXPECTED_AGENT_COUNT);
   deepStrictEqual(
     summary.domains.map((domain) => domain.domain),
-    ["ops"]
+    ["ops"],
   );
   strictEqual(summary.leaderboard[0].agentId, "agent-alpha");
   ok(summary.snapshotPath.endsWith("snapshots/indexer.json"));
@@ -163,7 +180,7 @@ test("createAgentProfile combines profile, stake, and tool quality", () => {
   strictEqual(profile.stake.activeLamports, STAKE_AMOUNT_LAMPORTS);
   deepStrictEqual(
     profile.toolQuality.map((stat) => stat.tool),
-    ["planner", "router"]
+    ["planner", "router"],
   );
 });
 
@@ -181,7 +198,10 @@ test("createTaskTrace returns receipts, handoffs, and file-edit trace", () => {
   strictEqual(trace.receipts.length, EXPECTED_TASK_RECEIPT_COUNT);
   strictEqual(trace.handoffs.length, EXPECTED_HANDOFF_COUNT);
   strictEqual(trace.handoffs[0].toAgentId, "agent-beta");
-  deepStrictEqual(trace.agentTrace.agentIds, ["agent-alpha", "agent-beta"]);
+  deepStrictEqual(trace.agentTrace.metadata["dev.trust-substrate"].agentIds, [
+    "agent-alpha",
+    "agent-beta",
+  ]);
 });
 
 test("createSnapshotSummary rejects malformed snapshot JSON", () => {
@@ -196,6 +216,6 @@ test("createSnapshotSummary rejects malformed snapshot JSON", () => {
         projectRoot,
         snapshotPath: "snapshots/indexer.json",
       }),
-    /could not load indexer snapshot/
+    /could not load indexer snapshot/,
   );
 });

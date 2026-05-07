@@ -106,6 +106,14 @@ test("society UI surfaces every deployable program in the live demo", async () =
     source.includes("Task program is the board anchor"),
     "live UI must identify the task program as the board anchor",
   );
+  ok(
+    source.includes('"planned" as const'),
+    "fallback program coverage must not claim programs are wired before launch",
+  );
+  ok(
+    source.includes("No chain-backed evidence yet"),
+    "fallback program coverage must say evidence is not created yet",
+  );
 });
 
 test("society UI displays chain-bound agent action envelopes", async () => {

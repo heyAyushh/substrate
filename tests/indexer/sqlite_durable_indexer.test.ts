@@ -73,6 +73,23 @@ test("sqlite durable indexer restores snapshot and analytics across reopen", () 
         effectiveTier: 2,
       },
     ]);
+    original.ingestProgramReputations([
+      {
+        identityId: "agent-a",
+        domain: "ops",
+        completed: "1",
+        disputed: "0",
+        resolved: "0",
+        attested: "1",
+        weightedCompleted: "4",
+        weightedDisputed: "0",
+        weightedResolved: "0",
+        weightedAttested: "2",
+        reviewerWeightSum: "6",
+        slashPenaltySum: "0",
+        lastAppliedSlot: "30",
+      },
+    ]);
     const expected = original.snapshot();
     original.close();
 
@@ -87,6 +104,7 @@ test("sqlite durable indexer restores snapshot and analytics across reopen", () 
     strictEqual(restored.getAuthorityHistory("agent-a").length, 1);
     strictEqual(restored.getIdentityStates()[0]?.tier, "bonded");
     strictEqual(restored.getAttesterRecords()[0]?.category, "builder");
+    strictEqual(restored.getProgramReputations()[0]?.weightedCompleted, "4");
 
     const replay = restored.ingest(sampleReceipts());
     strictEqual(replay.accepted, 0);

@@ -61,6 +61,7 @@ export type AgentIdentity = {
   openTaskCount: number;
   openChallengeCount: number;
   activeStake: boolean;
+  activeStakeCount: number;
   bump: number;
 };
 
@@ -73,6 +74,7 @@ export type AgentIdentityArgs = {
   openTaskCount: number;
   openChallengeCount: number;
   activeStake: boolean;
+  activeStakeCount: number;
   bump: number;
 };
 
@@ -89,6 +91,7 @@ export function getAgentIdentityEncoder(): FixedSizeEncoder<AgentIdentityArgs> {
       ["openTaskCount", getU32Encoder()],
       ["openChallengeCount", getU32Encoder()],
       ["activeStake", getBooleanEncoder()],
+      ["activeStakeCount", getU32Encoder()],
       ["bump", getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: AGENT_IDENTITY_DISCRIMINATOR }),
@@ -107,6 +110,7 @@ export function getAgentIdentityDecoder(): FixedSizeDecoder<AgentIdentity> {
     ["openTaskCount", getU32Decoder()],
     ["openChallengeCount", getU32Decoder()],
     ["activeStake", getBooleanDecoder()],
+    ["activeStakeCount", getU32Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }
@@ -177,5 +181,5 @@ export async function fetchAllMaybeAgentIdentity(
 }
 
 export function getAgentIdentitySize(): number {
-  return 147;
+  return 151;
 }

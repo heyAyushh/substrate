@@ -12,6 +12,7 @@ import type {
   IdentityStateView,
   IngestResult,
   LocalReceiptRecord,
+  ProgramBackedReputationView,
 } from "./types.js";
 
 const CREATE_SNAPSHOT_TABLE_SQL = `
@@ -108,6 +109,14 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
     return result;
   }
 
+  override ingestProgramReputations(
+    reputations: readonly ProgramBackedReputationView[],
+  ): IngestResult {
+    const result = super.ingestProgramReputations(reputations);
+    this.persistOnAcceptedWrites(result);
+    return result;
+  }
+
   private persistOnAcceptedWrites(result: IngestResult): void {
     if (result.accepted > 0) {
       this.persistSnapshot();
@@ -144,6 +153,9 @@ export class SqliteDurableIndexer extends LocalDurableIndexer {
     }
     if (restoredSnapshot.attesterRecords?.length) {
       super.ingestAttesterRecords(restoredSnapshot.attesterRecords);
+    }
+    if (restoredSnapshot.programReputations?.length) {
+      super.ingestProgramReputations(restoredSnapshot.programReputations);
     }
   }
 }

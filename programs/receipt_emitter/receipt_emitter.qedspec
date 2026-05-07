@@ -1,7 +1,6 @@
-// Generated from Anchor IDL — review and complete TODO items
+// Anchor-derived QEDGen protocol spec.
 //
-// Auto-derived: state fields, handlers, contexts, PDAs, errors
-// TODO: guards, effects, lifecycle transitions, properties, invariants
+// Scope: receipt emission, audit/challenge receipts, and CPI authority use.
 
 spec ReceiptEmitter
 
@@ -18,6 +17,7 @@ type AgentIdentity
       open_task_count      : U32,
       open_challenge_count : U32,
       active_stake         : Bool,
+      active_stake_count   : U32,
       bump                 : U8
     }
   | Closed
@@ -141,8 +141,16 @@ pda receipt ["receipt", identity, task, receipt_id]
 
 handler emit_audit_receipt (kind : U8) (domain : U64) (payload_hash : U64) (sequence : U64) (round : U16) (deadline_slot : U64) : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires kind > 0
+  requires sequence > 0
+  effect {
+    kind := kind
+    domain := domain
+    payload_hash := payload_hash
+    sequence := sequence
+    round := round
+    deadline_slot := deadline_slot
+  }
   accounts {
     authority : signer, writable
     auditor_identity : readonly
@@ -159,8 +167,11 @@ handler emit_audit_receipt (kind : U8) (domain : U64) (payload_hash : U64) (sequ
 
 handler emit_challenge_response (payload_hash : U64) : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires payload_hash > 0
+  effect {
+    payload_hash := payload_hash
+    deadline_slot := 0
+  }
   accounts {
     authority : signer, writable
     identity : readonly
@@ -175,8 +186,16 @@ handler emit_challenge_response (payload_hash : U64) : State.Active -> State.Act
 
 handler emit_delegated_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) : State.Active -> State.Active {
   auth delegate
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires receipt_id > 0
+  requires sequence > 0
+  effect {
+    receipt_id := receipt_id
+    kind := kind
+    sequence := sequence
+    domain := domain
+    previous_receipt := previous_receipt
+    payload_hash := payload_hash
+  }
   accounts {
     delegate : signer, writable
     identity : readonly
@@ -192,8 +211,16 @@ handler emit_delegated_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (
 
 handler emit_handoff_grant (receipt_id : U64) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) (allowed_actions : U8) (expires_at_slot : U64) : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires receipt_id > 0
+  requires sequence > 0
+  requires allowed_actions > 0
+  effect {
+    receipt_id := receipt_id
+    sequence := sequence
+    domain := domain
+    previous_receipt := previous_receipt
+    payload_hash := payload_hash
+  }
   accounts {
     authority : signer, writable
     identity : readonly
@@ -211,8 +238,17 @@ handler emit_handoff_grant (receipt_id : U64) (sequence : U64) (domain : U64) (p
 
 handler emit_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (domain : U64) (previous_receipt : U64) (payload_hash : U64) : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires receipt_id > 0
+  requires kind > 0
+  requires sequence > 0
+  effect {
+    receipt_id := receipt_id
+    kind := kind
+    sequence := sequence
+    domain := domain
+    previous_receipt := previous_receipt
+    payload_hash := payload_hash
+  }
   accounts {
     authority : signer, writable
     identity : readonly
@@ -227,8 +263,11 @@ handler emit_receipt (receipt_id : U64) (kind : U8) (sequence : U64) (domain : U
 
 handler finalize_unanswered_challenge : State.Active -> State.Closed {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires deadline_slot > 0
+  effect {
+    kind := 4
+    deadline_slot := 0
+  }
   accounts {
     authority : signer, writable
     target_identity : writable
@@ -243,9 +282,10 @@ handler finalize_unanswered_challenge : State.Active -> State.Closed {
 }
 
 handler initialize_cpi_authority : State.Uninitialized -> State.Active {
-  auth payer
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  permissionless
+  effect {
+    bump := 0
+  }
   accounts {
     payer : signer, writable
     cpi_authority : writable, pda [cpi_authority]
@@ -253,8 +293,10 @@ handler initialize_cpi_authority : State.Uninitialized -> State.Active {
   }
 }
 
-// TODO: Add properties
-// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+property emitted_receipts_have_sequence :
+  sequence > 0
+  preserved_by [emit_receipt, emit_delegated_receipt, emit_handoff_grant, emit_audit_receipt]
 
-// TODO: Add invariants
-// Example: invariant conservation "total tokens preserved"
+invariant receipt_chain_is_cpi_advanced :
+  forall receipt_record : ReceiptRecord.Active,
+    receipt_record.sequence > 0

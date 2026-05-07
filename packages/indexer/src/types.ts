@@ -179,7 +179,36 @@ export interface ToolQualityStat {
   successRate: number;
 }
 
-export interface AgentTraceExportEdit {
+export interface AgentTraceContributor {
+  type: "human" | "ai" | "mixed" | "unknown";
+  model_id?: string;
+}
+
+export interface AgentTraceRelatedResource {
+  type: string;
+  url: string;
+}
+
+export interface AgentTraceRange {
+  start_line: number;
+  end_line: number;
+  content_hash?: string;
+  contributor?: AgentTraceContributor;
+}
+
+export interface AgentTraceConversation {
+  url?: string;
+  contributor?: AgentTraceContributor;
+  ranges: AgentTraceRange[];
+  related?: AgentTraceRelatedResource[];
+}
+
+export interface AgentTraceFile {
+  path: string;
+  conversations: AgentTraceConversation[];
+}
+
+export interface AgentTraceExportStep {
   receiptId: string;
   seq: number;
   path: string;
@@ -190,12 +219,21 @@ export interface AgentTraceExportEdit {
   diff?: string;
 }
 
-export interface AgentTraceExportBundle {
-  version: "0.1.0";
-  traceId: string;
+export interface AgentTraceExportMetadata {
   taskId: string;
   agentIds: string[];
-  edits: AgentTraceExportEdit[];
+  receiptIds: string[];
+  steps: AgentTraceExportStep[];
+}
+
+export interface AgentTraceExportBundle {
+  version: "0.1.0";
+  id: string;
+  timestamp: string;
+  files: AgentTraceFile[];
+  metadata: {
+    "dev.trust-substrate": AgentTraceExportMetadata;
+  };
 }
 
 export interface ChallengeStatus {
@@ -246,4 +284,41 @@ export interface StakeStateView {
   unstakeUnlocksAtSlot?: number;
   slashedLamports: string;
   slashReceiptIds: string[];
+}
+
+export interface ProgramBackedReputationView {
+  identityId: string;
+  domain: string;
+  completed: string;
+  disputed: string;
+  resolved: string;
+  attested: string;
+  weightedCompleted: string;
+  weightedDisputed: string;
+  weightedResolved: string;
+  weightedAttested: string;
+  reviewerWeightSum: string;
+  slashPenaltySum: string;
+  lastAppliedSlot?: string;
+}
+
+export interface ReputationReplayMismatch {
+  identityId: string;
+  domain: string;
+  scope:
+    | "legacy_receipt_replay"
+    | "weighted_reputation_minimum"
+    | "last_applied_slot_replay";
+  field:
+    | "completed"
+    | "disputed"
+    | "resolved"
+    | "attested"
+    | "weightedCompleted"
+    | "weightedDisputed"
+    | "weightedResolved"
+    | "weightedAttested"
+    | "lastAppliedSlot";
+  replayedValue: string;
+  programValue: string;
 }

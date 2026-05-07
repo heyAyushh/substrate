@@ -55,11 +55,14 @@ export function getSlashWithVerdictDiscriminatorBytes() {
 export type SlashWithVerdictInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountAdjudicator extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountVerdict extends string | AccountMeta<string> = string,
   TAccountSlashMarker extends string | AccountMeta<string> = string,
   TAccountTreasuryVault extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -71,6 +74,9 @@ export type SlashWithVerdictInstruction<
         ? WritableSignerAccount<TAccountAdjudicator> &
             AccountSignerMeta<TAccountAdjudicator>
         : TAccountAdjudicator,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountStake extends string
         ? WritableAccount<TAccountStake>
         : TAccountStake,
@@ -86,6 +92,9 @@ export type SlashWithVerdictInstruction<
       TAccountTreasuryVault extends string
         ? WritableAccount<TAccountTreasuryVault>
         : TAccountTreasuryVault,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -124,39 +133,49 @@ export function getSlashWithVerdictInstructionDataCodec(): FixedSizeCodec<
 
 export type SlashWithVerdictAsyncInput<
   TAccountAdjudicator extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountVerdict extends string = string,
   TAccountSlashMarker extends string = string,
   TAccountTreasuryVault extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   adjudicator: TransactionSigner<TAccountAdjudicator>;
+  /** deserializes and validates the account during the CPI. */
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   verdict?: Address<TAccountVerdict>;
   slashMarker?: Address<TAccountSlashMarker>;
+  /** resolver treasury PDA. The foreign program owns the account data. */
   treasuryVault?: Address<TAccountTreasuryVault>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export async function getSlashWithVerdictInstructionAsync<
   TAccountAdjudicator extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountVerdict extends string,
   TAccountSlashMarker extends string,
   TAccountTreasuryVault extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashWithVerdictAsyncInput<
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -164,11 +183,13 @@ export async function getSlashWithVerdictInstructionAsync<
   SlashWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -178,11 +199,16 @@ export async function getSlashWithVerdictInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     adjudicator: { value: input.adjudicator ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     verdict: { value: input.verdict ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
     treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -231,6 +257,10 @@ export async function getSlashWithVerdictInstructionAsync<
       ],
     });
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -240,11 +270,16 @@ export async function getSlashWithVerdictInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("adjudicator", accounts.adjudicator),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("verdict", accounts.verdict),
       getAccountMeta("slashMarker", accounts.slashMarker),
       getAccountMeta("treasuryVault", accounts.treasuryVault),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashWithVerdictInstructionDataEncoder().encode({}),
@@ -252,61 +287,75 @@ export async function getSlashWithVerdictInstructionAsync<
   } as SlashWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
 
 export type SlashWithVerdictInput<
   TAccountAdjudicator extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountVerdict extends string = string,
   TAccountSlashMarker extends string = string,
   TAccountTreasuryVault extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   adjudicator: TransactionSigner<TAccountAdjudicator>;
+  /** deserializes and validates the account during the CPI. */
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   verdict: Address<TAccountVerdict>;
   slashMarker: Address<TAccountSlashMarker>;
+  /** resolver treasury PDA. The foreign program owns the account data. */
   treasuryVault: Address<TAccountTreasuryVault>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export function getSlashWithVerdictInstruction<
   TAccountAdjudicator extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountVerdict extends string,
   TAccountSlashMarker extends string,
   TAccountTreasuryVault extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashWithVerdictInput<
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): SlashWithVerdictInstruction<
   TProgramAddress,
   TAccountAdjudicator,
+  TAccountIdentity,
   TAccountStake,
   TAccountDisputeReceipt,
   TAccountVerdict,
   TAccountSlashMarker,
   TAccountTreasuryVault,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -315,11 +364,16 @@ export function getSlashWithVerdictInstruction<
   // Original accounts.
   const originalAccounts = {
     adjudicator: { value: input.adjudicator ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     verdict: { value: input.verdict ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
     treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -328,6 +382,10 @@ export function getSlashWithVerdictInstruction<
   >;
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -337,11 +395,16 @@ export function getSlashWithVerdictInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("adjudicator", accounts.adjudicator),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("verdict", accounts.verdict),
       getAccountMeta("slashMarker", accounts.slashMarker),
       getAccountMeta("treasuryVault", accounts.treasuryVault),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashWithVerdictInstructionDataEncoder().encode({}),
@@ -349,11 +412,13 @@ export function getSlashWithVerdictInstruction<
   } as SlashWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -365,12 +430,16 @@ export type ParsedSlashWithVerdictInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     adjudicator: TAccountMetas[0];
-    stake: TAccountMetas[1];
-    disputeReceipt: TAccountMetas[2];
-    verdict: TAccountMetas[3];
-    slashMarker: TAccountMetas[4];
-    treasuryVault: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
+    /** deserializes and validates the account during the CPI. */
+    identity: TAccountMetas[1];
+    stake: TAccountMetas[2];
+    disputeReceipt: TAccountMetas[3];
+    verdict: TAccountMetas[4];
+    slashMarker: TAccountMetas[5];
+    /** resolver treasury PDA. The foreign program owns the account data. */
+    treasuryVault: TAccountMetas[6];
+    identityRegistryProgram: TAccountMetas[7];
+    systemProgram: TAccountMetas[8];
   };
   data: SlashWithVerdictInstructionData;
 };
@@ -383,12 +452,12 @@ export function parseSlashWithVerdictInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSlashWithVerdictInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+  if (instruction.accounts.length < 9) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 7,
+        expectedAccountMetas: 9,
       },
     );
   }
@@ -402,11 +471,13 @@ export function parseSlashWithVerdictInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       adjudicator: getNextAccount(),
+      identity: getNextAccount(),
       stake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       verdict: getNextAccount(),
       slashMarker: getNextAccount(),
       treasuryVault: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getSlashWithVerdictInstructionDataDecoder().decode(instruction.data),

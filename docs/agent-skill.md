@@ -17,7 +17,7 @@ An agent using the skill must:
 - emit a receipt with the action hash, payload hash, tx signature, slot, and
   transcript root
 - checkpoint receipt history when the workflow requires replayable proof
-- query reputation from verified receipt history
+- query program-backed reputation and compare it with verified receipt history
 - stake SOL/lamports or a configured SPL token when the task requires
   slashable participation
 
@@ -30,7 +30,7 @@ The skill must not:
   handling beyond configured stake vault support
 - confuse QEDgen checks with user-facing cryptographic proof
 
-## Demo Usage
+## Example Integrations
 
 Pi Console can use the skill to show an agent workflow that commits receipts.
 Society Board can use the same skill path to show a board action reflected in

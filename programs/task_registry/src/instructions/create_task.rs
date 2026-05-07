@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
 
 use crate::state::TaskRecord;
-use trust_substrate_core::{TrustSubstrateError, TASK_STATUS_PENDING};
+use trust_substrate_core::{TrustSubstrateError, TASK_SEED, TASK_STATUS_PENDING};
 
 #[derive(Accounts)]
 #[instruction(task_id: [u8; 32])]
@@ -36,29 +36,40 @@ pub fn handler(
         TrustSubstrateError::TaskAuthorityMismatch
     );
 
-    let task = &mut ctx.accounts.task;
-    task.identity = ctx.accounts.identity.key();
-    task.task_id = task_id;
-    task.domain = domain;
-    task.subtask_root = subtask_root;
-    task.subtask_count = subtask_count;
-    task.status = TASK_STATUS_PENDING;
-    task.completed_count = 0;
-    task.disputed_count = 0;
-    task.resolved_count = 0;
-    task.last_receipt = Pubkey::default();
-    task.last_sequence = 0;
-    task.bump = ctx.bumps.task;
+    {
+        let task = &mut ctx.accounts.task;
+        task.identity = ctx.accounts.identity.key();
+        task.task_id = task_id;
+        task.domain = domain;
+        task.subtask_root = subtask_root;
+        task.subtask_count = subtask_count;
+        task.status = TASK_STATUS_PENDING;
+        task.completed_count = 0;
+        task.disputed_count = 0;
+        task.resolved_count = 0;
+        task.last_receipt = Pubkey::default();
+        task.last_sequence = 0;
+        task.bump = ctx.bumps.task;
+    }
 
     let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenTaskCount {
-        authority: ctx.accounts.authority.to_account_info(),
+        authority: ctx.accounts.task.to_account_info(),
         identity: ctx.accounts.identity.to_account_info(),
     };
-    let identity_cpi = CpiContext::new(
+    let identity_key = ctx.accounts.identity.key();
+    let task_bump = [ctx.bumps.task];
+    let signer_seeds: &[&[&[u8]]] = &[&[
+        TASK_SEED,
+        identity_key.as_ref(),
+        task_id.as_ref(),
+        &task_bump,
+    ]];
+    let identity_cpi = CpiContext::new_with_signer(
         ctx.accounts.identity_registry_program.key(),
         identity_cpi_accounts,
+        signer_seeds,
     );
-    identity_registry::cpi::adjust_open_task_count(identity_cpi, 1)?;
+    identity_registry::cpi::adjust_open_task_count(identity_cpi, task_id, 1)?;
 
     Ok(())
 }

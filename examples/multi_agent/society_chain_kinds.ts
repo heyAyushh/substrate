@@ -6,11 +6,7 @@ const TASK_SYNCABLE_RECEIPT_KINDS = new Set([
   "dispute_resolved",
 ]);
 
-const REPUTATION_APPLICABLE_RECEIPT_KINDS = new Set([
-  "completion",
-  "dispute",
-  "dispute_resolved",
-]);
+const REPUTATION_APPLICABLE_RECEIPT_KINDS = new Set(["completion"]);
 
 const shouldSkipLiveRoutingForAction = (action: string | undefined): boolean =>
   action === "death";

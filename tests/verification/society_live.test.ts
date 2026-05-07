@@ -240,7 +240,7 @@ test("failed live commits clear pending state and preserve confirmed progress", 
   );
 });
 
-test("completing a live session writes the final proof reference", async () => {
+test("completing a live session writes the final evidence reference", async () => {
   const { manager, wasFinalized } = createManager({
     autoPlaySessions: false,
   });
@@ -272,8 +272,8 @@ test("live receipt routing only syncs and scores eligible receipt kinds", () => 
   strictEqual(supportsTaskStatusSync("challenge"), false);
 
   strictEqual(supportsReputationApply("completion"), true);
-  strictEqual(supportsReputationApply("dispute"), true);
-  strictEqual(supportsReputationApply("dispute_resolved"), true);
+  strictEqual(supportsReputationApply("dispute"), false);
+  strictEqual(supportsReputationApply("dispute_resolved"), false);
   strictEqual(supportsReputationApply("assignment"), false);
   strictEqual(supportsReputationApply("genesis"), false);
 

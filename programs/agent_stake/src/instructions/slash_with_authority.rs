@@ -5,6 +5,7 @@ use trust_substrate_core::{
     TREASURY_VAULT_SEED, TRUST_MODE_AUTHORITY,
 };
 
+use crate::instructions::identity_stake_activity::sync_lamport_stake_activity;
 use crate::state::{SlashMarker, StakeAccount};
 use crate::StakeSlashedByAuthority;
 
@@ -32,11 +33,6 @@ pub fn handler(ctx: Context<SlashWithAuthority>, amount: u64) -> Result<()> {
         ctx.accounts.dispute_receipt.kind == DISPUTE_RESOLVED_KIND,
         TrustSubstrateError::StakeReceiptKindMismatch
     );
-    require_keys_eq!(
-        ctx.accounts.treasury_vault.key(),
-        treasury_vault_pda(),
-        TrustSubstrateError::StakeTreasuryVaultMismatch
-    );
     require!(
         ctx.accounts.slash_marker.dispute_receipt == Pubkey::default(),
         TrustSubstrateError::StakeSlashAlreadyApplied
@@ -46,8 +42,41 @@ pub fn handler(ctx: Context<SlashWithAuthority>, amount: u64) -> Result<()> {
         TrustSubstrateError::StakeInsufficient
     );
 
+    let was_active = ctx.accounts.stake.amount > 0;
     let treasury_info = ctx.accounts.treasury_vault.to_account_info();
-    apply_slash(&mut ctx.accounts.stake, &treasury_info, amount)?;
+    ctx.accounts.stake.amount = ctx
+        .accounts
+        .stake
+        .amount
+        .checked_sub(amount)
+        .ok_or(TrustSubstrateError::StakeInsufficient)?;
+    ctx.accounts.stake.slashed_total = ctx
+        .accounts
+        .stake
+        .slashed_total
+        .checked_add(amount)
+        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+    if ctx.accounts.stake.pending_unstake_amount > ctx.accounts.stake.amount {
+        ctx.accounts.stake.pending_unstake_amount = ctx.accounts.stake.amount;
+    }
+    if ctx.accounts.stake.pending_unstake_amount == 0 {
+        ctx.accounts.stake.unstake_unlocks_at = 0;
+    }
+    if was_active && ctx.accounts.stake.amount == 0 {
+        sync_lamport_stake_activity(
+            ctx.accounts.identity_registry_program.key(),
+            ctx.accounts.stake.to_account_info(),
+            ctx.accounts.identity.to_account_info(),
+            ctx.accounts.stake.identity,
+            ctx.accounts.stake.bump,
+            false,
+        )?;
+    }
+    transfer_lamport_slash(
+        &ctx.accounts.stake.to_account_info(),
+        &treasury_info,
+        amount,
+    )?;
 
     let marker = &mut ctx.accounts.slash_marker;
     marker.stake = ctx.accounts.stake.key();
@@ -72,6 +101,10 @@ pub fn handler(ctx: Context<SlashWithAuthority>, amount: u64) -> Result<()> {
 pub struct SlashWithAuthority<'info> {
     #[account(mut)]
     pub slash_authority: Signer<'info>,
+    #[account(mut, address = stake.identity @ TrustSubstrateError::StakeIdentityMismatch)]
+    /// CHECK: The address is pinned to the stake identity; identity_registry
+    /// deserializes and validates the account during the CPI.
+    pub identity: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [STAKE_SEED, stake.identity.as_ref()],
@@ -87,40 +120,27 @@ pub struct SlashWithAuthority<'info> {
         bump
     )]
     pub slash_marker: Account<'info, SlashMarker>,
-    /// CHECK: The treasury vault is a fixed PDA owned by `dispute_resolver`.
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [TREASURY_VAULT_SEED],
+        bump,
+        seeds::program = dispute_resolver::ID,
+        owner = dispute_resolver::ID
+    )]
+    /// CHECK: The address and owner constraints pin this to the dispute
+    /// resolver treasury PDA. The foreign program owns the account data.
     pub treasury_vault: UncheckedAccount<'info>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
 }
 
-fn treasury_vault_pda() -> Pubkey {
-    Pubkey::find_program_address(&[TREASURY_VAULT_SEED], &dispute_resolver::ID).0
-}
-
-pub fn apply_slash(
-    stake: &mut Account<'_, StakeAccount>,
+pub fn transfer_lamport_slash(
+    stake_info: &AccountInfo<'_>,
     treasury_info: &AccountInfo<'_>,
     amount: u64,
 ) -> Result<()> {
-    stake.amount = stake
-        .amount
-        .checked_sub(amount)
-        .ok_or(TrustSubstrateError::StakeInsufficient)?;
-    stake.slashed_total = stake
-        .slashed_total
-        .checked_add(amount)
-        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
-
-    let stake_info = stake.to_account_info();
-
-    **stake_info.try_borrow_mut_lamports()? = stake_info
-        .lamports()
-        .checked_sub(amount)
-        .ok_or(TrustSubstrateError::StakeInsufficient)?;
-    **treasury_info.try_borrow_mut_lamports()? = treasury_info
-        .lamports()
-        .checked_add(amount)
-        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+    stake_info.sub_lamports(amount)?;
+    treasury_info.add_lamports(amount)?;
 
     Ok(())
 }

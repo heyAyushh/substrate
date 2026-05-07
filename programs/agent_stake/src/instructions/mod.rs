@@ -1,5 +1,6 @@
 pub mod finalize_unstake;
 pub mod finalize_unstake_token;
+pub mod identity_stake_activity;
 pub mod initialize_stake;
 pub mod initialize_token_stake;
 pub mod initialize_token_treasury_vault;

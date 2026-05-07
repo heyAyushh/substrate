@@ -25,8 +25,16 @@ import {
 } from "./pi-adapter.js";
 import {
   TrustSubstrateOnchainClient,
+  type OnchainReputationEvidenceAccount,
   type OnchainOperationResult,
 } from "./onchain-client.js";
+
+const PROGRAM_BACKED_REPUTATION_KINDS = new Set<ReceiptKind>([
+  "completion",
+  "dispute",
+  "dispute_resolved",
+  "attestation",
+]);
 
 export interface ReceiptIndexRecord {
   readonly receiptId: string;
@@ -58,6 +66,7 @@ export interface PiBridgeCommitInput {
   readonly task: TaskRecord;
   readonly taskAddress: Address;
   readonly domainCatalogAddress: Address;
+  readonly reputationAddress: Address;
   readonly recordId: string;
   readonly kind: ReceiptKind;
   readonly sequence: number;
@@ -71,6 +80,7 @@ export interface PiBridgeCommitInput {
   };
   readonly actorId?: string;
   readonly stake?: PiBridgeStakeInput;
+  readonly reputationEvidenceAccounts?: readonly OnchainReputationEvidenceAccount[];
   readonly syncTaskStatus?: boolean;
 }
 
@@ -87,6 +97,7 @@ export interface PiBridgeCommitResult {
   readonly actionEnvelope: AgentActionEnvelope;
   readonly onchain: {
     readonly receiptAddress: Address;
+    readonly reputationAddress: Address;
     readonly stakeAddress?: Address;
     readonly operations: ReadonlyArray<OnchainOperationResult>;
   };
@@ -196,6 +207,21 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
       );
     }
 
+    if (PROGRAM_BACKED_REPUTATION_KINDS.has(input.kind)) {
+      operations.push(
+        await this.onchain.applyReputationReceipt({
+          authority: input.authority,
+          identity: input.identityAddress,
+          receipt: committedReceipt.address,
+          reputation: input.reputationAddress,
+          evidenceAccounts: buildReputationEvidenceAccounts({
+            stakeAddress,
+            evidenceAccounts: input.reputationEvidenceAccounts,
+          }),
+        }),
+      );
+    }
+
     const indexedReceipt: ReceiptIndexRecord = {
       receiptId: receipt.receiptId,
       slot: committedReceipt.slot,
@@ -268,6 +294,7 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
       actionEnvelope,
       onchain: {
         receiptAddress: committedReceipt.address,
+        reputationAddress: input.reputationAddress,
         ...(stakeAddress ? { stakeAddress } : {}),
         operations,
       },
@@ -301,6 +328,20 @@ export class PiToolStreamBridge<TIndexer extends ReceiptIndexWriter> {
 
     return events;
   }
+}
+
+function buildReputationEvidenceAccounts(input: {
+  readonly stakeAddress?: Address;
+  readonly evidenceAccounts?: readonly OnchainReputationEvidenceAccount[];
+}): OnchainReputationEvidenceAccount[] {
+  const evidenceByAddress = new Map<string, OnchainReputationEvidenceAccount>();
+  for (const account of input.evidenceAccounts ?? []) {
+    evidenceByAddress.set(account.address, account);
+  }
+  if (input.stakeAddress && !evidenceByAddress.has(input.stakeAddress)) {
+    evidenceByAddress.set(input.stakeAddress, { address: input.stakeAddress });
+  }
+  return [...evidenceByAddress.values()];
 }
 
 const requireOperationSignature = (

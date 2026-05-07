@@ -78,13 +78,13 @@ function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<number | null>(
-    null
+    null,
   );
   const [simulationState, setSimulationState] =
     useState<SimulationState>("idle");
   const [simulationRunId, setSimulationRunId] = useState<string | null>(null);
   const [surfpoolStatus, setSurfpoolStatus] = useState<SurfpoolStatus | null>(
-    null
+    null,
   );
   const [studioLinks, setStudioLinks] = useState<SurfpoolStudioLinks>({
     studio: {
@@ -102,7 +102,7 @@ function App() {
   });
   const [runtime, setRuntime] = useState<LocalRuntimeConfig | null>(null);
   const [chatInspector, setChatInspector] = useState<PiChatInspectorState>(
-    EMPTY_INSPECTOR_STATE
+    EMPTY_INSPECTOR_STATE,
   );
 
   useEffect(() => {
@@ -131,13 +131,13 @@ function App() {
           return;
         }
         setSnapshotError(
-          error instanceof Error ? error.message : "Snapshot unavailable"
+          error instanceof Error ? error.message : "Snapshot unavailable",
         );
       } finally {
         if (isActive) {
           timerId = window.setTimeout(
             refreshSnapshot,
-            SNAPSHOT_POLL_INTERVAL_MS
+            SNAPSHOT_POLL_INTERVAL_MS,
           );
         }
       }
@@ -183,7 +183,7 @@ function App() {
       setStudioLinks(nextLinks);
       timerId = window.setTimeout(
         refreshStudioLinks,
-        SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS
+        SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS,
       );
     };
 
@@ -200,7 +200,7 @@ function App() {
   const runtimeLabel = runtime ? getDefaultRuntimeLabel(runtime) : null;
   const runtimeMcpServers = useMemo(
     () => runtime?.mcpServers ?? EMPTY_MCP_SERVERS,
-    [runtime]
+    [runtime],
   );
 
   useEffect(() => {
@@ -235,7 +235,7 @@ function App() {
       Object.entries(snapshot.identities).map(([label, identityId]) => [
         identityId,
         label,
-      ])
+      ]),
     );
   }, [snapshot]);
 
@@ -247,7 +247,7 @@ function App() {
   const totalSlashedLamports = snapshot
     ? Object.values(snapshot.stake).reduce(
         (sum, entry) => sum + Number(entry.slashedLamports),
-        0
+        0,
       )
     : 0;
   const latestReceiptLabel = latestReceipt
@@ -269,11 +269,11 @@ function App() {
     : [];
   const identityProfiles = useMemo(
     () => buildIdentityProfiles(snapshot, identityLabelsById),
-    [identityLabelsById, snapshot]
+    [identityLabelsById, snapshot],
   );
   const accountReferences = useMemo(
     () => (snapshot ? listDashboardAccountReferences(snapshot) : []),
-    [snapshot]
+    [snapshot],
   );
 
   const headerLinks = [
@@ -322,17 +322,17 @@ function App() {
   const headline = snapshot
     ? truncateMiddle(snapshot.task, 18, 12)
     : simulationState === "running"
-    ? "Running local simulation"
-    : simulationState === "failed"
-    ? "Local simulation failed"
-    : "Start a local simulation";
+      ? "Running local simulation"
+      : simulationState === "failed"
+        ? "Local simulation failed"
+        : "Start a local simulation";
   const subheadline = snapshot
     ? null
     : simulationState === "running"
-    ? "The console is generating a fresh local run now."
-    : simulationState === "failed"
-    ? snapshotError ?? "The last simulation did not finish cleanly."
-    : "Press Play to create a fresh local run for this page.";
+      ? "The console is generating a fresh local run now."
+      : simulationState === "failed"
+        ? (snapshotError ?? "The last simulation did not finish cleanly.")
+        : "Press Play to create a fresh local run for this page.";
 
   const handlePlaySimulation = async () => {
     if (simulationState === "running") {
@@ -355,7 +355,7 @@ function App() {
     } catch (error) {
       setSimulationState("failed");
       setSnapshotError(
-        error instanceof Error ? error.message : "The local simulation failed."
+        error instanceof Error ? error.message : "The local simulation failed.",
       );
     }
   };
@@ -456,7 +456,7 @@ function App() {
                 rpcLabel={
                   surfpoolStatus?.status === "online"
                     ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                    : surfpoolStatus?.errorLabel ?? null
+                    : (surfpoolStatus?.errorLabel ?? null)
                 }
                 delegationLabels={chainLabels}
                 startFresh
@@ -612,7 +612,7 @@ function InspectorPanel({
                   />
                   <InspectorStatRow
                     icon={<Trophy aria-hidden="true" />}
-                    label="Lead"
+                    label="Program reputation lead"
                     value={
                       leadEntry
                         ? `${
@@ -645,7 +645,7 @@ function InspectorPanel({
                     value={
                       surfpoolStatus?.status === "online"
                         ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                        : surfpoolStatus?.errorLabel ?? "Unavailable"
+                        : (surfpoolStatus?.errorLabel ?? "Unavailable")
                     }
                   />
                   <InspectorStatRow
@@ -958,8 +958,8 @@ function InspectorPanel({
                               {activity.phase === "start"
                                 ? "running"
                                 : activity.isError
-                                ? "failed"
-                                : "done"}
+                                  ? "failed"
+                                  : "done"}
                             </Badge>
                           </div>
                           {activity.detail ? (
@@ -1030,7 +1030,7 @@ function InspectorStatRow({
 
 function buildIdentityProfiles(
   snapshot: DashboardSnapshot | null,
-  identityLabelsById: Map<string, string>
+  identityLabelsById: Map<string, string>,
 ): PiIdentityProfile[] {
   if (!snapshot) {
     return [];
@@ -1044,13 +1044,13 @@ function buildIdentityProfiles(
   const delegatedFromById = new Map<string, string[]>();
   const delegatedToById = new Map<string, string[]>();
   const scoreById = new Map(
-    snapshot.leaderboard.all.map((entry) => [entry.agentId, entry.score])
+    snapshot.leaderboard.all.map((entry) => [entry.agentId, entry.score]),
   );
 
   for (const receipt of snapshot.receiptTimeline) {
     receiptCountByActor.set(
       receipt.actor,
-      (receiptCountByActor.get(receipt.actor) ?? 0) + 1
+      (receiptCountByActor.get(receipt.actor) ?? 0) + 1,
     );
     latestReceiptByActor.set(receipt.actor, receipt);
   }
@@ -1068,10 +1068,10 @@ function buildIdentityProfiles(
 
   return Object.entries(snapshot.identities).map(([slug, identityId]) => {
     const delegatedFromLabels = (delegatedFromById.get(identityId) ?? []).map(
-      (value) => identityLabelsById.get(value) ?? truncateMiddle(value)
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
     );
     const delegatedToLabels = (delegatedToById.get(identityId) ?? []).map(
-      (value) => identityLabelsById.get(value) ?? truncateMiddle(value)
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
     );
     const latestReceipt = latestReceiptByActor.get(identityId) ?? null;
 
@@ -1111,7 +1111,7 @@ function buildIdentityPromptHint(slug: string) {
   }
 
   return `Ask ${formatIdentityLabel(
-    slug
+    slug,
   )} about execution, receipts, or the next move.`;
 }
 

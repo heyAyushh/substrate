@@ -12,6 +12,12 @@ import {
   hashStep,
   type ExecutionRecord,
 } from "./execution-record.js";
+import {
+  AGENT_TRACE_VERSION,
+  executionRecordToAgentTrace,
+  hashAgentTrace,
+  TRUST_SUBSTRATE_AGENT_TRACE_METADATA_KEY,
+} from "./agent-trace.js";
 
 export interface ReceiptStorageRef {
   readonly uri: string;
@@ -59,6 +65,14 @@ export function createReceiptFromExecution(
     domain: input.domain,
     recordId: input.record.recordId,
     payloadHash,
+  };
+  const agentTrace = executionRecordToAgentTrace(input.record);
+  const traceMetadata =
+    agentTrace.metadata?.[TRUST_SUBSTRATE_AGENT_TRACE_METADATA_KEY];
+  payload.agentTrace = {
+    version: AGENT_TRACE_VERSION,
+    id: agentTrace.id,
+    hash: traceMetadata?.traceHash ?? hashAgentTrace(agentTrace),
   };
 
   if (input.storage) {

@@ -1,6 +1,7 @@
 use anchor_lang::{prelude::*, system_program};
 use trust_substrate_core::{TrustSubstrateError, STAKE_SEED};
 
+use crate::instructions::identity_stake_activity::sync_lamport_stake_activity;
 use crate::state::StakeAccount;
 use crate::StakeDeposited;
 
@@ -11,6 +12,7 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
         ctx.accounts.owner.key(),
         TrustSubstrateError::StakeAuthorityMismatch
     );
+    let was_inactive = ctx.accounts.stake.amount == 0;
 
     ctx.accounts.stake.amount = ctx
         .accounts
@@ -30,15 +32,16 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
         amount,
     )?;
 
-    let identity_cpi_accounts = identity_registry::cpi::accounts::SetStakeActive {
-        authority: ctx.accounts.owner.to_account_info(),
-        identity: ctx.accounts.identity.to_account_info(),
-    };
-    let identity_cpi = CpiContext::new(
-        ctx.accounts.identity_registry_program.key(),
-        identity_cpi_accounts,
-    );
-    identity_registry::cpi::set_stake_active(identity_cpi, true)?;
+    if was_inactive {
+        sync_lamport_stake_activity(
+            ctx.accounts.identity_registry_program.key(),
+            ctx.accounts.stake.to_account_info(),
+            ctx.accounts.identity.to_account_info(),
+            ctx.accounts.stake.identity,
+            ctx.accounts.stake.bump,
+            true,
+        )?;
+    }
 
     emit!(StakeDeposited {
         identity: ctx.accounts.stake.identity,
@@ -54,7 +57,7 @@ pub fn handler(ctx: Context<Stake>, amount: u64) -> Result<()> {
 pub struct Stake<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
-    #[account(mut)]
+    #[account(mut, address = stake.identity @ TrustSubstrateError::StakeIdentityMismatch)]
     pub identity: Account<'info, identity_registry::state::AgentIdentity>,
     #[account(
         mut,

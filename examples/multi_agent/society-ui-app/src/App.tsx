@@ -146,7 +146,7 @@ type ProgramWiringStep = {
   name: string
   action: string
   demoRole: "board-primary" | "supporting-trust-program"
-  status: "wired"
+  status: "wired" | "planned"
   expectedRecords: number
   demoSurface: string
   evidence: string
@@ -4852,10 +4852,10 @@ function ProgramCoverageCard({
         program.name === "task_registry"
           ? ("board-primary" as const)
           : ("supporting-trust-program" as const),
-      status: "wired" as const,
+      status: "planned" as const,
       expectedRecords: 0,
       demoSurface: "Loaded when the Surfpool session starts",
-      evidence: "Session proof and account links appear after onboarding launch",
+      evidence: "No chain-backed evidence yet; launch onboarding to create it",
       boundary: "No chain state is created before an explicit user action",
     }))
 

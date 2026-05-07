@@ -15,8 +15,13 @@ pub fn handler(ctx: Context<RegisterDomain>, domain: [u8; 32]) -> Result<()> {
         TrustSubstrateError::DomainCatalogFull
     );
 
-    catalog.domains.push(domain);
-    catalog.deprecated.push(false);
+    let mut domains = catalog.domains.clone();
+    domains.push(domain);
+    catalog.domains = domains;
+
+    let mut deprecated = catalog.deprecated.clone();
+    deprecated.push(false);
+    catalog.deprecated = deprecated;
 
     Ok(())
 }

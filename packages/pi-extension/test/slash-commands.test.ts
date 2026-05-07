@@ -12,7 +12,7 @@ import {
 } from "../src/slash-commands.js";
 import type { BootstrapResult } from "../src/session-bootstrap.js";
 
-const fakeBootstrap = (): BootstrapResult => {
+const buildBootstrapFixture = (): BootstrapResult => {
   const authority = {
     address: "AAA11111111111111111111111111111111111111111" as Address,
   } as TransactionSigner;
@@ -38,12 +38,14 @@ const fakeBootstrap = (): BootstrapResult => {
     taskAddress: "TSK11111111111111111111111111111111111111111" as Address,
     domainCatalogAddress:
       "DMC11111111111111111111111111111111111111111" as Address,
+    reputationAddress:
+      "REP11111111111111111111111111111111111111111" as Address,
     operations: [],
   };
 };
 
 test("substrate-status prints identity/task/PDA summary", async () => {
-  const bootstrap = fakeBootstrap();
+  const bootstrap = buildBootstrapFixture();
   const defs = buildSubstrateCommandDefinitions({
     getBootstrap: async () => bootstrap,
   });
@@ -53,12 +55,13 @@ test("substrate-status prints identity/task/PDA summary", async () => {
   match(result.output, /identity-xyz/);
   match(result.output, /task-xyz/);
   match(result.output, /domainCatalog/);
+  match(result.output, /reputationAddress/);
 });
 
 test("substrate-stake submits parsed lamport amount via deps.stake", async () => {
   const stakes: bigint[] = [];
   const defs = buildSubstrateCommandDefinitions({
-    getBootstrap: async () => fakeBootstrap(),
+    getBootstrap: async () => buildBootstrapFixture(),
     stake: async (amount) => {
       stakes.push(amount);
       return "sig-deadbeef";
@@ -72,7 +75,7 @@ test("substrate-stake submits parsed lamport amount via deps.stake", async () =>
 
 test("substrate-stake reports NOT_WIRED when stake dep missing", async () => {
   const defs = buildSubstrateCommandDefinitions({
-    getBootstrap: async () => fakeBootstrap(),
+    getBootstrap: async () => buildBootstrapFixture(),
   });
   const cmd = defs.find((d) => d.name === "substrate-stake")!;
   const result = await cmd.handler({ args: ["1"], raw: "1" });
@@ -82,7 +85,7 @@ test("substrate-stake reports NOT_WIRED when stake dep missing", async () => {
 
 test("substrate-challenge requires receiptId argument", async () => {
   const defs = buildSubstrateCommandDefinitions({
-    getBootstrap: async () => fakeBootstrap(),
+    getBootstrap: async () => buildBootstrapFixture(),
     challenge: async (id) => `challenge-sig-${id}`,
   });
   const cmd = defs.find((d) => d.name === "substrate-challenge")!;
@@ -94,7 +97,7 @@ test("substrate-challenge requires receiptId argument", async () => {
 
 test("substrate-dashboard returns default dashboard links", async () => {
   const defs = buildSubstrateCommandDefinitions({
-    getBootstrap: async () => fakeBootstrap(),
+    getBootstrap: async () => buildBootstrapFixture(),
   });
   const cmd = defs.find((d) => d.name === "substrate-dashboard");
   strictEqual(cmd !== undefined, true);
@@ -114,7 +117,7 @@ test("registerSubstrateCommands forwards every definition to the host", () => {
     },
   };
   registerSubstrateCommands(host, {
-    getBootstrap: async () => fakeBootstrap(),
+    getBootstrap: async () => buildBootstrapFixture(),
   });
   const names = registered.map((d) => d.name).sort();
   deepStrictEqual(names, [

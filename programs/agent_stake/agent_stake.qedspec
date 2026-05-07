@@ -1,11 +1,17 @@
-// Generated from Anchor IDL — review and complete TODO items
+// Anchor-derived QEDGen protocol spec.
 //
-// Auto-derived: state fields, handlers, contexts, PDAs, errors
-// TODO: guards, effects, lifecycle transitions, properties, invariants
+// Scope: stake account lifecycle, unstake cooldowns, and one-time slash markers.
+// Token stake handlers are modeled with the same stake amount fields plus
+// token-specific PDA coverage.
 
 spec AgentStake
 
 program_id "47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on"
+
+const MAX_U64 = 18_446_744_073_709_551_615
+
+type Error
+  | MathOverflow
 
 type AgentIdentity
   | Uninitialized
@@ -18,6 +24,7 @@ type AgentIdentity
       open_task_count      : U32,
       open_challenge_count : U32,
       active_stake         : Bool,
+      active_stake_count   : U32,
       bump                 : U8
     }
   | Closed
@@ -153,6 +160,26 @@ type StakeUnstakeRequested
     }
   | Closed
 
+type TokenStakeAccount
+  | Uninitialized
+  | Active of {
+      identity               : Pubkey,
+      owner                  : Pubkey,
+      slash_authority        : Pubkey,
+      trust_mode             : U8,
+      scope                  : Pubkey,
+      mint                   : Pubkey,
+      spl_program            : Pubkey,
+      vault                  : Pubkey,
+      amount                 : U64,
+      pending_unstake_amount : U64,
+      unstake_unlocks_at     : U64,
+      slashed_total          : U64,
+      bump                   : U8,
+      vault_bump             : U8
+    }
+  | Closed
+
 type TreasuryVault
   | Uninitialized
   | Active of {
@@ -161,14 +188,22 @@ type TreasuryVault
   | Closed
 
 pda stake ["stake", identity]
+pda token_stake ["token_stake", identity, scope, mint]
+pda token_stake_vault ["token_stake_vault", token_stake]
 pda slash_marker ["slash_marker", stake, dispute_receipt]
 pda verdict ["verdict", dispute_receipt]
 pda treasury_vault ["treasury"]
+pda token_treasury_vault ["token_treasury_vault", mint]
 
-handler finalize_unstake : State.Active -> State.Closed {
+handler finalize_unstake : State.Active -> State.Active {
   auth owner
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires pending_unstake_amount > 0
+  requires amount >= pending_unstake_amount
+  effect {
+    amount -= pending_unstake_amount
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
   accounts {
     owner : signer, writable
     identity : writable
@@ -179,8 +214,14 @@ handler finalize_unstake : State.Active -> State.Closed {
 
 handler initialize_stake (slash_authority : Pubkey) (trust_mode : U8) : State.Uninitialized -> State.Active {
   auth owner
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  effect {
+    owner := owner
+    slash_authority := slash_authority
+    trust_mode := trust_mode
+    amount := 0
+    pending_unstake_amount := 0
+    slashed_total := 0
+  }
   accounts {
     owner : signer, writable
     identity : readonly
@@ -189,20 +230,30 @@ handler initialize_stake (slash_authority : Pubkey) (trust_mode : U8) : State.Un
   }
 }
 
-handler request_unstake (amount : U64) : State.Active -> State.Active {
+handler request_unstake (unstake_amount : U64) : State.Active -> State.Active {
   auth owner
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires unstake_amount > 0
+  requires amount >= unstake_amount
+  effect {
+    pending_unstake_amount := unstake_amount
+    unstake_unlocks_at +=! 1
+  }
   accounts {
     owner : signer
     stake : writable, pda [stake]
   }
 }
 
-handler slash_with_authority (amount : U64) : State.Active -> State.Active {
+handler slash_with_authority (slash_amount : U64) : State.Active -> State.Active {
   auth slash_authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires slash_amount > 0
+  requires amount >= slash_amount
+  effect {
+    amount -= slash_amount
+    slashed_total +=! slash_amount
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
   accounts {
     slash_authority : signer, writable
     stake : writable, pda [stake]
@@ -213,10 +264,15 @@ handler slash_with_authority (amount : U64) : State.Active -> State.Active {
   }
 }
 
-handler slash_with_verdict : State.Active -> State.Closed {
+handler slash_with_verdict : State.Active -> State.Active {
   auth adjudicator
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires amount > 0
+  effect {
+    slashed_total +=! amount
+    amount := 0
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
   accounts {
     adjudicator : signer, writable
     stake : writable, pda [stake]
@@ -228,10 +284,13 @@ handler slash_with_verdict : State.Active -> State.Closed {
   }
 }
 
-handler stake (amount : U64) : State.Active -> State.Active {
+handler stake (deposit_amount : U64) : State.Active -> State.Active {
   auth owner
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires deposit_amount > 0
+  requires amount <= MAX_U64 - deposit_amount
+  effect {
+    amount += deposit_amount
+  }
   accounts {
     owner : signer, writable
     identity : writable
@@ -241,8 +300,156 @@ handler stake (amount : U64) : State.Active -> State.Active {
   }
 }
 
-// TODO: Add properties
-// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+handler initialize_token_stake (scope : Pubkey) (slash_authority : Pubkey) (trust_mode : U8) : State.Uninitialized -> State.Active {
+  auth owner
+  effect {
+    owner := owner
+    slash_authority := slash_authority
+    trust_mode := trust_mode
+    scope := scope
+    amount := 0
+    pending_unstake_amount := 0
+    slashed_total := 0
+  }
+  accounts {
+    owner : signer, writable
+    identity : readonly
+    mint : readonly
+    token_stake : writable, pda [token_stake]
+    vault : writable, pda [token_stake_vault]
+    spl_token_program : readonly
+    system_program : program
+  }
+}
 
-// TODO: Add invariants
-// Example: invariant conservation "total tokens preserved"
+handler initialize_token_treasury_vault : State.Uninitialized -> State.Active {
+  permissionless
+  accounts {
+    payer : signer, writable
+    treasury_vault : pda [treasury_vault]
+    mint : readonly
+    treasury_token_vault : writable, pda [token_treasury_vault]
+    spl_token_program : readonly
+    system_program : program
+  }
+}
+
+handler stake_token (deposit_amount : U64) : State.Active -> State.Active {
+  auth owner
+  requires deposit_amount > 0
+  requires amount <= MAX_U64 - deposit_amount
+  effect {
+    amount += deposit_amount
+  }
+  transfers {
+    from owner_token_account to vault amount deposit_amount authority owner
+  }
+  accounts {
+    owner : signer, writable
+    identity : writable
+    token_stake : writable, pda [token_stake]
+    mint : readonly
+    owner_token_account : writable
+    vault : writable, pda [token_stake_vault]
+    token_program : program
+    identity_registry_program : readonly
+  }
+}
+
+handler request_unstake_token (unstake_amount : U64) : State.Active -> State.Active {
+  auth owner
+  requires unstake_amount > 0
+  requires amount >= unstake_amount
+  effect {
+    pending_unstake_amount := unstake_amount
+    unstake_unlocks_at +=! 1
+  }
+  accounts {
+    owner : signer
+    token_stake : writable, pda [token_stake]
+  }
+}
+
+handler finalize_unstake_token : State.Active -> State.Active {
+  auth owner
+  requires pending_unstake_amount > 0
+  requires amount >= pending_unstake_amount
+  effect {
+    amount -= pending_unstake_amount
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
+  transfers {
+    from vault to owner_token_account amount pending_unstake_amount authority token_stake
+  }
+  accounts {
+    owner : signer, writable
+    token_stake : writable, pda [token_stake]
+    identity : writable
+    mint : readonly
+    owner_token_account : writable
+    vault : writable, pda [token_stake_vault]
+    token_program : program
+    identity_registry_program : readonly
+  }
+}
+
+handler slash_token_with_authority (slash_amount : U64) : State.Active -> State.Active {
+  auth slash_authority
+  requires slash_amount > 0
+  requires amount >= slash_amount
+  effect {
+    amount -= slash_amount
+    slashed_total +=! slash_amount
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
+  transfers {
+    from vault to treasury_token_vault amount slash_amount authority token_stake
+  }
+  accounts {
+    slash_authority : signer, writable
+    token_stake : writable, pda [token_stake]
+    dispute_receipt : readonly
+    slash_marker : writable, pda [slash_marker]
+    mint : readonly
+    vault : writable
+    treasury_token_vault : writable, pda [token_treasury_vault]
+    token_program : program
+    system_program : program
+  }
+}
+
+handler slash_token_with_verdict : State.Active -> State.Active {
+  auth adjudicator
+  requires amount > 0
+  effect {
+    slashed_total +=! amount
+    amount := 0
+    pending_unstake_amount := 0
+    unstake_unlocks_at := 0
+  }
+  transfers {
+    from vault to treasury_token_vault amount amount authority token_stake
+  }
+  accounts {
+    adjudicator : signer, writable
+    token_stake : writable, pda [token_stake]
+    dispute_receipt : readonly
+    verdict : pda [verdict]
+    slash_marker : writable, pda [slash_marker]
+    mint : readonly
+    vault : writable
+    treasury_token_vault : writable, pda [token_treasury_vault]
+    token_program : program
+    system_program : program
+  }
+}
+
+property pending_unstake_bounded :
+  amount >= pending_unstake_amount
+  preserved_by all
+
+invariant slash_marker_unique :
+  forall left right : SlashMarker.Active,
+    (left.stake == right.stake and left.dispute_receipt == right.dispute_receipt) implies left == right

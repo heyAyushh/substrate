@@ -2177,6 +2177,7 @@ name = "reputation_accumulator"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "attester_registry",
  "identity_registry",
  "trust_substrate_core",
 ]

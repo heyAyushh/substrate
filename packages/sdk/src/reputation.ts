@@ -19,6 +19,28 @@ export interface ReputationDerivationOptions {
   readonly weightByCost?: boolean;
 }
 
+export interface OnchainReputationEvidencePreview {
+  readonly identityTier?: number;
+  readonly hasIdentityBond?: boolean;
+  readonly attesterTier?: number;
+  readonly activeStakeLamports?: bigint | number | string;
+  readonly slashedLamports?: bigint | number | string;
+  readonly hasRuntimeAttestation?: boolean;
+  readonly activeStake?: boolean;
+}
+
+export interface OnchainReviewerWeightPreview {
+  readonly weight: number;
+  readonly slashPenalty: number;
+}
+
+export const ONCHAIN_REPUTATION_STAKE_WEIGHT_UNIT_LAMPORTS = 1_000_000_000n;
+export const ONCHAIN_REPUTATION_SLASH_WEIGHT_UNIT_LAMPORTS = 1_000_000_000n;
+export const ONCHAIN_REPUTATION_MAX_STAKE_WEIGHT = 3;
+export const ONCHAIN_REPUTATION_MAX_SLASH_PENALTY = 3;
+export const ONCHAIN_REPUTATION_MAX_REVIEWER_WEIGHT = 8;
+export const ONCHAIN_REPUTATION_BONDED_TIER = 1;
+
 const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
   challenge: 0,
@@ -27,6 +49,7 @@ const KIND_WEIGHTS: Readonly<Record<ReceiptKind, number>> = {
   dispute: -4,
   dispute_resolved: 3,
   handoff: 2,
+  attestation: 1,
 };
 
 const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
@@ -37,7 +60,50 @@ const KIND_NAMES: ReadonlyArray<ReceiptKind> = [
   "dispute_resolved",
   "challenge",
   "challenge_response",
+  "attestation",
 ];
+
+export function previewOnchainReviewerWeight(
+  evidence: OnchainReputationEvidencePreview,
+): OnchainReviewerWeightPreview {
+  const activeStakeLamports = toLamports(evidence.activeStakeLamports);
+  const slashedLamports = toLamports(evidence.slashedLamports);
+  const bonded =
+    (evidence.identityTier ?? 0) >= ONCHAIN_REPUTATION_BONDED_TIER ||
+    evidence.hasIdentityBond === true;
+  const bondBonus = bonded ? 1 : 0;
+  const attesterBonus = Math.max(0, evidence.attesterTier ?? 0);
+  const stakeBonus =
+    evidence.activeStake === true
+      ? Number(
+          minBigInt(
+            activeStakeLamports / ONCHAIN_REPUTATION_STAKE_WEIGHT_UNIT_LAMPORTS,
+            BigInt(ONCHAIN_REPUTATION_MAX_STAKE_WEIGHT),
+          ),
+        )
+      : 0;
+  const runtimeBonus = evidence.hasRuntimeAttestation === true ? 1 : 0;
+  const slashPenalty = Number(
+    minBigInt(
+      slashedLamports / ONCHAIN_REPUTATION_SLASH_WEIGHT_UNIT_LAMPORTS,
+      BigInt(ONCHAIN_REPUTATION_MAX_SLASH_PENALTY),
+    ),
+  );
+  const rawWeight =
+    1 + bondBonus + attesterBonus + stakeBonus + runtimeBonus - slashPenalty;
+
+  return {
+    weight: Math.min(
+      ONCHAIN_REPUTATION_MAX_REVIEWER_WEIGHT,
+      Math.max(0, rawWeight),
+    ),
+    slashPenalty,
+  };
+}
+
+function minBigInt(left: bigint, right: bigint): bigint {
+  return left < right ? left : right;
+}
 
 export function deriveReputation(
   history: ReadonlyArray<ReceiptRecord>,
@@ -224,6 +290,19 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function asFiniteNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function toLamports(value: bigint | number | string | undefined): bigint {
+  if (typeof value === "bigint") {
+    return value > 0n ? value : 0n;
+  }
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? BigInt(value) : 0n;
+  }
+  if (typeof value === "string" && /^[0-9]+$/.test(value)) {
+    return BigInt(value);
+  }
+  return 0n;
 }
 
 function createEmptyKindVector(): Record<ReceiptKind, number> {

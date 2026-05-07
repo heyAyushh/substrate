@@ -40,9 +40,9 @@ are still explicit; the board does not auto-launch LLM calls.
 
 Set `SUBSTRATE_SOCIETY_PI_ACTIONS=1` only when you want `Step` or `Play` to call
 the local Pi runtime. The system prompt includes the commit-ready allowed action
-set for that agent and tick, and the receipt proof records the Pi prompt and
-response hashes. Tests use an in-test recording client only; production never
-fabricates a Pi response.
+set for that agent and tick, and the receipt evidence records the Pi prompt and
+response hashes as commitments. Tests use an in-test recording client only;
+production never fabricates a Pi response.
 
 The Surfpool tab also shows a program coverage card for all nine deployable
 programs. It lists the evidence each program contributes to the board and the

@@ -61,7 +61,7 @@ The local verification order and command guidance live in `docs/testing.md`.
 
 The society dashboard is Surfpool-backed end to end. It starts a live world
 session, advances one confirmed action at a time, stores the compact world
-state in the `task_registry` society world account, and writes a final proof
+state in the `task_registry` society world account, and writes a final evidence
 artifact when the run completes.
 
 Build the dashboard bundle before starting the demo server:

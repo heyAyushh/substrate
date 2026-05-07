@@ -9,7 +9,9 @@ pub fn handler(ctx: Context<DeprecateDomain>, domain: [u8; 32]) -> Result<()> {
         .find_domain_index(&domain)
         .ok_or(TrustSubstrateError::DomainNotRegistered)?;
 
-    catalog.deprecated[idx] = true;
+    let mut deprecated = catalog.deprecated.clone();
+    deprecated[idx] = true;
+    catalog.deprecated = deprecated;
 
     Ok(())
 }

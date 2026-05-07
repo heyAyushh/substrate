@@ -70,7 +70,7 @@ test("mismatched reveal is rejected", () => {
   );
 });
 
-test("expired unrevealed commits penalize derived reputation", () => {
+test("expired unrevealed commits penalize local reputation preview", () => {
   const commit = createCommitReceipt({
     actorId: "agent-a",
     taskId: "task-1",

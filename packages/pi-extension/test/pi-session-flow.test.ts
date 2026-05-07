@@ -44,6 +44,8 @@ const buildBindings = (): SubstrateBindings => {
     taskAddress: "TSK11111111111111111111111111111111111111111" as Address,
     domainCatalogAddress:
       "DMC11111111111111111111111111111111111111111" as Address,
+    reputationAddress:
+      "REP11111111111111111111111111111111111111111" as Address,
   };
 };
 
@@ -121,6 +123,7 @@ const buildStubBridge = (): {
         onchain: {
           receiptAddress:
             `RCT${String(commits.length).padStart(41, "0")}` as Address,
+          reputationAddress: input.reputationAddress,
           operations: [],
         },
         actionEnvelope: {
@@ -150,7 +153,7 @@ const buildStubBridge = (): {
   return { bridge, commits, indexed };
 };
 
-test("fake AgentSession stream drives multi-turn commits through the extension", async () => {
+test("recorded AgentSession stream drives multi-turn commits through the extension", async () => {
   const bindings = buildBindings();
   const { bridge, commits, indexed } = buildStubBridge();
   const committer = createSubstrateSessionCommitter({

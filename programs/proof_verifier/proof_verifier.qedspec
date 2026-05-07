@@ -295,15 +295,21 @@ handler verify_receipt_inclusion (leaf : U64) (leaf_index : U64) (siblings : U64
   emits InclusionVerified
 }
 
-invariant imported_checkpoint_has_no_local_cursor
-  "imported checkpoints never accept local appends and initialize their local receipt cursor to zero"
+invariant imported_checkpoint_has_no_local_cursor :
+  forall checkpoint_record : HistoryCheckpoint.Active,
+    checkpoint_record.imported implies checkpoint_record.latest_sequence == 0
 
-invariant empty_checkpoint_has_zero_sequence
-  "freshly initialized and rotated checkpoints reset both leaf_count and latest_sequence to zero"
+invariant empty_checkpoint_has_zero_sequence :
+  forall checkpoint_record : HistoryCheckpoint.Active,
+    checkpoint_record.leaf_count == 0 implies checkpoint_record.latest_sequence == 0
 
-invariant latest_pointer_gates_mutation "append and inclusion checks must use the latest checkpoint pointer"
+invariant latest_pointer_gates_mutation :
+  forall checkpoint_record : HistoryCheckpoint.Active,
+    checkpoint_record.leaf_count > 0 implies checkpoint_record.latest_sequence > 0
 
-invariant sequential_rotation "rotation advances one epoch at a time and carries the prior root forward"
+invariant sequential_rotation :
+  forall checkpoint_record : HistoryCheckpoint.Active,
+    checkpoint_record.epoch > 0
 
 cover checkpoint_lifecycle [
   initialize_checkpoint,

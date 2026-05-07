@@ -5,12 +5,14 @@ import { resolve } from "node:path";
 import { address, getAddressEncoder } from "@solana/kit";
 import {
   ReceiptLedger,
+  RECEIPT_KIND_CODES,
   TrustSubstrateClient,
   deriveAuditReceiptIdBytes,
   createAuthorityRotationEvent,
   createMerkleTree,
   derivePreviousReceiptBytes,
   deriveReputation,
+  previewOnchainReviewerWeight,
   verifyMerkleProof,
 } from "../../packages/sdk/src/index.js";
 
@@ -81,6 +83,21 @@ test("rejects receipt replay attempts", () => {
   throws(() => ledger.append(receipt), /replay/i);
 });
 
+test("supports canonical attestation receipts", () => {
+  const client = new TrustSubstrateClient();
+  const receipt = client.receipt.create({
+    actorId: "reviewer",
+    kind: "attestation",
+    taskId: "task-1",
+    payload: { domain: "audit", targetReceiptId: "receipt-1" },
+    sequence: 1,
+  });
+
+  strictEqual(RECEIPT_KIND_CODES.attestation, 8);
+  strictEqual(receipt.kind, "attestation");
+  strictEqual(receipt.domain, "audit");
+});
+
 test("derives previous receipt bytes from committed receipt addresses", () => {
   const receiptAddress = address("SysvarC1ock11111111111111111111111111111111");
 
@@ -125,6 +142,35 @@ test("rejects delegation scope mismatches", () => {
         action: "completion",
       }),
     /scope/i,
+  );
+});
+
+test("previews the on-chain reviewer weight formula", () => {
+  deepStrictEqual(
+    previewOnchainReviewerWeight({
+      identityTier: 1,
+      hasIdentityBond: true,
+      attesterTier: 2,
+      activeStake: true,
+      activeStakeLamports: "2000000000",
+      slashedLamports: "1000000000",
+      hasRuntimeAttestation: true,
+    }),
+    {
+      weight: 6,
+      slashPenalty: 1,
+    },
+  );
+
+  deepStrictEqual(
+    previewOnchainReviewerWeight({
+      hasIdentityBond: true,
+      activeStakeLamports: "2000000000",
+    }),
+    {
+      weight: 2,
+      slashPenalty: 0,
+    },
   );
 });
 

@@ -1,4 +1,4 @@
-# Multi-agent coding simulation
+# Multi-agent protocol walkthrough
 
 A pure-TypeScript walkthrough of four coding agents cooperating under
 Trust Substrate. Each agent runs the minimal read/write/edit/bash tool
@@ -6,8 +6,9 @@ surface of
 [`@mariozechner/pi-coding-agent`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent),
 and every tool call flows through the SDK's canonical hashing rules so
 receipt roots match what the `receipt_emitter` program would anchor
-on-chain. The script never opens an RPC connection and never submits a
-transaction — it is an offline choreography of SDK APIs.
+on-chain. This script is a deterministic SDK walkthrough, not the live
+Society Board: it never opens an RPC connection and never submits a
+transaction.
 
 ## Identities
 
@@ -35,10 +36,10 @@ transaction — it is an offline choreography of SDK APIs.
 6. `planner` hands off to `builder-beta`, who submits a completion with
    a verified blob.
 7. `reviewer` attests to `builder-beta` with a `review` attestation.
-8. The indexer derives the execution graph, the domain leaderboard, the
+8. The indexer reconstructs the execution graph, the domain leaderboard, the
    attestation-filtered leaderboard, the task inheritance chain, per-identity
-   stake state, team reputation views, and a reputation profile, then writes
-   a JSON snapshot to
+   stake state, local reputation preview views, and a reputation profile from
+   receipt history, then writes a JSON snapshot to
    `examples/multi_agent/.snapshot/`.
 
 The transcript surfaces:
@@ -46,10 +47,9 @@ The transcript surfaces:
 - which receipts landed and in what order
 - the handoff chain across the three builders
 - the inherited lineage for the final completion (`planner -> builder-alpha -> builder-beta`)
-- the leaderboard with and without the attestation filter (alpha drops out)
-- derived team reputation for the builder team and the control-plane team
-- derived stake state, including alpha's 400_000-lamport slash
-- the reputation profile derived from the verified receipt history
+- local team reputation previews for the builder team and the control-plane team
+- local stake view, including alpha's 400_000-lamport slash
+- the reputation profile reconstructed from verified receipt history
 
 ## Running
 
@@ -74,7 +74,7 @@ an agent's run.
 
 ## Connecting a live Pi Mono Agent session
 
-The script above stays offline so it is fast and deterministic. For a live
+The script above stays local-only so it is fast and deterministic. For a live
 `pi-coding-agent` session backed by Surfpool, use the extension package. It
 declares itself as a Pi package and loads `packages/pi-extension/dist/index.js`
 as the extension entrypoint.
@@ -135,9 +135,10 @@ Useful files:
   live stake/challenge/dispute commands.
 - `packages/pi-extension/src/config.ts` — reads the `SUBSTRATE_*` environment
   variables used above.
-- `packages/pi-extension/src/slash-commands.ts` — defines
-  `/substrate-status`, `/substrate-dashboard`, `/substrate-stake`,
-  `/substrate-challenge`, and `/substrate-dispute`.
+- `packages/pi-extension/src/slash-commands.ts` — currently contains the
+  stake/challenge/dispute operator commands: `/substrate-status`,
+  `/substrate-dashboard`, `/substrate-stake`, `/substrate-challenge`, and
+  `/substrate-dispute`.
 - `packages/pi-extension/src/delegation-gate.ts` — gates tool calls against a
   `DelegationRecord` scope.
 
@@ -151,8 +152,8 @@ step. Each agent gets a local identity folder under
 its action transcript entry before submission, signs the after-action state
 commitment, and submits the action receipt through an on-chain delegation from
 the society task identity. The browser board only reads the committed Surfpool
-world state; it is not the validator. The final proof file includes the Merkle
-transcript root. Each live action also carries the canonical action envelope
+world state; it is not the validator. The final evidence artifact includes the
+Merkle transcript root. Each live action also carries the canonical action envelope
 linking the agent id, identity address, task address, before/after state hashes,
 receipt payload hash, transaction signature, slot, agent signature, and
 transcript leaf. Model-backed Pi launch is still explicit; the board does not
@@ -205,12 +206,12 @@ Open the printed `/society` URL. Nothing starts on page load. `Go live`
 creates a paused server-owned live session, `Resume last` intentionally reopens
 the latest server-side session after a refresh, `Step` commits exactly one
 pending action, and `Play` / `Pause` streams confirmed actions until the server
-writes the final proof artifact.
+writes the final evidence artifact.
 
 The curated onboarding worlds are tuned to stay live-first and responsive on
 first paint. They produce child-agent lineage, failures, inherited value,
-receipts, account links, and final proof files without offering offline preview
-or replay controls.
+receipts, account links, and final evidence files without offering offline
+preview or replay controls.
 
 The Surfpool panel includes a protocol evidence graph plus a program coverage
 card for all nine deployable Trust Substrate programs. The task program is the
@@ -220,4 +221,4 @@ attestation, delegation, receipts, history proofs, reputation, stake, and
 disputes. The evidence graph indexes readable records per program and marks
 missing evidence visibly instead of treating absence as proof. The card also
 names the boundary where the board does not auto-play a deeper capability, such
-as delegation revocation or adversarial dispute escalation.
+as delegation revocation or example dispute escalation.

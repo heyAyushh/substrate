@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 import {
+  AccountRole,
   appendTransactionMessageInstructions,
   address,
   createSolanaRpc,
@@ -16,6 +17,7 @@ import {
   signTransactionMessageWithSigners,
   TRANSACTION_SIZE_LIMIT,
   type Address,
+  type AccountMeta,
   type GetAccountInfoApi,
   type GetEpochInfoApi,
   type GetLatestBlockhashApi,
@@ -189,6 +191,11 @@ export interface OnchainReputationBinding {
   readonly domain: Uint8Array;
 }
 
+export interface OnchainReputationEvidenceAccount {
+  readonly address: Address;
+  readonly writable?: boolean;
+}
+
 export interface OnchainOperationResult extends OnchainTransactionCommit {
   readonly kind: string;
   readonly address?: Address;
@@ -203,6 +210,18 @@ const TRANSACTION_STATUS_POLL_DELAY_MS = 250;
 const EXPLORER_MEMO_MAX_BYTES = 320;
 const EXPLORER_MEMO_PREFIX = "Trust Substrate";
 const EXPLORER_MEMO_TRUNCATION_SUFFIX = "...";
+
+const toEvidenceAccountMeta = (
+  account: OnchainReputationEvidenceAccount,
+): AccountMeta => {
+  if (account.writable) {
+    throw new Error("Reputation evidence accounts must be readonly");
+  }
+  return {
+    address: account.address,
+    role: AccountRole.READONLY,
+  };
+};
 const MEMO_PROGRAM_ADDRESS = address(
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
 );
@@ -1866,6 +1885,7 @@ export class TrustSubstrateOnchainClient {
   async finalizeUnstakeToken(input: {
     readonly owner: TransactionSigner;
     readonly tokenStake: Address;
+    readonly identity: Address;
     readonly mint: Address;
     readonly ownerTokenAccount: Address;
     readonly vault?: Address;
@@ -1888,6 +1908,7 @@ export class TrustSubstrateOnchainClient {
       getFinalizeUnstakeTokenInstruction({
         owner: input.owner,
         tokenStake: input.tokenStake,
+        identity: input.identity,
         mint: input.mint,
         ownerTokenAccount: input.ownerTokenAccount,
         vault,
@@ -1902,6 +1923,7 @@ export class TrustSubstrateOnchainClient {
 
   async slashWithAuthority(input: {
     readonly slashAuthority: TransactionSigner;
+    readonly identity: Address;
     readonly stake: Address;
     readonly disputeReceipt: Address;
     readonly amount: bigint;
@@ -1925,6 +1947,7 @@ export class TrustSubstrateOnchainClient {
       "slash_with_authority",
       getSlashWithAuthorityInstructionAsync({
         slashAuthority: input.slashAuthority,
+        identity: input.identity,
         stake: input.stake,
         disputeReceipt: input.disputeReceipt,
         slashMarker: input.slashMarker,
@@ -1948,6 +1971,7 @@ export class TrustSubstrateOnchainClient {
 
   async slashWithVerdict(input: {
     readonly adjudicator: TransactionSigner;
+    readonly identity: Address;
     readonly stake: Address;
     readonly disputeReceipt: Address;
     readonly verdict?: Address;
@@ -1973,6 +1997,7 @@ export class TrustSubstrateOnchainClient {
       "slash_with_verdict",
       getSlashWithVerdictInstructionAsync({
         adjudicator: input.adjudicator,
+        identity: input.identity,
         stake: input.stake,
         disputeReceipt: input.disputeReceipt,
         verdict,
@@ -1997,6 +2022,7 @@ export class TrustSubstrateOnchainClient {
 
   async slashTokenWithAuthority(input: {
     readonly slashAuthority: TransactionSigner;
+    readonly identity: Address;
     readonly tokenStake: Address;
     readonly disputeReceipt: Address;
     readonly mint: Address;
@@ -2032,6 +2058,7 @@ export class TrustSubstrateOnchainClient {
       "slash_token_with_authority",
       getSlashTokenWithAuthorityInstructionAsync({
         slashAuthority: input.slashAuthority,
+        identity: input.identity,
         tokenStake: input.tokenStake,
         disputeReceipt: input.disputeReceipt,
         slashMarker: input.slashMarker,
@@ -2060,6 +2087,7 @@ export class TrustSubstrateOnchainClient {
 
   async slashTokenWithVerdict(input: {
     readonly adjudicator: TransactionSigner;
+    readonly identity: Address;
     readonly tokenStake: Address;
     readonly disputeReceipt: Address;
     readonly mint: Address;
@@ -2099,6 +2127,7 @@ export class TrustSubstrateOnchainClient {
       "slash_token_with_verdict",
       getSlashTokenWithVerdictInstructionAsync({
         adjudicator: input.adjudicator,
+        identity: input.identity,
         tokenStake: input.tokenStake,
         disputeReceipt: input.disputeReceipt,
         verdict,
@@ -2330,17 +2359,28 @@ export class TrustSubstrateOnchainClient {
     readonly identity: Address;
     readonly receipt: Address;
     readonly reputation: Address;
+    readonly evidenceAccounts?: readonly OnchainReputationEvidenceAccount[];
   }): Promise<OnchainOperationResult> {
     const { getApplyReputationReceiptInstructionAsync } =
       await loadApplyReputationReceiptInstructionModule();
+    const instruction = await getApplyReputationReceiptInstructionAsync({
+      authority: input.authority,
+      identity: input.identity,
+      receipt: input.receipt,
+      reputation: input.reputation,
+    });
+    const evidenceAccounts = input.evidenceAccounts ?? [];
     return await this.sendOperation(
       "apply_reputation_receipt",
-      getApplyReputationReceiptInstructionAsync({
-        authority: input.authority,
-        identity: input.identity,
-        receipt: input.receipt,
-        reputation: input.reputation,
-      }),
+      evidenceAccounts.length === 0
+        ? instruction
+        : {
+            ...instruction,
+            accounts: [
+              ...instruction.accounts,
+              ...evidenceAccounts.map(toEvidenceAccountMeta),
+            ],
+          },
       input.authority,
       input.reputation,
     );

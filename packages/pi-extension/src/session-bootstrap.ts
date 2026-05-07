@@ -109,6 +109,14 @@ export const bootstrapSubstrateSession = async (
     taskAddress = taskBinding.address;
   }
 
+  const reputationCommit = await input.client.ensureReputationDomain({
+    authority: input.authority,
+    identity: identityAddress,
+    domainCatalog: domainCatalogAddress,
+    taskOrDomain: task,
+  });
+  operations.push(reputationCommit);
+
   return {
     authority: input.authority,
     identity,
@@ -116,6 +124,7 @@ export const bootstrapSubstrateSession = async (
     task,
     taskAddress,
     domainCatalogAddress,
+    reputationAddress: reputationCommit.address,
     operations,
   };
 };

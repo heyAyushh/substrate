@@ -188,7 +188,7 @@ const chain = {
   ],
 };
 
-test("protocol evidence graph indexes every Society Board program", () => {
+test("protocol evidence graph indexes deployable programs used by the Society adapter", () => {
   const programPlan = buildProgramWiringPlan(makeRun());
   const graph = buildProtocolEvidenceGraph({
     programPlan,

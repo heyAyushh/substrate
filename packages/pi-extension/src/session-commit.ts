@@ -20,6 +20,7 @@ export interface SubstrateBindings {
   readonly task: TaskRecord;
   readonly taskAddress: Address;
   readonly domainCatalogAddress: Address;
+  readonly reputationAddress: Address;
 }
 
 export interface SessionCommitterInput {
@@ -58,6 +59,7 @@ export const buildBridgeCommitInput = (
     task: input.bindings.task,
     taskAddress: input.bindings.taskAddress,
     domainCatalogAddress: input.bindings.domainCatalogAddress,
+    reputationAddress: input.bindings.reputationAddress,
     recordId,
     kind: "completion",
     sequence,

@@ -65,6 +65,7 @@ pub struct IdentityStakeActivitySynced {
     pub identity: Pubkey,
     pub authority: Pubkey,
     pub active_stake: bool,
+    pub active_stake_count: u32,
     pub slot: u64,
 }
 

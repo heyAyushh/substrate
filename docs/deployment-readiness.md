@@ -21,7 +21,7 @@ The safe public claim is:
 
 > Trust Substrate is a Solana protocol repo with deployable Anchor programs,
 > generated clients, a Surfpool end-to-end gate, SOL plus SPL-token stake vault
-> support, and agent demo clients that publish signed receipt evidence.
+> support, and example integrations that publish signed receipt evidence.
 
 Do not claim mainnet, production Geyser indexing, ZK compression, audited token
 mint/value policy, or automated dispute judgement until the matching checklist
@@ -37,13 +37,16 @@ item is implemented and verified.
 - Agent actions are signed by the acting agent key, not by a display surface.
 - Receipts bind action hash, payload hash, transaction signature, slot, and
   transcript root.
-- Reputation is derived from verified receipt history, not written as a mutable
-  score.
+- Reputation is applied by `reputation_accumulator` from verified receipts,
+  reviewer evidence, stake, attester tier, and dispute state; SDK/indexer scores
+  are previews unless they match fetched program-backed accounts.
 - Stake is described as SOL/lamports plus configured SPL token vaults; token
   mint allowlists, token valuation, and Token-2022 extension policy remain
   release-gated.
 - Any demo tunnel or public URL is described as display access only unless live
   mutation has been explicitly enabled.
+- Example-specific rules, such as Society Board world events, stay in examples
+  and are mapped into generic protocol transactions.
 
 ## Upcoming Features
 

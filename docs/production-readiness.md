@@ -32,8 +32,8 @@ together.
 - [ ] [sdk] The TypeScript SDK is deterministic helper logic, not a production
       RPC client.
   - Current boundary: `packages/sdk/src` derives local identities, receipts,
-    proofs, reputation, stake, and challenge state without submitting
-    transactions.
+    proofs, reputation previews, stake, and challenge state. Program-backed
+    reputation remains canonical when fetched from chain or Surfpool.
   - Done when: production RPC orchestration is implemented through the generated
     `@solana/kit` clients, package tests cover the RPC-facing flows, and
     consumer docs state which package owns each responsibility.
@@ -63,9 +63,11 @@ together.
     different tasks, cross-domain rejection, checkpoint ordering, and replay
     behavior in one documented release gate.
 
-- [ ] [on-chain] Slashing policy is authority-driven in v1. The program verifies
-      receipt ownership, identity, kind, and replay markers, but it does not parse
-      private dispute evidence or decide outcomes from payload text.
+- [ ] [on-chain] Slashing policy is configured-authority or adjudicator-verdict
+      driven in v1. The program verifies receipt ownership, identity, kind,
+      verdict binding, stale windows, treasury targets, and replay markers, but
+      it does not parse private dispute evidence or decide outcomes from payload
+      text.
   - Current boundary: slashing is driven by a configured slash authority or an
     adjudicator verdict account. Programs verify account ownership, identity,
     receipt kind, trust mode, treasury, stale windows, and replay markers.

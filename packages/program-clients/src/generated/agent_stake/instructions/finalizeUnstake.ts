@@ -113,6 +113,7 @@ export type FinalizeUnstakeInput<
   TAccountIdentityRegistryProgram extends string = string,
 > = {
   owner: TransactionSigner<TAccountOwner>;
+  /** deserializes and validates the account during the CPI. */
   identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
   identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
@@ -192,6 +193,7 @@ export type ParsedFinalizeUnstakeInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     owner: TAccountMetas[0];
+    /** deserializes and validates the account during the CPI. */
     identity: TAccountMetas[1];
     stake: TAccountMetas[2];
     identityRegistryProgram: TAccountMetas[3];

@@ -150,7 +150,7 @@ export function PiChatSurface({
         : null,
       `Receipts landed: ${activeIdentity.receiptCount}`,
       activeIdentity.score !== null
-        ? `Leaderboard score: ${activeIdentity.score}`
+        ? `Program-backed reputation score: ${activeIdentity.score}`
         : null,
       activeIdentity.delegatedFromLabels.length > 0
         ? `Delegated from: ${activeIdentity.delegatedFromLabels.join(" | ")}`
@@ -301,10 +301,9 @@ export function PiChatSurface({
   const currentModel = agent?.state.model ?? null;
   const pendingToolCalls = agent?.state.pendingToolCalls ?? new Set<string>();
   const canSend = Boolean(agent && draft.trim().length > 0 && !isStreaming);
-  const runtimeMcpServers =
-    agentHandle?.runtime.mcpServers.length
-      ? agentHandle.runtime.mcpServers
-      : mcpServers;
+  const runtimeMcpServers = agentHandle?.runtime.mcpServers.length
+    ? agentHandle.runtime.mcpServers
+    : mcpServers;
   const isLocalRuntimeModel = currentModel
     ? isLocalRuntimeProvider(runtime, currentModel.provider)
     : false;
@@ -314,7 +313,14 @@ export function PiChatSurface({
     }
 
     return supportsXhigh(currentModel)
-      ? (["off", "minimal", "low", "medium", "high", "xhigh"] as ThinkingLevel[])
+      ? ([
+          "off",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+        ] as ThinkingLevel[])
       : (["off", "minimal", "low", "medium", "high"] as ThinkingLevel[]);
   }, [currentModel]);
   const quickPrompts = useMemo(
@@ -326,11 +332,13 @@ export function PiChatSurface({
         },
         {
           label: "Receipts",
-          prompt: "List the latest receipts and what they imply for the current run.",
+          prompt:
+            "List the latest receipts and what they imply for the current run.",
         },
         {
           label: "Delegation",
-          prompt: "Explain the current delegation chain and who should act next.",
+          prompt:
+            "Explain the current delegation chain and who should act next.",
         },
       ].filter(Boolean) as Array<{ label: string; prompt: string }>,
     [],
@@ -354,7 +362,12 @@ export function PiChatSurface({
 
   const handleSubmit = async () => {
     const activeAgent = agentRef.current?.agent;
-    if (!activeAgent || !currentModel || draft.trim().length === 0 || isStreaming) {
+    if (
+      !activeAgent ||
+      !currentModel ||
+      draft.trim().length === 0 ||
+      isStreaming
+    ) {
       return;
     }
 
@@ -388,7 +401,10 @@ export function PiChatSurface({
       } as AgentMessage;
 
       // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
-      activeAgent.state.messages = [...activeAgent.state.messages, nextUserMessage];
+      activeAgent.state.messages = [
+        ...activeAgent.state.messages,
+        nextUserMessage,
+      ];
       setIdentityWorkspace((current) =>
         updateIdentityChatState(current, activeIdentity.id, {
           messages: [...activeAgent.state.messages],
@@ -463,9 +479,7 @@ export function PiChatSurface({
   };
 
   if (!isReady && !startupError) {
-    return (
-      <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />
-    );
+    return <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />;
   }
 
   if (!agent || !currentModel) {
@@ -506,12 +520,18 @@ export function PiChatSurface({
               <CardTitle className="text-base font-medium">
                 {activeIdentity.label}
               </CardTitle>
-              <Badge variant="outline">{activeIdentity.receiptCount} receipts</Badge>
+              <Badge variant="outline">
+                {activeIdentity.receiptCount} receipts
+              </Badge>
               {activeIdentity.latestReceiptKind ? (
-                <Badge variant="outline">{activeIdentity.latestReceiptKind}</Badge>
+                <Badge variant="outline">
+                  {activeIdentity.latestReceiptKind}
+                </Badge>
               ) : null}
               {activeIdentity.score !== null ? (
-                <Badge variant="outline">score {activeIdentity.score}</Badge>
+                <Badge variant="outline">
+                  program score {activeIdentity.score}
+                </Badge>
               ) : null}
             </div>
 
@@ -538,7 +558,10 @@ export function PiChatSurface({
                   <SelectContent>
                     <SelectGroup>
                       {availableIdentities.map((identityOption) => (
-                        <SelectItem key={identityOption.id} value={identityOption.id}>
+                        <SelectItem
+                          key={identityOption.id}
+                          value={identityOption.id}
+                        >
                           {identityOption.label}
                         </SelectItem>
                       ))}
@@ -654,7 +677,9 @@ export function PiChatSurface({
             </Select>
 
             {pendingToolCalls.size > 0 ? (
-              <Badge variant="outline">{pendingToolCalls.size} tools running</Badge>
+              <Badge variant="outline">
+                {pendingToolCalls.size} tools running
+              </Badge>
             ) : null}
           </div>
 
@@ -852,7 +877,9 @@ function MessageRow({
   pendingToolCalls: ReadonlySet<string>;
 }) {
   if (isAssistantMessage(message)) {
-    return <AssistantBubble message={message} pendingToolCalls={pendingToolCalls} />;
+    return (
+      <AssistantBubble message={message} pendingToolCalls={pendingToolCalls} />
+    );
   }
 
   if (isToolResultMessage(message)) {
@@ -871,7 +898,10 @@ function UserBubble({ message }: { message: UserLikeMessage }) {
 
   return (
     <div className="flex justify-end">
-      <Card size="sm" className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15">
+      <Card
+        size="sm"
+        className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15"
+      >
         <CardContent className="text-sm leading-6 whitespace-pre-wrap text-foreground">
           {textContent}
         </CardContent>
@@ -895,10 +925,15 @@ function AssistantBubble({
     <div className="flex justify-start">
       <div className="flex max-w-[92%] flex-col gap-3">
         {textBlocks.length > 0 ? (
-          <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+          <Card
+            size="sm"
+            className="gap-0 bg-background/45 py-3 ring-border/70"
+          >
             <CardContent className="flex flex-col gap-3 text-sm leading-6 whitespace-pre-wrap text-foreground">
               {textBlocks.map((block, index) => (
-                <p key={`${message.timestamp ?? 0}-text-${index}`}>{block.text}</p>
+                <p key={`${message.timestamp ?? 0}-text-${index}`}>
+                  {block.text}
+                </p>
               ))}
             </CardContent>
           </Card>
@@ -956,11 +991,7 @@ function ToolCallBubble({
   );
 }
 
-function ToolResultBubble({
-  message,
-}: {
-  message: ToolResultMessageLike;
-}) {
+function ToolResultBubble({ message }: { message: ToolResultMessageLike }) {
   const textOutput = message.content
     .filter(isToolResultTextBlock)
     .map((block) => block.text)
@@ -969,7 +1000,10 @@ function ToolResultBubble({
 
   return (
     <div className="flex justify-start">
-      <Card size="sm" className="max-w-[92%] gap-0 bg-background/45 py-3 ring-border/70">
+      <Card
+        size="sm"
+        className="max-w-[92%] gap-0 bg-background/45 py-3 ring-border/70"
+      >
         <CardContent className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Wrench className="size-4 text-muted-foreground" />
@@ -1016,9 +1050,7 @@ function RuntimeActivityCard({
                 {activity.server ? (
                   <Badge variant="outline">{activity.server}</Badge>
                 ) : null}
-                <Badge
-                  variant={activity.isError ? "destructive" : "outline"}
-                >
+                <Badge variant={activity.isError ? "destructive" : "outline"}>
                   {activity.phase === "start"
                     ? "running"
                     : activity.isError
@@ -1054,7 +1086,6 @@ function PendingRuntimeCard() {
     </Card>
   );
 }
-
 
 function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
   return (
@@ -1101,7 +1132,7 @@ function buildIdentityChipMeta(identity: PiIdentityProfile) {
     parts.push(identity.latestReceiptKind);
   }
   if (identity.score !== null) {
-    parts.push(`score ${identity.score}`);
+    parts.push(`program score ${identity.score}`);
   }
   return parts.join(" · ");
 }
@@ -1194,22 +1225,37 @@ function getIdentitySessionId(identityId: string) {
 }
 
 function getMessageKey(message: AgentMessage, index: number) {
-  const timestamp = "timestamp" in message ? String(message.timestamp) : "untimed";
+  const timestamp =
+    "timestamp" in message ? String(message.timestamp) : "untimed";
   return `${message.role}-${timestamp}-${index}`;
 }
 
-type UserLikeMessage = Extract<AgentMessage, { role: "user" | "user-with-attachments" }>;
+type UserLikeMessage = Extract<
+  AgentMessage,
+  { role: "user" | "user-with-attachments" }
+>;
 type AssistantMessageLike = Extract<AgentMessage, { role: "assistant" }>;
 type ToolResultMessageLike = Extract<AgentMessage, { role: "toolResult" }>;
-type ToolCallBlock = Extract<AssistantMessageLike["content"][number], { type: "toolCall" }>;
-type ThinkingBlock = Extract<AssistantMessageLike["content"][number], { type: "thinking" }>;
-type TextBlock = Extract<AssistantMessageLike["content"][number], { type: "text" }>;
+type ToolCallBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "toolCall" }
+>;
+type ThinkingBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "thinking" }
+>;
+type TextBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "text" }
+>;
 type ToolResultTextBlock = Extract<
   ToolResultMessageLike["content"][number],
   { type: "text" }
 >;
 
-function isUserLikeMessage(message: AgentMessage | null | undefined): message is UserLikeMessage {
+function isUserLikeMessage(
+  message: AgentMessage | null | undefined,
+): message is UserLikeMessage {
   return message?.role === "user" || message?.role === "user-with-attachments";
 }
 
@@ -1225,7 +1271,9 @@ function isToolResultMessage(
   return message?.role === "toolResult";
 }
 
-function isTextBlock(block: AssistantMessageLike["content"][number]): block is TextBlock {
+function isTextBlock(
+  block: AssistantMessageLike["content"][number],
+): block is TextBlock {
   return block.type === "text";
 }
 

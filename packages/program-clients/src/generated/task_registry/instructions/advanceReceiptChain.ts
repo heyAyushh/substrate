@@ -23,6 +23,7 @@ import {
   SolanaError,
   transformEncoder,
   type AccountMeta,
+  type AccountSignerMeta,
   type Address,
   type FixedSizeCodec,
   type FixedSizeDecoder,
@@ -31,7 +32,9 @@ import {
   type InstructionWithAccounts,
   type InstructionWithData,
   type ReadonlyAccount,
+  type ReadonlySignerAccount,
   type ReadonlyUint8Array,
+  type TransactionSigner,
   type WritableAccount,
 } from "@solana/kit";
 import {
@@ -67,7 +70,8 @@ export type AdvanceReceiptChainInstruction<
         ? ReadonlyAccount<TAccountIdentity>
         : TAccountIdentity,
       TAccountAuthority extends string
-        ? ReadonlyAccount<TAccountAuthority>
+        ? ReadonlySignerAccount<TAccountAuthority> &
+            AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       ...TRemainingAccounts,
     ]
@@ -123,7 +127,7 @@ export type AdvanceReceiptChainAsyncInput<
 > = {
   task: Address<TAccountTask>;
   identity: Address<TAccountIdentity>;
-  authority?: Address<TAccountAuthority>;
+  authority?: TransactionSigner<TAccountAuthority>;
   lastReceipt: AdvanceReceiptChainInstructionDataArgs["lastReceipt"];
   lastSequence: AdvanceReceiptChainInstructionDataArgs["lastSequence"];
 };
@@ -207,7 +211,7 @@ export type AdvanceReceiptChainInput<
 > = {
   task: Address<TAccountTask>;
   identity: Address<TAccountIdentity>;
-  authority: Address<TAccountAuthority>;
+  authority: TransactionSigner<TAccountAuthority>;
   lastReceipt: AdvanceReceiptChainInstructionDataArgs["lastReceipt"];
   lastSequence: AdvanceReceiptChainInstructionDataArgs["lastSequence"];
 };

@@ -4,7 +4,10 @@ pub mod error;
 pub mod merkle;
 pub mod model;
 
-pub use account_types::ReceiptRecordAccount;
+pub use account_types::{
+    DisputeVerdictAccount, ReceiptRecordAccount, StakeAccountView, TaskRecordAccount,
+    TokenStakeAccountView,
+};
 pub use constants::*;
 pub use error::*;
 pub use merkle::{

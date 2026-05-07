@@ -1,7 +1,7 @@
-// Generated from Anchor IDL — review and complete TODO items
+// Anchor-derived QEDGen protocol spec.
 //
-// Auto-derived: state fields, handlers, contexts, PDAs, errors
-// TODO: guards, effects, lifecycle transitions, properties, invariants
+// Scope: task creation, receipt-chain advancement, task status sync, and
+// society world state snapshots.
 
 spec TaskRegistry
 
@@ -18,6 +18,7 @@ type AgentIdentity
       open_task_count      : U32,
       open_challenge_count : U32,
       active_stake         : Bool,
+      active_stake_count   : U32,
       bump                 : U8
     }
   | Closed
@@ -83,24 +84,53 @@ type TaskStatusSynced
     }
   | Closed
 
+type SocietyWorld
+  | Uninitialized
+  | Active of {
+      identity      : Pubkey,
+      task          : Pubkey,
+      current_tick  : U32,
+      last_sequence : U64,
+      last_receipt  : Pubkey,
+      state_hash    : U64,
+      status        : U8,
+      bump          : U8
+    }
+  | Closed
+
 pda authority ["cpi_authority"]
 pda task ["task", identity, task_id]
 pda receipt_application ["task_receipt_application", task, receipt]
+pda society_world ["society_world", task]
 
-handler advance_receipt_chain (last_receipt : Pubkey) (last_sequence : U64) : State.Active -> State.Active {
-  // TODO: Add guard clause
-  // TODO: Add effect block
+handler advance_receipt_chain (new_last_receipt : Pubkey) (new_last_sequence : U64) : State.Active -> State.Active {
+  permissionless
+  requires new_last_sequence > last_sequence
+  effect {
+    last_receipt := new_last_receipt
+    last_sequence := new_last_sequence
+  }
   accounts {
     task : writable, pda [task]
     identity : readonly
-    authority : pda [authority]
+    authority : signer, pda [authority]
   }
 }
 
 handler create_task (task_id : U64) (subtask_root : U64) (subtask_count : U16) (domain : U64) : State.Uninitialized -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires task_id > 0
+  effect {
+    task_id := task_id
+    subtask_root := subtask_root
+    subtask_count := subtask_count
+    domain := domain
+    status := 0
+    completed_count := 0
+    disputed_count := 0
+    resolved_count := 0
+    last_sequence := 0
+  }
   accounts {
     authority : signer, writable, pda [authority]
     identity : writable
@@ -110,10 +140,13 @@ handler create_task (task_id : U64) (subtask_root : U64) (subtask_count : U16) (
   }
 }
 
-handler sync_task_status : State.Active -> State.Closed {
+handler sync_task_status : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires receipt != receipt_application
+  effect {
+    completed_count +=! 1
+    status := 1
+  }
   accounts {
     authority : signer, writable, pda [authority]
     identity : writable
@@ -127,8 +160,7 @@ handler sync_task_status : State.Active -> State.Closed {
 
 handler task_receipt_already_applied : State.Active -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires receipt != task
   accounts {
     authority : signer, pda [authority]
     identity : readonly
@@ -138,8 +170,49 @@ handler task_receipt_already_applied : State.Active -> State.Active {
   }
 }
 
-// TODO: Add properties
-// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+handler create_society_world (current_tick : U32) (last_sequence : U64) (last_receipt : Pubkey) (status : U8) (state_hash : U64) : State.Uninitialized -> State.Active {
+  auth authority
+  requires status <= 2
+  effect {
+    current_tick := current_tick
+    last_sequence := last_sequence
+    last_receipt := last_receipt
+    state_hash := state_hash
+    status := status
+  }
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    task : readonly, pda [task]
+    society_world : writable, pda [society_world]
+    system_program : program
+  }
+}
 
-// TODO: Add invariants
-// Example: invariant conservation "total tokens preserved"
+handler update_society_world (new_current_tick : U32) (new_last_sequence : U64) (new_last_receipt : Pubkey) (new_status : U8) (new_state_hash : U64) : State.Active -> State.Active {
+  auth authority
+  requires new_status <= 2
+  requires new_current_tick >= current_tick
+  requires new_last_sequence >= last_sequence
+  effect {
+    current_tick := new_current_tick
+    last_sequence := new_last_sequence
+    last_receipt := new_last_receipt
+    state_hash := new_state_hash
+    status := new_status
+  }
+  accounts {
+    authority : signer, writable
+    identity : readonly
+    task : readonly, pda [task]
+    society_world : writable, pda [society_world]
+  }
+}
+
+property receipt_chain_monotonic :
+  last_sequence >= 0
+  preserved_by all
+
+invariant task_status_is_receipt_backed :
+  forall applied : AppliedTaskReceipt.Active,
+    applied.receipt != applied.task

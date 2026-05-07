@@ -25,11 +25,26 @@ Scope tags are defined in [Scope Tags](scope-tags.md).
 - full execution records (per-step transcripts, tool calls, model outputs)
 - dispute evidence bundles
 - attestation evidence
-- agent-trace bundles exported for interop
+- Cursor Agent Trace records exported for code attribution interop
 - indexer snapshots and archives
 
 [on-chain] The on-chain `payload_hash` commits to the canonical off-chain payload.
 [indexer] A consumer replaying history must be able to fetch the blob by that hash and verify it byte-for-byte.
+
+## Agent Trace Interop
+
+[sdk] Code-edit execution records can be exported as Cursor Agent Trace v0.1.0
+records. The exported record follows the Agent Trace shape: `version`, `id`,
+`timestamp`, `files`, `conversations`, and line `ranges`.
+
+[sdk] Trust Substrate-specific binding data lives under
+`metadata["dev.trust-substrate"]`, including the task id, agent ids, execution
+record id, step metadata, receipt ids when exported from the indexer, and the
+canonical trace hash.
+
+[on-chain] Execution receipts include an `agentTrace` pointer with the Agent
+Trace version, deterministic trace id, and canonical trace hash. The full Agent
+Trace record stays off-chain; the receipt commits to it by hash.
 
 ## Blob Backends
 
@@ -51,7 +66,9 @@ Any content-addressable store works. The reference set is:
 2. For each receipt, fetch the blob referenced by `payload.storage.uri` and verify `hashCanonical(blob) == receipt.payload_hash`.
 3. Rebuild execution records, handoff chains, and task status transitions from the verified payloads.
 4. Verify any checkpoint with an on-chain `LatestCheckpoint` pointer and a Merkle proof against the checkpoint root.
-5. Derive reputation from the verified receipt history. The on-chain accumulator is only a permissionless cache/projection, not the source of truth.
+5. Fetch the program-backed reputation accumulator and compare it with local
+   replay. The on-chain accumulator is the source of truth; local replay is a
+   verification aid and should flag mismatches loudly.
 
 [indexer] Blobs that are unreachable or mismatched are treated as missing receipts for replay purposes and flagged as availability faults.
 

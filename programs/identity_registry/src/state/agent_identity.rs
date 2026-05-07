@@ -11,5 +11,6 @@ pub struct AgentIdentity {
     pub open_task_count: u32,
     pub open_challenge_count: u32,
     pub active_stake: bool,
+    pub active_stake_count: u32,
     pub bump: u8,
 }

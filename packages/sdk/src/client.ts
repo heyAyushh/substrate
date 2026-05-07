@@ -31,7 +31,8 @@ export type ReceiptKind =
   | "dispute"
   | "dispute_resolved"
   | "challenge"
-  | "challenge_response";
+  | "challenge_response"
+  | "attestation";
 
 export const RECEIPT_KIND_CODES: Readonly<Record<ReceiptKind, number>> = {
   assignment: 1,
@@ -41,6 +42,7 @@ export const RECEIPT_KIND_CODES: Readonly<Record<ReceiptKind, number>> = {
   dispute_resolved: 5,
   challenge: 6,
   challenge_response: 7,
+  attestation: 8,
 };
 
 export const RECEIPT_SCOPE_BITS: Readonly<Record<ReceiptKind, number>> = {
@@ -51,6 +53,8 @@ export const RECEIPT_SCOPE_BITS: Readonly<Record<ReceiptKind, number>> = {
   dispute_resolved: 1 << 4,
   challenge: 1 << 5,
   challenge_response: 1 << 6,
+  // Attestation is a protocol receipt kind, but it has no delegation bitmap bit.
+  attestation: 0,
 };
 
 export interface IdentityCreateInput {

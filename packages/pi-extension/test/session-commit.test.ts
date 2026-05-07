@@ -46,6 +46,8 @@ const buildBindings = (): SubstrateBindings => {
     taskAddress: "TSK11111111111111111111111111111111111111111" as Address,
     domainCatalogAddress:
       "DMC11111111111111111111111111111111111111111" as Address,
+    reputationAddress:
+      "REP11111111111111111111111111111111111111111" as Address,
   };
 };
 
@@ -76,6 +78,7 @@ test("buildBridgeCommitInput shapes a completion-kind commit with turn-scoped re
   strictEqual(commit.identityAddress, bindings.identityAddress);
   strictEqual(commit.taskAddress, bindings.taskAddress);
   strictEqual(commit.domainCatalogAddress, bindings.domainCatalogAddress);
+  strictEqual(commit.reputationAddress, bindings.reputationAddress);
   deepStrictEqual(commit.payload, { sessionId: SESSION_ID, turnIndex: 2 });
   strictEqual(commit.toolCalls.length, 1);
 });
@@ -131,6 +134,7 @@ test("createSubstrateSessionCommitter commits each turn via the bridge and invok
     } as ReceiptIndexRecord,
     onchain: {
       receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
+      reputationAddress: bindings.reputationAddress,
       operations: [],
     },
     actionEnvelope: {
@@ -222,6 +226,7 @@ test("createSubstrateSessionCommitter exposes the chain-bound action envelope", 
     } as ReceiptIndexRecord,
     onchain: {
       receiptAddress: "RCT11111111111111111111111111111111111111111" as Address,
+      reputationAddress: bindings.reputationAddress,
       operations: [
         {
           kind: "emit_receipt",

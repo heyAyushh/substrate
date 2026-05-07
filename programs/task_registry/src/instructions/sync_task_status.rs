@@ -3,8 +3,8 @@ use identity_registry::state::AgentIdentity;
 use trust_substrate_core::ReceiptRecordAccount;
 use trust_substrate_core::{
     TrustSubstrateError, ASSIGNMENT_KIND, COMPLETION_KIND, DISPUTE_KIND, DISPUTE_RESOLVED_KIND,
-    HANDOFF_KIND, TASK_RECEIPT_APPLICATION_SEED, TASK_STATUS_ACTIVE, TASK_STATUS_COMPLETED,
-    TASK_STATUS_DISPUTED, TASK_STATUS_RESOLVED,
+    HANDOFF_KIND, TASK_RECEIPT_APPLICATION_SEED, TASK_SEED, TASK_STATUS_ACTIVE,
+    TASK_STATUS_COMPLETED, TASK_STATUS_DISPUTED, TASK_STATUS_RESOLVED,
 };
 
 use crate::events::TaskStatusSynced;
@@ -42,18 +42,30 @@ pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
             }
         }
         COMPLETION_KIND => {
+            require!(
+                task.subtask_count == 0 || task.completed_count < u32::from(task.subtask_count),
+                TrustSubstrateError::TaskSubtaskCountExceeded
+            );
             task.completed_count = task.completed_count.saturating_add(1);
             if task.status != TASK_STATUS_DISPUTED {
                 task.status = TASK_STATUS_COMPLETED;
             }
         }
         DISPUTE_KIND => {
+            require!(
+                task.subtask_count == 0 || task.disputed_count < u32::from(task.subtask_count),
+                TrustSubstrateError::TaskSubtaskCountExceeded
+            );
             task.disputed_count = task.disputed_count.saturating_add(1);
             task.status = TASK_STATUS_DISPUTED;
         }
         DISPUTE_RESOLVED_KIND => {
             require!(
                 task.status == TASK_STATUS_DISPUTED || task.disputed_count > 0,
+                TrustSubstrateError::TaskDisputeRequiredForResolution
+            );
+            require!(
+                task.resolved_count < task.disputed_count,
                 TrustSubstrateError::TaskDisputeRequiredForResolution
             );
             task.resolved_count = task.resolved_count.saturating_add(1);
@@ -69,24 +81,38 @@ pub fn handler(ctx: Context<SyncTaskStatus>) -> Result<()> {
     receipt_application.receipt = ctx.accounts.receipt.key();
     receipt_application.bump = ctx.bumps.receipt_application;
 
-    if let Some(delta) = settled_delta(previous_status, task.status) {
+    let event_identity = task.identity;
+    let event_task = task.key();
+    let event_status = task.status;
+    let identity_key = ctx.accounts.identity.key();
+    let task_id = task.task_id;
+    let task_bump = [task.bump];
+
+    if let Some(delta) = settled_delta(previous_status, event_status) {
         let identity_cpi_accounts = identity_registry::cpi::accounts::AdjustOpenTaskCount {
-            authority: ctx.accounts.authority.to_account_info(),
+            authority: ctx.accounts.task.to_account_info(),
             identity: ctx.accounts.identity.to_account_info(),
         };
-        let identity_cpi = CpiContext::new(
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            TASK_SEED,
+            identity_key.as_ref(),
+            task_id.as_ref(),
+            &task_bump,
+        ]];
+        let identity_cpi = CpiContext::new_with_signer(
             ctx.accounts.identity_registry_program.key(),
             identity_cpi_accounts,
+            signer_seeds,
         );
-        identity_registry::cpi::adjust_open_task_count(identity_cpi, delta)?;
+        identity_registry::cpi::adjust_open_task_count(identity_cpi, task_id, delta)?;
     }
 
     emit!(TaskStatusSynced {
-        identity: task.identity,
-        task: task.key(),
+        identity: event_identity,
+        task: event_task,
         receipt: ctx.accounts.receipt.key(),
         kind: ctx.accounts.receipt.kind,
-        new_status: task.status,
+        new_status: event_status,
         slot: Clock::get()?.slot,
     });
 

@@ -55,6 +55,7 @@ export function getSlashTokenWithVerdictDiscriminatorBytes() {
 export type SlashTokenWithVerdictInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountAdjudicator extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountTokenStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountVerdict extends string | AccountMeta<string> = string,
@@ -64,6 +65,8 @@ export type SlashTokenWithVerdictInstruction<
   TAccountTreasuryTokenVault extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -75,6 +78,9 @@ export type SlashTokenWithVerdictInstruction<
         ? WritableSignerAccount<TAccountAdjudicator> &
             AccountSignerMeta<TAccountAdjudicator>
         : TAccountAdjudicator,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountTokenStake extends string
         ? WritableAccount<TAccountTokenStake>
         : TAccountTokenStake,
@@ -99,6 +105,9 @@ export type SlashTokenWithVerdictInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -140,6 +149,7 @@ export function getSlashTokenWithVerdictInstructionDataCodec(): FixedSizeCodec<
 
 export type SlashTokenWithVerdictAsyncInput<
   TAccountAdjudicator extends string = string,
+  TAccountIdentity extends string = string,
   TAccountTokenStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountVerdict extends string = string,
@@ -148,24 +158,27 @@ export type SlashTokenWithVerdictAsyncInput<
   TAccountVault extends string = string,
   TAccountTreasuryTokenVault extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   adjudicator: TransactionSigner<TAccountAdjudicator>;
+  /** identity_registry deserializes and validates it during the CPI. */
+  identity: Address<TAccountIdentity>;
   tokenStake: Address<TAccountTokenStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   verdict?: Address<TAccountVerdict>;
   slashMarker?: Address<TAccountSlashMarker>;
   mint: Address<TAccountMint>;
-  /** and the SPL Token program validates it as a token account during transfer. */
   vault: Address<TAccountVault>;
-  /** mint; the SPL Token program validates the account and mint on receipt. */
   treasuryTokenVault?: Address<TAccountTreasuryTokenVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export async function getSlashTokenWithVerdictInstructionAsync<
   TAccountAdjudicator extends string,
+  TAccountIdentity extends string,
   TAccountTokenStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountVerdict extends string,
@@ -174,11 +187,13 @@ export async function getSlashTokenWithVerdictInstructionAsync<
   TAccountVault extends string,
   TAccountTreasuryTokenVault extends string,
   TAccountTokenProgram extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashTokenWithVerdictAsyncInput<
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
@@ -187,6 +202,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -194,6 +210,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
   SlashTokenWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
@@ -202,6 +219,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -211,6 +229,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     adjudicator: { value: input.adjudicator ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     tokenStake: { value: input.tokenStake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     verdict: { value: input.verdict ?? null, isWritable: false },
@@ -222,6 +241,10 @@ export async function getSlashTokenWithVerdictInstructionAsync<
       isWritable: true,
     },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -271,6 +294,10 @@ export async function getSlashTokenWithVerdictInstructionAsync<
     accounts.tokenProgram.value =
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -280,6 +307,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("adjudicator", accounts.adjudicator),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("tokenStake", accounts.tokenStake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("verdict", accounts.verdict),
@@ -288,6 +316,10 @@ export async function getSlashTokenWithVerdictInstructionAsync<
       getAccountMeta("vault", accounts.vault),
       getAccountMeta("treasuryTokenVault", accounts.treasuryTokenVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashTokenWithVerdictInstructionDataEncoder().encode({}),
@@ -295,6 +327,7 @@ export async function getSlashTokenWithVerdictInstructionAsync<
   } as SlashTokenWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
@@ -303,12 +336,14 @@ export async function getSlashTokenWithVerdictInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
 
 export type SlashTokenWithVerdictInput<
   TAccountAdjudicator extends string = string,
+  TAccountIdentity extends string = string,
   TAccountTokenStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountVerdict extends string = string,
@@ -317,24 +352,27 @@ export type SlashTokenWithVerdictInput<
   TAccountVault extends string = string,
   TAccountTreasuryTokenVault extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   adjudicator: TransactionSigner<TAccountAdjudicator>;
+  /** identity_registry deserializes and validates it during the CPI. */
+  identity: Address<TAccountIdentity>;
   tokenStake: Address<TAccountTokenStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   verdict: Address<TAccountVerdict>;
   slashMarker: Address<TAccountSlashMarker>;
   mint: Address<TAccountMint>;
-  /** and the SPL Token program validates it as a token account during transfer. */
   vault: Address<TAccountVault>;
-  /** mint; the SPL Token program validates the account and mint on receipt. */
   treasuryTokenVault: Address<TAccountTreasuryTokenVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
 };
 
 export function getSlashTokenWithVerdictInstruction<
   TAccountAdjudicator extends string,
+  TAccountIdentity extends string,
   TAccountTokenStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountVerdict extends string,
@@ -343,11 +381,13 @@ export function getSlashTokenWithVerdictInstruction<
   TAccountVault extends string,
   TAccountTreasuryTokenVault extends string,
   TAccountTokenProgram extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashTokenWithVerdictInput<
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
@@ -356,12 +396,14 @@ export function getSlashTokenWithVerdictInstruction<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): SlashTokenWithVerdictInstruction<
   TProgramAddress,
   TAccountAdjudicator,
+  TAccountIdentity,
   TAccountTokenStake,
   TAccountDisputeReceipt,
   TAccountVerdict,
@@ -370,6 +412,7 @@ export function getSlashTokenWithVerdictInstruction<
   TAccountVault,
   TAccountTreasuryTokenVault,
   TAccountTokenProgram,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -378,6 +421,7 @@ export function getSlashTokenWithVerdictInstruction<
   // Original accounts.
   const originalAccounts = {
     adjudicator: { value: input.adjudicator ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     tokenStake: { value: input.tokenStake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     verdict: { value: input.verdict ?? null, isWritable: false },
@@ -389,6 +433,10 @@ export function getSlashTokenWithVerdictInstruction<
       isWritable: true,
     },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -401,6 +449,10 @@ export function getSlashTokenWithVerdictInstruction<
     accounts.tokenProgram.value =
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -410,6 +462,7 @@ export function getSlashTokenWithVerdictInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("adjudicator", accounts.adjudicator),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("tokenStake", accounts.tokenStake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("verdict", accounts.verdict),
@@ -418,6 +471,10 @@ export function getSlashTokenWithVerdictInstruction<
       getAccountMeta("vault", accounts.vault),
       getAccountMeta("treasuryTokenVault", accounts.treasuryTokenVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashTokenWithVerdictInstructionDataEncoder().encode({}),
@@ -425,6 +482,7 @@ export function getSlashTokenWithVerdictInstruction<
   } as SlashTokenWithVerdictInstruction<
     TProgramAddress,
     TAccountAdjudicator,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountVerdict,
@@ -433,6 +491,7 @@ export function getSlashTokenWithVerdictInstruction<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -444,17 +503,18 @@ export type ParsedSlashTokenWithVerdictInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     adjudicator: TAccountMetas[0];
-    tokenStake: TAccountMetas[1];
-    disputeReceipt: TAccountMetas[2];
-    verdict: TAccountMetas[3];
-    slashMarker: TAccountMetas[4];
-    mint: TAccountMetas[5];
-    /** and the SPL Token program validates it as a token account during transfer. */
-    vault: TAccountMetas[6];
-    /** mint; the SPL Token program validates the account and mint on receipt. */
-    treasuryTokenVault: TAccountMetas[7];
-    tokenProgram: TAccountMetas[8];
-    systemProgram: TAccountMetas[9];
+    /** identity_registry deserializes and validates it during the CPI. */
+    identity: TAccountMetas[1];
+    tokenStake: TAccountMetas[2];
+    disputeReceipt: TAccountMetas[3];
+    verdict: TAccountMetas[4];
+    slashMarker: TAccountMetas[5];
+    mint: TAccountMetas[6];
+    vault: TAccountMetas[7];
+    treasuryTokenVault: TAccountMetas[8];
+    tokenProgram: TAccountMetas[9];
+    identityRegistryProgram: TAccountMetas[10];
+    systemProgram: TAccountMetas[11];
   };
   data: SlashTokenWithVerdictInstructionData;
 };
@@ -467,12 +527,12 @@ export function parseSlashTokenWithVerdictInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSlashTokenWithVerdictInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 10) {
+  if (instruction.accounts.length < 12) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 10,
+        expectedAccountMetas: 12,
       },
     );
   }
@@ -486,6 +546,7 @@ export function parseSlashTokenWithVerdictInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       adjudicator: getNextAccount(),
+      identity: getNextAccount(),
       tokenStake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       verdict: getNextAccount(),
@@ -494,6 +555,7 @@ export function parseSlashTokenWithVerdictInstruction<
       vault: getNextAccount(),
       treasuryTokenVault: getNextAccount(),
       tokenProgram: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getSlashTokenWithVerdictInstructionDataDecoder().decode(

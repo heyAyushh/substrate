@@ -38,6 +38,7 @@ export type AgentIdentity = {
   openTaskCount: number;
   openChallengeCount: number;
   activeStake: boolean;
+  activeStakeCount: number;
   bump: number;
 };
 
@@ -53,6 +54,7 @@ export function getAgentIdentityEncoder(): FixedSizeEncoder<AgentIdentityArgs> {
     ["openTaskCount", getU32Encoder()],
     ["openChallengeCount", getU32Encoder()],
     ["activeStake", getBooleanEncoder()],
+    ["activeStakeCount", getU32Encoder()],
     ["bump", getU8Encoder()],
   ]);
 }
@@ -67,6 +69,7 @@ export function getAgentIdentityDecoder(): FixedSizeDecoder<AgentIdentity> {
     ["openTaskCount", getU32Decoder()],
     ["openChallengeCount", getU32Decoder()],
     ["activeStake", getBooleanDecoder()],
+    ["activeStakeCount", getU32Decoder()],
     ["bump", getU8Decoder()],
   ]);
 }

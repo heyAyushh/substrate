@@ -14,14 +14,15 @@ The workspace exposes deployable Anchor programs in `programs/*`:
 
 | Program                  | Local Program Id                               |
 | ------------------------ | ---------------------------------------------- |
-| `identity_registry`      | `7eJnW2rVFi7e64YyUXviTeuYDJtEMMgRnQsZbV3r3FDv` |
-| `task_registry`          | `5CjbVQQgjKeCqCsyxcb4HqPpAVgB8eNXZiZovaChQ7R4` |
-| `receipt_emitter`        | `FV5Nsn3jHH8xxBP6m1N43NawgswmMkhZo72HGYJaJLHp` |
-| `delegation_engine`      | `HoRjTc9J44oSqBC4DeHfDTavkR15Le8FY3qyPFy4pg49` |
-| `proof_verifier`         | `4arfpB8XKheZp41Ee8L9fZkHntw4td7Uy5L34PMzYnNi` |
-| `reputation_accumulator` | `8tTBEKBqvk51C21spCmzJFNYpBkcWZSkiW2uVwHnHLdv` |
-| `dispute_resolver`       | `9cYSvQHM78shtFPnpxSfHwyB26CArahmHuJt7byyUrHa` |
-| `agent_stake`            | `GQrptAYan3qAvYf3qjr6LSyr3Hs622fygj2MDL2goANQ` |
+| `identity_registry`      | `8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun` |
+| `attester_registry`      | `GeVgezVBqhCs7jFTo3xCsvfMrJ8xt3eD7CYWcTfQK9H7` |
+| `task_registry`          | `E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4` |
+| `receipt_emitter`        | `FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk` |
+| `delegation_engine`      | `9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm` |
+| `proof_verifier`         | `7td4jQLbdqZoM4Je1VQKQ6uPfymNU7DdkWgXHcHQYbmE` |
+| `reputation_accumulator` | `EJmXg6FJ8fk2SzPAf7ZprYjoHqA5oey5p1vzprxMHeqs` |
+| `dispute_resolver`       | `uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF`  |
+| `agent_stake`            | `47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on` |
 
 Shared seeds, constants, errors, and Merkle helpers are defined in `crates/trust_substrate_core`.
 
@@ -37,6 +38,11 @@ Fields:
 - `agent_id: [u8; 32]`
 - `policy_root: [u8; 32]`
 - `history_root: [u8; 32]`
+- `tier: u8`
+- `open_task_count: u32`
+- `open_challenge_count: u32`
+- `active_stake: bool`
+- `active_stake_count: u32`
 - `bump: u8`
 
 PDA seed:
@@ -60,6 +66,8 @@ Fields:
 - `completed_count: u32`
 - `disputed_count: u32`
 - `resolved_count: u32`
+- `last_receipt: Pubkey`
+- `last_sequence: u64`
 - `bump: u8`
 
 PDA seed:
@@ -84,6 +92,11 @@ Fields:
 - `previous_receipt: [u8; 32]`
 - `payload_hash: [u8; 32]`
 - `via_delegation: Pubkey`
+- `auditor_identity: Pubkey`
+- `target_receipt: Pubkey`
+- `challenge_receipt: Pubkey`
+- `deadline_slot: u64`
+- `round: u16`
 - `bump: u8`
 
 PDA seed:
@@ -92,6 +105,28 @@ PDA seed:
 - identity pubkey
 - task pubkey
 - `receipt_id`
+
+### `SocietyWorld`
+
+Program: `task_registry`
+
+Fields:
+
+- `identity: Pubkey`
+- `task: Pubkey`
+- `current_tick: u32`
+- `last_sequence: u64`
+- `last_receipt: Pubkey`
+- `state_hash: [u8; 32]`
+- `status: u8`
+- `state: Vec<u8>`
+- `bump: u8`
+
+PDA seed:
+
+- `society_world`
+- identity pubkey
+- task pubkey
 
 ### `DelegationRecord`
 
@@ -178,6 +213,14 @@ Fields:
 - `completed: u64`
 - `disputed: u64`
 - `resolved: u64`
+- `attested: u64`
+- `weighted_completed: u64`
+- `weighted_disputed: u64`
+- `weighted_resolved: u64`
+- `weighted_attested: u64`
+- `reviewer_weight_sum: u64`
+- `slash_penalty_sum: u64`
+- `last_applied_slot: u64`
 - `completion_weight: u64`
 - `dispute_weight: u64`
 - `dispute_resolved_weight: u64`
@@ -188,6 +231,40 @@ PDA seed:
 - `reputation`
 - identity pubkey
 - `domain`
+
+### `IdentityBond`
+
+Program: `identity_registry`
+
+Fields:
+
+- `identity: Pubkey`
+- `authority: Pubkey`
+- `amount: u64`
+- `bump: u8`
+
+PDA seed:
+
+- `identity_bond`
+- identity pubkey
+
+### `RuntimeAttestation`
+
+Program: `identity_registry`
+
+Fields:
+
+- `identity: Pubkey`
+- `runtime_commit: [u8; 32]`
+- `runtime_authority: Pubkey`
+- `valid_from_slot: u64`
+- `bump: u8`
+
+PDA seed:
+
+- `runtime_attestation`
+- identity pubkey
+- `runtime_commit`
 
 ### `AppliedTaskReceipt`
 
@@ -288,6 +365,34 @@ PDA seed:
 
 - `stake`
 - identity pubkey
+
+### `TokenStakeAccount`
+
+Program: `agent_stake`
+
+Fields:
+
+- `identity: Pubkey`
+- `owner: Pubkey`
+- `slash_authority: Pubkey`
+- `trust_mode: u8`
+- `scope: Pubkey`
+- `mint: Pubkey`
+- `token_program: Pubkey`
+- `vault: Pubkey`
+- `amount: u64`
+- `pending_unstake_amount: u64`
+- `unstake_unlocks_at: u64`
+- `slashed_total: u64`
+- `bump: u8`
+- `vault_bump: u8`
+
+PDA seed:
+
+- `token_stake`
+- identity pubkey
+- scope pubkey
+- mint pubkey
 
 ### `SlashMarker`
 
@@ -565,9 +670,13 @@ Behavior:
 - requires the reputation account to belong to the identity
 - requires the reputation domain to match the receipt domain
 - initializes a reputation receipt application marker to reject duplicate application
-- applies completion, dispute, and dispute-resolution receipt effects
+- applies completion, dispute, dispute-resolution, and attestation receipt effects
+- weights reviewer evidence from identity bond, attester tier, active stake
+  accounts, runtime attestation, and slash history when supplied
+- requires bonded attester evidence for reputation-affecting audit receipts
+- requires a matching negative verdict before dispute receipts can degrade reputation
 - rejects receipt kinds that do not affect reputation
-- acts as a permissionless cache/projection over the verified receipt graph
+- writes the canonical program-backed domain reputation state
 
 ### `agent_stake.initialize_stake`
 

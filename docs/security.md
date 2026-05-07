@@ -14,14 +14,14 @@ The main protected assets are:
 - [on-chain] receipt ordering
 - [on-chain] delegation scope
 - [on-chain] checkpoint roots
-- [sdk] derived reputation profiles
+- [on-chain] program-backed reputation accumulators
 
 ## Invariants
 
 - [on-chain] Only the identity authority can create identity-scoped state unless a delegated receipt path is explicitly used and verified.
 - [on-chain] Receipt accounts are append-only and unique by PDA seeds.
 - [on-chain] A receipt belongs to exactly one identity and one task.
-- [sdk] Reputation is derived from receipt history.
+- [on-chain] Reputation is applied from verified receipt history and reviewer evidence.
 - [on-chain] Delegation must be scoped, revocable, expiry-aware, and traceable.
 - [on-chain] Checkpoints must bind an identity, epoch, root, previous root, and leaf count.
 
@@ -65,7 +65,7 @@ These are intentional current boundaries:
 - [indexer] The indexer is local and durable, not a networked event pipeline.
 - [on-chain] Multi-hop handoff proofs are not fully modeled yet.
 - [on-chain] Richer sequence ordering rules across tasks and domains need more tests before production use.
-- [on-chain] Slashing policy is authority-driven in v1. The program verifies receipt ownership, identity, kind, and replay markers, but it does not parse private dispute evidence or decide outcomes from payload text.
+- [on-chain] Slashing policy is configured-authority or adjudicator-verdict driven in v1. The program verifies receipt ownership, identity, kind, verdict binding, stale windows, treasury targets, and replay markers, but it does not parse private dispute evidence or decide outcomes from payload text.
 
 Completion criteria for these items are tracked in
 [Production Readiness To-Do](production-readiness.md).
@@ -86,13 +86,13 @@ Before merging protocol behavior, check:
 - [on-chain] slashing binds to a `dispute_resolved` receipt and rejects replay
 - [on-chain] non-safety verdicts cannot slash after their stale window
 - [on-chain] reputation cannot be written directly as a score
-- [on-chain] the on-chain reputation accumulator is treated as a cache/projection over verified history
+- [on-chain] the on-chain reputation accumulator is the canonical domain reputation state
 - [sdk] SDK behavior matches the on-chain account model
 - [indexer] Indexer behavior matches the on-chain account model
 
 ## Off-Chain Storage
 
-[on-chain] Execution transcripts, dispute evidence, attestation artefacts, and agent-trace bundles live off-chain. The on-chain `payload_hash` commits to the canonical blob.
+[on-chain] Execution transcripts, dispute evidence, attestation artefacts, and Cursor Agent Trace records live off-chain. The on-chain `payload_hash` commits to the canonical blob, and execution receipts can also carry an `agentTrace` pointer with the trace version, deterministic id, and canonical trace hash.
 [sdk] See `docs/off-chain-storage.md` for the on-chain vs off-chain split, blob backends, replay model, and the gaming-resistance defences (DA proofs, availability challenges, commit-reveal, authority-rotation history, attestation filter, archive durability, stake-backed slashing).
 
 ## External Context Handling

@@ -7,6 +7,7 @@ import { ReceiptEmitter } from "../target/types/receipt_emitter";
 import { ReputationAccumulator } from "../target/types/reputation_accumulator";
 import { TaskRegistry } from "../target/types/task_registry";
 import { DisputeResolver } from "../target/types/dispute_resolver";
+import { AttesterRegistry } from "../target/types/attester_registry";
 
 const IDENTITY_SEED = "identity";
 const IDENTITY_BOND_SEED = "bond";
@@ -17,9 +18,12 @@ const DOMAIN_CATALOG_SEED = "domain_catalog";
 const DOMAIN_STATS_SEED = "domain_stats";
 const ADJUDICATOR_CONFIG_SEED = "adjudicator_config";
 const AUDIT_RECEIPT_SEED = "audit_receipt";
+const ATTESTER_CONFIG_SEED = "attester_config";
+const ATTESTER_RECORD_SEED = "attester";
 const VERDICT_SEED = "verdict";
 const COMPLETION_RECEIPT_KIND = 3;
 const DISPUTE_RECEIPT_KIND = 4;
+const ATTESTATION_RECEIPT_KIND = 8;
 const AGENT_LOST_OUTCOME = 1;
 const VERDICT_CLASS_SAFETY = 0;
 const TEST_RUN_NAMESPACE = anchor.web3.Keypair.generate().publicKey.toBase58();
@@ -90,8 +94,11 @@ describe("reputation domain catalog", () => {
     .reputationAccumulator as Program<ReputationAccumulator>;
   const disputeProgram = anchor.workspace
     .disputeResolver as Program<DisputeResolver>;
+  const attesterProgram = anchor.workspace
+    .attesterRegistry as Program<AttesterRegistry>;
 
   const [domainCatalog] = pda(reputationProgram, [seed(DOMAIN_CATALOG_SEED)]);
+  const [attesterConfig] = pda(attesterProgram, [seed(ATTESTER_CONFIG_SEED)]);
 
   let cpiAuthority: anchor.web3.PublicKey;
 
@@ -124,6 +131,21 @@ describe("reputation domain catalog", () => {
         .accountsStrict({
           curator: authority,
           domainCatalog,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    try {
+      await attesterProgram.account.attesterRegistryConfig.fetch(
+        attesterConfig,
+      );
+    } catch {
+      await attesterProgram.methods
+        .initializeRegistry()
+        .accountsStrict({
+          curator: authority,
+          config: attesterConfig,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
@@ -205,6 +227,63 @@ describe("reputation domain catalog", () => {
     }
 
     return { identity, task };
+  }
+
+  async function ensureBondedAttester(
+    identity: anchor.web3.PublicKey,
+    tier: number,
+  ): Promise<{
+    identityBond: anchor.web3.PublicKey;
+    attesterRecord: anchor.web3.PublicKey;
+  }> {
+    const [identityBond] = pda(identityProgram, [
+      seed(IDENTITY_BOND_SEED),
+      identity.toBuffer(),
+    ]);
+    try {
+      await identityProgram.account.identityBond.fetch(identityBond);
+    } catch {
+      await identityProgram.methods
+        .depositIdentityBond()
+        .accountsStrict({
+          authority,
+          identity,
+          identityBond,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    const [attesterRecord] = pda(attesterProgram, [
+      seed(ATTESTER_RECORD_SEED),
+      identity.toBuffer(),
+    ]);
+    try {
+      await attesterProgram.account.attesterRecord.fetch(attesterRecord);
+    } catch {
+      await attesterProgram.methods
+        .registerAttester("review", tier)
+        .accountsStrict({
+          authority,
+          identity,
+          identityBond,
+          config: attesterConfig,
+          attester: attesterRecord,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+
+    await attesterProgram.methods
+      .setAttesterTier(tier)
+      .accountsStrict({
+        curator: authority,
+        config: attesterConfig,
+        attester: attesterRecord,
+      })
+      .rpc();
+
+    return { identityBond, attesterRecord };
   }
 
   it("creating reputation accumulator for unregistered domain fails", async () => {
@@ -479,7 +558,147 @@ describe("reputation domain catalog", () => {
     const reputationAccount =
       await reputationProgram.account.reputationAccumulator.fetch(reputation);
     strictEqual(reputationAccount.completed.toNumber(), 1);
+    strictEqual(reputationAccount.weightedCompleted.toNumber(), 1);
+    strictEqual(reputationAccount.reviewerWeightSum.toNumber(), 1);
     strictEqual(reputationAccount.disputed.toNumber(), 0);
+  });
+
+  it("weights bonded attester audit receipts on-chain", async () => {
+    const domain = bytes32(235);
+    await ensureDomainRegistered(domain);
+    const builder = await createIdentityAndTask(236, 237, domain);
+    const reviewerAgentId = scopedBytes32("reviewer:238");
+    const [reviewerIdentity] = pda(identityProgram, [
+      seed(IDENTITY_SEED),
+      authority.toBuffer(),
+      Buffer.from(reviewerAgentId),
+    ]);
+
+    try {
+      await identityProgram.account.agentIdentity.fetch(reviewerIdentity);
+    } catch {
+      await identityProgram.methods
+        .createIdentity(
+          reviewerAgentId,
+          scopedBytes32("reviewer-policy:239"),
+          scopedBytes32("reviewer-history:240"),
+        )
+        .accountsStrict({
+          identity: reviewerIdentity,
+          authority,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+    }
+    const { identityBond: reviewerBond, attesterRecord } =
+      await ensureBondedAttester(reviewerIdentity, 2);
+
+    const completionReceiptId = bytes32(241);
+    const [completionReceipt] = pda(receiptProgram, [
+      seed(RECEIPT_SEED),
+      builder.identity.toBuffer(),
+      builder.task.toBuffer(),
+      Buffer.from(completionReceiptId),
+    ]);
+    await receiptProgram.methods
+      .emitReceipt(
+        completionReceiptId,
+        COMPLETION_RECEIPT_KIND,
+        new anchor.BN(1),
+        domain,
+        bytes32(0),
+        bytes32(242),
+      )
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        task: builder.task,
+        receipt: completionReceipt,
+        cpiAuthority,
+        domainCatalog,
+        taskRegistryProgram: taskProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const [attestationReceipt] = pda(receiptProgram, [
+      seed(AUDIT_RECEIPT_SEED),
+      reviewerIdentity.toBuffer(),
+      completionReceipt.toBuffer(),
+      Buffer.from([ATTESTATION_RECEIPT_KIND]),
+      u16Le(0),
+    ]);
+    await receiptProgram.methods
+      .emitAuditReceipt(
+        ATTESTATION_RECEIPT_KIND,
+        domain,
+        bytes32(243),
+        new anchor.BN(2),
+        0,
+        new anchor.BN(0),
+      )
+      .accountsStrict({
+        authority,
+        auditorIdentity: reviewerIdentity,
+        identityBond: reviewerBond,
+        targetIdentity: builder.identity,
+        targetReceipt: completionReceipt,
+        auditReceipt: attestationReceipt,
+        domainCatalog,
+        cpiAuthority,
+        identityRegistryProgram: identityProgram.programId,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    const [reputation] = pda(reputationProgram, [
+      seed(REPUTATION_SEED),
+      builder.identity.toBuffer(),
+      Buffer.from(domain),
+    ]);
+    const [receiptApplication] = pda(reputationProgram, [
+      Buffer.from("reputation_receipt_application", "utf8"),
+      reputation.toBuffer(),
+      attestationReceipt.toBuffer(),
+    ]);
+    await reputationProgram.methods
+      .createReputationDomain(
+        domain,
+        new anchor.BN(0),
+        new anchor.BN(0),
+        new anchor.BN(0),
+      )
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        reputation,
+        domainCatalog,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .rpc();
+
+    await reputationProgram.methods
+      .applyReputationReceipt()
+      .accountsStrict({
+        authority,
+        identity: builder.identity,
+        receipt: attestationReceipt,
+        reputation,
+        receiptApplication,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .remainingAccounts([
+        { pubkey: reviewerIdentity, isSigner: false, isWritable: false },
+        { pubkey: reviewerBond, isSigner: false, isWritable: false },
+        { pubkey: attesterRecord, isSigner: false, isWritable: false },
+      ])
+      .rpc();
+
+    const reputationAccount =
+      await reputationProgram.account.reputationAccumulator.fetch(reputation);
+    strictEqual(reputationAccount.attested.toNumber(), 1);
+    strictEqual(reputationAccount.weightedAttested.toNumber(), 4);
+    strictEqual(reputationAccount.reviewerWeightSum.toNumber(), 4);
   });
 
   it("requires a verdict before dispute receipts can degrade reputation", async () => {
@@ -546,24 +765,8 @@ describe("reputation domain catalog", () => {
       Buffer.from([DISPUTE_RECEIPT_KIND]),
       u16Le(0),
     ]);
-    const [reviewerBond] = pda(identityProgram, [
-      seed(IDENTITY_BOND_SEED),
-      reviewerIdentity.toBuffer(),
-    ]);
-
-    try {
-      await identityProgram.account.identityBond.fetch(reviewerBond);
-    } catch {
-      await identityProgram.methods
-        .depositIdentityBond()
-        .accountsStrict({
-          authority,
-          identity: reviewerIdentity,
-          identityBond: reviewerBond,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc();
-    }
+    const { identityBond: reviewerBond, attesterRecord } =
+      await ensureBondedAttester(reviewerIdentity, 2);
 
     await receiptProgram.methods
       .emitAuditReceipt(
@@ -681,12 +884,17 @@ describe("reputation domain catalog", () => {
       })
       .remainingAccounts([
         { pubkey: verdict, isSigner: false, isWritable: false },
+        { pubkey: reviewerIdentity, isSigner: false, isWritable: false },
+        { pubkey: reviewerBond, isSigner: false, isWritable: false },
+        { pubkey: attesterRecord, isSigner: false, isWritable: false },
       ])
       .rpc();
 
     const reputationAccount =
       await reputationProgram.account.reputationAccumulator.fetch(reputation);
     strictEqual(reputationAccount.disputed.toNumber(), 1);
+    strictEqual(reputationAccount.weightedDisputed.toNumber(), 4);
+    strictEqual(reputationAccount.reviewerWeightSum.toNumber(), 4);
   });
 
   it("writes signed domain stats snapshots for registered domains", async () => {

@@ -1,4 +1,11 @@
+use anchor_lang::prelude::{pubkey, Pubkey};
 use solana_sha256_hasher::hashv;
+
+pub const AGENT_STAKE_PROGRAM_ID: Pubkey = pubkey!("47FjPydQsbVfMHAb1apZTRrY1pWq2JGyRzgenUaos9on");
+pub const RECEIPT_EMITTER_PROGRAM_ID: Pubkey =
+    pubkey!("FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk");
+pub const TASK_REGISTRY_PROGRAM_ID: Pubkey =
+    pubkey!("E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4");
 
 pub const IDENTITY_SEED: &[u8] = b"identity";
 pub const PENDING_ROTATION_SEED: &[u8] = b"pending_rotation";
@@ -72,6 +79,12 @@ pub const VALID_SCOPE_BITMAP: u8 = ASSIGNMENT_SCOPE_BIT
 pub const DEFAULT_COMPLETION_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_WEIGHT: u64 = 1;
 pub const DEFAULT_DISPUTE_RESOLVED_WEIGHT: u64 = 1;
+pub const STAKE_WEIGHT_UNIT_LAMPORTS: u64 = 1_000_000_000;
+pub const SLASH_WEIGHT_UNIT_LAMPORTS: u64 = 1_000_000_000;
+pub const MAX_STAKE_REPUTATION_WEIGHT: u64 = 3;
+pub const MAX_SLASH_REPUTATION_PENALTY: u64 = 3;
+pub const MAX_REVIEWER_REPUTATION_WEIGHT: u64 = 8;
+pub const MAX_REPUTATION_DOMAIN_WEIGHT: u64 = 10;
 
 pub const TASK_STATUS_PENDING: u8 = 0;
 pub const TASK_STATUS_ACTIVE: u8 = 1;

@@ -61,21 +61,13 @@ Run the QEDGen end-to-end gate:
 pnpm verify:qedgen
 ```
 
-That command checks every committed `.qedspec`, enforces the semantic
-`proof_verifier.qedspec` check against the Anchor source, generates
-proof-verifier Anchor/proptest/Kani/Lean artifacts in a temporary sandbox, and
-then runs `qedgen verify` on those generated artifacts. The sandbox is kept so
-the generated output can be inspected.
-
-Current state: the source drift and generated artifact stages pass for
-`proof_verifier`, but strict generated backend verification is expected to fail
-until QEDGen's generated Anchor scaffold compiles for the account-binding
-patterns used here. To run the same path while allowing that known generator
-blocker, use:
-
-```bash
-pnpm verify:qedgen:scaffold
-```
+That command checks every committed `.qedspec`, enforces semantic guardrails,
+drift-checks every spec against its Anchor source, generates a small backend
+smoke spec in a temporary sandbox, and runs `qedgen verify` on those generated
+proptest/Kani/Lean artifacts. The committed Trust Substrate program specs stay
+under parser, semantic, and source-drift checks; generated backend verification
+uses the smoke spec so the gate fails on real backend regressions instead of
+allowlisting known complex Anchor scaffold output.
 
 Run the full release gate:
 
@@ -83,9 +75,9 @@ Run the full release gate:
 pnpm verify:release
 ```
 
-That command runs lint, Anchor build, package builds, Pi extension tests, Pi
-Console checks, Rust tests, LiteSVM/Anchor, verification, and Surfpool. Surfpool
-still runs last.
+That command runs lint, QEDGen, Anchor build, package builds, Pi extension
+tests, Pi Console checks, Rust tests, LiteSVM/Anchor, verification, and
+Surfpool. Surfpool still runs last.
 
 ## Anchor Test Flow
 
@@ -105,6 +97,14 @@ The main protocol flow is covered by the LiteSVM suite, including:
 - stake escrow, cooldown unstake, dispute-resolution slashing, verdict stale windows, and slash replay rejection
 
 The pure Rust command intentionally excludes `trust_substrate_litesvm_tests`, because those tests load built SBF artifacts from `target/deploy`. Use `pnpm test:anchor` when instruction/account behavior changed.
+
+When program account layouts change, rebuild IDLs before regenerating clients:
+
+```bash
+anchor build --ignore-keys
+pnpm generate:clients
+git diff --exit-code packages/program-clients/src/generated
+```
 
 ## Verification Tests
 
@@ -126,10 +126,10 @@ behavior:
 qedgen check --spec programs/proof_verifier/proof_verifier.qedspec --anchor-project programs/proof_verifier --json
 ```
 
-The other program `.qedspec` files are committed as parseable scaffolds. They
-are useful for coverage and drift visibility, but they still report
-high-priority semantic gaps until their guards/effects are filled from the Rust
-source.
+The other program `.qedspec` files are committed as protocol scaffolds. They
+are useful for coverage and drift visibility, and the repo gate fails if a
+committed spec stops parsing, loses required semantic guardrails, or drifts from
+its Anchor source.
 
 ## Surfpool Final E2E
 
@@ -169,7 +169,7 @@ Use the narrowest path that matches the files you changed.
 2. Start local Surfpool on `127.0.0.1:8898` / `ws://127.0.0.1:8897`
 3. `pnpm --dir examples/multi_agent/society-ui-app build`
 4. `. ./examples/multi_agent/society-demo-env.example.sh && pnpm society`
-5. Open `/society`, verify nothing starts before `Go live`, then verify `Go live`, `Resume last`, `Start new world`, `Step`, `Play`, `Pause`, pending-versus-strict view, distinct agent colors, Surfpool account links, and the final proof link
+5. Open `/society`, verify nothing starts before `Go live`, then verify `Go live`, `Resume last`, `Start new world`, `Step`, `Play`, `Pause`, pending-versus-strict view, distinct agent colors, Surfpool account links, and the final evidence link
 6. Confirm the board no longer exposes preview scrubbing, offline commit, or proof replay controls
 
 The live society UI is manual browser smoke coverage on top of the automated checks. Keep Surfpool local; the demo server intentionally rejects non-local RPC targets unless you opt in with `SUBSTRATE_ALLOW_REMOTE_RPC=1`.

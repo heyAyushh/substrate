@@ -8,7 +8,7 @@ An end-to-end walkthrough of how an agent framework uses Trust Substrate locally
 4. The planner opens challenge round `0` against the completion, finalizes the unanswered challenge, and the builder stake is slashed.
 5. Receipts are appended to a replay-safe ledger and ingested by the durable indexer.
 6. A Merkle tree is built over the receipt hashes, matching the on-chain checkpoint format.
-7. Stake and reputation profiles are derived from the verified history.
+7. Stake and local reputation preview profiles are reconstructed from the verified history.
 8. The indexer snapshot is persisted to disk so a restart can recover the full execution graph.
 
 ## Running

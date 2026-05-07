@@ -355,7 +355,7 @@ const FULL_STACK_PROGRAMS = [
     evidence:
       "adjudicator config, treasury vault, dispute receipt, and verdict account",
     boundary:
-      "Normal runs end with a clean audit verdict; adversarial death verdicts are emitted only when deaths occur",
+      "Normal runs end with a clean audit verdict; Society death dispute verdicts are emitted only when deaths occur",
   },
 ] as const;
 

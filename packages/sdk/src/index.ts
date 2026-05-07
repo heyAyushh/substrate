@@ -32,7 +32,16 @@ export {
   verifyOnchainInclusion,
 } from "./onchain-merkle.js";
 
-export { deriveReputation } from "./reputation.js";
+export {
+  deriveReputation,
+  ONCHAIN_REPUTATION_BONDED_TIER,
+  ONCHAIN_REPUTATION_MAX_REVIEWER_WEIGHT,
+  ONCHAIN_REPUTATION_MAX_SLASH_PENALTY,
+  ONCHAIN_REPUTATION_MAX_STAKE_WEIGHT,
+  ONCHAIN_REPUTATION_SLASH_WEIGHT_UNIT_LAMPORTS,
+  ONCHAIN_REPUTATION_STAKE_WEIGHT_UNIT_LAMPORTS,
+  previewOnchainReviewerWeight,
+} from "./reputation.js";
 
 export {
   canonicalExecutionRecord,
@@ -98,6 +107,7 @@ export {
   canonicalAgentTrace,
   executionRecordToAgentTrace,
   hashAgentTrace,
+  TRUST_SUBSTRATE_AGENT_TRACE_METADATA_KEY,
 } from "./agent-trace.js";
 
 export {
@@ -156,8 +166,11 @@ export type {
   OnchainIdentityBondBinding,
   OnchainOperationResult,
   OnchainReceiptBinding,
+  OnchainReputationEvidenceAccount,
   OnchainReputationBinding,
   OnchainStakeBinding,
+  OnchainTokenStakeBinding,
+  OnchainTreasuryTokenVaultBinding,
   OnchainAttesterBinding,
   OnchainDelegationBinding,
   OnchainHistoryCheckpointBinding,
@@ -225,6 +238,20 @@ export type {
 export type { AgentTraceBundle, AgentTraceFileEdit } from "./agent-trace.js";
 
 export type {
+  AgentTraceContributor,
+  AgentTraceConversation,
+  AgentTraceFile,
+  AgentTraceMetadata,
+  AgentTraceRange,
+  AgentTraceRecord,
+  AgentTraceRelatedResource,
+  AgentTraceTool,
+  AgentTraceVcs,
+  TrustSubstrateAgentTraceMetadata,
+  TrustSubstrateAgentTraceStepMetadata,
+} from "./agent-trace.js";
+
+export type {
   DelegationAssertionInput,
   DelegationCreateInput,
   DelegationRecord,
@@ -248,6 +275,8 @@ export type {
 export type { OnchainProof } from "./onchain-merkle.js";
 
 export type {
+  OnchainReputationEvidencePreview,
+  OnchainReviewerWeightPreview,
   ReputationDerivationOptions,
   ReputationProfile,
 } from "./reputation.js";

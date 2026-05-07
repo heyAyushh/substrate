@@ -15,7 +15,7 @@
     "test:anchor": "pnpm test:litesvm",
     "test:surfpool": "./scripts/surfpool-e2e.sh",
     "verify:qedgen": "node scripts/qedgen-e2e.mjs",
-    "verify:qedgen:scaffold": "node scripts/qedgen-e2e.mjs --allow-generated-verify-failure",
+    "verify:qedgen:scaffold": "node scripts/qedgen-e2e.mjs",
     "pi-console:dev": "pnpm --dir examples/pi-console dev",
     "pi-console:test": "pnpm --dir examples/pi-console test",
     "pi-console:build": "pnpm --dir examples/pi-console build",
@@ -26,7 +26,7 @@
     "lint:fix": "prettier \"**/*.{js,ts}\" -w",
     "lint": "prettier \"**/*.{js,ts}\" --check && pnpm --dir examples/multi_agent/society-ui-app lint && pnpm pi-console:lint",
     "verify:review": "pnpm lint && pnpm test:verification && pnpm society:ui:build && pnpm pi-console:test && pnpm pi-console:build",
-    "verify:release": "pnpm lint && anchor build --ignore-keys && pnpm --filter @trust-substrate/program-clients build && pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && pnpm --filter @trust-substrate/pi-local-runtime build && pnpm --filter @trust-substrate/pi-extension test && pnpm pi-console:test && pnpm pi-console:build && pnpm test:rust && pnpm test:anchor && pnpm test:verification && pnpm test:surfpool"
+    "verify:release": "pnpm lint && pnpm verify:qedgen && anchor build --ignore-keys && pnpm --filter @trust-substrate/program-clients build && pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && pnpm --filter @trust-substrate/pi-local-runtime build && pnpm --filter @trust-substrate/pi-extension test && pnpm pi-console:test && pnpm pi-console:build && pnpm test:rust && pnpm test:anchor && pnpm test:verification && pnpm test:surfpool"
   },
   "dependencies": {
     "@anchor-lang/core": "1.0.0"

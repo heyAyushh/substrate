@@ -6,13 +6,14 @@ It separates what is implemented from what is intentionally out of scope.
 ## What This Branch Claims
 
 - Trust Substrate is a local Solana protocol baseline for agent identity,
-  ordered receipts, scoped delegation, checkpoints, derived reputation,
+  ordered receipts, scoped delegation, checkpoints, program-backed reputation,
   disputes, and stake.
-- Receipts are append-only execution evidence. Reputation is derived from
-  verified receipt history, not written directly as a mutable score.
+- Receipts are append-only execution evidence. Reputation is applied through
+  program-backed receipt evidence, not written directly by clients as a mutable
+  score.
 - The live society board is Surfpool-backed. `Go live` creates a server-owned
   session, writes the society world account, commits agent actions, exposes
-  account and transaction links, and writes a final proof artifact.
+  account and transaction links, and writes a final evidence artifact.
 - Society Board is an example consumer. `task_registry` anchors the board world;
   the other programs provide supporting trust evidence such as identity,
   attestation, delegation, receipts, checkpoints, reputation, stake, and

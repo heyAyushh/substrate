@@ -69,6 +69,151 @@ test("preserves explicit receipt sequences when indexing local history", () => {
   strictEqual(indexer.getTaskHistory("task-1")[0]?.sequence, 7);
 });
 
+test("flags mismatches against program-backed reputation accounts", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    createReceipt({
+      receiptId: "receipt-60",
+      slot: 60,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "completion",
+    }),
+  ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      completed: "2",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "2",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "2",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "60",
+    },
+  ]);
+
+  deepStrictEqual(indexer.getReputationReplayMismatches(), [
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      scope: "legacy_receipt_replay",
+      field: "completed",
+      replayedValue: "1",
+      programValue: "2",
+    },
+  ]);
+});
+
+test("flags weighted reputation and stale last-applied slot mismatches", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    createReceipt({
+      receiptId: "receipt-61",
+      slot: 61,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "completion",
+    }),
+  ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      completed: "1",
+      disputed: "0",
+      resolved: "0",
+      attested: "0",
+      weightedCompleted: "0",
+      weightedDisputed: "0",
+      weightedResolved: "0",
+      weightedAttested: "0",
+      reviewerWeightSum: "0",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "60",
+    },
+  ]);
+
+  deepStrictEqual(indexer.getReputationReplayMismatches(), [
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      scope: "weighted_reputation_minimum",
+      field: "weightedCompleted",
+      replayedValue: "1",
+      programValue: "0",
+    },
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      scope: "last_applied_slot_replay",
+      field: "lastAppliedSlot",
+      replayedValue: "61",
+      programValue: "60",
+    },
+  ]);
+});
+
+test("replays dispute resolutions without clearing negative verdict history", () => {
+  const indexer = new LocalDurableIndexer();
+  indexer.ingest([
+    createReceipt({
+      receiptId: "dispute-1",
+      slot: 10,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "dispute",
+    }),
+    createReceipt({
+      receiptId: "resolution-1",
+      slot: 20,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "dispute_resolved",
+      payload: { resolution: { outcome: "agent_lost" } },
+    }),
+    createReceipt({
+      receiptId: "dispute-2",
+      slot: 30,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "dispute",
+    }),
+    createReceipt({
+      receiptId: "resolution-2",
+      slot: 40,
+      actorId: "agent-a",
+      domain: "ops",
+      kind: "dispute_resolved",
+      payload: { resolution: { outcome: "no_fault" } },
+    }),
+  ]);
+  indexer.ingestProgramReputations([
+    {
+      identityId: "agent-a",
+      domain: "ops",
+      completed: "0",
+      disputed: "2",
+      resolved: "1",
+      attested: "0",
+      weightedCompleted: "0",
+      weightedDisputed: "2",
+      weightedResolved: "1",
+      weightedAttested: "0",
+      reviewerWeightSum: "3",
+      slashPenaltySum: "0",
+      lastAppliedSlot: "40",
+    },
+  ]);
+
+  deepStrictEqual(indexer.getReputationReplayMismatches(), []);
+});
+
 test("reconstructs the execution graph from task and agent history", () => {
   const indexer = new LocalDurableIndexer();
 

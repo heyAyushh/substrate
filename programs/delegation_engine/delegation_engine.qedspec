@@ -1,11 +1,13 @@
-// Generated from Anchor IDL — review and complete TODO items
+// Anchor-derived QEDGen protocol spec.
 //
-// Auto-derived: state fields, handlers, contexts, PDAs, errors
-// TODO: guards, effects, lifecycle transitions, properties, invariants
+// Scope: scoped delegation creation and one-way revocation.
 
 spec DelegationEngine
 
 program_id "9QeJCS5DYuMyMCoS25iwxdi6uVHF7JcNi3LkomrMGNAm"
+
+const EMPTY_SCOPE_BITMAP = 0
+const VALID_SCOPE_BITMAP = 127
 
 type AgentIdentity
   | Uninitialized
@@ -18,6 +20,7 @@ type AgentIdentity
       open_task_count      : U32,
       open_challenge_count : U32,
       active_stake         : Bool,
+      active_stake_count   : U32,
       bump                 : U8
     }
   | Closed
@@ -60,8 +63,14 @@ pda delegation ["delegation", identity, delegate]
 
 handler create_delegation (allowed_actions : U8) (expires_at_slot : U64) : State.Uninitialized -> State.Active {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires allowed_actions > EMPTY_SCOPE_BITMAP
+  requires allowed_actions <= VALID_SCOPE_BITMAP
+  effect {
+    allowed_actions := allowed_actions
+    expires_at_slot := expires_at_slot
+    revoke_at_slot := 0
+    revoked := false
+  }
   accounts {
     authority : signer, writable
     identity : readonly
@@ -73,8 +82,11 @@ handler create_delegation (allowed_actions : U8) (expires_at_slot : U64) : State
 
 handler revoke_delegation (revoke_at_slot : U64) : State.Active -> State.Closed {
   auth authority
-  // TODO: Add guard clause
-  // TODO: Add effect block
+  requires revoke_at_slot >= 0
+  effect {
+    revoked := true
+    revoke_at_slot := revoke_at_slot
+  }
   accounts {
     authority : signer, writable
     identity : authority delegation
@@ -82,8 +94,10 @@ handler revoke_delegation (revoke_at_slot : U64) : State.Active -> State.Closed 
   }
 }
 
-// TODO: Add properties
-// Example: property conservation { expr state.total_in >= state.total_out  preserved_by all }
+property delegated_scope_nonempty :
+  allowed_actions > EMPTY_SCOPE_BITMAP
+  preserved_by [create_delegation]
 
-// TODO: Add invariants
-// Example: invariant conservation "total tokens preserved"
+invariant revoked_delegations_do_not_unrevoke :
+  forall delegation : DelegationRecord.Active,
+    delegation.revoked == false

@@ -170,6 +170,7 @@ test("verdict-backed slashing is exposed through the on-chain SDK", async () => 
 
   const result = await client.slashWithVerdict({
     adjudicator,
+    identity: identity.address,
     stake: stake.address,
     disputeReceipt: disputeReceipt.address,
   });
@@ -235,6 +236,7 @@ test("SOL and SPL stake lifecycle methods are exposed through the on-chain SDK",
   });
   await client.slashWithAuthority({
     slashAuthority: adjudicator,
+    identity: identity.address,
     stake: solStake.address,
     disputeReceipt: solDisputeReceipt.address,
     amount: 1n,
@@ -255,12 +257,14 @@ test("SOL and SPL stake lifecycle methods are exposed through the on-chain SDK",
   await client.finalizeUnstakeToken({
     owner,
     tokenStake: tokenStake.address,
+    identity: identity.address,
     mint: mint.address,
     ownerTokenAccount: ownerTokenAccount.address,
     vault: tokenStake.vault,
   });
   await client.slashTokenWithAuthority({
     slashAuthority: adjudicator,
+    identity: identity.address,
     tokenStake: tokenStake.address,
     disputeReceipt: tokenAuthorityDisputeReceipt.address,
     mint: mint.address,
@@ -270,6 +274,7 @@ test("SOL and SPL stake lifecycle methods are exposed through the on-chain SDK",
   });
   const tokenSlash = await client.slashTokenWithVerdict({
     adjudicator,
+    identity: identity.address,
     tokenStake: tokenStake.address,
     disputeReceipt: tokenVerdictDisputeReceipt.address,
     mint: mint.address,

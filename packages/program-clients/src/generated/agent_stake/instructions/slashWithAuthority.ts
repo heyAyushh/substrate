@@ -12,6 +12,7 @@ import {
   fixEncoderSize,
   getBytesDecoder,
   getBytesEncoder,
+  getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
   getU64Decoder,
@@ -55,10 +56,13 @@ export function getSlashWithAuthorityDiscriminatorBytes() {
 export type SlashWithAuthorityInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountSlashAuthority extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountSlashMarker extends string | AccountMeta<string> = string,
   TAccountTreasuryVault extends string | AccountMeta<string> = string,
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -70,6 +74,9 @@ export type SlashWithAuthorityInstruction<
         ? WritableSignerAccount<TAccountSlashAuthority> &
             AccountSignerMeta<TAccountSlashAuthority>
         : TAccountSlashAuthority,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountStake extends string
         ? WritableAccount<TAccountStake>
         : TAccountStake,
@@ -82,6 +89,9 @@ export type SlashWithAuthorityInstruction<
       TAccountTreasuryVault extends string
         ? WritableAccount<TAccountTreasuryVault>
         : TAccountTreasuryVault,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -128,36 +138,46 @@ export function getSlashWithAuthorityInstructionDataCodec(): FixedSizeCodec<
 
 export type SlashWithAuthorityAsyncInput<
   TAccountSlashAuthority extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
   TAccountTreasuryVault extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  /** deserializes and validates the account during the CPI. */
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker?: Address<TAccountSlashMarker>;
-  treasuryVault: Address<TAccountTreasuryVault>;
+  /** resolver treasury PDA. The foreign program owns the account data. */
+  treasuryVault?: Address<TAccountTreasuryVault>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   amount: SlashWithAuthorityInstructionDataArgs["amount"];
 };
 
 export async function getSlashWithAuthorityInstructionAsync<
   TAccountSlashAuthority extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
   TAccountTreasuryVault extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashWithAuthorityAsyncInput<
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -165,10 +185,12 @@ export async function getSlashWithAuthorityInstructionAsync<
   SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -178,10 +200,15 @@ export async function getSlashWithAuthorityInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     slashAuthority: { value: input.slashAuthority ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
     treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -205,6 +232,21 @@ export async function getSlashWithAuthorityInstructionAsync<
       ),
     });
   }
+  if (!accounts.treasuryVault.value) {
+    accounts.treasuryVault.value = await getProgramDerivedAddress({
+      programAddress:
+        "uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF" as Address<"uJx2R2MHL7PEob6UPNz2DevGKpwd35fnKCrDQoavbtF">,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([116, 114, 101, 97, 115, 117, 114, 121]),
+        ),
+      ],
+    });
+  }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -214,10 +256,15 @@ export async function getSlashWithAuthorityInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
       getAccountMeta("treasuryVault", accounts.treasuryVault),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashWithAuthorityInstructionDataEncoder().encode(
@@ -227,56 +274,70 @@ export async function getSlashWithAuthorityInstructionAsync<
   } as SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
 
 export type SlashWithAuthorityInput<
   TAccountSlashAuthority extends string = string,
+  TAccountIdentity extends string = string,
   TAccountStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
   TAccountTreasuryVault extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  /** deserializes and validates the account during the CPI. */
+  identity: Address<TAccountIdentity>;
   stake: Address<TAccountStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker: Address<TAccountSlashMarker>;
+  /** resolver treasury PDA. The foreign program owns the account data. */
   treasuryVault: Address<TAccountTreasuryVault>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   amount: SlashWithAuthorityInstructionDataArgs["amount"];
 };
 
 export function getSlashWithAuthorityInstruction<
   TAccountSlashAuthority extends string,
+  TAccountIdentity extends string,
   TAccountStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
   TAccountTreasuryVault extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashWithAuthorityInput<
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): SlashWithAuthorityInstruction<
   TProgramAddress,
   TAccountSlashAuthority,
+  TAccountIdentity,
   TAccountStake,
   TAccountDisputeReceipt,
   TAccountSlashMarker,
   TAccountTreasuryVault,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -285,10 +346,15 @@ export function getSlashWithAuthorityInstruction<
   // Original accounts.
   const originalAccounts = {
     slashAuthority: { value: input.slashAuthority ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
     treasuryVault: { value: input.treasuryVault ?? null, isWritable: true },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -300,6 +366,10 @@ export function getSlashWithAuthorityInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -309,10 +379,15 @@ export function getSlashWithAuthorityInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("stake", accounts.stake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
       getAccountMeta("treasuryVault", accounts.treasuryVault),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashWithAuthorityInstructionDataEncoder().encode(
@@ -322,10 +397,12 @@ export function getSlashWithAuthorityInstruction<
   } as SlashWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
     TAccountTreasuryVault,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -337,11 +414,15 @@ export type ParsedSlashWithAuthorityInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     slashAuthority: TAccountMetas[0];
-    stake: TAccountMetas[1];
-    disputeReceipt: TAccountMetas[2];
-    slashMarker: TAccountMetas[3];
-    treasuryVault: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
+    /** deserializes and validates the account during the CPI. */
+    identity: TAccountMetas[1];
+    stake: TAccountMetas[2];
+    disputeReceipt: TAccountMetas[3];
+    slashMarker: TAccountMetas[4];
+    /** resolver treasury PDA. The foreign program owns the account data. */
+    treasuryVault: TAccountMetas[5];
+    identityRegistryProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
   };
   data: SlashWithAuthorityInstructionData;
 };
@@ -354,12 +435,12 @@ export function parseSlashWithAuthorityInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSlashWithAuthorityInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 8) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 8,
       },
     );
   }
@@ -373,10 +454,12 @@ export function parseSlashWithAuthorityInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       slashAuthority: getNextAccount(),
+      identity: getNextAccount(),
       stake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       slashMarker: getNextAccount(),
       treasuryVault: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getSlashWithAuthorityInstructionDataDecoder().decode(

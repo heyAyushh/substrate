@@ -52,11 +52,14 @@ export type FinalizeUnstakeTokenInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountOwner extends string | AccountMeta<string> = string,
   TAccountTokenStake extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountMint extends string | AccountMeta<string> = string,
   TAccountOwnerTokenAccount extends string | AccountMeta<string> = string,
   TAccountVault extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -69,6 +72,9 @@ export type FinalizeUnstakeTokenInstruction<
       TAccountTokenStake extends string
         ? WritableAccount<TAccountTokenStake>
         : TAccountTokenStake,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountMint extends string
         ? ReadonlyAccount<TAccountMint>
         : TAccountMint,
@@ -81,6 +87,9 @@ export type FinalizeUnstakeTokenInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -120,45 +129,56 @@ export function getFinalizeUnstakeTokenInstructionDataCodec(): FixedSizeCodec<
 export type FinalizeUnstakeTokenInput<
   TAccountOwner extends string = string,
   TAccountTokenStake extends string = string,
+  TAccountIdentity extends string = string,
   TAccountMint extends string = string,
   TAccountOwnerTokenAccount extends string = string,
   TAccountVault extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
 > = {
   owner: TransactionSigner<TAccountOwner>;
   tokenStake: Address<TAccountTokenStake>;
+  /** identity_registry deserializes and validates it during the CPI. */
+  identity: Address<TAccountIdentity>;
   mint: Address<TAccountMint>;
   ownerTokenAccount: Address<TAccountOwnerTokenAccount>;
   vault: Address<TAccountVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
 };
 
 export function getFinalizeUnstakeTokenInstruction<
   TAccountOwner extends string,
   TAccountTokenStake extends string,
+  TAccountIdentity extends string,
   TAccountMint extends string,
   TAccountOwnerTokenAccount extends string,
   TAccountVault extends string,
   TAccountTokenProgram extends string,
+  TAccountIdentityRegistryProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: FinalizeUnstakeTokenInput<
     TAccountOwner,
     TAccountTokenStake,
+    TAccountIdentity,
     TAccountMint,
     TAccountOwnerTokenAccount,
     TAccountVault,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountIdentityRegistryProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): FinalizeUnstakeTokenInstruction<
   TProgramAddress,
   TAccountOwner,
   TAccountTokenStake,
+  TAccountIdentity,
   TAccountMint,
   TAccountOwnerTokenAccount,
   TAccountVault,
-  TAccountTokenProgram
+  TAccountTokenProgram,
+  TAccountIdentityRegistryProgram
 > {
   // Program address.
   const programAddress = config?.programAddress ?? AGENT_STAKE_PROGRAM_ADDRESS;
@@ -167,6 +187,7 @@ export function getFinalizeUnstakeTokenInstruction<
   const originalAccounts = {
     owner: { value: input.owner ?? null, isWritable: true },
     tokenStake: { value: input.tokenStake ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     mint: { value: input.mint ?? null, isWritable: false },
     ownerTokenAccount: {
       value: input.ownerTokenAccount ?? null,
@@ -174,6 +195,10 @@ export function getFinalizeUnstakeTokenInstruction<
     },
     vault: { value: input.vault ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -185,16 +210,25 @@ export function getFinalizeUnstakeTokenInstruction<
     accounts.tokenProgram.value =
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, "programId");
   return Object.freeze({
     accounts: [
       getAccountMeta("owner", accounts.owner),
       getAccountMeta("tokenStake", accounts.tokenStake),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("mint", accounts.mint),
       getAccountMeta("ownerTokenAccount", accounts.ownerTokenAccount),
       getAccountMeta("vault", accounts.vault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
     ],
     data: getFinalizeUnstakeTokenInstructionDataEncoder().encode({}),
     programAddress,
@@ -202,10 +236,12 @@ export function getFinalizeUnstakeTokenInstruction<
     TProgramAddress,
     TAccountOwner,
     TAccountTokenStake,
+    TAccountIdentity,
     TAccountMint,
     TAccountOwnerTokenAccount,
     TAccountVault,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountIdentityRegistryProgram
   >);
 }
 
@@ -217,10 +253,13 @@ export type ParsedFinalizeUnstakeTokenInstruction<
   accounts: {
     owner: TAccountMetas[0];
     tokenStake: TAccountMetas[1];
-    mint: TAccountMetas[2];
-    ownerTokenAccount: TAccountMetas[3];
-    vault: TAccountMetas[4];
-    tokenProgram: TAccountMetas[5];
+    /** identity_registry deserializes and validates it during the CPI. */
+    identity: TAccountMetas[2];
+    mint: TAccountMetas[3];
+    ownerTokenAccount: TAccountMetas[4];
+    vault: TAccountMetas[5];
+    tokenProgram: TAccountMetas[6];
+    identityRegistryProgram: TAccountMetas[7];
   };
   data: FinalizeUnstakeTokenInstructionData;
 };
@@ -233,12 +272,12 @@ export function parseFinalizeUnstakeTokenInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedFinalizeUnstakeTokenInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 8) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 6,
+        expectedAccountMetas: 8,
       },
     );
   }
@@ -253,10 +292,12 @@ export function parseFinalizeUnstakeTokenInstruction<
     accounts: {
       owner: getNextAccount(),
       tokenStake: getNextAccount(),
+      identity: getNextAccount(),
       mint: getNextAccount(),
       ownerTokenAccount: getNextAccount(),
       vault: getNextAccount(),
       tokenProgram: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
     },
     data: getFinalizeUnstakeTokenInstructionDataDecoder().decode(
       instruction.data,

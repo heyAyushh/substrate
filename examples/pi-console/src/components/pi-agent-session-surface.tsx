@@ -166,7 +166,7 @@ export function PiAgentSessionSurface({
         : null,
       `Receipts landed: ${activeIdentity.receiptCount}`,
       activeIdentity.score !== null
-        ? `Leaderboard score: ${activeIdentity.score}`
+        ? `Program-backed reputation score: ${activeIdentity.score}`
         : null,
       activeIdentity.delegatedFromLabels.length > 0
         ? `Delegated from: ${activeIdentity.delegatedFromLabels.join(" | ")}`

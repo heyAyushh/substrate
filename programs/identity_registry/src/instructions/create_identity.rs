@@ -34,6 +34,7 @@ pub fn handler(
     identity.open_task_count = 0;
     identity.open_challenge_count = 0;
     identity.active_stake = false;
+    identity.active_stake_count = 0;
     identity.bump = ctx.bumps.identity;
 
     Ok(())

@@ -50,6 +50,7 @@ const formatStatus = (bootstrap: BootstrapResult): string => {
     `identityAddress: ${bootstrap.identityAddress}`,
     `taskAddress: ${bootstrap.taskAddress}`,
     `domainCatalog: ${bootstrap.domainCatalogAddress}`,
+    `reputationAddress: ${bootstrap.reputationAddress}`,
   ];
   return lines.join("\n");
 };

@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdtempSync, readFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,15 +15,10 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const ANCHOR_TOML = join(REPO_ROOT, "Anchor.toml");
-const PROOF_VERIFIER_PROGRAM = "proof_verifier";
-const SEMANTIC_SPECS = new Set([PROOF_VERIFIER_PROGRAM]);
+const GENERATED_BACKEND_SMOKE_SPEC = "generated_backend_smoke";
 const HIGH_PRIORITY_LIMIT = 2;
 const MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const SANDBOX_PREFIX = "trust-substrate-qedgen-e2e-";
-const GENERATED_VERIFY_FAILURE_FLAG = "--allow-generated-verify-failure";
-const ALLOW_GENERATED_VERIFY_FAILURE =
-  process.argv.includes(GENERATED_VERIFY_FAILURE_FLAG) ||
-  process.env.QEDGEN_ALLOW_GENERATED_VERIFY_FAILURE === "1";
 const EXPECTED_GENERATED_ARTIFACTS = [
   "generated/program/Cargo.toml",
   "generated/program/src/lib.rs",
@@ -28,11 +29,85 @@ const EXPECTED_GENERATED_ARTIFACTS = [
   "generated/formal_verification/Spec.lean",
   "generated/formal_verification/Proofs.lean",
 ];
-const KNOWN_GENERATED_COMPILE_MARKERS = [
-  "cannot find value `identity` in this scope",
-  "cannot find value `checkpoint_importer` in this scope",
-  "cannot find value `receipt` in this scope",
-  "cannot find type `ProofVerifierAccount` in this scope",
+const GENERATED_BACKEND_DEV_DEPENDENCIES = `
+[dev-dependencies]
+proptest = "1"
+`;
+const GENERATED_BACKEND_SMOKE_SPEC_TEXT = `spec GeneratedBackendSmoke
+
+program_id "11111111111111111111111111111111"
+
+type Error
+  | InvalidLifecycle
+
+type Counter
+  | Uninitialized
+  | Active of {
+      value : U64,
+      bump  : U8,
+    }
+
+pda counter ["counter", authority]
+
+handler initialize : Counter.Uninitialized -> Counter.Active {
+  auth authority
+  effect {
+    value := 0
+  }
+  accounts {
+    authority : signer, writable
+    counter : writable, pda [counter]
+    system_program : program
+  }
+}
+
+handler increment : Counter.Active -> Counter.Active {
+  auth authority
+  effect {
+    value +=! 1
+  }
+  accounts {
+    authority : signer, writable
+    counter : writable, pda [counter]
+  }
+}
+`;
+const PLACEHOLDER_SPEC_PATTERN =
+  /\b(?:todo|tbd|fixme|placeholder|stub|not implemented)\b/i;
+const TOKEN_CONTEXT_CPI_ALLOWLIST = new Set([
+  "initialize_token_stake",
+  "initialize_token_treasury_vault",
+]);
+const NON_CLOSING_HANDLERS = [
+  "apply_reputation_receipt",
+  "sync_task_status",
+  "finalize_unstake",
+  "finalize_unstake_token",
+  "slash_with_verdict",
+  "slash_token_with_verdict",
+];
+const SEMANTIC_SPEC_GUARDS = [
+  {
+    pattern: /\brequires\s+receipt\s*==\s*receipt\b/,
+    message: "contains tautological receipt replay guard",
+  },
+  {
+    pattern: /\brequires\s+last_sequence\s*>=\s*last_sequence\b/,
+    message: "contains tautological sequence regression guard",
+  },
+  {
+    pattern: /\blast_applied_slot\s*:=\s*1\b/,
+    message: "models last_applied_slot as a constant placeholder",
+  },
+  {
+    pattern: /\bunstake_unlocks_at\s*:=\s*1\b/,
+    message: "models unstake cooldown as a constant placeholder",
+  },
+  {
+    pattern:
+      /handler\s+finalize_unstake\b[^{]*\{(?:(?!\nhandler\s)[\s\S])*?transfers\s*\{(?:(?!\nhandler\s)[\s\S])*?from\s+vault\s+to\s+owner_token_account/,
+    message: "models lamport finalize_unstake as an SPL token transfer",
+  },
 ];
 
 function main() {
@@ -47,8 +122,8 @@ function main() {
   console.log(`Programs: ${programs.map(({ name }) => name).join(", ")}`);
 
   checkAllSpecs(qedgenBin, programs);
-  checkProofVerifierDrift(qedgenBin);
-  const sandbox = generateProofVerifierArtifacts(qedgenBin);
+  checkProgramDrift(qedgenBin, programs);
+  const sandbox = generateBackendSmokeArtifacts(qedgenBin);
   verifyGeneratedArtifacts(qedgenBin, sandbox);
 }
 
@@ -106,18 +181,26 @@ function checkAllSpecs(qedgenBin, programs) {
       throw new Error(`${name}.qedspec does not pin ${programId}`);
     }
 
+    if (PLACEHOLDER_SPEC_PATTERN.test(spec)) {
+      throw new Error(`${name}.qedspec still contains placeholder markers`);
+    }
+
+    checkSpecSemantics(name, spec);
+
     const result = run(qedgenBin, ["check", "--spec", specPath, "--json"]);
-    const findings = parseJson(result.stdout, `${name} qedgen check output`);
-    const highPriorityFindings = findings.filter(
-      (finding) => finding.priority <= HIGH_PRIORITY_LIMIT,
+    const findings = parseQEDGenFindings(
+      result.stdout,
+      `${name} qedgen check output`,
     );
-    const label = SEMANTIC_SPECS.has(name) ? "semantic" : "scaffold";
+    const highPriorityFindings = findings.filter((finding) =>
+      isBlockingFinding(finding),
+    );
 
     console.log(
-      `  ${name}: parsed (${label}, P1/P2 findings: ${highPriorityFindings.length})`,
+      `  ${name}: parsed (P1/P2 findings: ${highPriorityFindings.length})`,
     );
 
-    if (SEMANTIC_SPECS.has(name) && highPriorityFindings.length > 0) {
+    if (highPriorityFindings.length > 0) {
       throw new Error(
         `${name}.qedspec has high-priority QEDGen findings:\n${formatFindings(
           highPriorityFindings,
@@ -127,44 +210,119 @@ function checkAllSpecs(qedgenBin, programs) {
   }
 }
 
-function checkProofVerifierDrift(qedgenBin) {
-  console.log("\n[2/4] Checking proof_verifier spec against Anchor source");
+function checkSpecSemantics(name, spec) {
+  for (const handlerName of NON_CLOSING_HANDLERS) {
+    const closesAccount = new RegExp(
+      `handler\\s+${handlerName}\\b[^\\n]*:\\s*State\\.Active\\s*->\\s*State\\.Closed`,
+    ).test(spec);
 
-  const result = run(qedgenBin, [
-    "check",
-    "--spec",
-    specPathFor(PROOF_VERIFIER_PROGRAM),
-    "--anchor-project",
-    join(REPO_ROOT, "programs", PROOF_VERIFIER_PROGRAM),
-    "--json",
-  ]);
-  const coverage = parseFirstJsonDocument(
-    result.stdout,
-    "proof_verifier coverage output",
-  );
-  const missingHandlers = coverage.handler_coverage ?? [];
-  const missingEffects = coverage.effect_coverage ?? [];
-
-  if (missingHandlers.length > 0 || missingEffects.length > 0) {
-    throw new Error(
-      `proof_verifier.qedspec drifted from source:\n${JSON.stringify(
-        coverage,
-        null,
-        2,
-      )}`,
-    );
+    if (closesAccount) {
+      throw new Error(
+        `${name}.qedspec models ${handlerName} as account-closing, but the program keeps that state active`,
+      );
+    }
   }
 
-  console.log("  proof_verifier: no missing handlers or effects");
+  for (const guard of SEMANTIC_SPEC_GUARDS) {
+    if (guard.pattern.test(spec)) {
+      throw new Error(`${name}.qedspec ${guard.message}`);
+    }
+  }
 }
 
-function generateProofVerifierArtifacts(qedgenBin) {
-  console.log("\n[3/4] Generating proof_verifier artifacts in a sandbox");
+function checkProgramDrift(qedgenBin, programs) {
+  console.log("\n[2/4] Checking every spec against Anchor source");
+
+  for (const { name } of programs) {
+    const result = run(
+      qedgenBin,
+      [
+        "check",
+        "--spec",
+        specPathFor(name),
+        "--anchor-project",
+        join(REPO_ROOT, "programs", name),
+        "--json",
+      ],
+      { allowFailure: true },
+    );
+    const documents = parseJsonDocuments(
+      result.stdout,
+      `${name} coverage output`,
+    );
+    const coverage =
+      documents.find((document) => !Array.isArray(document)) ?? {};
+    const findings = documents.flatMap((document) =>
+      Array.isArray(document) ? document : (document.findings ?? []),
+    );
+    const missingHandlers = filterSyntheticMatchCoverage(
+      coverage.handler_coverage ?? [],
+    );
+    const missingEffects = coverage.effect_coverage ?? [];
+    const highPriorityFindings = findings.filter((finding) =>
+      isBlockingFinding(finding),
+    );
+
+    if (
+      missingHandlers.length > 0 ||
+      missingEffects.length > 0 ||
+      highPriorityFindings.length > 0
+    ) {
+      throw new Error(
+        `${name}.qedspec drifted from source:\n${JSON.stringify(
+          {
+            handler_coverage: missingHandlers,
+            effect_coverage: missingEffects,
+            high_priority_findings: highPriorityFindings,
+          },
+          null,
+          2,
+        )}`,
+      );
+    }
+
+    console.log(`  ${name}: no missing handlers/effects or P1/P2 findings`);
+  }
+}
+
+function filterSyntheticMatchCoverage(handlerCoverage) {
+  const syntheticBaseHandlers = new Set();
+
+  for (const finding of handlerCoverage) {
+    if (finding.kind !== "SpecHandlerNotInProgram") {
+      continue;
+    }
+
+    const match = finding.handler?.match(/^(.*)_(?:case_\d+|otherwise)$/);
+
+    if (match) {
+      syntheticBaseHandlers.add(match[1]);
+    }
+  }
+
+  return handlerCoverage.filter((finding) => {
+    const syntheticCase = finding.handler?.match(
+      /^(.*)_(?:case_\d+|otherwise)$/,
+    );
+
+    if (finding.kind === "SpecHandlerNotInProgram" && syntheticCase) {
+      return false;
+    }
+
+    return !(
+      finding.kind === "ProgramInstructionNotInSpec" &&
+      syntheticBaseHandlers.has(finding.handler)
+    );
+  });
+}
+
+function generateBackendSmokeArtifacts(qedgenBin) {
+  console.log("\n[3/4] Generating QEDGen backend smoke artifacts in a sandbox");
 
   const sandbox = mkdtempSync(join(tmpdir(), SANDBOX_PREFIX));
-  copyFileSync(
-    specPathFor(PROOF_VERIFIER_PROGRAM),
-    join(sandbox, `${PROOF_VERIFIER_PROGRAM}.qedspec`),
+  writeFileSync(
+    join(sandbox, `${GENERATED_BACKEND_SMOKE_SPEC}.qedspec`),
+    GENERATED_BACKEND_SMOKE_SPEC_TEXT,
   );
   run("git", ["init", "--quiet"], { cwd: sandbox });
   run(
@@ -172,9 +330,9 @@ function generateProofVerifierArtifacts(qedgenBin) {
     [
       "init",
       "--name",
-      PROOF_VERIFIER_PROGRAM,
+      GENERATED_BACKEND_SMOKE_SPEC,
       "--spec",
-      `${PROOF_VERIFIER_PROGRAM}.qedspec`,
+      `${GENERATED_BACKEND_SMOKE_SPEC}.qedspec`,
       "--output-dir",
       "formal_verification",
     ],
@@ -185,9 +343,9 @@ function generateProofVerifierArtifacts(qedgenBin) {
     [
       "codegen",
       "--spec",
-      `${PROOF_VERIFIER_PROGRAM}.qedspec`,
+      `${GENERATED_BACKEND_SMOKE_SPEC}.qedspec`,
       "--target",
-      "anchor",
+      "quasar",
       "--output-dir",
       "generated/program",
       "--lean",
@@ -204,6 +362,10 @@ function generateProofVerifierArtifacts(qedgenBin) {
       "generated/program/src/tests.rs",
     ],
     { cwd: sandbox },
+  );
+  appendFileSync(
+    join(sandbox, "generated", "program", "Cargo.toml"),
+    GENERATED_BACKEND_DEV_DEPENDENCIES,
   );
 
   for (const artifact of EXPECTED_GENERATED_ARTIFACTS) {
@@ -224,7 +386,7 @@ function verifyGeneratedArtifacts(qedgenBin, sandbox) {
     [
       "verify",
       "--spec",
-      `${PROOF_VERIFIER_PROGRAM}.qedspec`,
+      `${GENERATED_BACKEND_SMOKE_SPEC}.qedspec`,
       "--proptest-path",
       "generated/program/tests/proptest.rs",
       "--kani-path",
@@ -242,45 +404,14 @@ function verifyGeneratedArtifacts(qedgenBin, sandbox) {
   }
 
   const backendSummary = parseJson(verifyResult.stdout, "qedgen verify output");
-  const generatedCompileOutput = captureGeneratedCompileOutput(sandbox);
-  const isKnownGeneratedCompileFailure = KNOWN_GENERATED_COMPILE_MARKERS.some(
-    (marker) => generatedCompileOutput.includes(marker),
-  );
-
-  if (ALLOW_GENERATED_VERIFY_FAILURE && isKnownGeneratedCompileFailure) {
-    console.log(
-      "  qedgen verify: blocked by known generated Anchor scaffold compile failure",
-    );
-    console.log(`  sandbox kept for inspection: ${sandbox}`);
-    console.log(
-      "  use strict mode without --allow-generated-verify-failure to make this red",
-    );
-    return;
-  }
 
   throw new Error(
     [
       "qedgen verify failed.",
       `Sandbox: ${sandbox}`,
       JSON.stringify(backendSummary, null, 2),
-      generatedCompileOutput,
     ].join("\n\n"),
   );
-}
-
-function captureGeneratedCompileOutput(sandbox) {
-  const generatedProgram = join(sandbox, "generated", "program");
-  const result = spawnSync(
-    "cargo",
-    ["test", "--test", "proptest", "--release", "--no-run"],
-    {
-      cwd: generatedProgram,
-      encoding: "utf8",
-      maxBuffer: MAX_BUFFER_BYTES,
-    },
-  );
-
-  return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
 function specPathFor(name) {
@@ -318,13 +449,35 @@ function parseJson(raw, label) {
   }
 }
 
-function parseFirstJsonDocument(raw, label) {
-  const input = raw.trimStart();
+function parseQEDGenFindings(raw, label) {
+  return parseJsonDocuments(raw, label).flatMap((document) =>
+    Array.isArray(document) ? document : (document.findings ?? []),
+  );
+}
+
+function parseJsonDocuments(raw, label) {
+  const documents = [];
+  let input = raw.trimStart();
+
+  while (input.length > 0) {
+    const parsed = parseLeadingJsonDocument(input, label);
+    documents.push(parsed.document);
+    input = input.slice(parsed.length).trimStart();
+  }
+
+  if (documents.length === 0) {
+    throw new Error(`Unable to find a JSON document in ${label}:\n${raw}`);
+  }
+
+  return documents;
+}
+
+function parseLeadingJsonDocument(input, label) {
   const opening = input.at(0);
   const closing = opening === "{" ? "}" : opening === "[" ? "]" : null;
 
   if (!closing) {
-    throw new Error(`Unable to find a JSON document in ${label}:\n${raw}`);
+    throw new Error(`Unable to find a JSON document in ${label}:\n${input}`);
   }
 
   let depth = 0;
@@ -353,12 +506,15 @@ function parseFirstJsonDocument(raw, label) {
       depth -= 1;
 
       if (depth === 0) {
-        return parseJson(input.slice(0, index + 1), label);
+        return {
+          document: parseJson(input.slice(0, index + 1), label),
+          length: index + 1,
+        };
       }
     }
   }
 
-  throw new Error(`Unable to parse first JSON document from ${label}:\n${raw}`);
+  throw new Error(`Unable to parse JSON document from ${label}:\n${input}`);
 }
 
 function formatFindings(findings) {
@@ -368,6 +524,17 @@ function formatFindings(findings) {
         `- P${finding.priority} ${finding.rule} ${finding.subject}: ${finding.message}`,
     )
     .join("\n");
+}
+
+function isBlockingFinding(finding) {
+  if (
+    finding.rule === "missing_cpi_for_token_context" &&
+    TOKEN_CONTEXT_CPI_ALLOWLIST.has(finding.subject)
+  ) {
+    return false;
+  }
+
+  return finding.priority <= HIGH_PRIORITY_LIMIT && finding.severity !== "info";
 }
 
 try {

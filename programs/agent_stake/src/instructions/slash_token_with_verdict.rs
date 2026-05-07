@@ -1,13 +1,17 @@
-use crate::instructions::slash_token_with_authority::apply_token_slash;
+use crate::instructions::{
+    identity_stake_activity::sync_token_stake_activity,
+    slash_token_with_authority::transfer_token_slash,
+};
 use crate::state::{SlashMarker, TokenStakeAccount};
 use crate::TokenStakeSlashedWithVerdict;
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 use dispute_resolver::state::DisputeVerdict;
 use receipt_emitter::state::ReceiptRecord;
 use trust_substrate_core::{
     TrustSubstrateError, AGENT_LOST_OUTCOME, DISPUTE_KIND, SLASH_MARKER_SEED, TOKEN_STAKE_SEED,
-    TOKEN_TREASURY_VAULT_SEED, TRUST_MODE_VERDICT, VERDICT_CLASS_SAFETY, VERDICT_SEED,
+    TOKEN_TREASURY_VAULT_SEED, TREASURY_VAULT_SEED, TRUST_MODE_VERDICT, VERDICT_CLASS_SAFETY,
+    VERDICT_SEED,
 };
 
 pub fn handler(ctx: Context<SlashTokenWithVerdict>) -> Result<()> {
@@ -69,14 +73,45 @@ pub fn handler(ctx: Context<SlashTokenWithVerdict>) -> Result<()> {
         TrustSubstrateError::StakeInsufficient
     );
 
-    apply_token_slash(
-        &mut ctx.accounts.token_stake,
+    let was_active = ctx.accounts.token_stake.amount > 0;
+    ctx.accounts.token_stake.amount = ctx
+        .accounts
+        .token_stake
+        .amount
+        .checked_sub(amount)
+        .ok_or(TrustSubstrateError::StakeInsufficient)?;
+    ctx.accounts.token_stake.slashed_total = ctx
+        .accounts
+        .token_stake
+        .slashed_total
+        .checked_add(amount)
+        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+    if ctx.accounts.token_stake.pending_unstake_amount > ctx.accounts.token_stake.amount {
+        ctx.accounts.token_stake.pending_unstake_amount = ctx.accounts.token_stake.amount;
+    }
+    if ctx.accounts.token_stake.pending_unstake_amount == 0 {
+        ctx.accounts.token_stake.unstake_unlocks_at = 0;
+    }
+    transfer_token_slash(
+        &ctx.accounts.token_stake,
         &ctx.accounts.vault,
         &ctx.accounts.treasury_token_vault,
         &ctx.accounts.mint,
         &ctx.accounts.token_program,
         amount,
     )?;
+    if was_active && ctx.accounts.token_stake.amount == 0 {
+        sync_token_stake_activity(
+            ctx.accounts.identity_registry_program.key(),
+            ctx.accounts.token_stake.to_account_info(),
+            ctx.accounts.identity.to_account_info(),
+            ctx.accounts.token_stake.identity,
+            ctx.accounts.token_stake.scope,
+            ctx.accounts.token_stake.mint,
+            ctx.accounts.token_stake.bump,
+            false,
+        )?;
+    }
 
     let marker = &mut ctx.accounts.slash_marker;
     marker.stake = ctx.accounts.token_stake.key();
@@ -104,6 +139,10 @@ pub fn handler(ctx: Context<SlashTokenWithVerdict>) -> Result<()> {
 pub struct SlashTokenWithVerdict<'info> {
     #[account(mut)]
     pub adjudicator: Signer<'info>,
+    #[account(mut, address = token_stake.identity @ TrustSubstrateError::StakeIdentityMismatch)]
+    /// CHECK: The address is pinned to the token stake identity;
+    /// identity_registry deserializes and validates it during the CPI.
+    pub identity: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [
@@ -114,14 +153,14 @@ pub struct SlashTokenWithVerdict<'info> {
         ],
         bump = token_stake.bump
     )]
-    pub token_stake: Account<'info, TokenStakeAccount>,
-    pub dispute_receipt: Account<'info, ReceiptRecord>,
+    pub token_stake: Box<Account<'info, TokenStakeAccount>>,
+    pub dispute_receipt: Box<Account<'info, ReceiptRecord>>,
     #[account(
         seeds = [VERDICT_SEED, dispute_receipt.key().as_ref()],
         bump = verdict.bump,
         seeds::program = dispute_resolver::ID
     )]
-    pub verdict: Account<'info, DisputeVerdict>,
+    pub verdict: Box<Account<'info, DisputeVerdict>>,
     #[account(
         init,
         payer = adjudicator,
@@ -133,25 +172,33 @@ pub struct SlashTokenWithVerdict<'info> {
         ],
         bump
     )]
-    pub slash_marker: Account<'info, SlashMarker>,
+    pub slash_marker: Box<Account<'info, SlashMarker>>,
     #[account(address = token_stake.mint @ TrustSubstrateError::StakeTokenMintMismatch)]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
-        address = token_stake.vault @ TrustSubstrateError::StakeTokenVaultMismatch
+        address = token_stake.vault @ TrustSubstrateError::StakeTokenVaultMismatch,
+        token::mint = mint,
+        token::authority = token_stake,
+        token::token_program = token_program
     )]
-    /// CHECK: The address is pinned to the vault recorded on the stake account,
-    /// and the SPL Token program validates it as a token account during transfer.
-    pub vault: UncheckedAccount<'info>,
+    pub vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         seeds = [TOKEN_TREASURY_VAULT_SEED, mint.key().as_ref()],
-        bump
+        bump,
+        token::mint = mint,
+        token::token_program = token_program,
+        constraint = treasury_token_vault.owner == token_treasury_authority_pda()
+            @ TrustSubstrateError::StakeTokenTreasuryVaultMismatch
     )]
-    /// CHECK: The address is the program-derived token treasury vault for this
-    /// mint; the SPL Token program validates the account and mint on receipt.
-    pub treasury_token_vault: UncheckedAccount<'info>,
+    pub treasury_token_vault: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(address = token_stake.token_program @ TrustSubstrateError::StakeTokenProgramMismatch)]
     pub token_program: Interface<'info, TokenInterface>,
+    pub identity_registry_program: Program<'info, identity_registry::program::IdentityRegistry>,
     pub system_program: Program<'info, System>,
+}
+
+fn token_treasury_authority_pda() -> Pubkey {
+    Pubkey::find_program_address(&[TREASURY_VAULT_SEED], &dispute_resolver::ID).0
 }

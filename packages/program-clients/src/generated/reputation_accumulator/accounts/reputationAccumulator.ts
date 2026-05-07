@@ -56,6 +56,14 @@ export type ReputationAccumulator = {
   completed: bigint;
   disputed: bigint;
   resolved: bigint;
+  attested: bigint;
+  weightedCompleted: bigint;
+  weightedDisputed: bigint;
+  weightedResolved: bigint;
+  weightedAttested: bigint;
+  reviewerWeightSum: bigint;
+  slashPenaltySum: bigint;
+  lastAppliedSlot: bigint;
   completionWeight: bigint;
   disputeWeight: bigint;
   disputeResolvedWeight: bigint;
@@ -68,6 +76,14 @@ export type ReputationAccumulatorArgs = {
   completed: number | bigint;
   disputed: number | bigint;
   resolved: number | bigint;
+  attested: number | bigint;
+  weightedCompleted: number | bigint;
+  weightedDisputed: number | bigint;
+  weightedResolved: number | bigint;
+  weightedAttested: number | bigint;
+  reviewerWeightSum: number | bigint;
+  slashPenaltySum: number | bigint;
+  lastAppliedSlot: number | bigint;
   completionWeight: number | bigint;
   disputeWeight: number | bigint;
   disputeResolvedWeight: number | bigint;
@@ -84,6 +100,14 @@ export function getReputationAccumulatorEncoder(): FixedSizeEncoder<ReputationAc
       ["completed", getU64Encoder()],
       ["disputed", getU64Encoder()],
       ["resolved", getU64Encoder()],
+      ["attested", getU64Encoder()],
+      ["weightedCompleted", getU64Encoder()],
+      ["weightedDisputed", getU64Encoder()],
+      ["weightedResolved", getU64Encoder()],
+      ["weightedAttested", getU64Encoder()],
+      ["reviewerWeightSum", getU64Encoder()],
+      ["slashPenaltySum", getU64Encoder()],
+      ["lastAppliedSlot", getU64Encoder()],
       ["completionWeight", getU64Encoder()],
       ["disputeWeight", getU64Encoder()],
       ["disputeResolvedWeight", getU64Encoder()],
@@ -105,6 +129,14 @@ export function getReputationAccumulatorDecoder(): FixedSizeDecoder<ReputationAc
     ["completed", getU64Decoder()],
     ["disputed", getU64Decoder()],
     ["resolved", getU64Decoder()],
+    ["attested", getU64Decoder()],
+    ["weightedCompleted", getU64Decoder()],
+    ["weightedDisputed", getU64Decoder()],
+    ["weightedResolved", getU64Decoder()],
+    ["weightedAttested", getU64Decoder()],
+    ["reviewerWeightSum", getU64Decoder()],
+    ["slashPenaltySum", getU64Decoder()],
+    ["lastAppliedSlot", getU64Decoder()],
     ["completionWeight", getU64Decoder()],
     ["disputeWeight", getU64Decoder()],
     ["disputeResolvedWeight", getU64Decoder()],
@@ -193,5 +225,5 @@ export async function fetchAllMaybeReputationAccumulator(
 }
 
 export function getReputationAccumulatorSize(): number {
-  return 121;
+  return 185;
 }

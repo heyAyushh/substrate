@@ -116,6 +116,14 @@ impl Harness {
         self.reviewer.pubkey()
     }
 
+    fn authority_for_identity(&self, identity: &IdentityFixture) -> Rc<Keypair> {
+        if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id) {
+            self.reviewer.clone()
+        } else {
+            self.payer.clone()
+        }
+    }
+
     pub fn send_raw(
         &mut self,
         instruction: anchor_lang::solana_program::instruction::Instruction,
@@ -330,26 +338,14 @@ impl Harness {
     }
 
     pub fn deposit_identity_bond(&mut self, identity: &IdentityFixture) -> TestResult {
-        let use_reviewer =
-            identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id);
-        let authority = if use_reviewer {
-            self.reviewer.clone()
-        } else {
-            self.payer.clone()
-        };
+        let authority = self.authority_for_identity(identity);
         let ix = self.ix_deposit_identity_bond(identity.address, authority.pubkey());
         self.send(ix, &[authority.as_ref()])?;
         Ok(())
     }
 
     pub fn withdraw_identity_bond(&mut self, identity: &IdentityFixture) -> TestResult {
-        let use_reviewer =
-            identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id);
-        let authority = if use_reviewer {
-            self.reviewer.clone()
-        } else {
-            self.payer.clone()
-        };
+        let authority = self.authority_for_identity(identity);
         let ix = self.ix_withdraw_identity_bond(identity.address, authority.pubkey());
         self.send(ix, &[authority.as_ref()])?;
         Ok(())
@@ -766,6 +762,29 @@ impl Harness {
         Ok(())
     }
 
+    pub fn apply_reputation_receipt_with_evidence(
+        &mut self,
+        identity: &IdentityFixture,
+        receipt: Pubkey,
+        reputation: Pubkey,
+        authority: Pubkey,
+        evidence_accounts: &[Pubkey],
+    ) -> TestResult {
+        let ix = self.ix_apply_reputation_receipt_with_evidence(
+            identity,
+            receipt,
+            reputation,
+            authority,
+            evidence_accounts,
+        );
+        if authority == self.reviewer.pubkey() {
+            self.send_as_reviewer(ix)?;
+        } else {
+            self.send_as_payer(ix)?;
+        }
+        Ok(())
+    }
+
     pub fn sync_task_status(
         &mut self,
         identity: &IdentityFixture,
@@ -796,12 +815,7 @@ impl Harness {
         self_declared_tier: u8,
     ) -> TestResult<Pubkey> {
         let attester = attester_record_pda(identity.address);
-        let authority =
-            if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id) {
-                self.reviewer.clone()
-            } else {
-                self.payer.clone()
-            };
+        let authority = self.authority_for_identity(identity);
         let ix = self.ix_register_attester(
             identity.address,
             authority.pubkey(),
@@ -818,6 +832,17 @@ impl Harness {
         Ok(())
     }
 
+    pub fn register_bonded_attester(
+        &mut self,
+        identity: &IdentityFixture,
+        effective_tier: u8,
+    ) -> TestResult<Pubkey> {
+        self.deposit_identity_bond(identity)?;
+        let attester = self.register_attester(identity, "review".to_string(), effective_tier)?;
+        self.set_attester_tier(attester, effective_tier)?;
+        Ok(attester)
+    }
+
     pub fn append_runtime_attestation(
         &mut self,
         identity: &IdentityFixture,
@@ -825,12 +850,7 @@ impl Harness {
         runtime_authority: Pubkey,
     ) -> TestResult<Pubkey> {
         let runtime_attestation = runtime_attestation_pda(identity.address, runtime_commit);
-        let authority =
-            if identity.address == identity_pda(self.reviewer.pubkey(), identity.agent_id) {
-                self.reviewer.clone()
-            } else {
-                self.payer.clone()
-            };
+        let authority = self.authority_for_identity(identity);
         let ix = self.ix_append_runtime_attestation(
             identity.address,
             authority.pubkey(),
@@ -872,9 +892,25 @@ impl Harness {
         slash_authority: Pubkey,
         trust_mode: u8,
     ) -> TestResult<Pubkey> {
+        self.initialize_stake_for_identity(identity, slash_authority, trust_mode)
+    }
+
+    pub fn initialize_stake_for_identity(
+        &mut self,
+        identity: &IdentityFixture,
+        slash_authority: Pubkey,
+        trust_mode: u8,
+    ) -> TestResult<Pubkey> {
         let stake = stake_pda(identity.address);
-        let ix = self.ix_initialize_stake(identity.address, stake, slash_authority, trust_mode);
-        self.send_as_payer(ix)?;
+        let authority = self.authority_for_identity(identity);
+        let ix = self.ix_initialize_stake(
+            identity.address,
+            authority.pubkey(),
+            stake,
+            slash_authority,
+            trust_mode,
+        );
+        self.send(ix, &[authority.as_ref()])?;
         Ok(stake)
     }
 
@@ -891,6 +927,18 @@ impl Harness {
     pub fn stake(&mut self, stake: Pubkey, amount: u64) -> TestResult {
         let ix = self.ix_stake(stake, amount);
         self.send_as_payer(ix)?;
+        Ok(())
+    }
+
+    pub fn stake_for_identity(
+        &mut self,
+        identity: &IdentityFixture,
+        stake: Pubkey,
+        amount: u64,
+    ) -> TestResult {
+        let authority = self.authority_for_identity(identity);
+        let ix = self.ix_stake_with_owner(stake, authority.pubkey(), amount);
+        self.send(ix, &[authority.as_ref()])?;
         Ok(())
     }
 
@@ -1293,13 +1341,30 @@ impl Harness {
         identity: &IdentityFixture,
         domain: [u8; 32],
     ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_create_reputation_domain_with_weights(
+            identity,
+            domain,
+            COMPLETION_WEIGHT,
+            DISPUTE_WEIGHT,
+            DISPUTE_RESOLVED_WEIGHT,
+        )
+    }
+
+    pub fn ix_create_reputation_domain_with_weights(
+        &self,
+        identity: &IdentityFixture,
+        domain: [u8; 32],
+        completion_weight: u64,
+        dispute_weight: u64,
+        dispute_resolved_weight: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             reputation_accumulator::ID,
             reputation_accumulator::instruction::CreateReputationDomain {
                 domain,
-                completion_weight: COMPLETION_WEIGHT,
-                dispute_weight: DISPUTE_WEIGHT,
-                dispute_resolved_weight: DISPUTE_RESOLVED_WEIGHT,
+                completion_weight,
+                dispute_weight,
+                dispute_resolved_weight,
             }
             .data(),
             reputation_accumulator::accounts::CreateReputationDomain {
@@ -1367,6 +1432,24 @@ impl Harness {
         instruction
     }
 
+    pub fn ix_apply_reputation_receipt_with_evidence(
+        &self,
+        identity: &IdentityFixture,
+        receipt: Pubkey,
+        reputation: Pubkey,
+        authority: Pubkey,
+        evidence_accounts: &[Pubkey],
+    ) -> anchor_lang::solana_program::instruction::Instruction {
+        let mut instruction = self
+            .ix_apply_reputation_receipt_with_authority(identity, receipt, reputation, authority);
+        instruction.accounts.extend(
+            evidence_accounts
+                .iter()
+                .map(|account| AccountMeta::new_readonly(*account, false)),
+        );
+        instruction
+    }
+
     pub fn ix_sync_task_status(
         &self,
         identity: &IdentityFixture,
@@ -1393,11 +1476,20 @@ impl Harness {
         stake: Pubkey,
         amount: u64,
     ) -> anchor_lang::solana_program::instruction::Instruction {
+        self.ix_stake_with_owner(stake, self.payer.pubkey(), amount)
+    }
+
+    pub fn ix_stake_with_owner(
+        &self,
+        stake: Pubkey,
+        owner: Pubkey,
+        amount: u64,
+    ) -> anchor_lang::solana_program::instruction::Instruction {
         instruction(
             agent_stake::ID,
             agent_stake::instruction::Stake { amount }.data(),
             agent_stake::accounts::Stake {
-                owner: self.payer.pubkey(),
+                owner,
                 identity: stake_identity(stake, &self.svm),
                 stake,
                 identity_registry_program: identity_registry::ID,
@@ -1469,10 +1561,12 @@ impl Harness {
             agent_stake::instruction::SlashWithAuthority { amount }.data(),
             agent_stake::accounts::SlashWithAuthority {
                 slash_authority,
+                identity: stake_identity(stake, &self.svm),
                 stake,
                 dispute_receipt,
                 slash_marker,
                 treasury_vault,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -1511,11 +1605,13 @@ impl Harness {
             agent_stake::instruction::SlashWithVerdict {}.data(),
             agent_stake::accounts::SlashWithVerdict {
                 adjudicator,
+                identity: stake_identity(stake, &self.svm),
                 stake,
                 dispute_receipt,
                 verdict,
                 treasury_vault,
                 slash_marker,
+                identity_registry_program: identity_registry::ID,
                 system_program: system_program::ID,
             },
         )
@@ -2124,6 +2220,7 @@ impl Harness {
     fn ix_initialize_stake(
         &self,
         identity: Pubkey,
+        owner: Pubkey,
         stake: Pubkey,
         slash_authority: Pubkey,
         trust_mode: u8,
@@ -2136,7 +2233,7 @@ impl Harness {
             }
             .data(),
             agent_stake::accounts::InitializeStake {
-                owner: self.payer.pubkey(),
+                owner,
                 identity,
                 stake,
                 system_program: system_program::ID,

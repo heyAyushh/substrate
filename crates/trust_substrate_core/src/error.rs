@@ -134,6 +134,8 @@ pub enum TrustSubstrateError {
     StakeCooldownNotElapsed,
     #[msg("The dispute receipt does not belong to this stake identity")]
     StakeReceiptIdentityMismatch,
+    #[msg("The supplied identity account does not match this stake account")]
+    StakeIdentityMismatch,
     #[msg("Slashing requires a dispute_resolved receipt")]
     StakeReceiptKindMismatch,
     #[msg("This dispute receipt has already been used for slashing")]
@@ -146,6 +148,8 @@ pub enum TrustSubstrateError {
     StakeTokenProgramMismatch,
     #[msg("The token treasury vault does not match the supplied mint")]
     StakeTokenTreasuryVaultMismatch,
+    #[msg("Token stake transfers must settle the exact requested amount")]
+    StakeTokenTransferAmountMismatch,
     #[msg("The supplied verdict outcome is not part of the protocol vocabulary")]
     InvalidVerdictOutcome,
     #[msg("The supplied verdict class is not part of the protocol vocabulary")]
@@ -188,10 +192,30 @@ pub enum TrustSubstrateError {
     ReputationVerdictMismatch,
     #[msg("Only AGENT_LOST verdicts can degrade reputation")]
     ReputationVerdictOutcomeNotNegative,
+    #[msg("The supplied reputation evidence account is not valid for this receipt")]
+    ReputationEvidenceMismatch,
+    #[msg("Reputation-affecting audit receipts require reviewer evidence")]
+    ReputationReviewerEvidenceMissing,
+    #[msg("The supplied attester record does not match the reviewer identity")]
+    ReputationAttesterMismatch,
+    #[msg("The supplied stake account does not match the reputation evidence source")]
+    ReputationStakeMismatch,
+    #[msg("Active-stake reputation evidence must include the stake account")]
+    ReputationStakeEvidenceMissing,
+    #[msg("The supplied runtime attestation does not match the reputation evidence source")]
+    ReputationRuntimeAttestationMismatch,
+    #[msg("Reputation domain weights exceed the supported protocol cap")]
+    ReputationWeightTooLarge,
+    #[msg("Applying a dispute resolution to reputation requires a concrete dispute")]
+    ReputationDisputeRequiredForResolution,
+    #[msg("The reviewer evidence produces zero reputation weight")]
+    ReputationReviewerWeightZero,
     #[msg("Challenge receipts must include a positive deadline slot")]
     ChallengeDeadlineMissing,
     #[msg("The challenge deadline has not elapsed yet")]
     ChallengeDeadlineNotElapsed,
+    #[msg("Challenge deadlines must be in the future")]
+    ChallengeDeadlineAlreadyElapsed,
     #[msg("The supplied receipt is not a challenge receipt")]
     ChallengeReceiptKindMismatch,
     #[msg("The supplied challenge does not target this receipt")]
@@ -230,6 +254,12 @@ pub enum TrustSubstrateError {
     InvalidIdentityTier,
     #[msg("Only the configured receipt emitter CPI authority may update challenge counts")]
     IdentityChallengeAuthorityMismatch,
+    #[msg("Only the task registry may update task lifecycle counts")]
+    IdentityTaskAuthorityMismatch,
+    #[msg("Only the stake program may update identity stake activity")]
+    IdentityStakeAuthorityMismatch,
+    #[msg("Identity stake activity cannot be decremented below zero")]
+    IdentityStakeActivityUnderflow,
     #[msg("Attester categories must be non-empty and fit within the configured limit")]
     AttesterCategoryInvalid,
     #[msg("The supplied attester tier is outside the configured range")]
@@ -250,4 +280,6 @@ pub enum TrustSubstrateError {
     SocietyWorldSequenceRegression,
     #[msg("A finalized society world cannot accept more updates")]
     SocietyWorldFinalized,
+    #[msg("Task receipt counts cannot exceed the declared subtask count")]
+    TaskSubtaskCountExceeded,
 }

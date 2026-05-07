@@ -225,48 +225,114 @@ test("society live start prepares configured agents before first action", async 
     source.includes("stakeAsset: SOL_STAKE_ASSET_LABEL"),
     "live account payload should identify the SOL stake asset",
   );
+  ok(
+    source.includes("Missing genesis or birth event for initial agent"),
+    "initial agent setup must fail instead of inventing synthetic setup events",
+  );
+  ok(
+    !source.includes("FALLBACK_AGENT_SETUP_CELL"),
+    "initial agent setup must not fall back to a synthetic board cell",
+  );
+});
+
+test("society live completion reputation is applied to agent-owned receipts", async () => {
+  const source = await readFile(SOCIETY_SERVER_SOURCE_PATH, "utf8");
+  const helperIndex = source.indexOf("const applyAgentActionReputation");
+  const agentReceiptIndex = source.indexOf(
+    "identity: agentRuntime.account.identity.address",
+    helperIndex,
+  );
+  const agentTaskIndex = source.indexOf(
+    "task: agentRuntime.account.task.address",
+    helperIndex,
+  );
+  const agentReputationIndex = source.indexOf(
+    "reputation: agentRuntime.account.reputation.address",
+    helperIndex,
+  );
+
+  ok(helperIndex > -1, "server must have an agent-owned reputation path");
+  ok(
+    agentReceiptIndex > helperIndex,
+    "agent reputation receipt must be emitted under the agent identity",
+  );
+  ok(
+    agentTaskIndex > helperIndex,
+    "agent reputation receipt must use an agent-owned task",
+  );
+  ok(
+    agentReputationIndex > helperIndex,
+    "agent reputation apply must target the agent reputation account",
+  );
+  ok(
+    !source.includes(
+      "identity: chainSession.identity.address,\n        receipt: committedReceipt.address,\n        reputation: chainSession.reputation.address",
+    ),
+    "live completions must not apply agent action reputation to the board identity",
+  );
 });
 
 test("society live death path records a verdict and slashes agent stake", async () => {
   const source = await readFile(SOCIETY_SERVER_SOURCE_PATH, "utf8");
-  const slashFunctionIndex = source.indexOf("const maybeSlashAdversarialDeath");
+  const adapterFunctionIndex = source.indexOf(
+    "const maybeApplySocietyDeathDisputeAdapter",
+  );
+  const adapterDescriptionIndex = source.indexOf(
+    "Example adapter task that maps a Society death event into generic dispute",
+  );
   const deathGuardIndex = source.indexOf(
     'event.action !== "death"',
-    slashFunctionIndex,
+    adapterFunctionIndex,
   );
-  const agentTaskIndex = source.indexOf("createTask({", slashFunctionIndex);
+  const agentTaskIndex = source.indexOf("createTask({", adapterFunctionIndex);
   const agentReceiptIndex = source.indexOf(
     "identity: agentRuntime.account.identity.address",
-    slashFunctionIndex,
+    adapterFunctionIndex,
   );
   const verdictIndex = source.indexOf(
     "outcome: AGENT_LOST_OUTCOME",
-    slashFunctionIndex,
+    adapterFunctionIndex,
   );
-  const slashIndex = source.indexOf("slashWithVerdict", slashFunctionIndex);
+  const reputationIndex = source.indexOf(
+    "applyReputationReceipt",
+    verdictIndex,
+  );
+  const slashIndex = source.indexOf("slashWithVerdict", adapterFunctionIndex);
 
   ok(
-    slashFunctionIndex > -1,
-    "server must have an explicit adversarial death slash path",
+    adapterFunctionIndex > -1,
+    "server must have an explicit Society death dispute adapter",
   );
   ok(
-    deathGuardIndex > slashFunctionIndex,
-    "slash path must only run for death actions",
+    !source.includes("readAdversarialDeathReason"),
+    "Society death dispute code must not keep stale adversarial naming",
   );
   ok(
-    agentTaskIndex > slashFunctionIndex,
-    "slash path must create an agent-owned dispute task",
+    adapterDescriptionIndex > -1,
+    "Society death handling must describe itself as an example adapter",
   );
   ok(
-    agentReceiptIndex > slashFunctionIndex,
-    "slash path must emit the dispute receipt under the agent identity",
+    deathGuardIndex > adapterFunctionIndex,
+    "death dispute adapter must only run for death actions",
   );
   ok(
-    verdictIndex > slashFunctionIndex,
-    "slash path must record an agent-lost verdict",
+    agentTaskIndex > adapterFunctionIndex,
+    "death dispute adapter must create an agent-owned dispute task",
   );
   ok(
-    slashIndex > verdictIndex,
-    "slash path must slash only after the verdict exists",
+    agentReceiptIndex > adapterFunctionIndex,
+    "death dispute adapter must emit the dispute receipt under the agent identity",
+  );
+  ok(
+    verdictIndex > adapterFunctionIndex,
+    "death dispute adapter must record an agent-lost verdict",
+  );
+  ok(
+    reputationIndex > verdictIndex,
+    "death dispute adapter must apply reputation only after the verdict exists",
+  );
+  ok(
+    slashIndex > reputationIndex,
+    "death dispute adapter must slash only after the verdict exists",
   );
 });

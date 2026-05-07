@@ -60,6 +60,10 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
     identity: identityBinding.address,
     task: localTask,
   });
+  const reputationBinding = await onchain.bindReputation({
+    identity: identityBinding.address,
+    taskOrDomain: localTask,
+  });
   const bridge = new PiToolStreamBridge({
     onchain,
     indexer: new LocalDurableIndexer(),
@@ -72,6 +76,7 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
     task: localTask,
     taskAddress: taskBinding.address,
     domainCatalogAddress: await onchain.getDomainCatalogAddress(),
+    reputationAddress: reputationBinding.address,
     recordId: "rec-pi-1",
     kind: "completion",
     sequence: 1,
@@ -101,9 +106,9 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
   const memoInstructions = sentInstructions.filter(
     (instruction) => instruction.programAddress === MEMO_PROGRAM_ADDRESS,
   );
-  strictEqual(protocolInstructions.length, 4);
-  strictEqual(memoInstructions.length, 4);
-  strictEqual(result.onchain.operations.length, 4);
+  strictEqual(protocolInstructions.length, 5);
+  strictEqual(memoInstructions.length, 5);
+  strictEqual(result.onchain.operations.length, 5);
   strictEqual(result.onchain.operations[0].kind, "initialize_stake");
   strictEqual(
     result.onchain.operations[0].address,
@@ -116,6 +121,8 @@ test("bridges pi tool calls into signed execution steps, on-chain ops, and index
     result.onchain.receiptAddress,
   );
   strictEqual(result.onchain.operations[3].kind, "sync_task_status");
+  strictEqual(result.onchain.operations[4].kind, "apply_reputation_receipt");
+  strictEqual(result.onchain.reputationAddress, reputationBinding.address);
 
   const graph = bridge.indexer.getExecutionGraph();
   strictEqual(graph.receipts.length, 1);

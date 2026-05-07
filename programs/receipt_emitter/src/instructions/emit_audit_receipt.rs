@@ -38,11 +38,16 @@ pub fn handler(
     let auditor_identity_key = ctx.accounts.auditor_identity.key();
     let target_receipt_key = ctx.accounts.target_receipt.key();
     let target_receipt = &ctx.accounts.target_receipt;
+    let current_slot = Clock::get()?.slot;
     require_bonded_auditor(&ctx.accounts.identity_bond, auditor_identity_key)?;
     if kind == CHALLENGE_KIND {
         require!(
             deadline_slot > 0,
             TrustSubstrateError::ChallengeDeadlineMissing
+        );
+        require!(
+            deadline_slot > current_slot,
+            TrustSubstrateError::ChallengeDeadlineAlreadyElapsed
         );
     } else {
         require!(

@@ -244,10 +244,12 @@ describe("agent_stake", () => {
       .slashWithAuthority(SLASH_AMOUNT)
       .accountsStrict({
         slashAuthority: owner,
+        identity,
         stake,
         disputeReceipt: receipt,
         slashMarker,
         treasuryVault,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -268,10 +270,12 @@ describe("agent_stake", () => {
         .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
+          identity,
           stake,
           disputeReceipt: receipt,
           slashMarker,
           treasuryVault,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -390,10 +394,12 @@ describe("agent_stake", () => {
         .accountsStrict({
           owner,
           tokenStake,
+          identity,
           mint,
           ownerTokenAccount,
           vault,
           tokenProgram: TOKEN_PROGRAM_ID,
+          identityRegistryProgram: identityProgram.programId,
         })
         .rpc(),
       "StakeCooldownNotElapsed",
@@ -408,10 +414,12 @@ describe("agent_stake", () => {
       .accountsStrict({
         owner,
         tokenStake,
+        identity,
         mint,
         ownerTokenAccount,
         vault,
         tokenProgram: TOKEN_PROGRAM_ID,
+        identityRegistryProgram: identityProgram.programId,
       })
       .rpc();
 
@@ -464,6 +472,7 @@ describe("agent_stake", () => {
       .slashTokenWithAuthority(SLASH_AMOUNT)
       .accountsStrict({
         slashAuthority: owner,
+        identity,
         tokenStake,
         disputeReceipt: receipt,
         slashMarker,
@@ -471,6 +480,7 @@ describe("agent_stake", () => {
         vault,
         treasuryTokenVault,
         tokenProgram: TOKEN_PROGRAM_ID,
+        identityRegistryProgram: identityProgram.programId,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc();
@@ -590,10 +600,12 @@ describe("agent_stake", () => {
         .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: wrongSlashAuthority.publicKey,
+          identity: agent.identity,
           stake,
           disputeReceipt: agent.receipt,
           slashMarker: completionSlashMarker,
           treasuryVault,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([wrongSlashAuthority])
@@ -606,10 +618,12 @@ describe("agent_stake", () => {
         .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
+          identity: agent.identity,
           stake,
           disputeReceipt: agent.receipt,
           slashMarker: completionSlashMarker,
           treasuryVault,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -633,10 +647,12 @@ describe("agent_stake", () => {
         .slashWithAuthority(SLASH_AMOUNT)
         .accountsStrict({
           slashAuthority: owner,
+          identity: agent.identity,
           stake,
           disputeReceipt: foreignAgent.receipt,
           slashMarker: foreignSlashMarker,
           treasuryVault,
+          identityRegistryProgram: identityProgram.programId,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc(),
@@ -804,10 +820,12 @@ describe("agent_stake", () => {
           .slashWithAuthority(SLASH_AMOUNT)
           .accountsStrict({
             slashAuthority: owner,
+            identity,
             stake,
             disputeReceipt: receipt,
             slashMarker,
             treasuryVault,
+            identityRegistryProgram: identityProgram.programId,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .rpc(),

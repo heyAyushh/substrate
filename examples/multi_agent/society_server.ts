@@ -187,6 +187,11 @@ interface SocietyLiveAgentAccount {
     readonly address: string;
     readonly signature?: string;
   };
+  readonly task: {
+    readonly id: string;
+    readonly address: string;
+    readonly signature?: string;
+  };
   readonly delegation: {
     readonly address: string;
     readonly delegate: string;
@@ -196,6 +201,11 @@ interface SocietyLiveAgentAccount {
     readonly address: string;
     readonly signature?: string;
     readonly slot?: number;
+  };
+  readonly reputation: {
+    readonly address: string;
+    readonly domain: string;
+    readonly signature?: string;
   };
   readonly funding?: {
     readonly lamports: string;
@@ -307,10 +317,11 @@ const SOCIETY_CHECKPOINT_EPOCH = 0n;
 const AGENT_LOST_OUTCOME = 1;
 const NO_FAULT_OUTCOME = 2;
 const VERDICT_CLASS_SAFETY = 0;
-const SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS = 1n;
-const SOCIETY_ADVERSARIAL_DEATH_TASK_TITLE = "Society adversarial death";
-const SOCIETY_ADVERSARIAL_DEATH_TASK_DESCRIPTION =
-  "Agent-owned dispute task for automatic Society death slashing.";
+const SOCIETY_EXAMPLE_DEATH_DISPUTE_SLASH_LAMPORTS = 1n;
+const SOCIETY_EXAMPLE_DEATH_DISPUTE_TASK_TITLE =
+  "Society example death dispute";
+const SOCIETY_EXAMPLE_DEATH_DISPUTE_TASK_DESCRIPTION =
+  "Example adapter task that maps a Society death event into generic dispute, verdict, reputation, and stake operations.";
 const DEFAULT_RPC_URL = "http://127.0.0.1:8898";
 const DEFAULT_RPC_SUBSCRIPTIONS_URL = "ws://127.0.0.1:8897";
 const DEFAULT_SURFPOOL_STUDIO_URL = "http://127.0.0.1:18488";
@@ -358,7 +369,6 @@ const REMOVED_OFFLINE_COMMIT_MESSAGE =
 const SOCIETY_WORLD_STATUS_COMPLETE = 1;
 const TOKEN_PROGRAM_AGENT_STAKE = "agent_stake";
 const SOL_STAKE_ASSET_LABEL = "SOL";
-const FALLBACK_AGENT_SETUP_CELL = Object.freeze({ x: 0, y: 0 });
 const SOCIETY_APP_PATH = "/dashboard/society-app/index.html";
 const LEGACY_SOCIETY_PAGE_PATHS = new Set([
   LEGACY_SOCIETY_PAGE_PATH,
@@ -784,21 +794,30 @@ const selectInitialLiveAgentSetupEvents = (
           event.agentId === agent.agentId &&
           (event.action === "genesis" || event.action === "birth"),
       );
+    if (!sourceEvent) {
+      throw new Error(
+        `Missing genesis or birth event for initial agent ${agent.agentId}`,
+      );
+    }
+    if (!sourceEvent.cell) {
+      throw new Error(`Missing source cell for initial agent ${agent.agentId}`);
+    }
+    if (!sourceEvent.actorIdentityId) {
+      throw new Error(
+        `Missing actor identity for initial agent ${agent.agentId}`,
+      );
+    }
     return {
-      id:
-        sourceEvent?.id ??
-        agent.sourceEventId ??
-        `agent_setup_${agent.agentId}`,
-      tick: sourceEvent?.tick ?? agent.tick ?? 0,
+      id: sourceEvent.id,
+      tick: sourceEvent.tick,
       agentId: agent.agentId,
-      agentName: sourceEvent?.agentName ?? agent.agentName ?? agent.agentId,
-      actorIdentityId:
-        sourceEvent?.actorIdentityId ?? agent.agentIdentityId ?? agent.agentId,
-      action: sourceEvent?.action ?? "genesis",
-      receiptKind: sourceEvent?.receiptKind,
+      agentName: sourceEvent.agentName ?? agent.agentName ?? agent.agentId,
+      actorIdentityId: sourceEvent.actorIdentityId,
+      action: sourceEvent.action,
+      receiptKind: sourceEvent.receiptKind,
       tokenDelta: agent.startingTokens,
-      cell: sourceEvent?.cell ?? agent.cell ?? FALLBACK_AGENT_SETUP_CELL,
-      payloadExtras: sourceEvent?.payloadExtras,
+      cell: sourceEvent.cell,
+      payloadExtras: sourceEvent.payloadExtras,
     };
   });
 };
@@ -1952,6 +1971,23 @@ const ensureLiveAgentAccount = async (
     tokenProgram: TOKEN_PROGRAM_AGENT_STAKE,
     tokenAmount: amount.toString(),
   });
+  const agentTask = createTask({
+    identityId: agentIdentity.identityId,
+    title: `Society agent actions: ${event.agentName ?? event.agentId}`,
+    domain: SOCIETY_DOMAIN,
+    description:
+      "Agent-owned task for reputation receipts derived from Society actions.",
+    subtasks: [`agent:${event.agentId}`],
+  });
+  const agentTaskCommit = await chainSession.client.ensureTask({
+    authority: identityMaterial.signer,
+    identity: agentIdentityCommit.address,
+    task: agentTask,
+  });
+  chainSession.operations.push({
+    ...agentTaskCommit,
+    agentId: event.agentId,
+  });
   const delegationCommit = await chainSession.client.ensureDelegation({
     authority: chainSession.authority,
     identity: chainSession.identity.address,
@@ -1985,6 +2021,19 @@ const ensureLiveAgentAccount = async (
     tokenProgram: TOKEN_PROGRAM_AGENT_STAKE,
     tokenAmount: amount.toString(),
   });
+  const reputationCommit = await chainSession.client.ensureReputationDomain({
+    authority: identityMaterial.signer,
+    identity: agentIdentityCommit.address,
+    domainCatalog: chainSession.domainCatalogAddress,
+    taskOrDomain: SOCIETY_DOMAIN,
+    completionWeight: 1n,
+    disputeWeight: 1n,
+    disputeResolvedWeight: 1n,
+  });
+  chainSession.operations.push({
+    ...reputationCommit,
+    agentId: event.agentId,
+  });
 
   const account: SocietyLiveAgentAccount = {
     agentId: event.agentId,
@@ -2002,6 +2051,11 @@ const ensureLiveAgentAccount = async (
       address: agentIdentityCommit.address,
       signature: agentIdentityCommit.signature,
     },
+    task: {
+      id: agentTask.taskId,
+      address: agentTaskCommit.address,
+      signature: agentTaskCommit.signature,
+    },
     delegation: {
       address: delegationCommit.address,
       delegate: delegationCommit.delegate,
@@ -2011,6 +2065,11 @@ const ensureLiveAgentAccount = async (
       address: stakeDeposit.address,
       signature: stakeDeposit.signature,
       slot: stakeDeposit.slot,
+    },
+    reputation: {
+      address: reputationCommit.address,
+      domain: SOCIETY_DOMAIN,
+      signature: reputationCommit.signature,
     },
     ...(fundingSignature
       ? {
@@ -2072,14 +2131,99 @@ const buildLiveChainReceipt = (
   });
 };
 
-const readAdversarialDeathReason = (event: SocietyLiveEvent): string => {
+const applyAgentActionReputation = async ({
+  chainSession,
+  event,
+  agentRuntime,
+  sourceReceipt,
+  committedKind,
+}: {
+  readonly chainSession: SocietyLiveChainSession;
+  readonly event: SocietyLiveEvent;
+  readonly agentRuntime: SocietyLiveAgentRuntime;
+  readonly sourceReceipt: {
+    readonly address: string;
+    readonly signature?: string;
+    readonly slot: number;
+  };
+  readonly committedKind: string;
+}) => {
+  if (
+    !shouldApplyLiveReputation({
+      action: event.action,
+      kind: committedKind,
+    })
+  ) {
+    return undefined;
+  }
+
+  const payload = {
+    domain: SOCIETY_DOMAIN,
+    action: "society_agent_action_reputation",
+    sourceAction: event.action,
+    sourceEventId: event.id,
+    sourceReceipt: sourceReceipt.address,
+    sourceReceiptSignature: sourceReceipt.signature,
+    agentId: event.agentId,
+    agentIdentity: agentRuntime.account.identity.address,
+    boardIdentity: chainSession.identity.address,
+    boardTask: chainSession.task.address,
+  };
+  const receipt = createReceipt({
+    actorId: agentRuntime.signer.address,
+    kind: committedKind,
+    taskId: agentRuntime.account.task.id,
+    sequence: chainSession.committedReceipts.length + 1,
+    payload: {
+      ...payload,
+      payloadHash: hashCanonical(payload),
+    },
+  });
+  const committedReceipt = await chainSession.client.emitReceipt({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    task: agentRuntime.account.task.address,
+    domainCatalog: chainSession.domainCatalogAddress,
+    receipt,
+  });
+  chainSession.operations.push({
+    ...committedReceipt,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+  const reputationApply = await chainSession.client.applyReputationReceipt({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    receipt: committedReceipt.address,
+    reputation: agentRuntime.account.reputation.address,
+    evidenceAccounts: [{ address: agentRuntime.account.stake.address }],
+  });
+  chainSession.operations.push({
+    ...reputationApply,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
+
+  return {
+    receiptId: receipt.receiptId,
+    address: committedReceipt.address,
+    signature: committedReceipt.signature,
+    slot: committedReceipt.slot,
+    reputation: {
+      address: agentRuntime.account.reputation.address,
+      signature: reputationApply.signature,
+    },
+  };
+};
+
+const readSocietyDeathDisputeReason = (event: SocietyLiveEvent): string => {
   const reason = event.payloadExtras?.reason;
   return typeof reason === "string" && reason.length > 0
     ? reason
     : "society death rule";
 };
 
-const maybeSlashAdversarialDeath = async ({
+const maybeApplySocietyDeathDisputeAdapter = async ({
   chainSession,
   event,
   agentRuntime,
@@ -2103,12 +2247,12 @@ const maybeSlashAdversarialDeath = async ({
     );
   }
 
-  const reason = readAdversarialDeathReason(event);
+  const reason = readSocietyDeathDisputeReason(event);
   const agentDisputeTask = createTask({
     identityId: agentRuntime.account.identity.id,
-    title: `${SOCIETY_ADVERSARIAL_DEATH_TASK_TITLE}: ${event.id}`,
+    title: `${SOCIETY_EXAMPLE_DEATH_DISPUTE_TASK_TITLE}: ${event.id}`,
     domain: SOCIETY_DOMAIN,
-    description: SOCIETY_ADVERSARIAL_DEATH_TASK_DESCRIPTION,
+    description: SOCIETY_EXAMPLE_DEATH_DISPUTE_TASK_DESCRIPTION,
     subtasks: [`death:${event.id}`, `reason:${reason}`],
   });
   const taskCommit = await chainSession.client.ensureTask({
@@ -2124,13 +2268,14 @@ const maybeSlashAdversarialDeath = async ({
 
   const payload = {
     domain: SOCIETY_DOMAIN,
-    action: "adversarial_death_slash",
+    action: "society_example_death_dispute",
     sourceAction: event.action,
     sourceEventId: event.id,
     sourceReceipt: sourceReceipt.address,
     sourceReceiptSignature: sourceReceipt.signature,
     reason,
-    slashAmountLamports: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS.toString(),
+    slashAmountLamports:
+      SOCIETY_EXAMPLE_DEATH_DISPUTE_SLASH_LAMPORTS.toString(),
     agentId: event.agentId,
     agentIdentity: agentRuntime.account.identity.address,
     stake: agentRuntime.account.stake.address,
@@ -2174,7 +2319,7 @@ const maybeSlashAdversarialDeath = async ({
     adjudicator: chainSession.authority,
     disputeReceipt: committedDisputeReceipt.address,
     outcome: AGENT_LOST_OUTCOME,
-    slashAmount: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS,
+    slashAmount: SOCIETY_EXAMPLE_DEATH_DISPUTE_SLASH_LAMPORTS,
     class: VERDICT_CLASS_SAFETY,
     staleAfterSlot: 0n,
   });
@@ -2183,8 +2328,24 @@ const maybeSlashAdversarialDeath = async ({
     agentId: event.agentId,
     sourceEventId: event.id,
   });
+  const reputationApply = await chainSession.client.applyReputationReceipt({
+    authority: agentRuntime.signer,
+    identity: agentRuntime.account.identity.address,
+    receipt: committedDisputeReceipt.address,
+    reputation: agentRuntime.account.reputation.address,
+    evidenceAccounts: [
+      { address: verdictCommit.address },
+      { address: agentRuntime.account.stake.address },
+    ],
+  });
+  chainSession.operations.push({
+    ...reputationApply,
+    agentId: event.agentId,
+    sourceEventId: event.id,
+  });
   const slashCommit = await chainSession.client.slashWithVerdict({
     adjudicator: chainSession.authority,
+    identity: agentRuntime.account.identity.address,
     stake: agentRuntime.account.stake.address,
     disputeReceipt: committedDisputeReceipt.address,
     verdict: verdictCommit.address,
@@ -2196,8 +2357,8 @@ const maybeSlashAdversarialDeath = async ({
     sourceEventId: event.id,
   });
 
-  const adversarialSlash = {
-    batchId: `adversarial_slash_${event.id}`,
+  const exampleDeathDispute = {
+    batchId: `society_death_dispute_${event.id}`,
     receiptId: disputeReceipt.receiptId,
     sourceReceiptCount: 1,
     address: committedDisputeReceipt.address,
@@ -2212,11 +2373,15 @@ const maybeSlashAdversarialDeath = async ({
       address: verdictCommit.address,
       signature: verdictCommit.signature,
     },
+    reputation: {
+      address: agentRuntime.account.reputation.address,
+      signature: reputationApply.signature,
+    },
     slash: {
       address: slashCommit.address,
       signature: slashCommit.signature,
       stake: agentRuntime.account.stake.address,
-      amount: SOCIETY_ADVERSARIAL_DEATH_SLASH_LAMPORTS.toString(),
+      amount: SOCIETY_EXAMPLE_DEATH_DISPUTE_SLASH_LAMPORTS.toString(),
       disputeReceipt: committedDisputeReceipt.address,
     },
     source: {
@@ -2225,8 +2390,8 @@ const maybeSlashAdversarialDeath = async ({
       reason,
     },
   };
-  chainSession.committedReceipts.push(adversarialSlash);
-  return adversarialSlash;
+  chainSession.committedReceipts.push(exampleDeathDispute);
+  return exampleDeathDispute;
 };
 
 const commitLiveActionReceipt = async ({
@@ -2308,21 +2473,14 @@ const commitLiveActionReceipt = async ({
   if (taskSync) {
     chainSession.operations.push(taskSync);
   }
-  const reputationApply = shouldApplyLiveReputation({
-    action: event.action,
-    kind: committedKind,
-  })
-    ? await chainSession.client.applyReputationReceipt({
-        authority: agentRuntime.signer,
-        identity: chainSession.identity.address,
-        receipt: committedReceipt.address,
-        reputation: chainSession.reputation.address,
-      })
-    : undefined;
-  if (reputationApply) {
-    chainSession.operations.push(reputationApply);
-  }
-  const adversarialSlash = await maybeSlashAdversarialDeath({
+  const agentReputation = await applyAgentActionReputation({
+    chainSession,
+    event,
+    agentRuntime,
+    sourceReceipt: committedReceipt,
+    committedKind,
+  });
+  const exampleDeathDispute = await maybeApplySocietyDeathDisputeAdapter({
     chainSession,
     event,
     agentRuntime,
@@ -2379,20 +2537,14 @@ const commitLiveActionReceipt = async ({
       signature: checkpointAppend.signature,
     },
     actionProof,
-    ...(reputationApply
-      ? {
-          reputation: {
-            address: chainSession.reputation.address,
-            signature: reputationApply.signature,
-          },
-        }
-      : {}),
+    ...(agentReputation ? { agentReputation } : {}),
   });
   chainSession.previousReceiptId = committedReceipt.address;
   return {
     ...committedReceipt,
     actionProof,
-    ...(adversarialSlash ? { adversarialSlash } : {}),
+    ...(agentReputation ? { agentReputation } : {}),
+    ...(exampleDeathDispute ? { exampleDeathDispute } : {}),
   };
 };
 

@@ -55,6 +55,7 @@ export function getSlashTokenWithAuthorityDiscriminatorBytes() {
 export type SlashTokenWithAuthorityInstruction<
   TProgram extends string = typeof AGENT_STAKE_PROGRAM_ADDRESS,
   TAccountSlashAuthority extends string | AccountMeta<string> = string,
+  TAccountIdentity extends string | AccountMeta<string> = string,
   TAccountTokenStake extends string | AccountMeta<string> = string,
   TAccountDisputeReceipt extends string | AccountMeta<string> = string,
   TAccountSlashMarker extends string | AccountMeta<string> = string,
@@ -63,6 +64,8 @@ export type SlashTokenWithAuthorityInstruction<
   TAccountTreasuryTokenVault extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends string | AccountMeta<string> =
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  TAccountIdentityRegistryProgram extends string | AccountMeta<string> =
+    "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
@@ -74,6 +77,9 @@ export type SlashTokenWithAuthorityInstruction<
         ? WritableSignerAccount<TAccountSlashAuthority> &
             AccountSignerMeta<TAccountSlashAuthority>
         : TAccountSlashAuthority,
+      TAccountIdentity extends string
+        ? WritableAccount<TAccountIdentity>
+        : TAccountIdentity,
       TAccountTokenStake extends string
         ? WritableAccount<TAccountTokenStake>
         : TAccountTokenStake,
@@ -95,6 +101,9 @@ export type SlashTokenWithAuthorityInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
+      TAccountIdentityRegistryProgram extends string
+        ? ReadonlyAccount<TAccountIdentityRegistryProgram>
+        : TAccountIdentityRegistryProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -143,6 +152,7 @@ export function getSlashTokenWithAuthorityInstructionDataCodec(): FixedSizeCodec
 
 export type SlashTokenWithAuthorityAsyncInput<
   TAccountSlashAuthority extends string = string,
+  TAccountIdentity extends string = string,
   TAccountTokenStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
@@ -150,24 +160,27 @@ export type SlashTokenWithAuthorityAsyncInput<
   TAccountVault extends string = string,
   TAccountTreasuryTokenVault extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  /** identity_registry deserializes and validates it during the CPI. */
+  identity: Address<TAccountIdentity>;
   tokenStake: Address<TAccountTokenStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker?: Address<TAccountSlashMarker>;
   mint: Address<TAccountMint>;
-  /** and the SPL Token program validates it as a token account during transfer. */
   vault: Address<TAccountVault>;
-  /** mint; the SPL Token program validates the account and mint on receipt. */
   treasuryTokenVault?: Address<TAccountTreasuryTokenVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   amount: SlashTokenWithAuthorityInstructionDataArgs["amount"];
 };
 
 export async function getSlashTokenWithAuthorityInstructionAsync<
   TAccountSlashAuthority extends string,
+  TAccountIdentity extends string,
   TAccountTokenStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
@@ -175,11 +188,13 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
   TAccountVault extends string,
   TAccountTreasuryTokenVault extends string,
   TAccountTokenProgram extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashTokenWithAuthorityAsyncInput<
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
@@ -187,6 +202,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
@@ -194,6 +210,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
   SlashTokenWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
@@ -201,6 +218,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >
 > {
@@ -210,6 +228,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     slashAuthority: { value: input.slashAuthority ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     tokenStake: { value: input.tokenStake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
@@ -220,6 +239,10 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
       isWritable: true,
     },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -255,6 +278,10 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
     accounts.tokenProgram.value =
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -264,6 +291,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
   return Object.freeze({
     accounts: [
       getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("tokenStake", accounts.tokenStake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
@@ -271,6 +299,10 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
       getAccountMeta("vault", accounts.vault),
       getAccountMeta("treasuryTokenVault", accounts.treasuryTokenVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashTokenWithAuthorityInstructionDataEncoder().encode(
@@ -280,6 +312,7 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
   } as SlashTokenWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
@@ -287,12 +320,14 @@ export async function getSlashTokenWithAuthorityInstructionAsync<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
 
 export type SlashTokenWithAuthorityInput<
   TAccountSlashAuthority extends string = string,
+  TAccountIdentity extends string = string,
   TAccountTokenStake extends string = string,
   TAccountDisputeReceipt extends string = string,
   TAccountSlashMarker extends string = string,
@@ -300,24 +335,27 @@ export type SlashTokenWithAuthorityInput<
   TAccountVault extends string = string,
   TAccountTreasuryTokenVault extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountIdentityRegistryProgram extends string = string,
   TAccountSystemProgram extends string = string,
 > = {
   slashAuthority: TransactionSigner<TAccountSlashAuthority>;
+  /** identity_registry deserializes and validates it during the CPI. */
+  identity: Address<TAccountIdentity>;
   tokenStake: Address<TAccountTokenStake>;
   disputeReceipt: Address<TAccountDisputeReceipt>;
   slashMarker: Address<TAccountSlashMarker>;
   mint: Address<TAccountMint>;
-  /** and the SPL Token program validates it as a token account during transfer. */
   vault: Address<TAccountVault>;
-  /** mint; the SPL Token program validates the account and mint on receipt. */
   treasuryTokenVault: Address<TAccountTreasuryTokenVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  identityRegistryProgram?: Address<TAccountIdentityRegistryProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   amount: SlashTokenWithAuthorityInstructionDataArgs["amount"];
 };
 
 export function getSlashTokenWithAuthorityInstruction<
   TAccountSlashAuthority extends string,
+  TAccountIdentity extends string,
   TAccountTokenStake extends string,
   TAccountDisputeReceipt extends string,
   TAccountSlashMarker extends string,
@@ -325,11 +363,13 @@ export function getSlashTokenWithAuthorityInstruction<
   TAccountVault extends string,
   TAccountTreasuryTokenVault extends string,
   TAccountTokenProgram extends string,
+  TAccountIdentityRegistryProgram extends string,
   TAccountSystemProgram extends string,
   TProgramAddress extends Address = typeof AGENT_STAKE_PROGRAM_ADDRESS,
 >(
   input: SlashTokenWithAuthorityInput<
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
@@ -337,12 +377,14 @@ export function getSlashTokenWithAuthorityInstruction<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >,
   config?: { programAddress?: TProgramAddress },
 ): SlashTokenWithAuthorityInstruction<
   TProgramAddress,
   TAccountSlashAuthority,
+  TAccountIdentity,
   TAccountTokenStake,
   TAccountDisputeReceipt,
   TAccountSlashMarker,
@@ -350,6 +392,7 @@ export function getSlashTokenWithAuthorityInstruction<
   TAccountVault,
   TAccountTreasuryTokenVault,
   TAccountTokenProgram,
+  TAccountIdentityRegistryProgram,
   TAccountSystemProgram
 > {
   // Program address.
@@ -358,6 +401,7 @@ export function getSlashTokenWithAuthorityInstruction<
   // Original accounts.
   const originalAccounts = {
     slashAuthority: { value: input.slashAuthority ?? null, isWritable: true },
+    identity: { value: input.identity ?? null, isWritable: true },
     tokenStake: { value: input.tokenStake ?? null, isWritable: true },
     disputeReceipt: { value: input.disputeReceipt ?? null, isWritable: false },
     slashMarker: { value: input.slashMarker ?? null, isWritable: true },
@@ -368,6 +412,10 @@ export function getSlashTokenWithAuthorityInstruction<
       isWritable: true,
     },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    identityRegistryProgram: {
+      value: input.identityRegistryProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
@@ -383,6 +431,10 @@ export function getSlashTokenWithAuthorityInstruction<
     accounts.tokenProgram.value =
       "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;
   }
+  if (!accounts.identityRegistryProgram.value) {
+    accounts.identityRegistryProgram.value =
+      "8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun" as Address<"8ktCGhVZBmjekPXvJhFjiFAqiSRRmBXs3NFHGgkbQKun">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -392,6 +444,7 @@ export function getSlashTokenWithAuthorityInstruction<
   return Object.freeze({
     accounts: [
       getAccountMeta("slashAuthority", accounts.slashAuthority),
+      getAccountMeta("identity", accounts.identity),
       getAccountMeta("tokenStake", accounts.tokenStake),
       getAccountMeta("disputeReceipt", accounts.disputeReceipt),
       getAccountMeta("slashMarker", accounts.slashMarker),
@@ -399,6 +452,10 @@ export function getSlashTokenWithAuthorityInstruction<
       getAccountMeta("vault", accounts.vault),
       getAccountMeta("treasuryTokenVault", accounts.treasuryTokenVault),
       getAccountMeta("tokenProgram", accounts.tokenProgram),
+      getAccountMeta(
+        "identityRegistryProgram",
+        accounts.identityRegistryProgram,
+      ),
       getAccountMeta("systemProgram", accounts.systemProgram),
     ],
     data: getSlashTokenWithAuthorityInstructionDataEncoder().encode(
@@ -408,6 +465,7 @@ export function getSlashTokenWithAuthorityInstruction<
   } as SlashTokenWithAuthorityInstruction<
     TProgramAddress,
     TAccountSlashAuthority,
+    TAccountIdentity,
     TAccountTokenStake,
     TAccountDisputeReceipt,
     TAccountSlashMarker,
@@ -415,6 +473,7 @@ export function getSlashTokenWithAuthorityInstruction<
     TAccountVault,
     TAccountTreasuryTokenVault,
     TAccountTokenProgram,
+    TAccountIdentityRegistryProgram,
     TAccountSystemProgram
   >);
 }
@@ -426,16 +485,17 @@ export type ParsedSlashTokenWithAuthorityInstruction<
   programAddress: Address<TProgram>;
   accounts: {
     slashAuthority: TAccountMetas[0];
-    tokenStake: TAccountMetas[1];
-    disputeReceipt: TAccountMetas[2];
-    slashMarker: TAccountMetas[3];
-    mint: TAccountMetas[4];
-    /** and the SPL Token program validates it as a token account during transfer. */
-    vault: TAccountMetas[5];
-    /** mint; the SPL Token program validates the account and mint on receipt. */
-    treasuryTokenVault: TAccountMetas[6];
-    tokenProgram: TAccountMetas[7];
-    systemProgram: TAccountMetas[8];
+    /** identity_registry deserializes and validates it during the CPI. */
+    identity: TAccountMetas[1];
+    tokenStake: TAccountMetas[2];
+    disputeReceipt: TAccountMetas[3];
+    slashMarker: TAccountMetas[4];
+    mint: TAccountMetas[5];
+    vault: TAccountMetas[6];
+    treasuryTokenVault: TAccountMetas[7];
+    tokenProgram: TAccountMetas[8];
+    identityRegistryProgram: TAccountMetas[9];
+    systemProgram: TAccountMetas[10];
   };
   data: SlashTokenWithAuthorityInstructionData;
 };
@@ -448,12 +508,12 @@ export function parseSlashTokenWithAuthorityInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSlashTokenWithAuthorityInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 9) {
+  if (instruction.accounts.length < 11) {
     throw new SolanaError(
       SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
       {
         actualAccountMetas: instruction.accounts.length,
-        expectedAccountMetas: 9,
+        expectedAccountMetas: 11,
       },
     );
   }
@@ -467,6 +527,7 @@ export function parseSlashTokenWithAuthorityInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       slashAuthority: getNextAccount(),
+      identity: getNextAccount(),
       tokenStake: getNextAccount(),
       disputeReceipt: getNextAccount(),
       slashMarker: getNextAccount(),
@@ -474,6 +535,7 @@ export function parseSlashTokenWithAuthorityInstruction<
       vault: getNextAccount(),
       treasuryTokenVault: getNextAccount(),
       tokenProgram: getNextAccount(),
+      identityRegistryProgram: getNextAccount(),
       systemProgram: getNextAccount(),
     },
     data: getSlashTokenWithAuthorityInstructionDataDecoder().decode(

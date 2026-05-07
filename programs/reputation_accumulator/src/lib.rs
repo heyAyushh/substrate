@@ -104,7 +104,9 @@ pub mod reputation_accumulator {
         )
     }
 
-    pub fn apply_reputation_receipt(ctx: Context<ApplyReputationReceipt>) -> Result<()> {
+    pub fn apply_reputation_receipt<'info>(
+        ctx: Context<'info, ApplyReputationReceipt<'info>>,
+    ) -> Result<()> {
         instructions::apply_reputation_receipt::handler(ctx)
     }
 

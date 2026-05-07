@@ -1,10 +1,13 @@
 import test from "node:test";
 import { ok, strictEqual, throws } from "node:assert/strict";
 import {
+  AGENT_TRACE_VERSION,
   createDisputeReceipt,
   createReceiptFromExecution,
+  executionRecordToAgentTrace,
   hashExecutionRecord,
   hashStep,
+  TRUST_SUBSTRATE_AGENT_TRACE_METADATA_KEY,
   type ExecutionRecord,
 } from "../../packages/sdk/src/index.js";
 
@@ -44,6 +47,14 @@ test("createReceiptFromExecution embeds payloadHash from record root", () => {
   strictEqual(
     receipt.payload.payloadHash,
     hashExecutionRecord(record).root.toString("hex"),
+  );
+  const agentTrace = executionRecordToAgentTrace(record);
+  const tracePointer = receipt.payload.agentTrace as Record<string, string>;
+  strictEqual(tracePointer.version, AGENT_TRACE_VERSION);
+  strictEqual(tracePointer.id, agentTrace.id);
+  strictEqual(
+    tracePointer.hash,
+    agentTrace.metadata?.[TRUST_SUBSTRATE_AGENT_TRACE_METADATA_KEY]?.traceHash,
   );
 });
 

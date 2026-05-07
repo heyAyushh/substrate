@@ -416,11 +416,11 @@ test("program wiring plan covers the whole Trust Substrate stack", () => {
   ok(plan.programs.every((program) => program.status === "wired"));
   ok(
     plan.programs.every((program) => program.demoSurface.length > 0),
-    "every program needs a user-visible demo surface",
+    "every deployable program needs a coverage entry",
   );
   ok(
     plan.programs.every((program) => program.evidence.length > 0),
-    "every program needs proof evidence",
+    "every deployable program needs a chain-bound evidence entry",
   );
   ok(
     plan.programs.every((program) => program.boundary.length > 0),

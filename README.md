@@ -3,8 +3,8 @@
 Agents need wallets, but they also need memory, receipts, delegation, and reputation.
 
 Trust Substrate is a local Solana trust layer for autonomous agents. It stores
-an append-only execution graph and derives reputation from verified history
-instead of writing a mutable score.
+an append-only execution graph and applies reputation through program-backed
+receipt evidence instead of letting clients write scores directly.
 
 The protocol is the product. Pi Console, the Society Board, and other examples
 are clients that exercise the same identity, task, delegation, receipt,
@@ -47,6 +47,20 @@ The workspace has these deployable Anchor programs:
 
 Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.
 
+## Example Integrations
+
+Trust Substrate should be usable by any agent runtime or application that can
+hold a key, build a transaction, and submit receipts. The examples in this repo
+are access paths into the protocol, not special protocol modes:
+
+- **Pi Console** is an example control plane for launching agents, managing
+  identity folders, and submitting signed agent actions.
+- **Society Board** is an example visual application that maps board events into
+  generic protocol primitives: tasks, receipts, checkpoints, reputation,
+  verdicts, and stake.
+- Future apps should use the same SDK/client surfaces without copying
+  Society-specific rules into the core protocol.
+
 ## Out of scope for v0.1
 
 - Light Protocol ZK Compression integration
@@ -64,6 +78,7 @@ Shared protocol constants and pure model logic live in `crates/trust_substrate_c
 
 - [Architecture](docs/architecture.md)
 - [Program Interface](docs/programs.md)
+- [Reputation Model](docs/reputation-model.md)
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
 - [Deployment Readiness](docs/deployment-readiness.md)
@@ -91,7 +106,7 @@ tests/                        TypeScript package, Surfpool, and verification tes
 scripts/                      Local automation scripts
 docs/                         Project documentation
 examples/pi-console/          Pi Console control-plane demo
-examples/multi_agent/         Society Board and local simulation demo
+examples/multi_agent/         Society Board and local protocol walkthrough
 ```
 
 ## Toolchain
@@ -170,11 +185,12 @@ The current local path is:
 4. Emit ordered receipts for meaningful execution steps.
 5. Create scoped delegation records for handoffs.
 6. Checkpoint receipt history roots.
-7. Apply receipts to derived reputation state.
+7. Apply receipts to program-backed reputation state.
 8. Escrow stake for agents that opt into slashable dispute resolution.
 9. Rebuild the execution graph, handoff inheritance, and team reputation views through the local indexer.
 
-Receipts are the source of truth. Reputation is derived from that receipt graph.
+Receipts are the source of truth. Reputation is applied from verified receipt
+evidence by the reputation program.
 JSON artifacts are proof artifacts only when they are signed and chain-bound to
 an agent identity, receipt payload hash, transaction signature, and Merkle
 transcript root.
@@ -194,6 +210,6 @@ warnings. Passing status is determined by command exit code.
 - Use Conventional Commits.
 - Keep commits focused and reviewable.
 - Prefer existing Anchor, Solana, LiteSVM, TypeScript, and Surfpool tooling over custom infrastructure.
-- Keep reputation derived from verified execution history.
+- Keep reputation tied to verified receipt evidence.
 - Do not use devnet as the required verification gate.
 - Read [AGENTS.md](AGENTS.md) before making agent-driven changes.

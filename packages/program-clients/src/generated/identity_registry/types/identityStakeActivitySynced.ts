@@ -14,6 +14,8 @@ import {
   getBooleanEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU32Decoder,
+  getU32Encoder,
   getU64Decoder,
   getU64Encoder,
   type Address,
@@ -26,6 +28,7 @@ export type IdentityStakeActivitySynced = {
   identity: Address;
   authority: Address;
   activeStake: boolean;
+  activeStakeCount: number;
   slot: bigint;
 };
 
@@ -33,6 +36,7 @@ export type IdentityStakeActivitySyncedArgs = {
   identity: Address;
   authority: Address;
   activeStake: boolean;
+  activeStakeCount: number;
   slot: number | bigint;
 };
 
@@ -41,6 +45,7 @@ export function getIdentityStakeActivitySyncedEncoder(): FixedSizeEncoder<Identi
     ["identity", getAddressEncoder()],
     ["authority", getAddressEncoder()],
     ["activeStake", getBooleanEncoder()],
+    ["activeStakeCount", getU32Encoder()],
     ["slot", getU64Encoder()],
   ]);
 }
@@ -50,6 +55,7 @@ export function getIdentityStakeActivitySyncedDecoder(): FixedSizeDecoder<Identi
     ["identity", getAddressDecoder()],
     ["authority", getAddressDecoder()],
     ["activeStake", getBooleanDecoder()],
+    ["activeStakeCount", getU32Decoder()],
     ["slot", getU64Decoder()],
   ]);
 }

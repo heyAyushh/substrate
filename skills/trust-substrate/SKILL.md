@@ -6,8 +6,8 @@ Substrate.
 Trust Substrate is a Solana protocol for agent identity, tasks, receipts,
 delegation, checkpoints, reputation, disputes, and SOL stake. The current
 verified network target is Surfpool/local Solana. Do not claim mainnet,
-production indexing, ZK compression, or SPL token staking unless the local repo
-docs say those features have landed.
+production indexing, ZK compression, or production SPL token policy unless the
+local repo docs say those features have landed.
 
 ## Required Flow
 
@@ -21,15 +21,17 @@ docs say those features have landed.
 8. Record the receipt address, payload hash, transaction signature, slot,
    transcript root, and Merkle leaf.
 9. Checkpoint history or verify inclusion when the workflow requires replay.
-10. Read reputation from verified receipt history.
+10. Read program-backed reputation and compare it with local replay when needed.
 
 ## Proof Rules
 
 - JSON is only a proof artifact when it is signed and chain-bound.
 - Receipts are the source of truth; dashboards are only readers.
-- Reputation is derived from receipt history, not written directly as a score.
-- SOL/lamports are the current stake asset.
-- SPL token staking is an upcoming feature, not current behavior.
+- Reputation is applied on-chain from receipt history and reviewer evidence, not
+  written directly as a mutable score.
+- SOL/lamports are the current first-class stake asset.
+- SPL token vaults exist, but production mint/value/Token-2022 policy is not
+  finalized.
 
 ## Useful Local Commands
 

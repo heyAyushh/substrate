@@ -1,7 +1,9 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token::accessor;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 use trust_substrate_core::{TrustSubstrateError, TOKEN_STAKE_SEED};
 
+use crate::instructions::identity_stake_activity::sync_token_stake_activity;
 use crate::state::TokenStakeAccount;
 use crate::TokenStakeDeposited;
 
@@ -17,13 +19,8 @@ pub fn handler(ctx: Context<StakeToken>, amount: u64) -> Result<()> {
         ctx.accounts.token_program.key(),
         TrustSubstrateError::StakeTokenProgramMismatch
     );
-
-    ctx.accounts.token_stake.amount = ctx
-        .accounts
-        .token_stake
-        .amount
-        .checked_add(amount)
-        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+    let was_inactive = ctx.accounts.token_stake.amount == 0;
+    let vault_balance_before = accessor::amount(&ctx.accounts.vault.to_account_info())?;
 
     token_interface::transfer_checked(
         CpiContext::new(
@@ -39,15 +36,34 @@ pub fn handler(ctx: Context<StakeToken>, amount: u64) -> Result<()> {
         ctx.accounts.mint.decimals,
     )?;
 
-    let identity_cpi_accounts = identity_registry::cpi::accounts::SetStakeActive {
-        authority: ctx.accounts.owner.to_account_info(),
-        identity: ctx.accounts.identity.to_account_info(),
-    };
-    let identity_cpi = CpiContext::new(
-        ctx.accounts.identity_registry_program.key(),
-        identity_cpi_accounts,
+    let vault_balance_after = accessor::amount(&ctx.accounts.vault.to_account_info())?;
+    let received_amount = vault_balance_after
+        .checked_sub(vault_balance_before)
+        .ok_or(TrustSubstrateError::StakeTokenTransferAmountMismatch)?;
+    require!(
+        received_amount == amount,
+        TrustSubstrateError::StakeTokenTransferAmountMismatch
     );
-    identity_registry::cpi::set_stake_active(identity_cpi, true)?;
+
+    ctx.accounts.token_stake.amount = ctx
+        .accounts
+        .token_stake
+        .amount
+        .checked_add(amount)
+        .ok_or(TrustSubstrateError::StakeAmountOverflow)?;
+
+    if was_inactive {
+        sync_token_stake_activity(
+            ctx.accounts.identity_registry_program.key(),
+            ctx.accounts.token_stake.to_account_info(),
+            ctx.accounts.identity.to_account_info(),
+            ctx.accounts.token_stake.identity,
+            ctx.accounts.token_stake.scope,
+            ctx.accounts.token_stake.mint,
+            ctx.accounts.token_stake.bump,
+            true,
+        )?;
+    }
 
     emit!(TokenStakeDeposited {
         identity: ctx.accounts.token_stake.identity,
@@ -66,7 +82,7 @@ pub fn handler(ctx: Context<StakeToken>, amount: u64) -> Result<()> {
 pub struct StakeToken<'info> {
     #[account(mut)]
     pub owner: Signer<'info>,
-    #[account(mut)]
+    #[account(mut, address = token_stake.identity @ TrustSubstrateError::StakeIdentityMismatch)]
     pub identity: Account<'info, identity_registry::state::AgentIdentity>,
     #[account(
         mut,

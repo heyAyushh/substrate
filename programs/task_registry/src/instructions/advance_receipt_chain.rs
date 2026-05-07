@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use identity_registry::state::AgentIdentity;
+use trust_substrate_core::TrustSubstrateError;
 
 use crate::state::TaskRecord;
 
@@ -11,6 +12,14 @@ pub fn handler(
     last_sequence: u64,
 ) -> Result<()> {
     let task = &mut ctx.accounts.task;
+    let expected_sequence = task
+        .last_sequence
+        .checked_add(1)
+        .ok_or(TrustSubstrateError::ReceiptSequenceOverflow)?;
+    require!(
+        last_sequence == expected_sequence,
+        TrustSubstrateError::ReceiptSequenceNotMonotonic
+    );
     task.last_receipt = last_receipt;
     task.last_sequence = last_sequence;
     Ok(())
@@ -29,6 +38,5 @@ pub struct AdvanceReceiptChain<'info> {
         bump,
         seeds::program = RECEIPT_EMITTER_PROGRAM_ID
     )]
-    /// CHECK: Verified via PDA seeds to receipt_emitter program
-    pub authority: UncheckedAccount<'info>,
+    pub authority: Signer<'info>,
 }

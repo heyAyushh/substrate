@@ -71,7 +71,11 @@ pub fn handler(
         TrustSubstrateError::TaskDomainMismatch
     );
     require!(
-        sequence == task.last_sequence + 1,
+        sequence
+            == task
+                .last_sequence
+                .checked_add(1)
+                .ok_or(TrustSubstrateError::ReceiptSequenceOverflow)?,
         TrustSubstrateError::ReceiptSequenceNotMonotonic
     );
     require!(

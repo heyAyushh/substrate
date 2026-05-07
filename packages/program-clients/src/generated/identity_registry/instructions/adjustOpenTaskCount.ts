@@ -71,15 +71,20 @@ export type AdjustOpenTaskCountInstruction<
 
 export type AdjustOpenTaskCountInstructionData = {
   discriminator: ReadonlyUint8Array;
+  taskId: ReadonlyUint8Array;
   delta: number;
 };
 
-export type AdjustOpenTaskCountInstructionDataArgs = { delta: number };
+export type AdjustOpenTaskCountInstructionDataArgs = {
+  taskId: ReadonlyUint8Array;
+  delta: number;
+};
 
 export function getAdjustOpenTaskCountInstructionDataEncoder(): FixedSizeEncoder<AdjustOpenTaskCountInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ["discriminator", fixEncoderSize(getBytesEncoder(), 8)],
+      ["taskId", fixEncoderSize(getBytesEncoder(), 32)],
       ["delta", getI8Encoder()],
     ]),
     (value) => ({
@@ -92,6 +97,7 @@ export function getAdjustOpenTaskCountInstructionDataEncoder(): FixedSizeEncoder
 export function getAdjustOpenTaskCountInstructionDataDecoder(): FixedSizeDecoder<AdjustOpenTaskCountInstructionData> {
   return getStructDecoder([
     ["discriminator", fixDecoderSize(getBytesDecoder(), 8)],
+    ["taskId", fixDecoderSize(getBytesDecoder(), 32)],
     ["delta", getI8Decoder()],
   ]);
 }
@@ -112,6 +118,7 @@ export type AdjustOpenTaskCountInput<
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   identity: Address<TAccountIdentity>;
+  taskId: AdjustOpenTaskCountInstructionDataArgs["taskId"];
   delta: AdjustOpenTaskCountInstructionDataArgs["delta"];
 };
 

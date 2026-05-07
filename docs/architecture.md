@@ -5,12 +5,12 @@ Scope tags are defined in [Scope Tags](scope-tags.md).
 ## Overview
 
 [on-chain] Trust Substrate is a local Solana protocol set for agent identity,
-task tracking, receipt history, delegation, checkpoint proofs, derived
+task tracking, receipt history, delegation, checkpoint proofs, program-backed
 reputation, and stake-backed dispute resolution.
 
 [on-chain] The execution graph is the record. Receipts describe meaningful
-steps. Checkpoints anchor history roots.
-[sdk] Reputation is derived from verified receipt history.
+steps. Checkpoints anchor history roots. Reputation is applied from verified
+receipt evidence by the reputation program.
 
 ## Layers
 
@@ -19,6 +19,14 @@ steps. Checkpoints anchor history roots.
 3. Deterministic TypeScript helpers in `packages/sdk/src`
 4. Local execution-graph reconstruction in `packages/indexer/src`
 5. Local verification through Rust, TypeScript, Anchor/LiteSVM, and Surfpool tests
+
+## Integration Boundary
+
+Applications are adapters over the protocol. They may translate their own
+domain events into tasks, receipts, disputes, verdicts, and stake operations,
+but they do not define new protocol truth. Pi Console and Society Board are
+examples of this adapter layer; any other agent runtime or application should
+be able to use the same generated clients and SDK helpers.
 
 ## On-Chain Programs
 
@@ -97,18 +105,28 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 
 ## Reputation
 
-[sdk] Reputation is derived from receipts.
-[on-chain] The on-chain accumulator is a permissionless cache/projection over verified history and stores domain-specific counters and weights:
+[on-chain] Reputation is applied from verified receipts by `reputation_accumulator`.
+The accumulator is the canonical domain reputation state. SDK and indexer
+derivations are previews or verification aids, not authority.
+
+[on-chain] The accumulator stores legacy counters and weighted counters:
 
 - completed
 - disputed
 - resolved
+- attested
+- weighted completed
+- weighted disputed
+- weighted resolved
+- weighted attested
+- reviewer weight sum
+- slash penalty sum
 - completion weight
 - dispute weight
 - dispute-resolved weight
 
 [on-chain] There is no direct score-write instruction.
-[sdk] The SDK and indexer can derive richer local profiles from the verified graph, including team reputation rollups and handoff inheritance views, and those derived values are the source of truth when they disagree with the cached projection.
+[sdk] The SDK and indexer can derive richer local profiles from the verified graph, including team reputation rollups and handoff inheritance views. If local replay disagrees with fetched program-backed reputation, the mismatch is surfaced as a verification fault.
 
 ## Stake-Backed Disputes
 
@@ -138,7 +156,7 @@ This is the local checkpoint model. Light Protocol ZK Compression is future work
 - append-only receipt ledger replay checks
 - Merkle tree creation and proof verification
 - delegation scope assertions
-- derived reputation profiles
+- local reputation previews and program-backed reputation reads
 - stake, challenge, and execution-trace projection helpers
 - PI tool-stream adaptation through `pi-adapter.ts`
 - Solana `@solana/kit` transaction dispatch and typed program bindings through `onchain-client.ts`
