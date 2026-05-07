@@ -8,6 +8,7 @@ test-results/
 .sc/
 .superpowers/
 docs/superpowers/
+.protocol-first-backups/
 **/*.rs.bk
 brand.md
 node_modules/
@@ -23,11 +24,7 @@ examples/multi_agent/society-demo-current-env.sh
 examples/multi_agent/society-ui/society-ui/
 examples/multi_agent/society-ui-app/node_modules/
 examples/multi_agent/society-ui-app/dist/
-examples/pi-console/.git/
-examples/pi-console/.snapshot/
-examples/pi-console/dist/
-examples/pi-console/node_modules/
-examples/pi-console/test-results/
+examples/pi-console/
 test-ledger/
 .yarn
 .surfpool/
