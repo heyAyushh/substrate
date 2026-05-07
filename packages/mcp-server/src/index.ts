@@ -20,7 +20,7 @@ if (process.argv.slice(2).some((arg) => HELP_FLAGS.has(arg))) {
       "Environment:",
       `  ${PROJECT_ROOT_ENV}      Project root that bounds snapshot reads`,
       `  ${SNAPSHOT_PATH_ENV}    Snapshot JSON path, default: ${DEFAULT_SNAPSHOT_RELATIVE_PATH}`,
-    ].join("\n")
+    ].join("\n"),
   );
   process.exit(0);
 }

@@ -30,7 +30,7 @@ const ResponseFormatSchema = z
   .enum([MARKDOWN_RESPONSE_FORMAT, JSON_RESPONSE_FORMAT])
   .default(MARKDOWN_RESPONSE_FORMAT)
   .describe(
-    "Output format: markdown for readable summaries or json for structured data"
+    "Output format: markdown for readable summaries or json for structured data",
   );
 
 const SnapshotContextSchema = {
@@ -39,14 +39,14 @@ const SnapshotContextSchema = {
     .min(1)
     .optional()
     .describe(
-      "Project root that bounds snapshot reads. Defaults to TRUST_SUBSTRATE_PROJECT_ROOT or the current working directory."
+      "Project root that bounds snapshot reads. Defaults to TRUST_SUBSTRATE_PROJECT_ROOT or the current working directory.",
     ),
   snapshot_path: z
     .string()
     .min(1)
     .optional()
     .describe(
-      "Relative or absolute path to an indexer snapshot JSON file. Relative paths are resolved inside project_root."
+      "Relative or absolute path to an indexer snapshot JSON file. Relative paths are resolved inside project_root.",
     ),
   response_format: ResponseFormatSchema,
 };
@@ -154,7 +154,7 @@ export function createTrustSubstrateMcpServer(): McpServer {
           payload: summary as unknown as ToolPayload,
           text: formatSnapshotSummary(summary, params.response_format),
         };
-      })
+      }),
   );
 
   server.registerTool(
@@ -177,7 +177,7 @@ export function createTrustSubstrateMcpServer(): McpServer {
           payload: profile as unknown as ToolPayload,
           text: formatAgentProfile(profile, params.response_format),
         };
-      })
+      }),
   );
 
   server.registerTool(
@@ -202,7 +202,7 @@ export function createTrustSubstrateMcpServer(): McpServer {
           payload: trace as unknown as ToolPayload,
           text: formatTaskTrace(trace, params.response_format),
         };
-      })
+      }),
   );
 
   server.registerTool(
@@ -225,7 +225,7 @@ export function createTrustSubstrateMcpServer(): McpServer {
           payload: summary as unknown as ToolPayload,
           text: formatDomainSummary(summary, params.response_format),
         };
-      })
+      }),
   );
 
   return server;
@@ -241,7 +241,7 @@ function readOnlyAnnotations() {
 }
 
 function runReadOnlyTool(
-  action: () => { readonly payload: ToolPayload; readonly text: string }
+  action: () => { readonly payload: ToolPayload; readonly text: string },
 ) {
   try {
     const result = action();

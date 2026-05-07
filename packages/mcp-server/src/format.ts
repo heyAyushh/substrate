@@ -12,7 +12,7 @@ export type ResponseFormat =
 
 export function formatSnapshotSummary(
   summary: SnapshotSummary,
-  responseFormat: ResponseFormat
+  responseFormat: ResponseFormat,
 ): string {
   if (responseFormat === JSON_RESPONSE_FORMAT) {
     return toJson(summary);
@@ -20,11 +20,11 @@ export function formatSnapshotSummary(
 
   const domainLines = summary.domains.map(
     (domain) =>
-      `- ${domain.domain}: ${domain.receiptCount} receipts, ${domain.taskIds.length} tasks, latest slot ${domain.latestSlot}`
+      `- ${domain.domain}: ${domain.receiptCount} receipts, ${domain.taskIds.length} tasks, latest slot ${domain.latestSlot}`,
   );
   const leaderboardLines = summary.leaderboard.map(
     (entry) =>
-      `- ${entry.agentId}: score ${entry.score}, ${entry.receiptCount} receipts, ${entry.tier}`
+      `- ${entry.agentId}: score ${entry.score}, ${entry.receiptCount} receipts, ${entry.tier}`,
   );
 
   return [
@@ -48,7 +48,7 @@ export function formatSnapshotSummary(
 
 export function formatAgentProfile(
   profile: AgentProfileResult,
-  responseFormat: ResponseFormat
+  responseFormat: ResponseFormat,
 ): string {
   if (responseFormat === JSON_RESPONSE_FORMAT) {
     return toJson(profile);
@@ -56,13 +56,13 @@ export function formatAgentProfile(
 
   const toolLines = profile.toolQuality.map(
     (tool) =>
-      `- ${tool.tool}: ${tool.completions}/${tool.attempts} completions, ${tool.disputes} disputes`
+      `- ${tool.tool}: ${tool.completions}/${tool.attempts} completions, ${tool.disputes} disputes`,
   );
   const attestationLines = profile.attestations.map(
     (attestation) =>
       `- ${attestation.attesterId}: ${
         attestation.attestationKind ?? "attestation"
-      } at slot ${attestation.slot}`
+      } at slot ${attestation.slot}`,
   );
 
   return [
@@ -87,7 +87,7 @@ export function formatAgentProfile(
 
 export function formatTaskTrace(
   trace: TaskTraceResult,
-  responseFormat: ResponseFormat
+  responseFormat: ResponseFormat,
 ): string {
   if (responseFormat === JSON_RESPONSE_FORMAT) {
     return toJson(trace);
@@ -95,11 +95,11 @@ export function formatTaskTrace(
 
   const receiptLines = trace.receipts.map(
     (receipt) =>
-      `- ${receipt.receiptId}: ${receipt.kind} by ${receipt.actorId} at slot ${receipt.slot}`
+      `- ${receipt.receiptId}: ${receipt.kind} by ${receipt.actorId} at slot ${receipt.slot}`,
   );
   const handoffLines = trace.handoffs.map(
     (handoff) =>
-      `- ${handoff.fromAgentId} -> ${handoff.toAgentId} at slot ${handoff.slot}`
+      `- ${handoff.fromAgentId} -> ${handoff.toAgentId} at slot ${handoff.slot}`,
   );
 
   return [
@@ -120,7 +120,7 @@ export function formatTaskTrace(
 
 export function formatDomainSummary(
   summary: DomainSummaryResult,
-  responseFormat: ResponseFormat
+  responseFormat: ResponseFormat,
 ): string {
   if (responseFormat === JSON_RESPONSE_FORMAT) {
     return toJson(summary);
@@ -128,7 +128,7 @@ export function formatDomainSummary(
 
   const domainLines = summary.domains.map(
     (domain) =>
-      `- ${domain.domain}: ${domain.receiptCount} receipts, ${domain.handoffCount} handoffs, latest slot ${domain.latestSlot}`
+      `- ${domain.domain}: ${domain.receiptCount} receipts, ${domain.handoffCount} handoffs, latest slot ${domain.latestSlot}`,
   );
 
   return [

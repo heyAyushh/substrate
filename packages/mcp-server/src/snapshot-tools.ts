@@ -140,7 +140,7 @@ export function resolveSnapshotPath(input: SnapshotContextInput = {}): string {
 
   if (!isInsideRoot(projectRoot, snapshotPath)) {
     throw new Error(
-      `snapshot path ${snapshotPath} is outside the project root ${projectRoot}`
+      `snapshot path ${snapshotPath} is outside the project root ${projectRoot}`,
     );
   }
 
@@ -156,7 +156,7 @@ export function resolveSnapshotPath(input: SnapshotContextInput = {}): string {
 }
 
 export function createSnapshotSummary(
-  input: SnapshotSummaryInput = {}
+  input: SnapshotSummaryInput = {},
 ): SnapshotSummary {
   const { indexer, snapshotPath } = loadResolvedSnapshot(input);
   const graph = indexer.getExecutionGraph();
@@ -175,8 +175,8 @@ export function createSnapshotSummary(
       clampLimit(
         input.leaderboardLimit,
         DEFAULT_LEADERBOARD_LIMIT,
-        MAX_LEADERBOARD_LIMIT
-      )
+        MAX_LEADERBOARD_LIMIT,
+      ),
     );
 
   return {
@@ -194,7 +194,7 @@ export function createSnapshotSummary(
 }
 
 export function createAgentProfile(
-  input: AgentProfileInput
+  input: AgentProfileInput,
 ): AgentProfileResult {
   const { indexer, snapshotPath } = loadResolvedSnapshot(input);
 
@@ -212,7 +212,7 @@ export function createTaskTrace(input: TaskTraceInput): TaskTraceResult {
   const { indexer, snapshotPath } = loadResolvedSnapshot(input);
   const paginated = paginateReceipts(
     indexer.getTaskHistory(input.taskId),
-    input
+    input,
   );
 
   return {
@@ -225,7 +225,7 @@ export function createTaskTrace(input: TaskTraceInput): TaskTraceResult {
 }
 
 export function createDomainSummary(
-  input: DomainSummaryInput = {}
+  input: DomainSummaryInput = {},
 ): DomainSummaryResult {
   const { indexer, snapshotPath } = loadResolvedSnapshot(input);
   const domains =
@@ -252,20 +252,20 @@ function loadResolvedSnapshot(input: SnapshotContextInput): ResolvedSnapshot {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `could not load indexer snapshot at ${snapshotPath}: ${message}`
+      `could not load indexer snapshot at ${snapshotPath}: ${message}`,
     );
   }
 }
 
 function paginateReceipts(
   receipts: IndexedReceipt[],
-  input: PaginationInput
+  input: PaginationInput,
 ): PaginatedReceipts {
   const offset = input.offset ?? 0;
   const limit = clampLimit(
     input.limit,
     DEFAULT_RECEIPT_LIMIT,
-    MAX_RECEIPT_LIMIT
+    MAX_RECEIPT_LIMIT,
   );
   const nextOffset = offset + limit;
   const page = receipts.slice(offset, nextOffset);
@@ -284,7 +284,7 @@ function paginateReceipts(
 function clampLimit(
   requestedLimit: number | undefined,
   defaultLimit: number,
-  maxLimit: number
+  maxLimit: number,
 ): number {
   if (requestedLimit === undefined) {
     return defaultLimit;
@@ -295,7 +295,7 @@ function clampLimit(
 function getLatestSlot(receipts: readonly IndexedReceipt[]): number {
   return receipts.reduce(
     (latestSlot, receipt) => Math.max(latestSlot, receipt.slot),
-    0
+    0,
   );
 }
 
