@@ -6,6 +6,12 @@ Trust Substrate is a local Solana trust layer for autonomous agents. It stores
 an append-only execution graph and applies reputation through program-backed
 receipt evidence instead of letting clients write scores directly.
 
+The practical goal is simple: an agent should be able to hold its own key,
+submit Solana transactions, publish receipts, build reputation, escrow stake,
+and be challenged or slashed through protocol rules. The local target is
+Surfpool today; the architecture is meant to be deployable to a public Solana
+cluster when the readiness gates are satisfied.
+
 The protocol is the product. Pi Console, the Society Board, and other examples
 are clients that exercise the same identity, task, delegation, receipt,
 checkpoint, reputation, stake, and dispute surfaces. A demo can display protocol
@@ -61,6 +67,11 @@ are access paths into the protocol, not special protocol modes:
 - Future apps should use the same SDK/client surfaces without copying
   Society-specific rules into the core protocol.
 
+Example integrations should stay honest: local previews, scripted demos, and
+test fixtures must be labeled as such. User-facing proof, reputation, stake,
+and dispute claims should point back to program state, signed artifacts,
+transaction signatures, receipt hashes, or Merkle roots.
+
 ## Out of scope for v0.1
 
 - Light Protocol ZK Compression integration
@@ -108,6 +119,15 @@ docs/                         Project documentation
 examples/pi-console/          Pi Console control-plane demo
 examples/multi_agent/         Society Board and local protocol walkthrough
 ```
+
+## Agent Entry Points
+
+- Agent-facing repo instructions: [AGENTS.md](AGENTS.md)
+- Installable Trust Substrate skill: [skills/trust-substrate/SKILL.md](skills/trust-substrate/SKILL.md)
+- Public SDK helpers: [packages/sdk](packages/sdk)
+- Generated Solana clients: [packages/program-clients](packages/program-clients)
+- Local indexer: [packages/indexer](packages/indexer)
+- MCP snapshot server: [packages/mcp-server](packages/mcp-server)
 
 ## Toolchain
 
