@@ -3,24 +3,28 @@ import { createSolanaRpc } from "@solana/kit";
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_SURFPOOL_RPC_PORT = "18999";
 const DEFAULT_SURFPOOL_STUDIO_PORT = "18489";
-const LIVE_SNAPSHOT_URL = "/__live/dashboard-data.json";
+export const LIVE_SNAPSHOT_URL = "/__live/dashboard-data.json";
+export const LIVE_SIMULATION_ROUTE = "/__live/simulate";
 const SURFPOOL_POLL_INTERVAL_MS = 5_000;
 export const SNAPSHOT_POLL_INTERVAL_MS = 5_000;
 export const SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS = 15_000;
+const VITE_ENV = (
+  import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>;
+  }
+).env;
 
 export const DEFAULT_SNAPSHOT_URL = "/dashboard-data.json";
 export const DEFAULT_STUDIO_URL =
-  import.meta.env.VITE_SURFPOOL_STUDIO_URL ??
+  VITE_ENV?.VITE_SURFPOOL_STUDIO_URL ??
   `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_STUDIO_PORT}`;
 export const DEFAULT_STUDIO_ACCOUNTS_URL = `${DEFAULT_STUDIO_URL}/accounts`;
 export const DEFAULT_STUDIO_SCENARIOS_URL = `${DEFAULT_STUDIO_URL}/scenarios`;
 export const DEFAULT_SURFPOOL_RPC_URL =
-  import.meta.env.VITE_SURFPOOL_RPC_URL ??
+  VITE_ENV?.VITE_SURFPOOL_RPC_URL ??
   `http://${DEFAULT_HOST}:${DEFAULT_SURFPOOL_RPC_PORT}`;
 
-const surfpoolRpc = createSolanaRpc(
-  DEFAULT_SURFPOOL_RPC_URL,
-);
+const surfpoolRpc = createSolanaRpc(DEFAULT_SURFPOOL_RPC_URL);
 
 export interface DashboardSnapshot {
   identities: Record<string, string>;
@@ -32,6 +36,13 @@ export interface DashboardSnapshot {
     attestedOnly: LeaderboardEntry[];
   };
   stake: Record<string, StakeEntry>;
+}
+
+export interface LiveSimulationResult {
+  runId: string;
+  startedAt: number;
+  completedAt: number;
+  snapshot: DashboardSnapshot;
 }
 
 interface DelegationRecord {
@@ -52,7 +63,22 @@ interface LeaderboardEntry {
 }
 
 interface StakeEntry {
+  identityId: string;
+  ownerId?: string;
+  slashAuthorityId?: string;
+  activeLamports: string;
+  pendingUnstakeLamports: string;
   slashedLamports: string;
+  slashReceiptIds: string[];
+}
+
+export interface DashboardAccountReference {
+  key: string;
+  label: string;
+  kind: "identity" | "owner" | "slash authority";
+  value: string;
+  href: string;
+  detail?: string;
 }
 
 export interface SurfpoolStatus {
@@ -74,20 +100,110 @@ export interface SurfpoolStudioLinkTarget {
   available: boolean;
 }
 
-export async function loadDashboardSnapshot(): Promise<DashboardSnapshot> {
-  const liveSnapshot = await tryLoadSnapshot(LIVE_SNAPSHOT_URL);
-  if (liveSnapshot) {
-    return liveSnapshot;
+export class LiveDashboardSnapshotUnavailableError extends Error {
+  constructor(message = "No local simulation snapshot is available yet.") {
+    super(message);
+    this.name = "LiveDashboardSnapshotUnavailableError";
+  }
+}
+
+export function buildStudioAccountsUrl(query?: string): string {
+  return appendSearch(DEFAULT_STUDIO_ACCOUNTS_URL, query);
+}
+
+export function listDashboardAccountReferences(
+  snapshot: DashboardSnapshot,
+): DashboardAccountReference[] {
+  const references: DashboardAccountReference[] = [];
+
+  for (const [slug, identityId] of Object.entries(snapshot.identities)) {
+    const stakeEntry = snapshot.stake[slug];
+    const baseLabel = formatSlugLabel(slug);
+    const stakeDetail = stakeEntry
+      ? `active ${formatLamports(
+          Number(stakeEntry.activeLamports),
+        )} · pending ${formatLamports(
+          Number(stakeEntry.pendingUnstakeLamports),
+        )} · slashed ${formatLamports(Number(stakeEntry.slashedLamports))}`
+      : undefined;
+
+    references.push({
+      key: `${slug}:identity`,
+      label: `${baseLabel} identity`,
+      kind: "identity",
+      value: identityId,
+      href: buildStudioAccountsUrl(identityId),
+      detail: stakeDetail,
+    });
+
+    if (stakeEntry?.ownerId) {
+      references.push({
+        key: `${slug}:owner`,
+        label: `${baseLabel} owner`,
+        kind: "owner",
+        value: stakeEntry.ownerId,
+        href: buildStudioAccountsUrl(stakeEntry.ownerId),
+      });
+    }
+
+    if (stakeEntry?.slashAuthorityId) {
+      references.push({
+        key: `${slug}:slash-authority`,
+        label: `${baseLabel} slash authority`,
+        kind: "slash authority",
+        value: stakeEntry.slashAuthorityId,
+        href: buildStudioAccountsUrl(stakeEntry.slashAuthorityId),
+      });
+    }
   }
 
-  const response = await fetch(DEFAULT_SNAPSHOT_URL, {
+  return references;
+}
+
+export async function loadDashboardSnapshot(
+  fetchImpl: typeof fetch = fetch,
+): Promise<DashboardSnapshot> {
+  const response = await fetchImpl(LIVE_SNAPSHOT_URL, {
     cache: "no-store",
   });
+  if (response.status === 404) {
+    throw new LiveDashboardSnapshotUnavailableError(
+      await readResponseError(
+        response,
+        "No local simulation snapshot is available yet.",
+      ),
+    );
+  }
+
   if (!response.ok) {
-    throw new Error(`Snapshot request failed with ${response.status}`);
+    throw new Error(
+      await readResponseError(
+        response,
+        `Snapshot request failed with ${response.status}`,
+      ),
+    );
   }
 
   return (await response.json()) as DashboardSnapshot;
+}
+
+export async function runLiveSimulation(
+  fetchImpl: typeof fetch = fetch,
+): Promise<LiveSimulationResult> {
+  const response = await fetchImpl(LIVE_SIMULATION_ROUTE, {
+    method: "POST",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(
+      await readResponseError(
+        response,
+        `Simulation request failed with ${response.status}`,
+      ),
+    );
+  }
+
+  return (await response.json()) as LiveSimulationResult;
 }
 
 export async function loadSurfpoolStatus(): Promise<SurfpoolStatus> {
@@ -138,27 +254,10 @@ export async function loadSurfpoolStudioLinks(): Promise<SurfpoolStudioLinks> {
   };
 }
 
-// Surfpool Studio supports real scenario deep links like `/scenarios?id=<scenarioId>&tab=<tab>`.
-// The Pi Console snapshot only includes internal `receipt_*` and `identity_*` values today, so
-// row-level deep links stay disabled until the snapshot provides stable Studio IDs such as
-// `studioScenarioId` or `studioAccountAddress`.
-
-async function tryLoadSnapshot(
-  url: string,
-): Promise<DashboardSnapshot | null> {
-  try {
-    const response = await fetch(url, {
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as DashboardSnapshot;
-  } catch {
-    return null;
-  }
-}
+// Surfpool Studio account pages accept a `search` query, so the Pi Console can open
+// account-filtered views for identities and stake authorities today.
+//
+// Scenario deep links still need stable Studio IDs such as `studioScenarioId`.
 
 async function probeBrowsableUrl(url: string): Promise<boolean> {
   try {
@@ -171,6 +270,46 @@ async function probeBrowsableUrl(url: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function appendSearch(baseUrl: string, query?: string): string {
+  const trimmedQuery = query?.trim();
+  if (!trimmedQuery) {
+    return baseUrl;
+  }
+
+  const url = new URL(baseUrl);
+  url.searchParams.set("search", trimmedQuery);
+  return url.toString();
+}
+
+function formatSlugLabel(slug: string): string {
+  return `${slug.charAt(0).toUpperCase()}${slug.slice(1)}`;
+}
+
+async function readResponseError(
+  response: Response,
+  fallback: string,
+): Promise<string> {
+  try {
+    const payload = (await response.json()) as {
+      error?: string;
+      message?: string;
+    };
+    if (typeof payload.error === "string" && payload.error.trim().length > 0) {
+      return payload.error;
+    }
+    if (
+      typeof payload.message === "string" &&
+      payload.message.trim().length > 0
+    ) {
+      return payload.message;
+    }
+  } catch {
+    // Ignore JSON parsing failures and use the fallback.
+  }
+
+  return fallback;
 }
 
 export function truncateMiddle(

@@ -162,6 +162,8 @@
   "stake": {
     "planner": {
       "identityId": "identity_04f28170b7bec977b23a8813ad0947e4",
+      "ownerId": "wallet-planner",
+      "slashAuthorityId": "arbiter",
       "activeLamports": "500000",
       "pendingUnstakeLamports": "0",
       "slashedLamports": "0",
@@ -169,6 +171,8 @@
     },
     "alpha": {
       "identityId": "identity_2a05399cc0b41740299e0bb594684eb5",
+      "ownerId": "wallet-alpha",
+      "slashAuthorityId": "arbiter",
       "activeLamports": "600000",
       "pendingUnstakeLamports": "0",
       "slashedLamports": "400000",
@@ -178,6 +182,8 @@
     },
     "beta": {
       "identityId": "identity_77be69bebd6665a862a528dc9b2eaa16",
+      "ownerId": "wallet-beta",
+      "slashAuthorityId": "arbiter",
       "activeLamports": "1000000",
       "pendingUnstakeLamports": "0",
       "slashedLamports": "0",
@@ -202,6 +208,5 @@
     "receiptCount": 9,
     "historyHash": "3c4c91946fa3d3618ffddab2a8e7800b98dc630540dcb4c62452eb85f475a08a"
   },
-  "executionGraphReceiptCount": 9,
-  "snapshotPath": "/Users/ay/Documents/codes/substrate/trust_substrate/examples/multi_agent/.snapshot/indexer.json"
+  "executionGraphReceiptCount": 9
 }

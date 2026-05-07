@@ -57,7 +57,8 @@ export function createFallbackIdentityProfile(
     id: "pi-console",
     slug: "pi",
     label: "Pi Agent",
-    roleSummary: "Live Surfpool identities will appear here when the snapshot is ready.",
+    roleSummary:
+      "Live Surfpool identities will appear here when the snapshot is ready.",
     promptHint: taskLabel
       ? `Ask about ${taskLabel} while the live identity list loads.`
       : "Ask about the current task while the live identity list loads.",
@@ -153,10 +154,7 @@ export function persistIdentityWorkspace(workspace: StoredIdentityWorkspace) {
   }
 
   try {
-    storage.setItem(
-      IDENTITY_WORKSPACE_STORAGE_KEY,
-      JSON.stringify(workspace),
-    );
+    storage.setItem(IDENTITY_WORKSPACE_STORAGE_KEY, JSON.stringify(workspace));
   } catch {
     clearStorageKey(storage, IDENTITY_WORKSPACE_STORAGE_KEY);
   }
@@ -403,5 +401,8 @@ function isThinkingLevel(value: unknown): value is ThinkingLevel {
 }
 
 function normalizeKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+agent$/, "");
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+agent$/, "");
 }

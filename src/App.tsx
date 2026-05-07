@@ -5,14 +5,20 @@ import {
   ArrowUpRight,
   FileText,
   Link2,
+  Play,
   Trophy,
   Wrench,
 } from "lucide-react";
-
 import {
-  PiChatSurface,
-  type PiChatInspectorState,
-} from "@/components/pi-chat-surface";
+  getDefaultRuntimeLabel,
+  loadLocalRuntimeConfig,
+  type LocalMcpServer,
+  type LocalRuntimeActivity,
+  type LocalRuntimeConfig,
+} from "@trust-substrate/pi-local-runtime";
+
+import type { PiChatInspectorState } from "@/components/pi-agent-session-surface";
+import { PiControlPlane } from "@/components/pi-control-plane";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,14 +41,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  type DashboardAccountReference,
   type DashboardSnapshot,
-  DEFAULT_SNAPSHOT_URL,
   DEFAULT_STUDIO_ACCOUNTS_URL,
   DEFAULT_STUDIO_SCENARIOS_URL,
   DEFAULT_STUDIO_URL,
+  LiveDashboardSnapshotUnavailableError,
+  LIVE_SNAPSHOT_URL,
+  listDashboardAccountReferences,
   formatLamports,
   formatTimestamp,
   loadDashboardSnapshot,
+  runLiveSimulation,
   loadSurfpoolStudioLinks,
   loadSurfpoolStatus,
   SNAPSHOT_POLL_INTERVAL_MS,
@@ -52,13 +62,6 @@ import {
   truncateMiddle,
 } from "@/lib/dashboard";
 import type { PiIdentityProfile } from "@/lib/pi-identities";
-import {
-  getDefaultRuntimeLabel,
-  loadLocalRuntimeConfig,
-  type LocalMcpServer,
-  type LocalRuntimeActivity,
-  type LocalRuntimeConfig,
-} from "@/lib/local-runtime";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const EMPTY_MCP_SERVERS: LocalMcpServer[] = [];
@@ -69,15 +72,19 @@ const EMPTY_INSPECTOR_STATE: PiChatInspectorState = {
   pendingToolCount: 0,
   isStreaming: false,
 };
+type SimulationState = "idle" | "running" | "ready" | "failed";
 
 function App() {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
   const [snapshotUpdatedAt, setSnapshotUpdatedAt] = useState<number | null>(
-    null,
+    null
   );
+  const [simulationState, setSimulationState] =
+    useState<SimulationState>("idle");
+  const [simulationRunId, setSimulationRunId] = useState<string | null>(null);
   const [surfpoolStatus, setSurfpoolStatus] = useState<SurfpoolStatus | null>(
-    null,
+    null
   );
   const [studioLinks, setStudioLinks] = useState<SurfpoolStudioLinks>({
     studio: {
@@ -94,10 +101,15 @@ function App() {
     },
   });
   const [runtime, setRuntime] = useState<LocalRuntimeConfig | null>(null);
-  const [chatInspector, setChatInspector] =
-    useState<PiChatInspectorState>(EMPTY_INSPECTOR_STATE);
+  const [chatInspector, setChatInspector] = useState<PiChatInspectorState>(
+    EMPTY_INSPECTOR_STATE
+  );
 
   useEffect(() => {
+    if (!simulationRunId) {
+      return;
+    }
+
     let isActive = true;
     let timerId: number | undefined;
 
@@ -114,14 +126,18 @@ function App() {
         if (!isActive) {
           return;
         }
+        if (error instanceof LiveDashboardSnapshotUnavailableError) {
+          setSnapshotError(error.message);
+          return;
+        }
         setSnapshotError(
-          error instanceof Error ? error.message : "Snapshot unavailable",
+          error instanceof Error ? error.message : "Snapshot unavailable"
         );
       } finally {
         if (isActive) {
           timerId = window.setTimeout(
             refreshSnapshot,
-            SNAPSHOT_POLL_INTERVAL_MS,
+            SNAPSHOT_POLL_INTERVAL_MS
           );
         }
       }
@@ -135,7 +151,7 @@ function App() {
         window.clearTimeout(timerId);
       }
     };
-  }, []);
+  }, [simulationRunId]);
 
   useEffect(() => {
     let isActive = true;
@@ -167,7 +183,7 @@ function App() {
       setStudioLinks(nextLinks);
       timerId = window.setTimeout(
         refreshStudioLinks,
-        SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS,
+        SURFPOOL_STUDIO_LINK_POLL_INTERVAL_MS
       );
     };
 
@@ -184,7 +200,7 @@ function App() {
   const runtimeLabel = runtime ? getDefaultRuntimeLabel(runtime) : null;
   const runtimeMcpServers = useMemo(
     () => runtime?.mcpServers ?? EMPTY_MCP_SERVERS,
-    [runtime],
+    [runtime]
   );
 
   useEffect(() => {
@@ -219,7 +235,7 @@ function App() {
       Object.entries(snapshot.identities).map(([label, identityId]) => [
         identityId,
         label,
-      ]),
+      ])
     );
   }, [snapshot]);
 
@@ -231,28 +247,43 @@ function App() {
   const totalSlashedLamports = snapshot
     ? Object.values(snapshot.stake).reduce(
         (sum, entry) => sum + Number(entry.slashedLamports),
-        0,
+        0
       )
     : 0;
   const latestReceiptLabel = latestReceipt
-    ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
+    ? `${latestReceipt.kind} · ${
+        identityLabelsById.get(latestReceipt.actor) ??
+        truncateMiddle(latestReceipt.actor)
+      }`
     : null;
   const chainLabels = snapshot
     ? snapshot.delegationChain.map((entry) => {
-        return `${identityLabelsById.get(entry.delegatorId) ?? truncateMiddle(entry.delegatorId)} -> ${identityLabelsById.get(entry.delegateId) ?? truncateMiddle(entry.delegateId)}`;
+        return `${
+          identityLabelsById.get(entry.delegatorId) ??
+          truncateMiddle(entry.delegatorId)
+        } -> ${
+          identityLabelsById.get(entry.delegateId) ??
+          truncateMiddle(entry.delegateId)
+        }`;
       })
     : [];
   const identityProfiles = useMemo(
     () => buildIdentityProfiles(snapshot, identityLabelsById),
-    [identityLabelsById, snapshot],
+    [identityLabelsById, snapshot]
+  );
+  const accountReferences = useMemo(
+    () => (snapshot ? listDashboardAccountReferences(snapshot) : []),
+    [snapshot]
   );
 
   const headerLinks = [
-    {
-      href: DEFAULT_SNAPSHOT_URL,
-      label: "Snapshot JSON",
-      available: true,
-    },
+    snapshot
+      ? {
+          href: LIVE_SNAPSHOT_URL,
+          label: "Snapshot JSON",
+          available: true,
+        }
+      : null,
     {
       href: studioLinks.studio.href,
       label: "Studio",
@@ -268,11 +299,66 @@ function App() {
       label: "Scenarios",
       available: studioLinks.scenarios.available,
     },
-  ].filter((link) => link.available) as Array<{
+  ].filter((link) => link?.available) as Array<{
     href: string;
     label: string;
     available: boolean;
   }>;
+  const playButtonLabel = (() => {
+    if (simulationState === "running") {
+      return "Running simulation";
+    }
+
+    if (snapshot) {
+      return "Play again";
+    }
+
+    if (simulationState === "failed") {
+      return "Retry local simulation";
+    }
+
+    return "Play local simulation";
+  })();
+  const headline = snapshot
+    ? truncateMiddle(snapshot.task, 18, 12)
+    : simulationState === "running"
+    ? "Running local simulation"
+    : simulationState === "failed"
+    ? "Local simulation failed"
+    : "Start a local simulation";
+  const subheadline = snapshot
+    ? null
+    : simulationState === "running"
+    ? "The console is generating a fresh local run now."
+    : simulationState === "failed"
+    ? snapshotError ?? "The last simulation did not finish cleanly."
+    : "Press Play to create a fresh local run for this page.";
+
+  const handlePlaySimulation = async () => {
+    if (simulationState === "running") {
+      return;
+    }
+
+    setSimulationState("running");
+    setSimulationRunId(null);
+    setSnapshot(null);
+    setSnapshotError(null);
+    setSnapshotUpdatedAt(null);
+    setChatInspector(EMPTY_INSPECTOR_STATE);
+
+    try {
+      const result = await runLiveSimulation();
+      setSnapshot(result.snapshot);
+      setSnapshotUpdatedAt(result.completedAt);
+      setSimulationRunId(result.runId);
+      setSimulationState("ready");
+    } catch (error) {
+      setSimulationState("failed");
+      setSnapshotError(
+        error instanceof Error ? error.message : "The local simulation failed."
+      );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -309,13 +395,11 @@ function App() {
 
               <div className="min-w-0">
                 <h1 className="truncate text-lg font-medium tracking-tight text-foreground sm:text-xl">
-                  {snapshot
-                    ? truncateMiddle(snapshot.task, 18, 12)
-                    : "Loading task"}
+                  {headline}
                 </h1>
-                {snapshotError ? (
+                {subheadline ? (
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Snapshot unavailable. The console will keep retrying.
+                    {subheadline}
                   </p>
                 ) : null}
               </div>
@@ -325,20 +409,27 @@ function App() {
                   <AlertCircle aria-hidden="true" />
                   <AlertTitle>Surfpool is offline</AlertTitle>
                   <AlertDescription>
-                    {surfpoolStatus.errorLabel ?? "The RPC could not be reached."}
+                    {surfpoolStatus.errorLabel ??
+                      "The RPC could not be reached."}
                   </AlertDescription>
                 </Alert>
               ) : null}
             </div>
 
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  void handlePlaySimulation();
+                }}
+                disabled={simulationState === "running"}
+              >
+                <Play aria-hidden="true" />
+                {playButtonLabel}
+              </Button>
               {headerLinks.map((link) => (
-                <Button
-                  key={link.label}
-                  asChild
-                  size="sm"
-                  variant="ghost"
-                >
+                <Button key={link.label} asChild size="sm" variant="ghost">
                   <a href={link.href} target="_blank" rel="noreferrer">
                     {link.label}
                     <ArrowUpRight data-icon="inline-end" aria-hidden="true" />
@@ -349,42 +440,88 @@ function App() {
           </div>
         </header>
 
-        <main className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,392px)]">
-          <section className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
-            <PiChatSurface
-              identityProfiles={identityProfiles}
-              mcpServers={runtimeMcpServers}
-              runtimeLabel={runtimeLabel}
-              slotLabel={surfpoolStatus?.slotLabel ?? null}
-              latestReceiptLabel={latestReceiptLabel}
-              receiptCount={snapshot?.receiptTimeline.length ?? 0}
-              taskLabel={snapshot?.task ?? null}
-              rpcLabel={
-                surfpoolStatus?.status === "online"
-                  ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
-                  : surfpoolStatus?.errorLabel ?? null
-              }
-              delegationLabels={chainLabels}
-              onInspectorStateChange={setChatInspector}
-            />
-          </section>
+        {snapshot ? (
+          <main className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,392px)]">
+            <section className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
+              <PiControlPlane
+                key={simulationRunId ?? "live-simulation"}
+                identityProfiles={identityProfiles}
+                mcpServers={runtimeMcpServers}
+                runtimeLabel={runtimeLabel}
+                slotLabel={surfpoolStatus?.slotLabel ?? null}
+                latestReceiptLabel={latestReceiptLabel}
+                receiptCount={snapshot.receiptTimeline.length}
+                receiptTimeline={snapshot.receiptTimeline}
+                taskLabel={snapshot.task}
+                rpcLabel={
+                  surfpoolStatus?.status === "online"
+                    ? `${surfpoolStatus.healthLabel} · ${surfpoolStatus.slotLabel}`
+                    : surfpoolStatus?.errorLabel ?? null
+                }
+                delegationLabels={chainLabels}
+                startFresh
+                onInspectorStateChange={setChatInspector}
+              />
+            </section>
 
-          <aside className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
-            <InspectorPanel
-              leadEntry={leadEntry}
-              latestReceipt={latestReceipt}
-              identityLabelsById={identityLabelsById}
-              totalSlashedLamports={totalSlashedLamports}
-              snapshot={snapshot}
-              surfpoolStatus={surfpoolStatus}
-              snapshotUpdatedAt={snapshotUpdatedAt}
-              chainLabels={chainLabels}
-              snapshotError={snapshotError}
-              inspectorState={chatInspector}
-              fallbackMcpServers={runtimeMcpServers}
-            />
-          </aside>
-        </main>
+            <aside className="min-w-0 xl:min-h-[calc(100vh-9rem)]">
+              <InspectorPanel
+                leadEntry={leadEntry}
+                latestReceipt={latestReceipt}
+                identityLabelsById={identityLabelsById}
+                totalSlashedLamports={totalSlashedLamports}
+                snapshot={snapshot}
+                surfpoolStatus={surfpoolStatus}
+                snapshotUpdatedAt={snapshotUpdatedAt}
+                chainLabels={chainLabels}
+                accountReferences={accountReferences}
+                snapshotError={snapshotError}
+                inspectorState={chatInspector}
+                fallbackMcpServers={runtimeMcpServers}
+              />
+            </aside>
+          </main>
+        ) : (
+          <main>
+            <Card className="min-h-[420px] bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-[calc(100vh-9rem)]">
+              <CardContent className="flex h-full items-center justify-center px-4 py-10 sm:px-8">
+                <Empty className="w-full max-w-2xl border-border/70 bg-background/25 py-12 text-left">
+                  <EmptyContent className="items-start gap-4 text-left">
+                    <EmptyMedia variant="icon">
+                      <Play aria-hidden="true" />
+                    </EmptyMedia>
+                    <EmptyHeader className="items-start text-left">
+                      <EmptyTitle>{headline}</EmptyTitle>
+                      <EmptyDescription>
+                        {subheadline ??
+                          "Press Play to create a fresh local run for this page."}
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    {snapshotError ? (
+                      <Alert variant="destructive" className="w-full">
+                        <AlertCircle aria-hidden="true" />
+                        <AlertTitle>Simulation error</AlertTitle>
+                        <AlertDescription>{snapshotError}</AlertDescription>
+                      </Alert>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          void handlePlaySimulation();
+                        }}
+                        disabled={simulationState === "running"}
+                      >
+                        <Play aria-hidden="true" />
+                        {playButtonLabel}
+                      </Button>
+                    </div>
+                  </EmptyContent>
+                </Empty>
+              </CardContent>
+            </Card>
+          </main>
+        )}
       </div>
     </div>
   );
@@ -399,6 +536,7 @@ function InspectorPanel({
   surfpoolStatus,
   snapshotUpdatedAt,
   chainLabels,
+  accountReferences,
   snapshotError,
   inspectorState,
   fallbackMcpServers,
@@ -411,27 +549,26 @@ function InspectorPanel({
   surfpoolStatus: SurfpoolStatus | null;
   snapshotUpdatedAt: number | null;
   chainLabels: string[];
+  accountReferences: DashboardAccountReference[];
   snapshotError: string | null;
   inspectorState: PiChatInspectorState;
   fallbackMcpServers: LocalMcpServer[];
 }) {
-  const [copiedReceiptId, setCopiedReceiptId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const mcpServers =
     inspectorState.mcpServers.length > 0
       ? inspectorState.mcpServers
       : fallbackMcpServers;
 
-  const copyReceiptId = async (receiptId: string) => {
+  const copyValue = async (key: string, value: string) => {
     try {
-      await navigator.clipboard.writeText(receiptId);
-      setCopiedReceiptId(receiptId);
+      await navigator.clipboard.writeText(value);
+      setCopiedKey(key);
       window.setTimeout(() => {
-        setCopiedReceiptId((current) =>
-          current === receiptId ? null : current,
-        );
+        setCopiedKey((current) => (current === key ? null : current));
       }, 1400);
     } catch {
-      setCopiedReceiptId(null);
+      setCopiedKey(null);
     }
   };
 
@@ -443,7 +580,7 @@ function InspectorPanel({
             <div className="space-y-1">
               <CardTitle className="text-base font-medium">Inspector</CardTitle>
               <CardDescription>
-                Run state, delegation, receipts, and MCP.
+                Run state, accounts, delegation, receipts, and MCP.
               </CardDescription>
             </div>
             <Badge variant="outline">
@@ -457,6 +594,7 @@ function InspectorPanel({
             className="w-full justify-start overflow-x-auto pb-1"
           >
             <TabsTrigger value="run">Run</TabsTrigger>
+            <TabsTrigger value="accounts">Accounts</TabsTrigger>
             <TabsTrigger value="delegation">Delegation</TabsTrigger>
             <TabsTrigger value="receipts">Receipts</TabsTrigger>
             <TabsTrigger value="mcp">MCP</TabsTrigger>
@@ -477,7 +615,10 @@ function InspectorPanel({
                     label="Lead"
                     value={
                       leadEntry
-                        ? `${identityLabelsById.get(leadEntry.agentId) ?? truncateMiddle(leadEntry.agentId)} · ${leadEntry.score}`
+                        ? `${
+                            identityLabelsById.get(leadEntry.agentId) ??
+                            truncateMiddle(leadEntry.agentId)
+                          } · ${leadEntry.score}`
                         : "Unavailable"
                     }
                   />
@@ -486,7 +627,10 @@ function InspectorPanel({
                     label="Latest receipt"
                     value={
                       latestReceipt
-                        ? `${latestReceipt.kind} · ${identityLabelsById.get(latestReceipt.actor) ?? truncateMiddle(latestReceipt.actor)}`
+                        ? `${latestReceipt.kind} · ${
+                            identityLabelsById.get(latestReceipt.actor) ??
+                            truncateMiddle(latestReceipt.actor)
+                          }`
                         : "Unavailable"
                     }
                   />
@@ -524,6 +668,100 @@ function InspectorPanel({
                 <div className="flex flex-col gap-3">
                   {Array.from({ length: 6 }).map((_, index) => (
                     <Skeleton key={index} className="h-14 w-full" />
+                  ))}
+                </div>
+              )}
+            </InspectorScrollArea>
+          </TabsContent>
+
+          <TabsContent value="accounts" className="mt-0 h-full">
+            <InspectorScrollArea>
+              {snapshot ? (
+                accountReferences.length > 0 ? (
+                  <div className="flex flex-col gap-2 pr-1">
+                    {accountReferences.map((reference) => (
+                      <div
+                        key={reference.key}
+                        className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-background/32 px-3 py-3"
+                      >
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-foreground">
+                              {reference.label}
+                            </p>
+                            <Badge variant="outline">{reference.kind}</Badge>
+                          </div>
+                          <p
+                            className="break-all font-mono text-xs text-muted-foreground"
+                            title={reference.value}
+                          >
+                            {reference.value}
+                          </p>
+                          {reference.detail ? (
+                            <p className="text-xs text-muted-foreground">
+                              {reference.detail}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            asChild
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <a
+                              href={reference.href}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open
+                              <ArrowUpRight
+                                data-icon="inline-end"
+                                aria-hidden="true"
+                              />
+                            </a>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              void copyValue(reference.key, reference.value)
+                            }
+                          >
+                            {copiedKey === reference.key ? "Copied" : "Copy"}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Empty className="border-border/70 bg-background/28 py-10">
+                    <EmptyContent>
+                      <EmptyMedia variant="icon">
+                        <Link2 aria-hidden="true" />
+                      </EmptyMedia>
+                      <EmptyHeader>
+                        <EmptyTitle>No account references</EmptyTitle>
+                        <EmptyDescription>
+                          Identity and stake authorities will appear here when
+                          the snapshot includes them.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </EmptyContent>
+                  </Empty>
+                )
+              ) : snapshotError ? (
+                <Alert variant="destructive">
+                  <AlertCircle aria-hidden="true" />
+                  <AlertTitle>Snapshot unavailable</AlertTitle>
+                  <AlertDescription>{snapshotError}</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16 w-full" />
                   ))}
                 </div>
               )}
@@ -592,11 +830,11 @@ function InspectorPanel({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => void copyReceiptId(entry.receiptId)}
+                        onClick={() =>
+                          void copyValue(entry.receiptId, entry.receiptId)
+                        }
                       >
-                        {copiedReceiptId === entry.receiptId
-                          ? "Copied"
-                          : "Copy ID"}
+                        {copiedKey === entry.receiptId ? "Copied" : "Copy ID"}
                       </Button>
                     </div>
                   ))}
@@ -720,8 +958,8 @@ function InspectorPanel({
                               {activity.phase === "start"
                                 ? "running"
                                 : activity.isError
-                                  ? "failed"
-                                  : "done"}
+                                ? "failed"
+                                : "done"}
                             </Badge>
                           </div>
                           {activity.detail ? (
@@ -792,7 +1030,7 @@ function InspectorStatRow({
 
 function buildIdentityProfiles(
   snapshot: DashboardSnapshot | null,
-  identityLabelsById: Map<string, string>,
+  identityLabelsById: Map<string, string>
 ): PiIdentityProfile[] {
   if (!snapshot) {
     return [];
@@ -806,13 +1044,13 @@ function buildIdentityProfiles(
   const delegatedFromById = new Map<string, string[]>();
   const delegatedToById = new Map<string, string[]>();
   const scoreById = new Map(
-    snapshot.leaderboard.all.map((entry) => [entry.agentId, entry.score]),
+    snapshot.leaderboard.all.map((entry) => [entry.agentId, entry.score])
   );
 
   for (const receipt of snapshot.receiptTimeline) {
     receiptCountByActor.set(
       receipt.actor,
-      (receiptCountByActor.get(receipt.actor) ?? 0) + 1,
+      (receiptCountByActor.get(receipt.actor) ?? 0) + 1
     );
     latestReceiptByActor.set(receipt.actor, receipt);
   }
@@ -830,14 +1068,14 @@ function buildIdentityProfiles(
 
   return Object.entries(snapshot.identities).map(([slug, identityId]) => {
     const delegatedFromLabels = (delegatedFromById.get(identityId) ?? []).map(
-      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value)
     );
     const delegatedToLabels = (delegatedToById.get(identityId) ?? []).map(
-      (value) => identityLabelsById.get(value) ?? truncateMiddle(value),
+      (value) => identityLabelsById.get(value) ?? truncateMiddle(value)
     );
     const latestReceipt = latestReceiptByActor.get(identityId) ?? null;
 
-    return {
+    const profile: PiIdentityProfile = {
       id: identityId,
       slug,
       label: formatIdentityLabel(slug),
@@ -853,7 +1091,9 @@ function buildIdentityProfiles(
       score: scoreById.get(identityId) ?? null,
       delegatedFromLabels,
       delegatedToLabels,
-    } satisfies PiIdentityProfile;
+    };
+
+    return profile;
   });
 }
 
@@ -870,7 +1110,9 @@ function buildIdentityPromptHint(slug: string) {
     return "Ask about challenges, disputes, or final attestation.";
   }
 
-  return `Ask ${formatIdentityLabel(slug)} about execution, receipts, or the next move.`;
+  return `Ask ${formatIdentityLabel(
+    slug
+  )} about execution, receipts, or the next move.`;
 }
 
 function describeIdentityRole(input: {

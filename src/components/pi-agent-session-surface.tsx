@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AgentMessage, ThinkingLevel } from "@mariozechner/pi-agent-core";
 import { supportsXhigh } from "@mariozechner/pi-ai";
 import {
@@ -6,7 +6,7 @@ import {
   ModelSelector,
   getAppStorage,
 } from "@mariozechner/pi-web-ui";
-import { Bot, Loader2, Send, Square, Trash2, Wrench } from "lucide-react";
+import { Bot, Loader2, Play, Send, Square, Trash2, Wrench } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -41,14 +41,10 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createEmptyChatState,
   createFallbackIdentityProfile,
-  loadIdentityWorkspace,
-  persistIdentityWorkspace,
-  setActiveIdentity,
-  syncIdentityWorkspace,
   type PiIdentityProfile,
-  type StoredIdentityWorkspace,
-  updateIdentityChatState,
+  type StoredChatState,
 } from "@/lib/pi-identities";
+import type { ControlPlaneAgentRecord } from "@/lib/pi-control-plane";
 import { createPiConsoleAgent } from "@/lib/pi-chat";
 import {
   subscribeToLocalRuntimeActivity,
@@ -56,11 +52,10 @@ import {
   type LocalRuntimeActivity,
   type LocalRuntimeConfig,
 } from "@trust-substrate/pi-local-runtime";
-import { cn } from "@/lib/utils";
 
-const IDENTITY_SESSION_ID_PREFIX = "trust-substrate-pi-console-identity";
+const CONTROL_PLANE_SESSION_ID_PREFIX = "trust-substrate-pi-console-agent";
 const BASE_SYSTEM_PROMPT = [
-  "You are the selected Surfpool identity inside the Trust Substrate console.",
+  "You are a launched operator session inside the Trust Substrate control plane.",
   "Answer in a concise, direct way.",
   "Stay faithful to the live task, receipts, delegation chain, and disputes shown in the console.",
   "If you infer something from the live snapshot instead of knowing it directly, say so plainly.",
@@ -68,7 +63,8 @@ const BASE_SYSTEM_PROMPT = [
   "If Codex MCP servers are configured, prefer them for search and external context when they materially improve the answer.",
 ].join(" ");
 
-interface PiChatSurfaceProps {
+interface PiAgentSessionSurfaceProps {
+  session: ControlPlaneAgentRecord;
   identityProfiles?: PiIdentityProfile[];
   mcpServers?: LocalMcpServer[];
   runtimeLabel?: string | null;
@@ -78,7 +74,12 @@ interface PiChatSurfaceProps {
   taskLabel?: string | null;
   rpcLabel?: string | null;
   delegationLabels?: string[];
-  onInspectorStateChange?: (state: PiChatInspectorState) => void;
+  onChatStateChange?: (sessionId: string, chat: StoredChatState) => void;
+  onRuntimeStateChange?: (
+    sessionId: string,
+    state: PiAgentSessionRuntimeState,
+  ) => void;
+  onLaunchPromptSent?: (sessionId: string) => void;
 }
 
 export interface PiChatInspectorState {
@@ -88,9 +89,19 @@ export interface PiChatInspectorState {
   isStreaming: boolean;
 }
 
+export interface PiAgentSessionRuntimeState extends PiChatInspectorState {
+  isReady: boolean;
+  startupError: string | null;
+  latestActivityLabel: string | null;
+  currentModelId: string | null;
+  activeIdentityLabel: string;
+  errorMessage: string | null;
+}
+
 type PiConsoleAgentHandle = Awaited<ReturnType<typeof createPiConsoleAgent>>;
 
-export function PiChatSurface({
+export function PiAgentSessionSurface({
+  session,
   identityProfiles = [],
   mcpServers = [],
   runtimeLabel = null,
@@ -100,19 +111,30 @@ export function PiChatSurface({
   taskLabel = null,
   rpcLabel = null,
   delegationLabels = [],
-  onInspectorStateChange,
-}: PiChatSurfaceProps) {
-  const availableIdentities = useMemo(
-    () =>
-      identityProfiles.length > 0
-        ? identityProfiles
-        : [createFallbackIdentityProfile(taskLabel)],
-    [identityProfiles, taskLabel],
+  onChatStateChange,
+  onRuntimeStateChange,
+  onLaunchPromptSent,
+}: PiAgentSessionSurfaceProps) {
+  const runtimeSessionId = useMemo(
+    () => getControlPlaneSessionId(session.id),
+    [session.id],
   );
-  const [identityWorkspace, setIdentityWorkspace] =
-    useState<StoredIdentityWorkspace>(() =>
-      loadIdentityWorkspace(availableIdentities),
-    );
+  const chatInputId = useMemo(
+    () => `pi-chat-input-${session.id}`,
+    [session.id],
+  );
+  const activeIdentity = useMemo(() => {
+    if (session.identityId) {
+      const matchedIdentity = identityProfiles.find(
+        (identity) => identity.id === session.identityId,
+      );
+      if (matchedIdentity) {
+        return matchedIdentity;
+      }
+    }
+
+    return createFallbackIdentityProfile(taskLabel);
+  }, [identityProfiles, session.identityId, taskLabel]);
   const [agentHandle, setAgentHandle] = useState<PiConsoleAgentHandle | null>(
     null,
   );
@@ -126,21 +148,15 @@ export function PiChatSurface({
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const agentRef = useRef<PiConsoleAgentHandle | null>(null);
   const systemPromptRef = useRef("");
-
-  const syncedIdentityWorkspace = useMemo(
-    () => syncIdentityWorkspace(identityWorkspace, availableIdentities),
-    [availableIdentities, identityWorkspace],
-  );
-
-  const activeIdentity =
-    availableIdentities.find(
-      (identity) => identity.id === syncedIdentityWorkspace.activeIdentityId,
-    ) ?? availableIdentities[0];
-  const activeChatState =
-    syncedIdentityWorkspace.chats[activeIdentity.id] ?? createEmptyChatState();
-  const initialChatStateRef = useRef(activeChatState);
+  const initialChatStateRef = useRef(session.chat ?? createEmptyChatState());
 
   const systemPrompt = useMemo(() => {
+    const sessionLines = [
+      `Session label: ${session.label}`,
+      `Session role: ${session.roleLabel}`,
+      `Mission: ${session.roleSummary}`,
+      session.launchPrompt ? `Launch brief: ${session.launchPrompt}` : null,
+    ].filter(Boolean);
     const identityLines = [
       `Label: ${activeIdentity.label}`,
       `Identity id: ${activeIdentity.id}`,
@@ -173,6 +189,7 @@ export function PiChatSurface({
 
     return [
       BASE_SYSTEM_PROMPT,
+      `Control-plane session:\n${sessionLines.join("\n")}`,
       `Active identity:\n${identityLines.join("\n")}`,
       `Live context:\n${contextLines.join("\n")}`,
     ].join("\n\n");
@@ -183,21 +200,21 @@ export function PiChatSurface({
     receiptCount,
     rpcLabel,
     runtimeLabel,
+    session.label,
+    session.launchPrompt,
+    session.roleLabel,
+    session.roleSummary,
     slotLabel,
     taskLabel,
   ]);
 
   useEffect(() => {
-    initialChatStateRef.current = activeChatState;
-  }, [activeChatState]);
+    initialChatStateRef.current = session.chat ?? createEmptyChatState();
+  }, [session.chat]);
 
   useEffect(() => {
     systemPromptRef.current = systemPrompt;
   }, [systemPrompt]);
-
-  useEffect(() => {
-    persistIdentityWorkspace(syncedIdentityWorkspace);
-  }, [syncedIdentityWorkspace]);
 
   useEffect(() => {
     let isActive = true;
@@ -207,7 +224,7 @@ export function PiChatSurface({
       try {
         const initialChatState = initialChatStateRef.current;
         const handle = await createPiConsoleAgent({
-          sessionId: getIdentitySessionId(activeIdentity.id),
+          sessionId: runtimeSessionId,
           systemPrompt: systemPromptRef.current,
           messages: initialChatState.messages,
           preferredModel: initialChatState.preferredModel,
@@ -224,16 +241,14 @@ export function PiChatSurface({
             return;
           }
 
-          setIdentityWorkspace((current) =>
-            updateIdentityChatState(current, activeIdentity.id, {
-              messages: [...handle.agent.state.messages],
-              preferredModel: {
-                provider: handle.agent.state.model.provider,
-                modelId: handle.agent.state.model.id,
-              },
-              thinkingLevel: handle.agent.state.thinkingLevel,
-            }),
-          );
+          onChatStateChange?.(session.id, {
+            messages: [...handle.agent.state.messages],
+            preferredModel: {
+              provider: handle.agent.state.model.provider,
+              modelId: handle.agent.state.model.id,
+            },
+            thinkingLevel: handle.agent.state.thinkingLevel,
+          });
           setVersion((current) => current + 1);
         });
 
@@ -261,7 +276,7 @@ export function PiChatSurface({
         agentRef.current = null;
       }
     };
-  }, [activeIdentity.id]);
+  }, [onChatStateChange, runtimeSessionId, session.id]);
 
   useEffect(() => {
     if (!agentRef.current) {
@@ -273,11 +288,14 @@ export function PiChatSurface({
 
   useEffect(() => {
     const unsubscribe = subscribeToLocalRuntimeActivity((activity) => {
+      if (activity.sessionId !== runtimeSessionId) {
+        return;
+      }
       setActivityLog((current) => upsertActivity(current, activity));
     });
 
     return unsubscribe;
-  }, []);
+  }, [runtimeSessionId]);
 
   useEffect(() => {
     const bottomMarker = bottomRef.current;
@@ -301,10 +319,17 @@ export function PiChatSurface({
   const currentModel = agent?.state.model ?? null;
   const pendingToolCalls = agent?.state.pendingToolCalls ?? new Set<string>();
   const canSend = Boolean(agent && draft.trim().length > 0 && !isStreaming);
-  const runtimeMcpServers =
-    agentHandle?.runtime.mcpServers.length
-      ? agentHandle.runtime.mcpServers
-      : mcpServers;
+  const canSendLaunchPrompt = Boolean(
+    agent &&
+    currentModel &&
+    session.launchPrompt &&
+    !session.launchPromptSent &&
+    messages.length === 0 &&
+    !isStreaming,
+  );
+  const runtimeMcpServers = agentHandle?.runtime.mcpServers.length
+    ? agentHandle.runtime.mcpServers
+    : mcpServers;
   const isLocalRuntimeModel = currentModel
     ? isLocalRuntimeProvider(runtime, currentModel.provider)
     : false;
@@ -314,7 +339,14 @@ export function PiChatSurface({
     }
 
     return supportsXhigh(currentModel)
-      ? (["off", "minimal", "low", "medium", "high", "xhigh"] as ThinkingLevel[])
+      ? ([
+          "off",
+          "minimal",
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+        ] as ThinkingLevel[])
       : (["off", "minimal", "low", "medium", "high"] as ThinkingLevel[]);
   }, [currentModel]);
   const quickPrompts = useMemo(
@@ -326,88 +358,118 @@ export function PiChatSurface({
         },
         {
           label: "Receipts",
-          prompt: "List the latest receipts and what they imply for the current run.",
+          prompt:
+            "List the latest receipts and what they imply for the current run.",
         },
         {
           label: "Delegation",
-          prompt: "Explain the current delegation chain and who should act next.",
+          prompt:
+            "Explain the current delegation chain and who should act next.",
         },
       ].filter(Boolean) as Array<{ label: string; prompt: string }>,
     [],
   );
 
-  useEffect(() => {
-    onInspectorStateChange?.({
-      mcpServers: runtimeMcpServers,
-      activities: activityLog,
-      pendingToolCount: pendingToolCalls.size,
-      isStreaming: isStreaming && isLocalRuntimeModel,
-    });
-  }, [
-    activityLog,
-    isLocalRuntimeModel,
-    isStreaming,
-    onInspectorStateChange,
-    pendingToolCalls.size,
-    runtimeMcpServers,
-  ]);
+  const submitMessage = useCallback(
+    async (
+      nextMessageText: string,
+      options: {
+        restoreDraftOnError: boolean;
+        markLaunchPromptSentOnSuccess: boolean;
+      },
+    ) => {
+      const activeAgent = agentRef.current?.agent;
+      if (
+        !activeAgent ||
+        !currentModel ||
+        nextMessageText.trim().length === 0 ||
+        isStreaming
+      ) {
+        return;
+      }
 
-  const handleSubmit = async () => {
-    const activeAgent = agentRef.current?.agent;
-    if (!activeAgent || !currentModel || draft.trim().length === 0 || isStreaming) {
-      return;
-    }
-
-    const message = draft.trim();
-    if (!isLocalRuntimeProvider(runtime, currentModel.provider)) {
-      const providerKey = await getAppStorage().providerKeys.get(
-        currentModel.provider,
-      );
-      if (!providerKey) {
-        const didProvideKey = await ApiKeyPromptDialog.prompt(
+      const message = nextMessageText.trim();
+      if (!isLocalRuntimeProvider(runtime, currentModel.provider)) {
+        const providerKey = await getAppStorage().providerKeys.get(
           currentModel.provider,
         );
-        if (!didProvideKey) {
-          return;
+        if (!providerKey) {
+          const didProvideKey = await ApiKeyPromptDialog.prompt(
+            currentModel.provider,
+          );
+          if (!didProvideKey) {
+            return;
+          }
         }
       }
-    }
 
-    if (isLocalRuntimeProvider(runtime, currentModel.provider)) {
-      setActivityLog([]);
-    }
+      if (isLocalRuntimeProvider(runtime, currentModel.provider)) {
+        setActivityLog([]);
+      }
 
-    setComposeError(null);
-    setDraft("");
+      setComposeError(null);
+      if (options.restoreDraftOnError) {
+        setDraft("");
+      }
 
-    try {
-      const nextUserMessage = {
-        role: "user",
-        content: [{ type: "text", text: message }],
-        timestamp: Date.now(),
-      } as AgentMessage;
+      try {
+        const nextUserMessage = {
+          role: "user",
+          content: [{ type: "text", text: message }],
+          timestamp: Date.now(),
+        } as AgentMessage;
 
-      // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
-      activeAgent.state.messages = [...activeAgent.state.messages, nextUserMessage];
-      setIdentityWorkspace((current) =>
-        updateIdentityChatState(current, activeIdentity.id, {
+        // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
+        activeAgent.state.messages = [
+          ...activeAgent.state.messages,
+          nextUserMessage,
+        ];
+        onChatStateChange?.(session.id, {
           messages: [...activeAgent.state.messages],
           preferredModel: {
             provider: activeAgent.state.model.provider,
             modelId: activeAgent.state.model.id,
           },
           thinkingLevel: activeAgent.state.thinkingLevel,
-        }),
-      );
-      setVersion((current) => current + 1);
+        });
+        setVersion((current) => current + 1);
 
-      await activeAgent.continue();
-    } catch (error) {
-      setDraft(message);
-      setComposeError(
-        error instanceof Error ? error.message : "Pi failed to respond",
-      );
-    }
+        await activeAgent.continue();
+        if (options.markLaunchPromptSentOnSuccess) {
+          onLaunchPromptSent?.(session.id);
+        }
+      } catch (error) {
+        if (options.restoreDraftOnError) {
+          setDraft(message);
+        }
+        setComposeError(
+          error instanceof Error ? error.message : "Pi failed to respond",
+        );
+      }
+    },
+    [
+      currentModel,
+      isStreaming,
+      onLaunchPromptSent,
+      onChatStateChange,
+      runtime,
+      session.id,
+    ],
+  );
+
+  const handleSubmit = async () => {
+    await submitMessage(draft, {
+      restoreDraftOnError: true,
+      markLaunchPromptSentOnSuccess: false,
+    });
+  };
+
+  const handleSendLaunchPrompt = async () => {
+    if (!session.launchPrompt) return;
+    await submitMessage(session.launchPrompt, {
+      restoreDraftOnError: false,
+      markLaunchPromptSentOnSuccess: true,
+    });
   };
 
   const handleClear = () => {
@@ -418,6 +480,14 @@ export function PiChatSurface({
 
     // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
     activeAgent.state.messages = [];
+    onChatStateChange?.(session.id, {
+      messages: [],
+      preferredModel: {
+        provider: activeAgent.state.model.provider,
+        modelId: activeAgent.state.model.id,
+      },
+      thinkingLevel: activeAgent.state.thinkingLevel,
+    });
     setActivityLog([]);
     setComposeError(null);
     setVersion((current) => current + 1);
@@ -435,23 +505,17 @@ export function PiChatSurface({
       }
 
       activeAgent.state.model = nextModel;
+      onChatStateChange?.(session.id, {
+        messages: [...activeAgent.state.messages],
+        preferredModel: {
+          provider: nextModel.provider,
+          modelId: nextModel.id,
+        },
+        thinkingLevel: activeAgent.state.thinkingLevel,
+      });
       setComposeError(null);
       setVersion((current) => current + 1);
     });
-  };
-
-  const handleSwitchIdentity = (identityId: string) => {
-    if (identityId === activeIdentity.id) {
-      return;
-    }
-
-    setIdentityWorkspace((current) => setActiveIdentity(current, identityId));
-    setAgentHandle(null);
-    setIsReady(false);
-    setStartupError(null);
-    setComposeError(null);
-    setDraft("");
-    setActivityLog([]);
   };
 
   const handleUsePrompt = (prompt: string) => {
@@ -462,10 +526,43 @@ export function PiChatSurface({
     setDraft(prompt);
   };
 
+  const activeError =
+    composeError ??
+    (agent?.state.errorMessage && agent.state.errorMessage !== "aborted"
+      ? agent.state.errorMessage
+      : null);
+  const connectionSummary = buildConnectionSummary(activeIdentity);
+
+  useEffect(() => {
+    onRuntimeStateChange?.(session.id, {
+      mcpServers: runtimeMcpServers,
+      activities: activityLog,
+      pendingToolCount: pendingToolCalls.size,
+      isStreaming: isStreaming && isLocalRuntimeModel,
+      isReady,
+      startupError,
+      latestActivityLabel: activityLog[activityLog.length - 1]?.label ?? null,
+      currentModelId: currentModel?.id ?? null,
+      activeIdentityLabel: activeIdentity.label,
+      errorMessage: activeError,
+    });
+  }, [
+    activeError,
+    activeIdentity.label,
+    activityLog,
+    currentModel?.id,
+    isLocalRuntimeModel,
+    isReady,
+    isStreaming,
+    onRuntimeStateChange,
+    pendingToolCalls.size,
+    runtimeMcpServers,
+    session.id,
+    startupError,
+  ]);
+
   if (!isReady && !startupError) {
-    return (
-      <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />
-    );
+    return <ChatSurfaceSkeleton identityLabel={activeIdentity.label} />;
   }
 
   if (!agent || !currentModel) {
@@ -490,13 +587,6 @@ export function PiChatSurface({
     );
   }
 
-  const activeError =
-    composeError ??
-    (agent.state.errorMessage && agent.state.errorMessage !== "aborted"
-      ? agent.state.errorMessage
-      : null);
-  const connectionSummary = buildConnectionSummary(activeIdentity);
-
   return (
     <Card className="h-full min-h-[760px] gap-0 overflow-hidden bg-card/72 supports-[backdrop-filter]:backdrop-blur-xl xl:min-h-0">
       <CardHeader className="gap-4 border-b border-border/70 bg-background/28">
@@ -504,19 +594,20 @@ export function PiChatSurface({
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className="text-base font-medium">
-                {activeIdentity.label}
+                {session.label}
               </CardTitle>
-              <Badge variant="outline">{activeIdentity.receiptCount} receipts</Badge>
-              {activeIdentity.latestReceiptKind ? (
-                <Badge variant="outline">{activeIdentity.latestReceiptKind}</Badge>
+              <Badge variant="outline">{session.roleLabel}</Badge>
+              {session.identityId ? (
+                <Badge variant="outline">{activeIdentity.label}</Badge>
               ) : null}
-              {activeIdentity.score !== null ? (
-                <Badge variant="outline">score {activeIdentity.score}</Badge>
-              ) : null}
+              <Badge variant="outline">
+                {Math.max(0, receiptCount - session.launchedAtReceiptCount)} new
+                receipts
+              </Badge>
             </div>
 
             <CardDescription className="max-w-3xl">
-              {activeIdentity.roleSummary}
+              {session.roleSummary}
             </CardDescription>
             {connectionSummary ? (
               <p className="text-xs text-muted-foreground">
@@ -524,62 +615,16 @@ export function PiChatSurface({
               </p>
             ) : null}
           </div>
-
-          <div className="flex w-full flex-col gap-2 lg:w-auto lg:items-end">
-            {availableIdentities.length > 1 ? (
-              <div className="sm:hidden">
-                <Select
-                  value={activeIdentity.id}
-                  onValueChange={handleSwitchIdentity}
-                >
-                  <SelectTrigger className="w-full border-border/70 bg-background/30">
-                    <SelectValue placeholder="Choose identity" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {availableIdentities.map((identityOption) => (
-                        <SelectItem key={identityOption.id} value={identityOption.id}>
-                          {identityOption.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {availableIdentities.length > 1 ? (
-          <div className="hidden overflow-x-auto pb-1 sm:block">
-            <div className="flex gap-2">
-              {availableIdentities.map((identityOption) => {
-                const isActive = identityOption.id === activeIdentity.id;
-
-                return (
-                  <button
-                    key={identityOption.id}
-                    type="button"
-                    className={cn(
-                      "flex min-w-[148px] flex-col gap-1 rounded-md border px-3 py-2 text-left transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50",
-                      isActive
-                        ? "border-border bg-background/72 text-foreground"
-                        : "border-border/70 bg-background/24 text-foreground/82 hover:bg-muted/50",
-                    )}
-                    onClick={() => handleSwitchIdentity(identityOption.id)}
-                  >
-                    <span className="text-sm font-medium">
-                      {identityOption.label}
-                    </span>
-                    <span className="text-[11px] leading-5 text-muted-foreground">
-                      {buildIdentityChipMeta(identityOption)}
-                    </span>
-                  </button>
-                );
-              })}
+          {session.launchPrompt ? (
+            <div className="grid max-w-md gap-2 text-xs text-muted-foreground lg:text-right">
+              <p>{session.launchPrompt}</p>
+              <p>
+                This launch brief is not sent automatically. Sending it starts a
+                model request for this Pi session.
+              </p>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </CardHeader>
 
       <CardContent className="min-h-0 flex-1 px-0 py-0">
@@ -613,6 +658,20 @@ export function PiChatSurface({
           ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
+            {session.launchPrompt && !session.launchPromptSent ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-lg"
+                onClick={() => void handleSendLaunchPrompt()}
+                disabled={!canSendLaunchPrompt}
+              >
+                <Play data-icon="inline-start" aria-hidden="true" />
+                Send launch brief
+              </Button>
+            ) : null}
+
             <Button
               type="button"
               variant="outline"
@@ -633,6 +692,14 @@ export function PiChatSurface({
 
                 // eslint-disable-next-line react-hooks/immutability -- Pi agent state is an imperative runtime object.
                 activeAgent.state.thinkingLevel = nextValue as ThinkingLevel;
+                onChatStateChange?.(session.id, {
+                  messages: [...activeAgent.state.messages],
+                  preferredModel: {
+                    provider: activeAgent.state.model.provider,
+                    modelId: activeAgent.state.model.id,
+                  },
+                  thinkingLevel: nextValue as ThinkingLevel,
+                });
                 setVersion((current) => current + 1);
               }}
             >
@@ -654,16 +721,18 @@ export function PiChatSurface({
             </Select>
 
             {pendingToolCalls.size > 0 ? (
-              <Badge variant="outline">{pendingToolCalls.size} tools running</Badge>
+              <Badge variant="outline">
+                {pendingToolCalls.size} tools running
+              </Badge>
             ) : null}
           </div>
 
-          <label htmlFor="pi-chat-input" className="sr-only">
+          <label htmlFor={chatInputId} className="sr-only">
             Message {activeIdentity.label}
           </label>
 
           <Textarea
-            id="pi-chat-input"
+            id={chatInputId}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={(event) => {
@@ -852,7 +921,9 @@ function MessageRow({
   pendingToolCalls: ReadonlySet<string>;
 }) {
   if (isAssistantMessage(message)) {
-    return <AssistantBubble message={message} pendingToolCalls={pendingToolCalls} />;
+    return (
+      <AssistantBubble message={message} pendingToolCalls={pendingToolCalls} />
+    );
   }
 
   if (isToolResultMessage(message)) {
@@ -871,7 +942,10 @@ function UserBubble({ message }: { message: UserLikeMessage }) {
 
   return (
     <div className="flex justify-end">
-      <Card size="sm" className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15">
+      <Card
+        size="sm"
+        className="max-w-[86%] gap-0 bg-primary/10 py-3 ring-primary/15"
+      >
         <CardContent className="text-sm leading-6 whitespace-pre-wrap text-foreground">
           {textContent}
         </CardContent>
@@ -895,10 +969,15 @@ function AssistantBubble({
     <div className="flex justify-start">
       <div className="flex max-w-[92%] flex-col gap-3">
         {textBlocks.length > 0 ? (
-          <Card size="sm" className="gap-0 bg-background/45 py-3 ring-border/70">
+          <Card
+            size="sm"
+            className="gap-0 bg-background/45 py-3 ring-border/70"
+          >
             <CardContent className="flex flex-col gap-3 text-sm leading-6 whitespace-pre-wrap text-foreground">
               {textBlocks.map((block, index) => (
-                <p key={`${message.timestamp ?? 0}-text-${index}`}>{block.text}</p>
+                <p key={`${message.timestamp ?? 0}-text-${index}`}>
+                  {block.text}
+                </p>
               ))}
             </CardContent>
           </Card>
@@ -956,11 +1035,7 @@ function ToolCallBubble({
   );
 }
 
-function ToolResultBubble({
-  message,
-}: {
-  message: ToolResultMessageLike;
-}) {
+function ToolResultBubble({ message }: { message: ToolResultMessageLike }) {
   const textOutput = message.content
     .filter(isToolResultTextBlock)
     .map((block) => block.text)
@@ -969,7 +1044,10 @@ function ToolResultBubble({
 
   return (
     <div className="flex justify-start">
-      <Card size="sm" className="max-w-[92%] gap-0 bg-background/45 py-3 ring-border/70">
+      <Card
+        size="sm"
+        className="max-w-[92%] gap-0 bg-background/45 py-3 ring-border/70"
+      >
         <CardContent className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Wrench className="size-4 text-muted-foreground" />
@@ -1016,9 +1094,7 @@ function RuntimeActivityCard({
                 {activity.server ? (
                   <Badge variant="outline">{activity.server}</Badge>
                 ) : null}
-                <Badge
-                  variant={activity.isError ? "destructive" : "outline"}
-                >
+                <Badge variant={activity.isError ? "destructive" : "outline"}>
                   {activity.phase === "start"
                     ? "running"
                     : activity.isError
@@ -1054,7 +1130,6 @@ function PendingRuntimeCard() {
     </Card>
   );
 }
-
 
 function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
   return (
@@ -1093,17 +1168,6 @@ function ChatSurfaceSkeleton({ identityLabel }: { identityLabel: string }) {
       </CardFooter>
     </Card>
   );
-}
-
-function buildIdentityChipMeta(identity: PiIdentityProfile) {
-  const parts = [`${identity.receiptCount} receipts`];
-  if (identity.latestReceiptKind) {
-    parts.push(identity.latestReceiptKind);
-  }
-  if (identity.score !== null) {
-    parts.push(`score ${identity.score}`);
-  }
-  return parts.join(" · ");
 }
 
 function getUserMessageText(message: UserLikeMessage) {
@@ -1189,27 +1253,42 @@ function upsertActivity(
   return updatedActivities;
 }
 
-function getIdentitySessionId(identityId: string) {
-  return `${IDENTITY_SESSION_ID_PREFIX}-${identityId}`;
+function getControlPlaneSessionId(sessionId: string) {
+  return `${CONTROL_PLANE_SESSION_ID_PREFIX}-${sessionId}`;
 }
 
 function getMessageKey(message: AgentMessage, index: number) {
-  const timestamp = "timestamp" in message ? String(message.timestamp) : "untimed";
+  const timestamp =
+    "timestamp" in message ? String(message.timestamp) : "untimed";
   return `${message.role}-${timestamp}-${index}`;
 }
 
-type UserLikeMessage = Extract<AgentMessage, { role: "user" | "user-with-attachments" }>;
+type UserLikeMessage = Extract<
+  AgentMessage,
+  { role: "user" | "user-with-attachments" }
+>;
 type AssistantMessageLike = Extract<AgentMessage, { role: "assistant" }>;
 type ToolResultMessageLike = Extract<AgentMessage, { role: "toolResult" }>;
-type ToolCallBlock = Extract<AssistantMessageLike["content"][number], { type: "toolCall" }>;
-type ThinkingBlock = Extract<AssistantMessageLike["content"][number], { type: "thinking" }>;
-type TextBlock = Extract<AssistantMessageLike["content"][number], { type: "text" }>;
+type ToolCallBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "toolCall" }
+>;
+type ThinkingBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "thinking" }
+>;
+type TextBlock = Extract<
+  AssistantMessageLike["content"][number],
+  { type: "text" }
+>;
 type ToolResultTextBlock = Extract<
   ToolResultMessageLike["content"][number],
   { type: "text" }
 >;
 
-function isUserLikeMessage(message: AgentMessage | null | undefined): message is UserLikeMessage {
+function isUserLikeMessage(
+  message: AgentMessage | null | undefined,
+): message is UserLikeMessage {
   return message?.role === "user" || message?.role === "user-with-attachments";
 }
 
@@ -1225,7 +1304,9 @@ function isToolResultMessage(
   return message?.role === "toolResult";
 }
 
-function isTextBlock(block: AssistantMessageLike["content"][number]): block is TextBlock {
+function isTextBlock(
+  block: AssistantMessageLike["content"][number],
+): block is TextBlock {
   return block.type === "text";
 }
 

@@ -1,4 +1,8 @@
-import { Agent, type AgentMessage, type ThinkingLevel } from "@mariozechner/pi-agent-core";
+import {
+  Agent,
+  type AgentMessage,
+  type ThinkingLevel,
+} from "@mariozechner/pi-agent-core";
 import { getModel } from "@mariozechner/pi-ai";
 import {
   AppStorage,
@@ -20,7 +24,7 @@ import {
   resolveApiKey,
   syncLocalRuntimeProviderKeys,
   type LocalRuntimeConfig,
-} from "@/lib/local-runtime";
+} from "@trust-substrate/pi-local-runtime";
 
 const STORAGE_NAME = "trust-substrate-pi-console";
 const STORAGE_VERSION = 1;
@@ -81,7 +85,8 @@ export async function createPiConsoleAgent(
   });
 
   const model =
-    resolvePreferredModel(runtime, input.preferredModel) ?? pickDefaultModel(runtime);
+    resolvePreferredModel(runtime, input.preferredModel) ??
+    pickDefaultModel(runtime);
 
   const agent = new Agent({
     sessionId: input.sessionId ?? PI_CONSOLE_SESSION_ID,
@@ -96,7 +101,10 @@ export async function createPiConsoleAgent(
     getApiKey: async (provider) => {
       return await resolveApiKey(runtime, provider);
     },
-    streamFn: createLocalRuntimeStreamFn(runtime),
+    streamFn: createLocalRuntimeStreamFn(
+      runtime,
+      input.sessionId ?? PI_CONSOLE_SESSION_ID,
+    ),
   });
 
   return {
@@ -131,8 +139,10 @@ function resolvePreferredModel(
   }
 
   return (
-    getModel(preferredModel.provider as never, preferredModel.modelId as never) ??
-    pickDefaultModel(runtime)
+    getModel(
+      preferredModel.provider as never,
+      preferredModel.modelId as never,
+    ) ?? pickDefaultModel(runtime)
   );
 }
 

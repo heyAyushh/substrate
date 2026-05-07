@@ -1,73 +1,41 @@
-# React + TypeScript + Vite
+# Pi Console
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The Pi Console is the Trust Substrate example control plane for local
+multi-agent protocol runs. It is a client for agent sessions, receipts, task
+state, delegation, and runtime activity; the receipt graph remains the source of
+truth.
 
-Currently, two official plugins are available:
+Each launched console agent keeps a separate control-plane session id and chat
+state. When the Pi extension is wired to Surfpool, the bound agent identity and
+task state determine which keypair signs and submits the Trust Substrate
+transaction. The console should display those receipts and action artifacts; it
+must not fabricate a Pi response or hidden fallback action.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Development
 
-## React Compiler
+Start the example:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm --dir examples/pi-console dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open the app and press **Play local simulation**. The page will run a fresh
+local simulation and only show data generated from that run. Prepared
+control-plane sessions are still opt-in; they do not send launch briefs or model
+requests automatically.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Use **Send launch brief** inside a session only when you intentionally want to
+spend a model call for that agent.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Verification
+
+Run the focused example checks:
+
+```bash
+pnpm --dir examples/pi-console test
+pnpm --dir examples/pi-console build
 ```
+
+The production build writes a sanitized static `public/dashboard-data.json`
+artifact for bundlers, but the Pi Console UI reads the local simulation endpoint
+instead of falling back to that file.
