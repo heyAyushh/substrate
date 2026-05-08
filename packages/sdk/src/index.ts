@@ -177,6 +177,7 @@ export type {
   OnchainAdjudicatorBinding,
   OnchainVerdictBinding,
   OnchainTaskBinding,
+  OnchainTaskRecord,
   OnchainTransactionCommit,
   OnchainTransactionDispatcher,
   OnchainChallengeResponseBinding,

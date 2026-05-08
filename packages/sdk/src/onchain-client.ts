@@ -104,6 +104,22 @@ export interface OnchainTaskBinding {
   readonly domain: Uint8Array;
 }
 
+export interface OnchainTaskRecord {
+  readonly address: Address;
+  readonly identity: Address;
+  readonly taskId: ReadonlyUint8Array;
+  readonly domain: ReadonlyUint8Array;
+  readonly subtaskRoot: ReadonlyUint8Array;
+  readonly subtaskCount: number;
+  readonly status: number;
+  readonly completedCount: number;
+  readonly disputedCount: number;
+  readonly resolvedCount: number;
+  readonly lastReceipt: Address;
+  readonly lastSequence: bigint;
+  readonly bump: number;
+}
+
 export interface OnchainSocietyWorldBinding {
   readonly address: Address;
 }
@@ -1314,6 +1330,43 @@ export class TrustSubstrateOnchainClient {
       ...(await this.createTask(input)),
       created: true,
     };
+  }
+
+  async fetchMaybeTask(input: {
+    readonly task: Address;
+  }): Promise<OnchainTaskRecord | undefined> {
+    const rpc = this.dispatcher.rpc;
+    if (!rpc) {
+      throw new Error("Task fetch is unavailable without an RPC client");
+    }
+    const { fetchMaybeTaskRecord } = await loadTaskRecordAccountModule();
+    const account = await fetchMaybeTaskRecord(rpc, input.task);
+    if (!account.exists) return undefined;
+    return {
+      address: input.task,
+      identity: account.data.identity,
+      taskId: account.data.taskId,
+      domain: account.data.domain,
+      subtaskRoot: account.data.subtaskRoot,
+      subtaskCount: account.data.subtaskCount,
+      status: account.data.status,
+      completedCount: account.data.completedCount,
+      disputedCount: account.data.disputedCount,
+      resolvedCount: account.data.resolvedCount,
+      lastReceipt: account.data.lastReceipt,
+      lastSequence: account.data.lastSequence,
+      bump: account.data.bump,
+    };
+  }
+
+  async fetchTask(input: {
+    readonly task: Address;
+  }): Promise<OnchainTaskRecord> {
+    const task = await this.fetchMaybeTask(input);
+    if (!task) {
+      throw new Error(`Task ${input.task} does not exist`);
+    }
+    return task;
   }
 
   async createSocietyWorld(input: {

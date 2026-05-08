@@ -52,6 +52,12 @@ type ProtocolWriteGroup =
   | "checkpoint"
   | "dispute";
 
+type ProtocolWriteParams = Readonly<Record<string, unknown>> & {
+  readonly action: string;
+  readonly mode: WriteMode;
+  readonly confirm: boolean;
+};
+
 interface WriteExecutionContext {
   readonly client: TrustSubstrateOnchainClient;
   readonly signer: KeyPairSigner;
@@ -84,6 +90,7 @@ interface ProtocolWriteResult {
 
 const SOLANA_KEYPAIR_LENGTH = 64;
 const DEFAULT_KEYPAIR_SUBPATH = ".config/solana/id.json";
+const ZERO_ADDRESS = "11111111111111111111111111111111";
 const RESPONSE_FORMAT_SCHEMA = z
   .enum([MARKDOWN_RESPONSE_FORMAT, JSON_RESPONSE_FORMAT])
   .default(JSON_RESPONSE_FORMAT);
@@ -466,11 +473,7 @@ export async function getMcpWriteStatus(
 
 export async function runMcpProtocolWriteTool(
   group: ProtocolWriteGroup,
-  params: {
-    readonly action: string;
-    readonly mode: WriteMode;
-    readonly confirm: boolean;
-  },
+  params: ProtocolWriteParams,
   env: Env = process.env,
 ): Promise<ProtocolWriteResult> {
   const config = loadMcpWriteConfig(env);
@@ -756,7 +759,7 @@ async function previewReceipt(
       return context.client.bindReceipt({
         identity: addressParam(params, "identity"),
         task: addressParam(params, "task"),
-        receipt: receiptRecord(params),
+        receipt: await receiptRecordForTask(params, context),
       });
     case "emit_audit_receipt":
       return context.client.bindAuditReceipt({
@@ -791,7 +794,7 @@ async function submitReceipt(
         identity: addressParam(params, "identity"),
         task: addressParam(params, "task"),
         domainCatalog: addressParam(params, "domain_catalog"),
-        receipt: receiptRecord(params),
+        receipt: await receiptRecordForTask(params, context),
       });
     case "emit_delegated_receipt":
       return context.client.emitDelegatedReceipt({
@@ -800,7 +803,7 @@ async function submitReceipt(
         delegation: addressParam(params, "delegation"),
         task: addressParam(params, "task"),
         domainCatalog: addressParam(params, "domain_catalog"),
-        receipt: receiptRecord(params),
+        receipt: await receiptRecordForTask(params, context),
       });
     case "emit_audit_receipt":
       return context.client.emitAuditReceipt({
@@ -1316,6 +1319,37 @@ function receiptRecord(params: Record<string, unknown>): ReceiptRecord {
     payload: optionalRecord(params, "payload"),
     sequence: numberParam(params, "sequence"),
     previousReceiptId: optionalString(params, "previous_receipt_id"),
+  });
+}
+
+async function receiptRecordForTask(
+  params: Record<string, unknown>,
+  context: WriteExecutionContext,
+): Promise<ReceiptRecord> {
+  const raw = params.receipt_record;
+  if (raw && typeof raw === "object") return raw as ReceiptRecord;
+  if (params.sequence !== undefined) return receiptRecord(params);
+  if (context.mode !== "submit") {
+    throw new Error(
+      "sequence is required in preview mode; omit it only when submitting so the MCP server can read the current task chain head",
+    );
+  }
+
+  const task = await context.client.fetchTask({
+    task: addressParam(params, "task"),
+  });
+  const nextSequence = task.lastSequence + 1n;
+  if (nextSequence > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`Receipt sequence ${nextSequence.toString()} is too large`);
+  }
+  return createReceiptRecord({
+    actorId: stringParam(params, "actor_id"),
+    kind: stringParam(params, "receipt_kind") as ReceiptKind,
+    taskId: stringParam(params, "task_id"),
+    payload: optionalRecord(params, "payload"),
+    sequence: Number(nextSequence),
+    previousReceiptId:
+      task.lastReceipt === ZERO_ADDRESS ? undefined : task.lastReceipt,
   });
 }
 

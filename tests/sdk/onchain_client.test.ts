@@ -2,7 +2,12 @@ import test from "node:test";
 import { ok, rejects, strictEqual } from "node:assert/strict";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { address, generateKeyPairSigner, type Instruction } from "@solana/kit";
+import {
+  address,
+  generateKeyPairSigner,
+  type Address,
+  type Instruction,
+} from "@solana/kit";
 
 import {
   createIdentity,
@@ -22,6 +27,14 @@ const { getCreateSocietyWorldInstructionAsync } = await import(
     ),
   ).href
 );
+const { getTaskRecordEncoder } = await import(
+  pathToFileURL(
+    resolve(
+      process.cwd(),
+      "../program-clients/dist/generated/task_registry/accounts/taskRecord.js",
+    ),
+  ).href
+);
 
 const DUMMY_BLOCKHASH_LIFETIME = {
   blockhash: "11111111111111111111111111111111",
@@ -30,11 +43,56 @@ const DUMMY_BLOCKHASH_LIFETIME = {
 const MEMO_PROGRAM_ADDRESS = address(
   "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
 );
+const TASK_REGISTRY_PROGRAM_ADDRESS = address(
+  "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4",
+);
+const ZERO_ADDRESS = address("11111111111111111111111111111111");
 
 const decodeInstructionData = (instruction: Instruction): string =>
   new TextDecoder().decode(
     (instruction as Instruction & { data: Uint8Array }).data,
   );
+
+const zeroBytes32 = (): Uint8Array => new Uint8Array(32);
+
+const createTaskAccountRpc = (input: {
+  readonly taskAddress: Address;
+  readonly identityAddress: Address;
+  readonly lastReceipt: Address;
+  readonly lastSequence: bigint;
+}) => {
+  const data = getTaskRecordEncoder().encode({
+    identity: input.identityAddress,
+    taskId: zeroBytes32(),
+    domain: zeroBytes32(),
+    subtaskRoot: zeroBytes32(),
+    subtaskCount: 0,
+    status: 0,
+    completedCount: 0,
+    disputedCount: 0,
+    resolvedCount: 0,
+    lastReceipt: input.lastReceipt,
+    lastSequence: input.lastSequence,
+    bump: 255,
+  });
+
+  return {
+    getAccountInfo: (requestedAddress: Address) => ({
+      send: async () => ({
+        value:
+          requestedAddress === input.taskAddress
+            ? {
+                data: [Buffer.from(data).toString("base64"), "base64"],
+                executable: false,
+                lamports: 1n,
+                owner: TASK_REGISTRY_PROGRAM_ADDRESS,
+                space: data.length,
+              }
+            : null,
+      }),
+    }),
+  };
+};
 
 test("dispatcher rejects oversized transactions before RPC send", async () => {
   const authority = await generateKeyPairSigner();
@@ -93,6 +151,50 @@ test("on-chain operations append Explorer-visible memos", async () => {
   ok(memo.includes("Trust Substrate"));
   ok(memo.includes("create_identity"));
   ok(memo.includes(identity.identityId));
+});
+
+test("fetchTask exposes the on-chain task receipt chain head", async () => {
+  const task = await generateKeyPairSigner();
+  const identity = await generateKeyPairSigner();
+  const lastReceipt = await generateKeyPairSigner();
+  const client = new TrustSubstrateOnchainClient({
+    rpc: createTaskAccountRpc({
+      taskAddress: task.address,
+      identityAddress: identity.address,
+      lastReceipt: lastReceipt.address,
+      lastSequence: 7n,
+    }) as never,
+    send: async () => {
+      throw new Error("fetchTask must not send transactions");
+    },
+  });
+
+  const record = await client.fetchTask({ task: task.address });
+
+  strictEqual(record.address, task.address);
+  strictEqual(record.identity, identity.address);
+  strictEqual(record.lastReceipt, lastReceipt.address);
+  strictEqual(record.lastSequence, 7n);
+});
+
+test("fetchMaybeTask returns undefined when the task account is missing", async () => {
+  const task = await generateKeyPairSigner();
+  const identity = await generateKeyPairSigner();
+  const client = new TrustSubstrateOnchainClient({
+    rpc: createTaskAccountRpc({
+      taskAddress: identity.address,
+      identityAddress: identity.address,
+      lastReceipt: ZERO_ADDRESS,
+      lastSequence: 0n,
+    }) as never,
+    send: async () => {
+      throw new Error("fetchMaybeTask must not send transactions");
+    },
+  });
+
+  const record = await client.fetchMaybeTask({ task: task.address });
+
+  strictEqual(record, undefined);
 });
 
 test("delegated receipts are sent by the delegate signer", async () => {

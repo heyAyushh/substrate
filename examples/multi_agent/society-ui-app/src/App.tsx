@@ -34,6 +34,8 @@ import { Empty, EmptyDescription } from "@/components/ui/empty"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { cn } from "@/lib/utils"
@@ -696,6 +698,8 @@ const MAX_ONBOARDING_STEP = 2
 const ONBOARDING_VISIBLE_METRIC_COUNT = 4
 const ONBOARDING_VISIBLE_TRACE_COUNT = 3
 const ONBOARDING_CURATED_TEMPLATE_COUNT = 3
+const ACCOUNT_LOADING_SKELETON_COUNT = 4
+const SURFPOOL_ACCOUNT_SKELETON_COUNT = 3
 const ONBOARDING_INSET_CARD_CLASS =
   "border-border/65 bg-background/45 shadow-none backdrop-blur-[2px]"
 const ONBOARDING_SELECT_ITEM_CLASS =
@@ -742,6 +746,7 @@ const ARCHETYPE_ICONS: Record<string, IconComponent> = {
 }
 
 type SocietyPageView = "world" | "agents"
+type LiveCommandInFlight = "play" | "pause" | "step"
 
 const format = (value: number | string | undefined) =>
   typeof value === "number" ? numberFormat.format(value) : String(value ?? "")
@@ -1171,7 +1176,8 @@ function App() {
   >("pending")
   const [isStartingLive, setIsStartingLive] = React.useState(false)
   const [isResumingLive, setIsResumingLive] = React.useState(false)
-  const [isSendingLiveCommand, setIsSendingLiveCommand] = React.useState(false)
+  const [liveCommandInFlight, setLiveCommandInFlight] =
+    React.useState<LiveCommandInFlight>()
   const [liveStatus, setLiveStatus] = React.useState(
     "Idle: launch from onboarding"
   )
@@ -1199,6 +1205,12 @@ function App() {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const liveEventSourceRef = React.useRef<EventSource | null>(null)
   const playgroundFullscreen = useElementFullscreen(playgroundRef)
+  const isSendingLiveCommand = liveCommandInFlight !== undefined
+  const isLiveUiBusy =
+    isStartingLive ||
+    isResumingLive ||
+    isSendingLiveCommand ||
+    isLoadingLiveAccounts
 
   const liveConfig = React.useMemo(
     () =>
@@ -1492,14 +1504,17 @@ function App() {
     [closeLiveStream]
   )
 
-  const sendLiveCommand = React.useCallback(async (path: string) => {
-    setIsSendingLiveCommand(true)
-    try {
-      setLiveSnapshot(await postLiveCommand(path))
-    } finally {
-      setIsSendingLiveCommand(false)
-    }
-  }, [])
+  const sendLiveCommand = React.useCallback(
+    async (path: string, command: LiveCommandInFlight) => {
+      setLiveCommandInFlight(command)
+      try {
+        setLiveSnapshot(await postLiveCommand(path))
+      } finally {
+        setLiveCommandInFlight(undefined)
+      }
+    },
+    []
+  )
 
   const startLiveSession = React.useCallback(
     async ({
@@ -1554,7 +1569,7 @@ function App() {
           payload.snapshot.status !== "complete" &&
           payload.snapshot.committedActions.length === 0
         ) {
-          setIsSendingLiveCommand(true)
+          setLiveCommandInFlight("step")
           setLiveStatus("Playing the first live action")
           try {
             const snapshot = await postLiveCommand(
@@ -1571,7 +1586,7 @@ function App() {
               `Live world ready; first action failed: ${(error as Error).message}`
             )
           } finally {
-            setIsSendingLiveCommand(false)
+            setLiveCommandInFlight(undefined)
           }
         }
         return true
@@ -1623,19 +1638,28 @@ function App() {
   const playLiveSession = React.useCallback(async () => {
     if (!liveSnapshot) return
     setLiveStatus("Running live session")
-    await sendLiveCommand(`/api/society/live/${liveSnapshot.sessionId}/play`)
+    await sendLiveCommand(
+      `/api/society/live/${liveSnapshot.sessionId}/play`,
+      "play"
+    )
   }, [liveSnapshot, sendLiveCommand])
 
   const pauseLiveSession = React.useCallback(async () => {
     if (!liveSnapshot) return
     setLiveStatus("Live session paused")
-    await sendLiveCommand(`/api/society/live/${liveSnapshot.sessionId}/pause`)
+    await sendLiveCommand(
+      `/api/society/live/${liveSnapshot.sessionId}/pause`,
+      "pause"
+    )
   }, [liveSnapshot, sendLiveCommand])
 
   const stepLiveSession = React.useCallback(async () => {
     if (!liveSnapshot) return
     setLiveStatus("Stepping live action")
-    await sendLiveCommand(`/api/society/live/${liveSnapshot.sessionId}/step`)
+    await sendLiveCommand(
+      `/api/society/live/${liveSnapshot.sessionId}/step`,
+      "step"
+    )
   }, [liveSnapshot, sendLiveCommand])
 
   const reconnectLiveSession = React.useCallback(() => {
@@ -1712,7 +1736,8 @@ function App() {
         setLiveStatus("Playing the first live action")
         try {
           await sendLiveCommand(
-            `/api/society/live/${liveSnapshot.sessionId}/step`
+            `/api/society/live/${liveSnapshot.sessionId}/step`,
+            "step"
           )
           setLiveStatus("First live action confirmed")
         } catch (error) {
@@ -2131,7 +2156,11 @@ function App() {
               </Badge>
               <Badge variant="outline">{worldStateLabel}</Badge>
               <Badge variant="outline">tick {frame.tick}</Badge>
-              <Badge variant="outline" className="max-w-full truncate">
+              <Badge
+                variant="outline"
+                className="max-w-full truncate has-[svg]:gap-1.5"
+              >
+                {isLiveUiBusy && <Spinner />}
                 {headerStatus}
               </Badge>
             </div>
@@ -2270,7 +2299,9 @@ function App() {
                           className={TOUCH_BUTTON_CLASS}
                           onClick={() => void resumeLatestLiveSession()}
                           disabled={isStartingLive || isResumingLive}
+                          aria-busy={isResumingLive}
                         >
+                          {isResumingLive && <Spinner data-icon="inline-start" />}
                           {isResumingLive ? "Opening latest" : "Resume last"}
                         </Button>
                       )}
@@ -2436,8 +2467,22 @@ function App() {
                         liveSnapshot.status === "complete" ||
                         isSendingLiveCommand
                       }
+                      aria-busy={
+                        liveCommandInFlight === "play" ||
+                        liveCommandInFlight === "pause"
+                      }
                     >
-                      {liveSnapshot?.status === "running" ? "Pause" : "Play"}
+                      {(liveCommandInFlight === "play" ||
+                        liveCommandInFlight === "pause") && (
+                        <Spinner data-icon="inline-start" />
+                      )}
+                      {liveCommandInFlight === "play"
+                        ? "Playing"
+                        : liveCommandInFlight === "pause"
+                          ? "Pausing"
+                          : liveSnapshot?.status === "running"
+                            ? "Pause"
+                            : "Play"}
                     </Button>
                     <Button
                       variant="secondary"
@@ -2449,8 +2494,12 @@ function App() {
                         liveSnapshot.status === "complete" ||
                         isSendingLiveCommand
                       }
+                      aria-busy={liveCommandInFlight === "step"}
                     >
-                      Step
+                      {liveCommandInFlight === "step" && (
+                        <Spinner data-icon="inline-start" />
+                      )}
+                      {liveCommandInFlight === "step" ? "Stepping" : "Step"}
                     </Button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -2474,7 +2523,8 @@ function App() {
                 </div>
               ) : (
                 <Alert className="border-border/70 bg-background/35">
-                  <AlertTitle>
+                  <AlertTitle className="flex items-center gap-2">
+                    {isStartingLive && <Spinner />}
                     {isStartingLive
                       ? "Creating live world"
                       : "No world open in this browser"}
@@ -2591,6 +2641,7 @@ function App() {
                     liveAccounts={liveAccounts}
                     accountItems={accountItems}
                     liveSnapshot={liveSnapshot}
+                    isLoadingLiveAccounts={isLoadingLiveAccounts}
                     fallbackRpcUrl={currentRpcUrl}
                     fallbackStudioUrl={currentStudioUrl}
                   />
@@ -2730,7 +2781,10 @@ function AgentFocusPanel({
           </Button>
         )}
         {isLoadingLiveAccounts && (
-          <Badge variant="outline">loading accounts</Badge>
+          <Badge variant="outline">
+            <Spinner data-icon="inline-start" />
+            loading accounts
+          </Badge>
         )}
         {!isLoadingLiveAccounts && liveAccountsError && (
           <Badge variant="destructive">{liveAccountsError}</Badge>
@@ -2848,6 +2902,7 @@ function LivePreparationPanel({
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">
+            {isWorking && <Spinner data-icon="inline-start" />}
             {setup
               ? `${format(setup.readyAgentCount)}/${format(agentTarget)} ready`
               : `${format(agentTarget)} planned`}
@@ -2873,6 +2928,7 @@ function LivePreparationPanel({
                     : "outline"
               }
             >
+              {step.status === "active" && <Spinner data-icon="inline-start" />}
               {step.status}
             </Badge>
             <p
@@ -3377,7 +3433,29 @@ function AgentAccountPanel({
   isLoadingLiveAccounts: boolean
 }) {
   if (isLoadingLiveAccounts) {
-    return <EmptyState>Loading live accounts for this agent.</EmptyState>
+    return (
+      <div
+        className="grid gap-2 md:grid-cols-2 xl:grid-cols-4"
+        aria-busy="true"
+        aria-label="Loading live accounts for this agent"
+      >
+        {Array.from({ length: ACCOUNT_LOADING_SKELETON_COUNT }).map(
+          (_, index) => (
+            <div key={index} className={PANEL_SURFACE_CLASS}>
+              <div className="flex items-center gap-2">
+                <Spinner />
+                <p className="text-xs font-normal">Loading account</p>
+              </div>
+              <div className="mt-3 grid gap-2">
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+            </div>
+          )
+        )}
+      </div>
+    )
   }
   if (liveAccountsError) {
     return <EmptyState>{liveAccountsError}</EmptyState>
@@ -3571,7 +3649,11 @@ function OnboardingOverlay({
       aria-busy={isStartingLive}
       className="min-w-52"
     >
-      <ArrowRight data-icon="inline-start" />
+      {isStartingLive ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <ArrowRight data-icon="inline-start" />
+      )}
       {isStartingLive
         ? `Preparing ${format(requestedAgentCount)} agents`
         : launchActionLabel}
@@ -3945,7 +4027,10 @@ function OnboardingOverlay({
                 {liveWindow.statusLine}
               </p>
             </div>
-            <Badge variant="outline">running</Badge>
+            <Badge variant="outline">
+              {isStartingLive && <Spinner data-icon="inline-start" />}
+              {isStartingLive ? "preparing" : "running"}
+            </Badge>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {topMetrics.map((metric) => (
@@ -4659,6 +4744,7 @@ function SurfpoolPanel({
   liveAccounts,
   accountItems,
   liveSnapshot,
+  isLoadingLiveAccounts,
   fallbackRpcUrl,
   fallbackStudioUrl,
 }: {
@@ -4666,6 +4752,7 @@ function SurfpoolPanel({
   liveAccounts?: LiveSessionAccountSnapshot
   accountItems: Array<{ label: string; address: string; signature?: string }>
   liveSnapshot?: LiveSessionSnapshot
+  isLoadingLiveAccounts: boolean
   fallbackRpcUrl: string
   fallbackStudioUrl: string
 }) {
@@ -4725,6 +4812,25 @@ function SurfpoolPanel({
         ]}
       />
       <SurfpoolLinks rpcUrl={rpcUrl} studioUrl={studioUrl} />
+      {isLoadingLiveAccounts && !liveAccounts && (
+        <div
+          className={PANEL_SURFACE_CLASS}
+          aria-busy="true"
+          aria-label="Loading Surfpool accounts"
+        >
+          <div className="flex items-center gap-2">
+            <Spinner />
+            <p className="text-xs font-normal">Loading Surfpool accounts</p>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
+            {Array.from({ length: SURFPOOL_ACCOUNT_SKELETON_COUNT }).map(
+              (_, index) => (
+                <Skeleton key={index} className="h-12" />
+              )
+            )}
+          </div>
+        </div>
+      )}
       {liveAccounts?.protocolEvidence && (
         <ProtocolEvidenceCard
           evidence={liveAccounts.protocolEvidence}

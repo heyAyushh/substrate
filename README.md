@@ -1,3 +1,5 @@
+![Trust Substrate banner](docs/assets/trust-substrate-banner.svg)
+
 # Trust Substrate
 
 Agents need wallets, but they also need memory, receipts, delegation, and reputation.

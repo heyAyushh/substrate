@@ -1,10 +1,19 @@
 import test from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer, type IncomingMessage } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  address,
+  generateKeyPairSigner,
+  getAddressEncoder,
+  getCompiledTransactionMessageDecoder,
+  getTransactionDecoder,
+  type Address,
+} from "@solana/kit";
 import type { LocalReceiptRecord } from "@trust-substrate/indexer";
 
 const require = createRequire(import.meta.url);
@@ -57,6 +66,20 @@ const EXPECTED_AGENT_COUNT = 2;
 const EXPECTED_ALPHA_RECEIPT_COUNT = 2;
 const EXPECTED_TASK_RECEIPT_COUNT = 3;
 const EXPECTED_HANDOFF_COUNT = 1;
+const MOCK_SIGNATURE =
+  "1111111111111111111111111111111111111111111111111111111111111111";
+const TASK_HEAD_SEQUENCE = 7n;
+const TASK_NEXT_SEQUENCE = TASK_HEAD_SEQUENCE + 1n;
+const RECEIPT_SEQUENCE_OFFSET = 8 + 32 + 1;
+const RECEIPT_PREVIOUS_RECEIPT_OFFSET = RECEIPT_SEQUENCE_OFFSET + 8 + 32;
+const RECEIPT_PREVIOUS_RECEIPT_LENGTH = 32;
+const ADDRESS_ENCODER = getAddressEncoder();
+const RECEIPT_EMITTER_PROGRAM_ADDRESS = address(
+  "FR2iXdHVBWbzkdn5qQdWEuyLWWaB2zR9ipRLTA8rGvJk",
+);
+const TASK_REGISTRY_PROGRAM_ADDRESS = address(
+  "E16iDriWzHDTyX6irMhoGwnfWLDBMiTZeW67gZJiLwt4",
+);
 const TEST_KEYPAIR_BYTES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
   23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 121, 181, 86, 46, 143, 230, 84, 249,
@@ -115,6 +138,22 @@ type StdioTransportConstructor = new (input: {
   readonly stderr: "pipe";
 }) => unknown;
 
+const { runMcpProtocolWriteTool } = (await import(
+  pathToFileURL(join(PACKAGE_ROOT, "dist/write-tools.js")).href
+)) as typeof import("../../packages/mcp-server/src/write-tools.js");
+const { getTaskRecordEncoder } = (await import(
+  pathToFileURL(
+    join(
+      PACKAGE_ROOT,
+      "../program-clients/dist/generated/task_registry/accounts/taskRecord.js",
+    ),
+  ).href
+)) as {
+  readonly getTaskRecordEncoder: () => {
+    encode(input: unknown): Uint8Array;
+  };
+};
+
 const createReceipt = (
   overrides: Partial<LocalReceiptRecord> & {
     readonly receiptId: string;
@@ -161,6 +200,146 @@ const createSmokeSnapshot = (projectRoot: string): void => {
   const snapshotPath = join(projectRoot, SNAPSHOT_RELATIVE_PATH);
   mkdirSync(dirname(snapshotPath), { recursive: true });
   indexer.saveSnapshot(snapshotPath);
+};
+
+const zeroBytes32 = (): Uint8Array => new Uint8Array(32);
+
+const readRequestBody = async (request: IncomingMessage): Promise<string> => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+};
+
+const createTaskHeadRpcServer = async (input: {
+  readonly taskAddress: Address;
+  readonly identityAddress: Address;
+  readonly lastReceipt: Address;
+  readonly lastSequence: bigint;
+}) => {
+  const transactions: string[] = [];
+  const taskData = getTaskRecordEncoder().encode({
+    identity: input.identityAddress,
+    taskId: zeroBytes32(),
+    domain: zeroBytes32(),
+    subtaskRoot: zeroBytes32(),
+    subtaskCount: 0,
+    status: 0,
+    completedCount: 0,
+    disputedCount: 0,
+    resolvedCount: 0,
+    lastReceipt: input.lastReceipt,
+    lastSequence: input.lastSequence,
+    bump: 255,
+  });
+  const server = createServer(async (request, response) => {
+    const body = JSON.parse(await readRequestBody(request)) as {
+      readonly id: string | number;
+      readonly method: string;
+      readonly params?: readonly unknown[];
+    };
+    const accountValue =
+      body.params?.[0] === input.taskAddress
+        ? {
+            data: [Buffer.from(taskData).toString("base64"), "base64"],
+            executable: false,
+            lamports: 1,
+            owner: TASK_REGISTRY_PROGRAM_ADDRESS,
+            rentEpoch: 0,
+            space: taskData.length,
+          }
+        : null;
+    const resultByMethod: Record<string, unknown> = {
+      getAccountInfo: { context: { slot: 1 }, value: accountValue },
+      getLatestBlockhash: {
+        context: { slot: 1 },
+        value: {
+          blockhash: "11111111111111111111111111111111",
+          lastValidBlockHeight: 999_999,
+        },
+      },
+      getSignatureStatuses: {
+        context: { slot: 2 },
+        value: [
+          {
+            confirmationStatus: "processed",
+            confirmations: 1,
+            err: null,
+            slot: 2,
+          },
+        ],
+      },
+      getSlot: 2,
+    };
+    if (body.method === "sendTransaction") {
+      const transaction = body.params?.[0];
+      if (typeof transaction === "string") transactions.push(transaction);
+      resultByMethod.sendTransaction = MOCK_SIGNATURE;
+    }
+    response.setHeader("content-type", "application/json");
+    response.end(
+      JSON.stringify({
+        jsonrpc: "2.0",
+        id: body.id,
+        result: resultByMethod[body.method],
+      }),
+    );
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const addressInfo = server.address();
+  if (!addressInfo || typeof addressInfo === "string") {
+    throw new Error("Mock RPC server did not expose a TCP address");
+  }
+  return {
+    rpcUrl: `http://127.0.0.1:${addressInfo.port}`,
+    rpcSubscriptionsUrl: `ws://127.0.0.1:${addressInfo.port}`,
+    transactions,
+    close: async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    },
+  };
+};
+
+const decodeReceiptInstructionData = (wireTransaction: string) => {
+  const transaction = getTransactionDecoder().decode(
+    Buffer.from(wireTransaction, "base64"),
+  );
+  const message = getCompiledTransactionMessageDecoder().decode(
+    transaction.messageBytes,
+  ) as unknown as {
+    readonly instructions: readonly {
+      readonly programAddressIndex: number;
+      readonly data: Uint8Array;
+    }[];
+    readonly staticAccounts: readonly Address[];
+  };
+  const receiptInstruction = message.instructions.find(
+    (instruction) =>
+      message.staticAccounts[instruction.programAddressIndex] ===
+      RECEIPT_EMITTER_PROGRAM_ADDRESS,
+  );
+  if (!receiptInstruction) {
+    throw new Error(
+      "Missing emit_receipt instruction in submitted transaction",
+    );
+  }
+  const data = receiptInstruction.data;
+  return {
+    sequence: new DataView(
+      data.buffer,
+      data.byteOffset + RECEIPT_SEQUENCE_OFFSET,
+      8,
+    ).getBigUint64(0, true),
+    previousReceipt: data.slice(
+      RECEIPT_PREVIOUS_RECEIPT_OFFSET,
+      RECEIPT_PREVIOUS_RECEIPT_OFFSET + RECEIPT_PREVIOUS_RECEIPT_LENGTH,
+    ),
+  };
 };
 
 test("stdio MCP server exposes Trust Substrate tools and handles real calls", async () => {
@@ -392,6 +571,100 @@ test("stdio MCP write tools preview by default and require explicit submit confi
   } finally {
     await client.close();
   }
+});
+
+test("MCP receipt submit without sequence uses the on-chain task head", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "trust-mcp-receipt-"));
+  const keypairPath = join(projectRoot, "id.json");
+  writeFileSync(keypairPath, JSON.stringify(TEST_KEYPAIR_BYTES));
+  const identity = await generateKeyPairSigner();
+  const task = await generateKeyPairSigner();
+  const domainCatalog = await generateKeyPairSigner();
+  const lastReceipt = await generateKeyPairSigner();
+  const rpc = await createTaskHeadRpcServer({
+    taskAddress: task.address,
+    identityAddress: identity.address,
+    lastReceipt: lastReceipt.address,
+    lastSequence: TASK_HEAD_SEQUENCE,
+  });
+
+  try {
+    const result = await runMcpProtocolWriteTool(
+      "receipt",
+      {
+        action: "emit_receipt",
+        mode: "submit",
+        confirm: true,
+        identity: identity.address,
+        task: task.address,
+        domain_catalog: domainCatalog.address,
+        actor_id: TEST_SIGNER_ADDRESS,
+        receipt_kind: "completion",
+        task_id: "mcp-task",
+        payload: {
+          domain: "general",
+          payloadHash:
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        },
+      },
+      {
+        TRUST_SUBSTRATE_MCP_ENABLE_WRITES: "1",
+        SUBSTRATE_KEYPAIR: keypairPath,
+        SUBSTRATE_RPC_URL: rpc.rpcUrl,
+        SUBSTRATE_RPC_SUBSCRIPTIONS_URL: rpc.rpcSubscriptionsUrl,
+        SUBSTRATE_COMMITMENT: "processed",
+      },
+    );
+
+    strictEqual(result.submitted, true);
+    strictEqual(rpc.transactions.length, 1);
+    const receiptData = decodeReceiptInstructionData(rpc.transactions[0]!);
+    strictEqual(receiptData.sequence, TASK_NEXT_SEQUENCE);
+    deepStrictEqual(
+      Array.from(receiptData.previousReceipt),
+      Array.from(ADDRESS_ENCODER.encode(lastReceipt.address)),
+    );
+  } finally {
+    await rpc.close();
+  }
+});
+
+test("MCP receipt preview refuses to invent a receipt sequence", async () => {
+  const projectRoot = mkdtempSync(join(tmpdir(), "trust-mcp-preview-"));
+  const keypairPath = join(projectRoot, "id.json");
+  writeFileSync(keypairPath, JSON.stringify(TEST_KEYPAIR_BYTES));
+  const identity = await generateKeyPairSigner();
+  const task = await generateKeyPairSigner();
+  const domainCatalog = await generateKeyPairSigner();
+
+  const result = await runMcpProtocolWriteTool(
+    "receipt",
+    {
+      action: "emit_receipt",
+      mode: "preview",
+      confirm: false,
+      identity: identity.address,
+      task: task.address,
+      domain_catalog: domainCatalog.address,
+      actor_id: TEST_SIGNER_ADDRESS,
+      receipt_kind: "completion",
+      task_id: "mcp-task",
+      payload: {
+        domain: "general",
+        payloadHash:
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      },
+    },
+    {
+      TRUST_SUBSTRATE_MCP_ENABLE_WRITES: "1",
+      SUBSTRATE_KEYPAIR: keypairPath,
+      SUBSTRATE_RPC_URL: "http://127.0.0.1:8899",
+      SUBSTRATE_RPC_SUBSCRIPTIONS_URL: "ws://127.0.0.1:8900",
+    },
+  ).catch((error: unknown) => error);
+
+  ok(result instanceof Error);
+  ok(result.message.includes("sequence is required in preview mode"));
 });
 
 test("bundled skill metadata points agents at the MCP server workflow", () => {

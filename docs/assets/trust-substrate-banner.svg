@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Trust Substrate</title>
+  <desc id="desc">A black and green README banner for Trust Substrate, showing portable trust for autonomous agents on Solana through an execution graph and nine protocol programs.</desc>
+  <defs>
+    <radialGradient id="centerGlow" cx="50%" cy="48%" r="58%">
+      <stop offset="0%" stop-color="#55ff77" stop-opacity="0.34"/>
+      <stop offset="36%" stop-color="#0b2f16" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#000402" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="edgeFade" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.92"/>
+      <stop offset="20%" stop-color="#000000" stop-opacity="0.08"/>
+      <stop offset="80%" stop-color="#000000" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.92"/>
+    </linearGradient>
+    <linearGradient id="lineGlow" x1="0%" x2="100%" y1="0%" y2="0%">
+      <stop offset="0%" stop-color="#55ff77" stop-opacity="0"/>
+      <stop offset="45%" stop-color="#55ff77" stop-opacity="0.88"/>
+      <stop offset="50%" stop-color="#f6fff7" stop-opacity="0.95"/>
+      <stop offset="55%" stop-color="#55ff77" stop-opacity="0.88"/>
+      <stop offset="100%" stop-color="#55ff77" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="titleShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000000" flood-opacity="0.8"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="9" flood-color="#55ff77" flood-opacity="0.26"/>
+    </filter>
+    <pattern id="scanlines" width="1" height="8" patternUnits="userSpaceOnUse">
+      <rect width="1" height="1" fill="#f6fff7" opacity="0.08"/>
+    </pattern>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#55ff77" stroke-width="1" opacity="0.07"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="420" fill="#000402"/>
+  <rect width="1280" height="420" fill="url(#centerGlow)"/>
+  <rect width="1280" height="420" fill="url(#grid)"/>
+
+  <g opacity="0.24" font-family="'SFMono-Regular', 'Cascadia Code', 'Courier New', monospace" font-size="18" font-weight="700" fill="#55ff77">
+    <text x="70" y="72">010 receipt_emitter</text>
+    <text x="980" y="86">proof_verifier 101</text>
+    <text x="86" y="346">delegation_engine</text>
+    <text x="928" y="350">reputation_accumulator</text>
+    <text x="240" y="112" fill="#f6fff7" opacity="0.42">task_registry</text>
+    <text x="770" y="118" fill="#f6fff7" opacity="0.36">attester_registry</text>
+  </g>
+
+  <g opacity="0.42" filter="url(#softGlow)">
+    <path d="M214 232 C312 154 410 154 506 232 S700 310 798 232 990 154 1088 232" fill="none" stroke="url(#lineGlow)" stroke-width="2"/>
+    <path d="M214 258 C312 180 410 180 506 258 S700 336 798 258 990 180 1088 258" fill="none" stroke="#55ff77" stroke-width="1" opacity="0.4"/>
+  </g>
+
+  <g font-family="'SFMono-Regular', 'Cascadia Code', 'Courier New', monospace" text-anchor="middle" font-weight="700">
+    <g fill="#55ff77" opacity="0.86">
+      <circle cx="214" cy="232" r="34" fill="#001508" stroke="#55ff77" stroke-opacity="0.44"/>
+      <text x="214" y="238" font-size="14">identity</text>
+      <circle cx="360" cy="174" r="31" fill="#001508" stroke="#55ff77" stroke-opacity="0.35"/>
+      <text x="360" y="179" font-size="13">task</text>
+      <circle cx="506" cy="232" r="34" fill="#001508" stroke="#55ff77" stroke-opacity="0.44"/>
+      <text x="506" y="237" font-size="13">receipt</text>
+      <circle cx="640" cy="280" r="30" fill="#001508" stroke="#55ff77" stroke-opacity="0.34"/>
+      <text x="640" y="285" font-size="13">proof</text>
+      <circle cx="798" cy="232" r="34" fill="#001508" stroke="#55ff77" stroke-opacity="0.44"/>
+      <text x="798" y="237" font-size="12">reputation</text>
+      <circle cx="938" cy="174" r="30" fill="#001508" stroke="#55ff77" stroke-opacity="0.34"/>
+      <text x="938" y="179" font-size="13">stake</text>
+      <circle cx="1088" cy="232" r="34" fill="#001508" stroke="#55ff77" stroke-opacity="0.44"/>
+      <text x="1088" y="237" font-size="12">dispute</text>
+    </g>
+  </g>
+
+  <g filter="url(#titleShadow)">
+    <text x="640" y="174" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700" fill="#f6fff7">Trust Substrate</text>
+    <text x="640" y="220" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="25" font-weight="700" fill="#dfffe5">portable trust for agents that do work</text>
+  </g>
+
+  <g font-family="'SFMono-Regular', 'Cascadia Code', 'Courier New', monospace" text-anchor="middle" font-size="18" font-weight="700">
+    <rect x="339" y="276" width="602" height="42" fill="#000000" opacity="0.42" stroke="#55ff77" stroke-opacity="0.22"/>
+    <text x="640" y="303" fill="#55ff77">memory · receipts · delegation · reputation</text>
+  </g>
+
+  <rect width="1280" height="420" fill="url(#edgeFade)"/>
+  <rect width="1280" height="420" fill="url(#scanlines)" opacity="0.55"/>
+  <rect x="0.5" y="0.5" width="1279" height="419" fill="none" stroke="#55ff77" stroke-opacity="0.18"/>
+</svg>

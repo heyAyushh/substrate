@@ -18,6 +18,7 @@ import {
   createReceipt,
   createTask,
   RECEIPT_SCOPE_BITS,
+  type OnchainTaskRecord,
   type ReceiptRecord,
 } from "@trust-substrate/sdk";
 import { hashCanonical } from "@trust-substrate/sdk/canonical";
@@ -274,6 +275,7 @@ interface SocietyLiveChainSession {
   readonly committedReceipts: unknown[];
   programPlan: ProgramWiringPlan;
   worldStatus: number;
+  receiptSequence: number;
   previousReceiptId?: string;
   dispute?: {
     readonly receipt: string;
@@ -362,6 +364,7 @@ const DEFAULT_PI_PROVIDER: SocietyPiProvider = "openai-codex";
 const DEFAULT_PI_MODEL_ID = "gpt-5.4-mini";
 const SOCIETY_DOMAIN = "society";
 const ZERO_ADDRESS = "11111111111111111111111111111111";
+const FIRST_RECEIPT_SEQUENCE = 1;
 const SOCIETY_WORLD_STATUS_ACTIVE = 0;
 const SOCIETY_WORLD_READ_RETRY_ATTEMPTS = 20;
 const SOCIETY_WORLD_READ_RETRY_DELAY_MS = 250;
@@ -986,12 +989,56 @@ const requireReceiptPayloadHash = (receipt: ReceiptRecord): string => {
   return payloadHash;
 };
 
+const isZeroAddress = (value: string | undefined): boolean =>
+  !value || value === ZERO_ADDRESS;
+
+const nextReceiptSequenceFromTask = (
+  task: OnchainTaskRecord | undefined,
+): number => {
+  const nextSequence = (task?.lastSequence ?? 0n) + 1n;
+  if (nextSequence > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`Receipt sequence ${nextSequence.toString()} is too large`);
+  }
+  return Number(nextSequence);
+};
+
+const lastReceiptSequenceFromTask = (
+  task: OnchainTaskRecord | undefined,
+): number => {
+  const lastSequence = task?.lastSequence ?? 0n;
+  if (lastSequence > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error(`Receipt sequence ${lastSequence.toString()} is too large`);
+  }
+  return Number(lastSequence);
+};
+
+const receiptChainFromTask = (
+  task: OnchainTaskRecord | undefined,
+): SocietyAgentTaskReceiptChain => ({
+  sequence: lastReceiptSequenceFromTask(task),
+  previousReceiptId: isZeroAddress(task?.lastReceipt)
+    ? undefined
+    : task?.lastReceipt,
+});
+
+const advanceBoardReceiptChain = (
+  chainSession: SocietyLiveChainSession,
+  receiptAddress: string,
+): void => {
+  chainSession.previousReceiptId = receiptAddress;
+  chainSession.receiptSequence += 1;
+};
+
+const boardLastReceiptSequence = (
+  chainSession: SocietyLiveChainSession,
+): number => chainSession.receiptSequence - 1;
+
 const nextAgentTaskReceiptChain = (
   chainSession: SocietyLiveChainSession,
   agentId: string,
 ): SocietyAgentTaskReceiptChain => {
   const current = chainSession.agentTaskReceiptChainsById.get(agentId);
-  if (!current) return { sequence: 1 };
+  if (!current) return { sequence: FIRST_RECEIPT_SEQUENCE };
   return {
     sequence: current.sequence + 1,
     previousReceiptId: current.previousReceiptId,
@@ -1821,6 +1868,9 @@ const initializeSocietyLiveChainSession = async (
     task,
   });
   operations.push(taskCommit);
+  const boardTaskRecord = await client.fetchMaybeTask({
+    task: taskCommit.address,
+  });
 
   const reputationCommit = await client.ensureReputationDomain({
     authority,
@@ -1889,6 +1939,10 @@ const initializeSocietyLiveChainSession = async (
     committedReceipts,
     programPlan,
     worldStatus: SOCIETY_WORLD_STATUS_ACTIVE,
+    receiptSequence: nextReceiptSequenceFromTask(boardTaskRecord),
+    previousReceiptId: isZeroAddress(boardTaskRecord?.lastReceipt)
+      ? undefined
+      : boardTaskRecord?.lastReceipt,
   };
 
   await prepareInitialLiveAgentAccounts(chainSession, run);
@@ -1910,6 +1964,7 @@ const syncSocietyWorldState = async ({
     : SOCIETY_WORLD_STATUS_ACTIVE;
   const lastReceipt = (chainSession.previousReceiptId ??
     ZERO_ADDRESS) as string;
+  const lastSequence = boardLastReceiptSequence(chainSession);
   const existingWorld = await chainSession.client.fetchMaybeSocietyWorld({
     task: chainSession.task.address,
   });
@@ -1919,7 +1974,7 @@ const syncSocietyWorldState = async ({
         identity: chainSession.identity.address,
         task: chainSession.task.address,
         currentTick: simulation.currentTick,
-        lastSequence: simulation.sequence,
+        lastSequence,
         lastReceipt,
         status,
         state: packedState,
@@ -1929,7 +1984,7 @@ const syncSocietyWorldState = async ({
         identity: chainSession.identity.address,
         task: chainSession.task.address,
         currentTick: simulation.currentTick,
-        lastSequence: simulation.sequence,
+        lastSequence,
         lastReceipt,
         status,
         state: packedState,
@@ -2037,6 +2092,13 @@ const ensureLiveAgentAccount = async (
     ...agentTaskCommit,
     agentId: event.agentId,
   });
+  const agentTaskRecord = await chainSession.client.fetchMaybeTask({
+    task: agentTaskCommit.address,
+  });
+  chainSession.agentTaskReceiptChainsById.set(
+    event.agentId,
+    receiptChainFromTask(agentTaskRecord),
+  );
   const delegationCommit = await chainSession.client.ensureDelegation({
     authority: chainSession.authority,
     identity: chainSession.identity.address,
@@ -2171,7 +2233,7 @@ const buildLiveChainReceipt = (
     actorId: agentRuntime.signer.address,
     kind: receipt.kind ?? event.receiptKind ?? "completion",
     taskId: chainSession.task.id,
-    sequence: chainSession.committedReceipts.length + 1,
+    sequence: chainSession.receiptSequence,
     previousReceiptId: chainSession.previousReceiptId,
     payload: {
       ...payload,
@@ -2330,6 +2392,10 @@ const maybeApplySocietyDeathDisputeAdapter = async ({
     agentId: event.agentId,
     sourceEventId: event.id,
   });
+  const disputeTaskRecord = await chainSession.client.fetchMaybeTask({
+    task: taskCommit.address,
+  });
+  const disputeTaskChain = receiptChainFromTask(disputeTaskRecord);
 
   const payload = {
     domain: SOCIETY_DOMAIN,
@@ -2351,7 +2417,8 @@ const maybeApplySocietyDeathDisputeAdapter = async ({
     actorId: agentRuntime.signer.address,
     kind: "dispute",
     taskId: agentDisputeTask.taskId,
-    sequence: 1,
+    sequence: disputeTaskChain.sequence + 1,
+    previousReceiptId: disputeTaskChain.previousReceiptId,
     payload: {
       ...payload,
       payloadHash: hashCanonical(payload),
@@ -2613,7 +2680,7 @@ const commitLiveActionReceipt = async ({
     actionProof,
     ...(agentReputation ? { agentReputation } : {}),
   });
-  chainSession.previousReceiptId = committedReceipt.address;
+  advanceBoardReceiptChain(chainSession, committedReceipt.address);
   return {
     ...committedReceipt,
     actionProof,
@@ -2642,7 +2709,7 @@ const finalizeSocietyLiveChainSession = async (
   const disputeReceipt = buildDisputeAuditReceipt(
     run,
     chainSession.commitId,
-    chainSession.committedReceipts.length + 1,
+    chainSession.receiptSequence,
     chainSession.previousReceiptId,
     chainSession.identity.id,
     chainSession.task.id,
@@ -2715,7 +2782,7 @@ const finalizeSocietyLiveChainSession = async (
       signature: verdictCommit.signature,
     },
   });
-  chainSession.previousReceiptId = committedDisputeReceipt.address;
+  advanceBoardReceiptChain(chainSession, committedDisputeReceipt.address);
 
   const { reference: committedProof } = await writeCommitProofArtifact({
     proofDirectory: PROOF_DIRECTORY,
