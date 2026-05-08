@@ -23,7 +23,8 @@ without an independent security review, operational hardening, and deployment
 readiness checks.
 
 Demo run from `examples/society`:
-[Watch the one-minute browser-recorded Society + Surfpool demo](docs/assets/demo/society-agent-browser-demo-v6-60s.webm)
+
+docs/assets/demo/society-agent-browser-demo-v6-60s.mp4
 
 The recording shows the browser flow: onboarding, live world setup, `Play`,
 agent inspection, account links, transaction links, and Surfpool evidence. It
