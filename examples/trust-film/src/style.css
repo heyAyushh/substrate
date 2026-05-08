@@ -1,0 +1,344 @@
+:root {
+  --black: #000402;
+  --black-soft: #020906;
+  --white: #f6fff7;
+  --white-dim: rgba(246, 255, 247, 0.74);
+  --white-muted: rgba(246, 255, 247, 0.52);
+  --green: #55ff77;
+  --green-soft: rgba(85, 255, 119, 0.44);
+  --green-faint: rgba(85, 255, 119, 0.16);
+  --shadow: rgba(0, 0, 0, 0.96);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.film {
+  overflow: hidden;
+  color: var(--white);
+  background:
+    radial-gradient(ellipse at 50% 52%, rgba(85, 255, 119, 0.12), transparent 38%),
+    linear-gradient(180deg, #000 0%, var(--black-soft) 48%, #000 100%);
+  font-family: "Helvetica Neue", "Avenir Next", sans-serif;
+}
+
+.atmosphere,
+.canvas-signal,
+.practical-light,
+.proof-gate-layer,
+.film-grain-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.canvas-signal {
+  opacity: 0.76;
+  mix-blend-mode: screen;
+}
+
+.canvas-signal canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.matrix-rain-stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(85, 255, 119, calc(0.06 + var(--surge) * 0.12)), transparent 36%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.86), rgba(1, 14, 8, 0.18), rgba(0, 0, 0, 0.86));
+  color: var(--green);
+  font-family: "Courier New", monospace;
+}
+
+.rain-column {
+  position: absolute;
+  left: var(--column-left);
+  top: 0;
+  display: grid;
+  gap: 12px;
+  width: 28px;
+  color: rgba(85, 255, 119, var(--column-opacity));
+  font-size: 22px;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 0 18px rgba(85, 255, 119, 0.72);
+  will-change: transform;
+}
+
+.rain-column span:nth-child(6n) {
+  color: rgba(246, 255, 247, 0.72);
+}
+
+.rain-column span:nth-child(9n) {
+  color: rgba(85, 255, 119, 0.88);
+}
+
+.deep-black {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 0 34%, rgba(0, 0, 0, 0.46) 70%, rgba(0, 0, 0, 0.9) 100%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.86), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.88));
+}
+
+.green-fog {
+  position: absolute;
+  inset: -16%;
+  opacity: calc(0.22 + var(--beat) * 0.07);
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(85, 255, 119, 0.26), transparent 28%),
+    conic-gradient(from 90deg at 50% 50%, transparent, rgba(85, 255, 119, 0.14), transparent 31%);
+  filter: blur(34px) saturate(1.35);
+  transform: translate3d(calc((var(--slow) - 0.5) * 70px), calc(var(--beat) * -20px), 0);
+}
+
+.screen-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 0 48%, rgba(0, 0, 0, 0.5) 83%, #000 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.36), transparent 24%, transparent 72%, rgba(0, 0, 0, 0.46));
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  opacity: calc(0.2 + var(--fault) * 0.18);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(246, 255, 247, 0.08) 0,
+    rgba(246, 255, 247, 0.08) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+  mix-blend-mode: screen;
+}
+
+.chromatic-split {
+  position: absolute;
+  inset: 0;
+  opacity: calc(0.04 + var(--fault) * 0.18);
+  background: linear-gradient(90deg, transparent 0 42%, rgba(85, 255, 119, 0.24) 48%, transparent 56%);
+  filter: blur(2px);
+  mix-blend-mode: screen;
+}
+
+.split-a {
+  transform: translate3d(calc(var(--fault) * 22px), 0, 0);
+}
+
+.split-b {
+  transform: translate3d(calc(var(--fault) * -18px), 0, 0);
+}
+
+.practical-light {
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+.back-beam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 920px;
+  height: 920px;
+  background:
+    radial-gradient(ellipse at center, rgba(246, 255, 247, 0.18), transparent 16%),
+    radial-gradient(ellipse at center, rgba(85, 255, 119, 0.24), transparent 48%);
+  filter: blur(38px);
+  transform-origin: center;
+  translate: -50% -50%;
+}
+
+.floor-reflection {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  width: 1040px;
+  height: 310px;
+  background: radial-gradient(ellipse at center, rgba(85, 255, 119, 0.28), transparent 66%);
+  filter: blur(34px);
+  transform: translateX(-50%) perspective(900px) rotateX(66deg);
+}
+
+.shadow-bowl {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 0 28%, rgba(0, 0, 0, 0.38) 72%, rgba(0, 0, 0, 0.82) 100%);
+  mix-blend-mode: multiply;
+}
+
+.proof-gate-layer {
+  display: grid;
+  place-items: center;
+  z-index: 1;
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+.proof-gate {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  opacity: 0.82;
+  transform-origin: center;
+}
+
+.gate-edge,
+.gate-core,
+.gate-horizon {
+  position: absolute;
+  pointer-events: none;
+}
+
+.gate-edge {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, rgba(246, 255, 247, 0.88), rgba(85, 255, 119, 0.52), transparent);
+  box-shadow:
+    0 0 calc(30px + var(--beat) * 36px) rgba(85, 255, 119, 0.56),
+    0 0 90px rgba(85, 255, 119, 0.22);
+}
+
+.edge-left {
+  left: calc(50% - (var(--open) * 310px));
+}
+
+.edge-right {
+  right: calc(50% - (var(--open) * 310px));
+}
+
+.gate-core {
+  inset: 4% 22%;
+  background:
+    linear-gradient(90deg, transparent, rgba(246, 255, 247, 0.18), transparent),
+    radial-gradient(ellipse at center, rgba(85, 255, 119, 0.26), transparent 57%);
+  filter: blur(16px);
+  opacity: calc(0.18 + var(--open) * 0.26 + var(--beat) * 0.1);
+}
+
+.gate-horizon {
+  left: -45%;
+  right: -45%;
+  bottom: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(246, 255, 247, 0.76), rgba(85, 255, 119, 0.5), transparent);
+  box-shadow: 0 0 36px rgba(85, 255, 119, 0.34);
+  opacity: calc(0.28 + var(--open) * 0.34);
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: var(--safe-top) var(--safe-x) var(--safe-bottom);
+  text-align: center;
+  will-change: opacity, transform;
+}
+
+.scene-marker {
+  position: absolute;
+  top: 76px;
+  left: 50%;
+  color: var(--green);
+  font-family: "Courier New", monospace;
+  font-size: 30px;
+  letter-spacing: 0.22em;
+  text-shadow:
+    0 0 22px rgba(85, 255, 119, 0.5),
+    0 8px 28px var(--shadow);
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.copy-stack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  gap: 34px;
+  width: min(1160px, calc(100% - 2 * var(--safe-x)));
+  transform: translate(-50%, -50%);
+}
+
+.copy-stack h1 {
+  margin: 0;
+  color: var(--white);
+  font-family: "Bodoni 72", "Didot", "Times New Roman", serif;
+  font-size: 96px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 0.98;
+  text-wrap: balance;
+  text-shadow:
+    0 0 16px rgba(85, 255, 119, 0.3),
+    0 0 42px rgba(85, 255, 119, 0.2),
+    0 24px 74px var(--shadow),
+    0 4px 10px #000;
+}
+
+.scene-final .copy-stack h1 {
+  font-size: 108px;
+}
+
+.copy-stack p {
+  width: min(900px, 100%);
+  margin: 0 auto;
+  color: var(--white-dim);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.18;
+  text-wrap: balance;
+  text-shadow:
+    0 0 18px rgba(85, 255, 119, 0.22),
+    0 12px 42px var(--shadow),
+    0 3px 8px #000;
+}
+
+.film-grain-layer {
+  z-index: 5;
+  overflow: hidden;
+}
+
+.grain-noise {
+  position: absolute;
+  inset: -60px;
+  opacity: 0.2;
+  background-image:
+    radial-gradient(circle at 12% 34%, rgba(255, 255, 255, 0.32) 0 1px, transparent 1px),
+    radial-gradient(circle at 72% 18%, rgba(255, 255, 255, 0.18) 0 1px, transparent 1px),
+    radial-gradient(circle at 44% 76%, rgba(85, 255, 119, 0.22) 0 1px, transparent 1px);
+  background-size: 23px 29px, 37px 31px, 43px 47px;
+  mix-blend-mode: screen;
+}
+
+.accessibility-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, transparent 0 37%, rgba(0, 0, 0, 0.2) 62%, rgba(0, 0, 0, 0.66) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 28%, transparent 68%, rgba(0, 0, 0, 0.52));
+  mix-blend-mode: multiply;
+}
+
+.timecode {
+  position: absolute;
+  right: 58px;
+  bottom: 42px;
+  z-index: 6;
+  display: flex;
+  gap: 16px;
+  color: rgba(246, 255, 247, 0.48);
+  font-family: "Courier New", monospace;
+  font-size: 19px;
+  letter-spacing: 0.16em;
+  text-shadow: 0 4px 18px #000;
+}

@@ -1,4 +1,7 @@
-import type { AgentMessage, ThinkingLevel } from "@mariozechner/pi-agent-core";
+import type {
+  AgentMessage,
+  ThinkingLevel,
+} from "@earendil-works/pi-agent-core";
 
 import type { PiModelPreference } from "@/lib/pi-chat";
 

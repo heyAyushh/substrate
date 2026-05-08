@@ -220,6 +220,11 @@ interface SocietyLiveAgentRuntime {
   readonly account: SocietyLiveAgentAccount;
 }
 
+interface SocietyAgentTaskReceiptChain {
+  sequence: number;
+  previousReceiptId?: string;
+}
+
 interface SocietyLiveChainSession {
   readonly sessionId: string;
   readonly runId: string;
@@ -261,6 +266,10 @@ interface SocietyLiveChainSession {
   readonly agentAccounts: SocietyLiveAgentAccount[];
   readonly agentAccountsById: Map<string, SocietyLiveAgentAccount>;
   readonly agentRuntimesById: Map<string, SocietyLiveAgentRuntime>;
+  readonly agentTaskReceiptChainsById: Map<
+    string,
+    SocietyAgentTaskReceiptChain
+  >;
   readonly piActionsByEventId: Map<string, SocietyPiActionEvidence>;
   readonly committedReceipts: unknown[];
   programPlan: ProgramWiringPlan;
@@ -948,6 +957,17 @@ const describeError = (error: unknown): string => {
   return details.join(" :: ");
 };
 
+const withLiveOperationContext = async <T>(
+  label: string,
+  operation: Promise<T>,
+): Promise<T> => {
+  try {
+    return await operation;
+  } catch (error) {
+    throw new Error(`${label}: ${describeError(error)}`);
+  }
+};
+
 const requireTransactionSignature = (
   value: { readonly signature?: string },
   context: string,
@@ -964,6 +984,30 @@ const requireReceiptPayloadHash = (receipt: ReceiptRecord): string => {
     throw new Error(`Receipt ${receipt.receiptId} is missing payloadHash`);
   }
   return payloadHash;
+};
+
+const nextAgentTaskReceiptChain = (
+  chainSession: SocietyLiveChainSession,
+  agentId: string,
+): SocietyAgentTaskReceiptChain => {
+  const current = chainSession.agentTaskReceiptChainsById.get(agentId);
+  if (!current) return { sequence: 1 };
+  return {
+    sequence: current.sequence + 1,
+    previousReceiptId: current.previousReceiptId,
+  };
+};
+
+const advanceAgentTaskReceiptChain = (
+  chainSession: SocietyLiveChainSession,
+  agentId: string,
+  receiptAddress: string,
+): void => {
+  const current = chainSession.agentTaskReceiptChainsById.get(agentId);
+  chainSession.agentTaskReceiptChainsById.set(agentId, {
+    sequence: (current?.sequence ?? 0) + 1,
+    previousReceiptId: receiptAddress,
+  });
 };
 
 const commitSocietyRun = async (run: SocietyRunPayload) => {
@@ -1727,6 +1771,10 @@ const initializeSocietyLiveChainSession = async (
   const agentAccounts: SocietyLiveAgentAccount[] = [];
   const agentAccountsById = new Map<string, SocietyLiveAgentAccount>();
   const agentRuntimesById = new Map<string, SocietyLiveAgentRuntime>();
+  const agentTaskReceiptChainsById = new Map<
+    string,
+    SocietyAgentTaskReceiptChain
+  >();
   const piActionsByEventId = new Map<string, SocietyPiActionEvidence>();
   const committedReceipts: unknown[] = [];
   const programPlan = buildProgramWiringPlan(run);
@@ -1836,6 +1884,7 @@ const initializeSocietyLiveChainSession = async (
     agentAccounts,
     agentAccountsById,
     agentRuntimesById,
+    agentTaskReceiptChainsById,
     piActionsByEventId,
     committedReceipts,
     programPlan,
@@ -2169,35 +2218,51 @@ const applyAgentActionReputation = async ({
     boardIdentity: chainSession.identity.address,
     boardTask: chainSession.task.address,
   };
+  const agentTaskReceiptChain = nextAgentTaskReceiptChain(
+    chainSession,
+    event.agentId,
+  );
   const receipt = createReceipt({
     actorId: agentRuntime.signer.address,
     kind: committedKind,
     taskId: agentRuntime.account.task.id,
-    sequence: chainSession.committedReceipts.length + 1,
+    sequence: agentTaskReceiptChain.sequence,
+    previousReceiptId: agentTaskReceiptChain.previousReceiptId,
     payload: {
       ...payload,
       payloadHash: hashCanonical(payload),
     },
   });
-  const committedReceipt = await chainSession.client.emitReceipt({
-    authority: agentRuntime.signer,
-    identity: agentRuntime.account.identity.address,
-    task: agentRuntime.account.task.address,
-    domainCatalog: chainSession.domainCatalogAddress,
-    receipt,
-  });
+  const committedReceipt = await withLiveOperationContext(
+    `emit agent reputation receipt for ${event.id}`,
+    chainSession.client.emitReceipt({
+      authority: agentRuntime.signer,
+      identity: agentRuntime.account.identity.address,
+      task: agentRuntime.account.task.address,
+      domainCatalog: chainSession.domainCatalogAddress,
+      receipt,
+    }),
+  );
   chainSession.operations.push({
     ...committedReceipt,
     agentId: event.agentId,
     sourceEventId: event.id,
   });
-  const reputationApply = await chainSession.client.applyReputationReceipt({
-    authority: agentRuntime.signer,
-    identity: agentRuntime.account.identity.address,
-    receipt: committedReceipt.address,
-    reputation: agentRuntime.account.reputation.address,
-    evidenceAccounts: [{ address: agentRuntime.account.stake.address }],
-  });
+  advanceAgentTaskReceiptChain(
+    chainSession,
+    event.agentId,
+    committedReceipt.address,
+  );
+  const reputationApply = await withLiveOperationContext(
+    `apply agent reputation for ${event.id}`,
+    chainSession.client.applyReputationReceipt({
+      authority: agentRuntime.signer,
+      identity: agentRuntime.account.identity.address,
+      receipt: committedReceipt.address,
+      reputation: agentRuntime.account.reputation.address,
+      evidenceAccounts: [{ address: agentRuntime.account.stake.address }],
+    }),
+  );
   chainSession.operations.push({
     ...reputationApply,
     agentId: event.agentId,
@@ -2442,33 +2507,42 @@ const commitLiveActionReceipt = async ({
     piAction,
   );
   const committedKind = receipt.kind ?? event.receiptKind ?? "completion";
-  const committedReceipt = await chainSession.client.emitDelegatedReceipt({
-    delegate: agentRuntime.signer,
-    identity: chainSession.identity.address,
-    delegation: agentRuntime.account.delegation.address,
-    task: chainSession.task.address,
-    domainCatalog: chainSession.domainCatalogAddress,
-    receipt: chainReceipt,
-  });
+  const committedReceipt = await withLiveOperationContext(
+    `emit delegated receipt for ${event.id}`,
+    chainSession.client.emitDelegatedReceipt({
+      delegate: agentRuntime.signer,
+      identity: chainSession.identity.address,
+      delegation: agentRuntime.account.delegation.address,
+      task: chainSession.task.address,
+      domainCatalog: chainSession.domainCatalogAddress,
+      receipt: chainReceipt,
+    }),
+  );
   chainSession.operations.push(committedReceipt);
-  const checkpointAppend = await chainSession.client.appendReceiptToCheckpoint({
-    feePayer: agentRuntime.signer,
-    identity: chainSession.identity.address,
-    checkpoint: chainSession.checkpoint.address,
-    latestCheckpoint: chainSession.checkpoint.latestCheckpoint,
-    receipt: committedReceipt.address,
-  });
+  const checkpointAppend = await withLiveOperationContext(
+    `append checkpoint for ${event.id}`,
+    chainSession.client.appendReceiptToCheckpoint({
+      feePayer: agentRuntime.signer,
+      identity: chainSession.identity.address,
+      checkpoint: chainSession.checkpoint.address,
+      latestCheckpoint: chainSession.checkpoint.latestCheckpoint,
+      receipt: committedReceipt.address,
+    }),
+  );
   chainSession.operations.push(checkpointAppend);
   const taskSync = shouldSyncLiveTaskStatus({
     action: event.action,
     kind: committedKind,
   })
-    ? await chainSession.client.syncTaskStatus({
-        authority: chainSession.authority,
-        identity: chainSession.identity.address,
-        task: chainSession.task.address,
-        receipt: committedReceipt.address,
-      })
+    ? await withLiveOperationContext(
+        `sync task status for ${event.id}`,
+        chainSession.client.syncTaskStatus({
+          authority: chainSession.authority,
+          identity: chainSession.identity.address,
+          task: chainSession.task.address,
+          receipt: committedReceipt.address,
+        }),
+      )
     : undefined;
   if (taskSync) {
     chainSession.operations.push(taskSync);
@@ -2575,39 +2649,50 @@ const finalizeSocietyLiveChainSession = async (
     preparedProof,
     chainSession.committedReceipts.length,
   );
-  const committedDisputeReceipt = await chainSession.client.emitReceipt({
-    authority: chainSession.authority,
-    identity: chainSession.identity.address,
-    task: chainSession.task.address,
-    domainCatalog: chainSession.domainCatalogAddress,
-    receipt: disputeReceipt,
-  });
+  const committedDisputeReceipt = await withLiveOperationContext(
+    "emit final audit receipt",
+    chainSession.client.emitReceipt({
+      authority: chainSession.authority,
+      identity: chainSession.identity.address,
+      task: chainSession.task.address,
+      domainCatalog: chainSession.domainCatalogAddress,
+      receipt: disputeReceipt,
+    }),
+  );
   chainSession.operations.push(committedDisputeReceipt);
-  const disputeCheckpointAppend =
-    await chainSession.client.appendReceiptToCheckpoint({
+  const disputeCheckpointAppend = await withLiveOperationContext(
+    "append final audit checkpoint",
+    chainSession.client.appendReceiptToCheckpoint({
       feePayer: chainSession.authority,
       identity: chainSession.identity.address,
       checkpoint: chainSession.checkpoint.address,
       latestCheckpoint: chainSession.checkpoint.latestCheckpoint,
       receipt: committedDisputeReceipt.address,
-    });
-  chainSession.operations.push(disputeCheckpointAppend);
-  chainSession.operations.push(
-    await chainSession.client.syncTaskStatus({
-      authority: chainSession.authority,
-      identity: chainSession.identity.address,
-      task: chainSession.task.address,
-      receipt: committedDisputeReceipt.address,
     }),
   );
-  const verdictCommit = await chainSession.client.ensureVerdict({
-    adjudicator: chainSession.authority,
-    disputeReceipt: committedDisputeReceipt.address,
-    outcome: NO_FAULT_OUTCOME,
-    slashAmount: 0n,
-    class: VERDICT_CLASS_SAFETY,
-    staleAfterSlot: 0n,
-  });
+  chainSession.operations.push(disputeCheckpointAppend);
+  chainSession.operations.push(
+    await withLiveOperationContext(
+      "sync final audit task status",
+      chainSession.client.syncTaskStatus({
+        authority: chainSession.authority,
+        identity: chainSession.identity.address,
+        task: chainSession.task.address,
+        receipt: committedDisputeReceipt.address,
+      }),
+    ),
+  );
+  const verdictCommit = await withLiveOperationContext(
+    "record final audit verdict",
+    chainSession.client.ensureVerdict({
+      adjudicator: chainSession.authority,
+      disputeReceipt: committedDisputeReceipt.address,
+      outcome: NO_FAULT_OUTCOME,
+      slashAmount: 0n,
+      class: VERDICT_CLASS_SAFETY,
+      staleAfterSlot: 0n,
+    }),
+  );
   chainSession.operations.push(verdictCommit);
   chainSession.dispute = {
     receipt: committedDisputeReceipt.address,

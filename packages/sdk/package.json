@@ -23,7 +23,7 @@
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true }); require('node:fs').rmSync('dist-tests', { recursive: true, force: true })\""
   },
   "dependencies": {
-    "@solana/kit": "6.8.0",
+    "@solana/kit": "6.9.0",
     "@trust-substrate/program-clients": "workspace:*"
   }
 }

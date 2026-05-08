@@ -1,0 +1,24 @@
+{
+  "name": "@trust-substrate/trust-film",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:audio": "node scripts/prepare-audio.mjs",
+    "preview": "remotion preview src/index.ts",
+    "render": "pnpm prepare:audio && remotion render src/index.ts TrustSubstrateManifesto out/trust-substrate-manifesto.mp4",
+    "still": "pnpm prepare:audio && remotion still src/index.ts TrustSubstrateManifesto out/trust-substrate-poster.png --frame=1320"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.458",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "remotion": "4.0.458",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.7.3"
+  }
+}

@@ -26,6 +26,10 @@ examples/multi_agent/society-demo-current-env.sh
 examples/multi_agent/society-ui/society-ui/
 examples/multi_agent/society-ui-app/node_modules/
 examples/multi_agent/society-ui-app/dist/
+examples/trust-film/node_modules/
+examples/trust-film/out/
+examples/trust-film/public/generated/
 test-ledger/
 .yarn
 .surfpool/
+.cache/

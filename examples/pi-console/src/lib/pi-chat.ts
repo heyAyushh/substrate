@@ -2,8 +2,8 @@ import {
   Agent,
   type AgentMessage,
   type ThinkingLevel,
-} from "@mariozechner/pi-agent-core";
-import { getModel } from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-agent-core";
+import { getModel } from "@earendil-works/pi-ai";
 import {
   AppStorage,
   CustomProvidersStore,
@@ -15,7 +15,7 @@ import {
   createJavaScriptReplTool,
   defaultConvertToLlm,
   setAppStorage,
-} from "@mariozechner/pi-web-ui";
+} from "@earendil-works/pi-web-ui";
 
 import {
   createLocalRuntimeStreamFn,

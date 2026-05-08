@@ -26,15 +26,15 @@
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true }); require('node:fs').rmSync('dist-tests', { recursive: true, force: true })\""
   },
   "dependencies": {
-    "@solana/kit": "6.8.0",
+    "@solana/kit": "6.9.0",
     "@trust-substrate/indexer": "workspace:*",
     "@trust-substrate/sdk": "workspace:*"
   },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": ">=0.67.0 <1.0.0"
+    "@earendil-works/pi-coding-agent": ">=0.74.0 <1.0.0"
   },
   "peerDependenciesMeta": {
-    "@mariozechner/pi-coding-agent": {
+    "@earendil-works/pi-coding-agent": {
       "optional": false
     }
   }

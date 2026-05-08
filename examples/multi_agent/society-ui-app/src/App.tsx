@@ -430,6 +430,10 @@ type LiveStartResponse = {
   snapshot: LiveSessionSnapshot
 }
 
+type LiveCommandResponse =
+  | LiveSessionSnapshot
+  | { snapshot?: LiveSessionSnapshot; error?: string }
+
 type LiveAgentAccount = {
   agentId: string
   agentName?: string
@@ -635,7 +639,7 @@ const GRAPH_FULLSCREEN_BUTTON_CLASS =
 const GRAPH_SVG_CLASS = "block h-64 w-full"
 const GRAPH_FULLSCREEN_SVG_CLASS = "block h-svh w-full"
 const PLAYGROUND_FULLSCREEN_BUTTON_CLASS =
-  "size-10 border-border bg-background/40 text-foreground backdrop-blur-[3px] hover:bg-background/60"
+  "min-h-[40px] min-w-[40px] border-border bg-background/40 text-foreground backdrop-blur-[3px] hover:bg-background/60"
 const PLAYGROUND_FULLSCREEN_CLASS =
   "society-playground-fullscreen grid h-svh max-h-svh grid-rows-[auto_minmax(0,1fr)_auto_auto_auto] content-stretch overflow-hidden bg-background p-2 fullscreen:bg-background md:p-3"
 const PLAYGROUND_STACK_CLASS =
@@ -643,8 +647,22 @@ const PLAYGROUND_STACK_CLASS =
 const PLAYGROUND_BOARD_SURFACE_CLASS = "relative"
 const PLAYGROUND_FULLSCREEN_BOARD_CLASS = "min-h-0 overflow-hidden"
 const PLAYGROUND_CANVAS_CLASS =
-  "block h-[520px] w-full rounded-md bg-transparent max-md:h-[420px] focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+  "mx-auto block aspect-square h-auto w-full max-w-[min(100%,520px,64svh)] rounded-md bg-transparent max-md:max-w-full focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 const PLAYGROUND_FULLSCREEN_CANVAS_CLASS = "h-full min-h-0"
+const SOCIETY_PAGE_CONTAINER_CLASS =
+  "mx-auto grid max-w-7xl gap-2 p-2 sm:gap-3 sm:p-3 md:p-4"
+const WORLD_LAYOUT_CLASS =
+  "grid min-w-0 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(280px,320px)_minmax(420px,1fr)_minmax(280px,320px)]"
+const WORLD_STORY_CARD_CLASS = "order-2 min-w-0 lg:order-1"
+const WORLD_PLAYGROUND_CLASS = "order-1 lg:order-2"
+const WORLD_AGENTS_CARD_CLASS =
+  "order-3 min-w-0 lg:col-span-2 xl:col-span-1"
+const WORLD_AGENT_LIST_CLASS = "h-[min(390px,55svh)] pr-2"
+const TOUCH_BUTTON_CLASS = "min-h-[40px]"
+const FAMILY_GRAPH_SVG_CLASS =
+  "block h-[clamp(220px,32svh,300px)] w-full"
+const AGENT_PATH_SVG_CLASS =
+  "block h-[clamp(180px,28svh,240px)] w-full"
 const PREPARATION_STEP_DETAIL_CLASS =
   "mt-1 whitespace-normal break-words font-mono text-xs leading-5 text-muted-foreground"
 const AGENT_IMAGE_CLASS =
@@ -740,11 +758,19 @@ const formatSocietyTokenDelta = (value: number | undefined) =>
   `${formatTokenDelta(value)} ${SOCIETY_TOKEN_SYMBOL}`
 
 const formatAgentName = (agentId: string, frame: TimelineFrame) =>
+  frame.agents.find((agent) => agent.id === agentId)?.name ||
   frame.leaderboard.find((agent) => agent.id === agentId)?.name ||
   short(agentId, 4)
 
 const agentRole = (agent: Pick<CellAgent, "archetype">) =>
   agent.archetype || "Agent"
+
+const compareDashboardAgents = (left: CellAgent, right: CellAgent) => {
+  if (left.alive !== right.alive) return left.alive ? -1 : 1
+  if (left.score !== right.score) return right.score - left.score
+  if (left.tokens !== right.tokens) return right.tokens - left.tokens
+  return left.name.localeCompare(right.name)
+}
 
 const buildFixedBoardCommentary = ({
   liveSnapshot,
@@ -757,7 +783,7 @@ const buildFixedBoardCommentary = ({
   if (!liveSnapshot || !latestEvent) {
     return {
       label: "No world is open in this browser.",
-      detail: `Launch from onboarding to prepare paused Surfpool records. Board preview: tick ${format(
+      detail: `Launch from onboarding to prepare Surfpool records and the first action. Board preview: tick ${format(
         frame.tick
       )}, ${format(frame.liveAgents)} agents, ${format(
         frame.liveCells
@@ -943,6 +969,30 @@ function buildSimulationConfig(
   }
 
   return nextConfig
+}
+
+async function postLiveCommand(path: string) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+  })
+  const payload = (await response.json()) as LiveCommandResponse
+  if (!response.ok || ("error" in payload && payload.error)) {
+    throw new Error(
+      ("error" in payload && payload.error) ||
+        `request failed with ${response.status}`
+    )
+  }
+
+  if ("snapshot" in payload && payload.snapshot) {
+    return payload.snapshot
+  }
+
+  if ("sessionId" in payload && "confirmedFrame" in payload) {
+    return payload
+  }
+
+  throw new Error("live command response was incomplete")
 }
 
 function createEmptyTimelineFrame(gridSize: number): TimelineFrame {
@@ -1220,6 +1270,10 @@ function App() {
     [liveColorAgentIds, liveSnapshot]
   )
   const agentColors = liveAgentColors
+  const dashboardAgents = React.useMemo(
+    () => frame.agents.slice().sort(compareDashboardAgents),
+    [frame.agents]
+  )
   const hoveredAgent = frame.agents.find((agent) => agent.id === hoveredAgentId)
   const heroAgent =
     frame.agents.find((agent) => agent.isHero) ??
@@ -1228,6 +1282,7 @@ function App() {
     frame.agents.find((agent) => agent.id === selectedAgentId) ??
     frame.leaderboard.find((agent) => agent.id === selectedAgentId) ??
     heroAgent ??
+    dashboardAgents[0] ??
     frame.leaderboard[0]
   const inspectedAgent = hoveredAgent ?? selectedAgent
   const headerStatus = liveStatus
@@ -1237,16 +1292,24 @@ function App() {
       : liveSnapshot.status === "complete"
         ? "Surfpool complete"
         : "Surfpool paused"
-    : "Surfpool ready"
-  const worldStateLabel = liveSnapshot ? "World live" : "World idle"
+    : isStartingLive
+      ? "Surfpool preparing"
+      : "Surfpool ready"
+  const worldStateLabel = liveSnapshot
+    ? "World live"
+    : isStartingLive
+      ? "World preparing"
+      : "World idle"
   const playgroundStatusLabel = liveSnapshot
     ? `live ${liveSnapshot.status} - ${short(liveSnapshot.sessionId, 4)}`
+    : isStartingLive
+      ? `preparing live world - ${short(activeConfig.seed, 4)}`
     : `awaiting live world - ${short(activeConfig.seed, 4)}`
   const hasLiveSession = Boolean(liveSnapshot)
   const liveSessionId = liveSnapshot?.sessionId
   const worldMetricItems: Array<[string, number | string]> = [
     ["Agents", frame.liveAgents],
-    ["Identities", frame.leaderboard.length],
+    ["Identities", dashboardAgents.length],
     ["Resources", frame.resourceTotal ?? 0],
     ["Commons", frame.commonsBalance ?? 0],
     ["Births", frame.births.length],
@@ -1432,24 +1495,7 @@ function App() {
   const sendLiveCommand = React.useCallback(async (path: string) => {
     setIsSendingLiveCommand(true)
     try {
-      const response = await fetch(path, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-      })
-      const payload = (await response.json()) as
-        | LiveSessionSnapshot
-        | { snapshot?: LiveSessionSnapshot; error?: string }
-      if (!response.ok || ("error" in payload && payload.error)) {
-        throw new Error(
-          ("error" in payload && payload.error) ||
-            `request failed with ${response.status}`
-        )
-      }
-      if ("snapshot" in payload && payload.snapshot) {
-        setLiveSnapshot(payload.snapshot)
-      } else {
-        setLiveSnapshot(payload as LiveSessionSnapshot)
-      }
+      setLiveSnapshot(await postLiveCommand(path))
     } finally {
       setIsSendingLiveCommand(false)
     }
@@ -1460,10 +1506,12 @@ function App() {
       nextForm = form,
       nextCustomCells = customCells,
       nextHeroArchetype = selectedArchetype,
+      advanceOnce = false,
     }: {
       nextForm?: SimulationForm
       nextCustomCells?: Set<string>
       nextHeroArchetype?: string
+      advanceOnce?: boolean
     } = {}) => {
       setIsStartingLive(true)
       setLiveStatus(
@@ -1501,6 +1549,31 @@ function App() {
         )
         setHoveredAgentId(undefined)
         setActiveTab("events")
+        if (
+          advanceOnce &&
+          payload.snapshot.status !== "complete" &&
+          payload.snapshot.committedActions.length === 0
+        ) {
+          setIsSendingLiveCommand(true)
+          setLiveStatus("Playing the first live action")
+          try {
+            const snapshot = await postLiveCommand(
+              `/api/society/live/${payload.sessionId}/step`
+            )
+            setLiveSnapshot(snapshot)
+            setLiveStatus(
+              snapshot.status === "complete"
+                ? "Live run complete"
+                : "First live action confirmed"
+            )
+          } catch (error) {
+            setLiveStatus(
+              `Live world ready; first action failed: ${(error as Error).message}`
+            )
+          } finally {
+            setIsSendingLiveCommand(false)
+          }
+        }
         return true
       } catch (error) {
         setLiveSnapshot(undefined)
@@ -1630,13 +1703,28 @@ function App() {
   }, [heroAgent, selectedAgentId])
 
   const startOnboardingLiveWorld = React.useCallback(async () => {
+    enterSociety()
     if (liveSnapshot) {
-      enterSociety()
+      if (
+        liveSnapshot.status === "paused" &&
+        liveSnapshot.committedActions.length === 0
+      ) {
+        setLiveStatus("Playing the first live action")
+        try {
+          await sendLiveCommand(
+            `/api/society/live/${liveSnapshot.sessionId}/step`
+          )
+          setLiveStatus("First live action confirmed")
+        } catch (error) {
+          setLiveStatus(
+            `Live world ready; first action failed: ${(error as Error).message}`
+          )
+        }
+      }
       return
     }
-    const didStart = await startLiveSession()
-    if (didStart) enterSociety()
-  }, [enterSociety, liveSnapshot, startLiveSession])
+    await startLiveSession({ advanceOnce: true })
+  }, [enterSociety, liveSnapshot, sendLiveCommand, startLiveSession])
 
   React.useEffect(() => {
     return () => {
@@ -1715,6 +1803,7 @@ function App() {
   }, [activeView, onboardingComplete, selectedAgentId])
 
   React.useEffect(() => {
+    if (activeView !== "world") return
     const canvas = canvasRef.current
     if (!canvas) return
     const context = canvas.getContext("2d")
@@ -1926,6 +2015,7 @@ function App() {
       document.removeEventListener("fullscreenchange", draw)
     }
   }, [
+    activeView,
     activeConfig.gridSize,
     agentColors,
     customCells,
@@ -2025,8 +2115,8 @@ function App() {
   }
 
   return (
-    <main className="min-h-svh bg-transparent text-foreground">
-      <div className="mx-auto grid max-w-7xl gap-3 p-3 md:p-4">
+    <main className="min-h-svh overflow-x-clip bg-transparent text-foreground">
+      <div className={SOCIETY_PAGE_CONTAINER_CLASS}>
         <header className="grid gap-3 border-b border-border/80 pb-3 md:flex md:flex-wrap md:items-center md:justify-between">
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Trust Substrate</p>
@@ -2046,17 +2136,17 @@ function App() {
               </Badge>
             </div>
             {onboardingComplete && (
-              <div className="flex flex-wrap items-center gap-2 md:justify-end">
+              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
                 <Button
                   variant={activeView === "world" ? "secondary" : "outline"}
-                  className="min-w-28"
+                  className="h-[40px] min-w-0 md:min-w-28"
                   onClick={() => setActiveView("world")}
                 >
                   World
                 </Button>
                 <Button
                   variant={activeView === "agents" ? "secondary" : "outline"}
-                  className="min-w-28"
+                  className="h-[40px] min-w-0 md:min-w-28"
                   onClick={() => setActiveView("agents")}
                 >
                   Agents
@@ -2067,8 +2157,8 @@ function App() {
         </header>
 
         {activeView === "world" ? (
-          <section className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(280px,320px)_minmax(420px,1fr)_minmax(280px,320px)]">
-            <Card className={cn(SECTION_CARD_CLASS, "min-w-0")}>
+          <section className={WORLD_LAYOUT_CLASS}>
+            <Card className={cn(SECTION_CARD_CLASS, WORLD_STORY_CARD_CLASS)}>
               <CardHeader className={SECTION_HEADER_CLASS}>
                 <CardTitle>World Story</CardTitle>
                 <CardAction>
@@ -2140,6 +2230,8 @@ function App() {
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <Button
+                          size="lg"
+                          className={TOUCH_BUTTON_CLASS}
                           variant={
                             liveDisplayMode === "pending"
                               ? "secondary"
@@ -2150,6 +2242,8 @@ function App() {
                           Pending
                         </Button>
                         <Button
+                          size="lg"
+                          className={TOUCH_BUTTON_CLASS}
                           variant={
                             liveDisplayMode === "strict"
                               ? "secondary"
@@ -2163,6 +2257,7 @@ function App() {
                       <Button
                         variant="outline"
                         size="lg"
+                        className={TOUCH_BUTTON_CLASS}
                         onClick={reconnectLiveSession}
                         disabled={!liveSnapshot}
                       >
@@ -2172,13 +2267,19 @@ function App() {
                         <Button
                           variant="outline"
                           size="lg"
+                          className={TOUCH_BUTTON_CLASS}
                           onClick={() => void resumeLatestLiveSession()}
                           disabled={isStartingLive || isResumingLive}
                         >
                           {isResumingLive ? "Opening latest" : "Resume last"}
                         </Button>
                       )}
-                      <Button variant="outline" size="lg" asChild>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className={TOUCH_BUTTON_CLASS}
+                        asChild
+                      >
                         <a
                           href={`${currentStudioUrl.replace(/\/$/, "")}/accounts`}
                           target="_blank"
@@ -2187,7 +2288,12 @@ function App() {
                           Open Studio
                         </a>
                       </Button>
-                      <Button variant="outline" size="lg" asChild>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className={TOUCH_BUTTON_CLASS}
+                        asChild
+                      >
                         <a
                           href={solanaExplorerClusterHref(currentRpcUrl)}
                           target="_blank"
@@ -2206,6 +2312,7 @@ function App() {
               ref={playgroundRef}
               className={cn(
                 PLAYGROUND_STACK_CLASS,
+                WORLD_PLAYGROUND_CLASS,
                 playgroundFullscreen.isFullscreen && PLAYGROUND_FULLSCREEN_CLASS
               )}
             >
@@ -2318,6 +2425,7 @@ function App() {
                     <Button
                       variant="secondary"
                       size="lg"
+                      className={TOUCH_BUTTON_CLASS}
                       onClick={
                         liveSnapshot?.status === "running"
                           ? () => void pauseLiveSession()
@@ -2334,6 +2442,7 @@ function App() {
                     <Button
                       variant="secondary"
                       size="lg"
+                      className={TOUCH_BUTTON_CLASS}
                       onClick={() => void stepLiveSession()}
                       disabled={
                         !liveSnapshot ||
@@ -2386,7 +2495,7 @@ function App() {
             <Card
               className={cn(
                 SECTION_CARD_CLASS,
-                "min-w-0 lg:col-span-2 xl:col-span-1"
+                WORLD_AGENTS_CARD_CLASS
               )}
             >
               <CardHeader className={SECTION_HEADER_CLASS}>
@@ -2398,9 +2507,9 @@ function App() {
               <CardContent className="grid gap-3 p-2.5">
                 <RuleList />
                 <Separator />
-                <ScrollArea className="h-[390px] pr-2">
+                <ScrollArea className={WORLD_AGENT_LIST_CLASS}>
                   <div className="grid gap-2">
-                    {frame.leaderboard.slice(0, 12).map((agent) => (
+                    {dashboardAgents.map((agent) => (
                       <AgentRow key={agent.id} agent={agent} />
                     ))}
                   </div>
@@ -2410,7 +2519,7 @@ function App() {
           </section>
         ) : (
           <AgentsPage
-            agents={frame.leaderboard}
+            agents={dashboardAgents}
             selectedAgent={selectedAgent}
             selectedAgentPath={selectedAgentPath}
             selectedAgentEvents={selectedAgentEvents}
@@ -2469,7 +2578,7 @@ function App() {
                 </TabsContent>
                 <TabsContent value="graph">
                   <GraphList
-                    agents={frame.leaderboard}
+                    agents={dashboardAgents}
                     programs={LIVE_PROGRAMS}
                     receipts={[]}
                     batchNodes={new Map()}
@@ -2592,11 +2701,21 @@ function AgentFocusPanel({
         <p>children {format(agent.descendants)}</p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={onOpenAgents}>
+        <Button
+          variant="secondary"
+          size="lg"
+          className={TOUCH_BUTTON_CLASS}
+          onClick={onOpenAgents}
+        >
           Open agent card
         </Button>
         {account?.identity?.address && (
-          <Button variant="outline" asChild>
+          <Button
+            variant="outline"
+            size="lg"
+            className={TOUCH_BUTTON_CLASS}
+            asChild
+          >
             <a
               href={solanaExplorerHref({
                 kind: "address",
@@ -2691,7 +2810,7 @@ function LivePreparationPanel({
       label: "Agent identities",
       detail: setup
         ? `${format(setup.identityAccountCount)}/${format(agentTarget)} identities`
-        : `${format(agentTarget)} identities will be created before play`,
+        : `${format(agentTarget)} identities will be created before the first action`,
       status: countStatus(setup?.identityAccountCount),
     },
     {
@@ -2724,7 +2843,7 @@ function LivePreparationPanel({
           <p className="text-xs font-normal">Agent readiness</p>
           <p className="mt-1 whitespace-normal break-words text-xs leading-5 text-muted-foreground">
             Surfpool setup waits for agent keys, identities, delegation, and SOL
-            stake before Play or Step.
+          stake before the first action.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2736,11 +2855,11 @@ function LivePreparationPanel({
           <Badge variant="outline">{setup?.stakeAsset ?? "SOL"} stake</Badge>
         </div>
       </div>
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid gap-1.5">
         {steps.map((step) => (
           <div
             key={step.label}
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 rounded-md border border-border/70 bg-background/35 p-2"
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 rounded-md border border-border/70 bg-background/35 px-2 py-1.5"
           >
             <div className="min-w-0">
               <p className="text-xs text-foreground">{step.label}</p>
@@ -2756,7 +2875,13 @@ function LivePreparationPanel({
             >
               {step.status}
             </Badge>
-            <p className={cn(PREPARATION_STEP_DETAIL_CLASS, "col-span-2")}>
+            <p
+              className={cn(
+                PREPARATION_STEP_DETAIL_CLASS,
+                "col-span-2",
+                setup && "mt-0 truncate whitespace-nowrap leading-4"
+              )}
+            >
               {step.detail}
             </p>
           </div>
@@ -2800,22 +2925,6 @@ function AgentsPage({
           </CardAction>
         </CardHeader>
         <CardContent className="grid gap-3 p-2.5">
-          {selectedAgent ? (
-            <AgentDetailTabs
-              agent={selectedAgent}
-              events={selectedAgentEvents}
-              path={selectedAgentPath}
-              account={selectedAgentAccount}
-              rpcUrl={rpcUrl}
-              liveAccountsError={liveAccountsError}
-              isLoadingLiveAccounts={isLoadingLiveAccounts}
-            />
-          ) : (
-            <EmptyState>
-              Choose an agent card to see its path, lineage, and accounts.
-            </EmptyState>
-          )}
-          <FamilyGraph agents={agents} selectedAgentId={selectedAgent?.id} />
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {agents.map((agent) => (
               <button
@@ -2860,6 +2969,22 @@ function AgentsPage({
               </button>
             ))}
           </div>
+          {selectedAgent ? (
+            <AgentDetailTabs
+              agent={selectedAgent}
+              events={selectedAgentEvents}
+              path={selectedAgentPath}
+              account={selectedAgentAccount}
+              rpcUrl={rpcUrl}
+              liveAccountsError={liveAccountsError}
+              isLoadingLiveAccounts={isLoadingLiveAccounts}
+            />
+          ) : (
+            <EmptyState>
+              Choose an agent card to see its path, lineage, and accounts.
+            </EmptyState>
+          )}
+          <FamilyGraph agents={agents} selectedAgentId={selectedAgent?.id} />
         </CardContent>
       </Card>
     </section>
@@ -2930,7 +3055,7 @@ function FamilyGraph({
         viewBox={`0 0 ${FAMILY_GRAPH_VIEWBOX_WIDTH} ${FAMILY_GRAPH_VIEWBOX_HEIGHT}`}
         role="img"
         aria-label="Parent to child agent graph"
-        className="block h-[300px] w-full"
+        className={FAMILY_GRAPH_SVG_CLASS}
       >
         {links.map((link) => {
           const parent = nodeByAgentId.get(link.parentId)
@@ -3184,7 +3309,7 @@ function AgentPathMap({
       <div className={GRAPH_SURFACE_CLASS}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="block h-[240px] w-full"
+          className={AGENT_PATH_SVG_CLASS}
           role="img"
           aria-label={`${agent.name} path graph`}
         >
@@ -3436,7 +3561,7 @@ function OnboardingOverlay({
   }
   const launchActionLabel = hasLiveSession
     ? "Enter live board"
-    : `Prepare ${format(requestedAgentCount)} agents and start live world`
+    : `Start live world with ${format(requestedAgentCount)} agents`
   const actionButton = isFinalStep ? (
     <Button
       variant="secondary"
@@ -4563,7 +4688,8 @@ function SurfpoolPanel({
         <ProgramCoverageCard fallbackPrograms={LIVE_PROGRAMS} />
         <EmptyState>
           Launch from onboarding to prepare the Surfpool session, world account,
-          and agent accounts. Press Step or Play when you want actions to run.
+          and agent accounts. The onboarding start runs the first action, and
+          Step or Play can continue the world after that.
         </EmptyState>
       </div>
     )

@@ -22,12 +22,12 @@
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\""
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "0.67.6",
-    "@mariozechner/pi-ai": "0.67.6",
-    "@mariozechner/pi-web-ui": "0.67.6"
+    "@earendil-works/pi-agent-core": "0.74.0",
+    "@earendil-works/pi-ai": "0.74.0",
+    "@earendil-works/pi-web-ui": "0.74.0"
   },
   "devDependencies": {
     "@types/node": "^24.12.2",
-    "vite": "^8.0.4"
+    "vite": "^8.0.11"
   }
 }

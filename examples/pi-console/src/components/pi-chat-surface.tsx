@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentMessage, ThinkingLevel } from "@mariozechner/pi-agent-core";
-import { supportsXhigh } from "@mariozechner/pi-ai";
+import type {
+  AgentMessage,
+  ThinkingLevel,
+} from "@earendil-works/pi-agent-core";
 import {
   ApiKeyPromptDialog,
   ModelSelector,
   getAppStorage,
-} from "@mariozechner/pi-web-ui";
+} from "@earendil-works/pi-web-ui";
 import { Bot, Loader2, Send, Square, Trash2, Wrench } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -51,11 +53,26 @@ import {
 } from "@/lib/pi-identities";
 import { createPiConsoleAgent } from "@/lib/pi-chat";
 import {
+  getUserMessageText,
+  isAssistantMessage,
+  isTextBlock,
+  isThinkingBlock,
+  isToolCallBlock,
+  isToolResultMessage,
+  isToolResultTextBlock,
+  isUserLikeMessage,
+  type AssistantMessageLike,
+  type ToolCallBlock,
+  type ToolResultMessageLike,
+  type UserLikeMessage,
+} from "@/lib/pi-agent-messages";
+import {
   subscribeToLocalRuntimeActivity,
   type LocalMcpServer,
   type LocalRuntimeActivity,
   type LocalRuntimeConfig,
 } from "@trust-substrate/pi-local-runtime";
+import { getAvailableThinkingLevels } from "@/lib/pi-thinking";
 import { cn } from "@/lib/utils";
 
 const IDENTITY_SESSION_ID_PREFIX = "trust-substrate-pi-console-identity";
@@ -307,22 +324,10 @@ export function PiChatSurface({
   const isLocalRuntimeModel = currentModel
     ? isLocalRuntimeProvider(runtime, currentModel.provider)
     : false;
-  const availableThinkingLevels = useMemo(() => {
-    if (!currentModel) {
-      return ["off", "minimal", "low", "medium", "high"] as ThinkingLevel[];
-    }
-
-    return supportsXhigh(currentModel)
-      ? ([
-          "off",
-          "minimal",
-          "low",
-          "medium",
-          "high",
-          "xhigh",
-        ] as ThinkingLevel[])
-      : (["off", "minimal", "low", "medium", "high"] as ThinkingLevel[]);
-  }, [currentModel]);
+  const availableThinkingLevels = useMemo(
+    () => getAvailableThinkingLevels(currentModel),
+    [currentModel],
+  );
   const quickPrompts = useMemo(
     () =>
       [
@@ -1137,40 +1142,6 @@ function buildIdentityChipMeta(identity: PiIdentityProfile) {
   return parts.join(" · ");
 }
 
-function getUserMessageText(message: UserLikeMessage) {
-  if (typeof message.content === "string") {
-    return message.content;
-  }
-
-  if (!Array.isArray(message.content)) {
-    return "";
-  }
-
-  return message.content
-    .map((entry) => {
-      if (!entry || typeof entry !== "object") {
-        return "";
-      }
-
-      if (
-        "type" in entry &&
-        entry.type === "text" &&
-        "text" in entry &&
-        typeof entry.text === "string"
-      ) {
-        return entry.text;
-      }
-
-      if ("type" in entry && entry.type === "image") {
-        return "[image]";
-      }
-
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 function buildConnectionSummary(identity: PiIdentityProfile) {
   const segments = [];
   if (identity.delegatedFromLabels.length > 0) {
@@ -1228,69 +1199,4 @@ function getMessageKey(message: AgentMessage, index: number) {
   const timestamp =
     "timestamp" in message ? String(message.timestamp) : "untimed";
   return `${message.role}-${timestamp}-${index}`;
-}
-
-type UserLikeMessage = Extract<
-  AgentMessage,
-  { role: "user" | "user-with-attachments" }
->;
-type AssistantMessageLike = Extract<AgentMessage, { role: "assistant" }>;
-type ToolResultMessageLike = Extract<AgentMessage, { role: "toolResult" }>;
-type ToolCallBlock = Extract<
-  AssistantMessageLike["content"][number],
-  { type: "toolCall" }
->;
-type ThinkingBlock = Extract<
-  AssistantMessageLike["content"][number],
-  { type: "thinking" }
->;
-type TextBlock = Extract<
-  AssistantMessageLike["content"][number],
-  { type: "text" }
->;
-type ToolResultTextBlock = Extract<
-  ToolResultMessageLike["content"][number],
-  { type: "text" }
->;
-
-function isUserLikeMessage(
-  message: AgentMessage | null | undefined,
-): message is UserLikeMessage {
-  return message?.role === "user" || message?.role === "user-with-attachments";
-}
-
-function isAssistantMessage(
-  message: AgentMessage | null | undefined,
-): message is AssistantMessageLike {
-  return message?.role === "assistant";
-}
-
-function isToolResultMessage(
-  message: AgentMessage | null | undefined,
-): message is ToolResultMessageLike {
-  return message?.role === "toolResult";
-}
-
-function isTextBlock(
-  block: AssistantMessageLike["content"][number],
-): block is TextBlock {
-  return block.type === "text";
-}
-
-function isThinkingBlock(
-  block: AssistantMessageLike["content"][number],
-): block is ThinkingBlock {
-  return block.type === "thinking";
-}
-
-function isToolCallBlock(
-  block: AssistantMessageLike["content"][number],
-): block is ToolCallBlock {
-  return block.type === "toolCall";
-}
-
-function isToolResultTextBlock(
-  block: ToolResultMessageLike["content"][number],
-): block is ToolResultTextBlock {
-  return block.type === "text";
 }

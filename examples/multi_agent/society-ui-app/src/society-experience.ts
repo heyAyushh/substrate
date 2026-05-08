@@ -617,7 +617,7 @@ export const buildOnboardingMissionModel = ({
     stage,
     headline: "Open the records",
     body: "Now launch the Surfpool-backed world from this setup. You can see what is alive, what changed, who created whom, and where Surfpool records the accounts and transactions.",
-    primaryActionLabel: "Prepare agents and start live world",
+    primaryActionLabel: "Start live world",
     primaryActionDisabled: false,
     observationPending: false,
     worldLabel,

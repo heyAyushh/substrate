@@ -1,4 +1,5 @@
 packages:
   - "packages/*"
+  - "examples/trust-film"
   - "examples/pi-console"
   - "examples/multi_agent/society-ui-app"

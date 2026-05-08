@@ -8,9 +8,9 @@ import {
   type Model as PiModel,
   type SimpleStreamOptions,
   type StopReason,
-} from "@mariozechner/pi-ai";
-import { applyProxyIfNeeded, getAppStorage } from "@mariozechner/pi-web-ui";
-import type { StreamFn } from "@mariozechner/pi-agent-core";
+} from "@earendil-works/pi-ai";
+import { applyProxyIfNeeded, getAppStorage } from "@earendil-works/pi-web-ui";
+import type { StreamFn } from "@earendil-works/pi-agent-core";
 
 import {
   DEFAULT_CLAUDE_MODEL_ID,

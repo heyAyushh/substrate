@@ -152,6 +152,15 @@ test("society UI renders the full protocol evidence graph", async () => {
 
 test("society UI launches new live worlds from onboarding only", async () => {
   const source = await readFile(APP_SOURCE_PATH, "utf8");
+  const startOnboardingIndex = source.indexOf("const startOnboardingLiveWorld");
+  const enterBeforeStartIndex = source.indexOf(
+    "enterSociety()",
+    startOnboardingIndex,
+  );
+  const startWithAdvanceIndex = source.indexOf(
+    "await startLiveSession({ advanceOnce: true })",
+    startOnboardingIndex,
+  );
 
   ok(
     source.includes("LivePreparationPanel"),
@@ -166,8 +175,19 @@ test("society UI launches new live worlds from onboarding only", async () => {
     "the onboarding overlay should receive the explicit live launch action",
   );
   ok(
-    source.includes("agents and start live world"),
-    "the onboarding CTA should prepare the chosen agent count and start the world",
+    source.includes("Start live world with"),
+    "the onboarding CTA should be a plain start action with the chosen agent count",
+  );
+  ok(
+    enterBeforeStartIndex > startOnboardingIndex &&
+      startWithAdvanceIndex > enterBeforeStartIndex,
+    "the onboarding start should show the board before waiting on live preparation",
+  );
+  ok(
+    source.includes("advanceOnce = false") &&
+      source.includes("Playing the first live action") &&
+      source.includes("postLiveCommand("),
+    "the first live action should run automatically after the start request",
   );
   ok(
     !source.includes('id="quick-agents"'),

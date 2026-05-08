@@ -3,7 +3,7 @@
 A pure-TypeScript walkthrough of four coding agents cooperating under
 Trust Substrate. Each agent runs the minimal read/write/edit/bash tool
 surface of
-[`@mariozechner/pi-coding-agent`](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent),
+[`@earendil-works/pi-coding-agent`](https://github.com/earendil-works/pi-mono/tree/main/packages/coding-agent),
 and every tool call flows through the SDK's canonical hashing rules so
 receipt roots match what the `receipt_emitter` program would anchor
 on-chain. This script is a deterministic SDK walkthrough, not the live
