@@ -19,6 +19,13 @@ are clients that exercise the same identity, task, delegation, receipt,
 checkpoint, reputation, stake, and dispute surfaces. A demo can display protocol
 state, but it must not become the authority that invents or validates truth.
 
+## Disclaimer
+
+Trust Substrate is unaudited, AI-assisted software. It is provided for
+educational and experimental use only, and is not meant for production use
+without an independent security review, operational hardening, and deployment
+readiness checks.
+
 ## What Is Here
 
 This repository contains a local protocol baseline:
