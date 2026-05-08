@@ -26,6 +26,7 @@ This repository contains a local protocol baseline:
 - Codama-generated `@solana/kit` program clients
 - deterministic TypeScript SDK helpers for local graph, proof, and reputation modeling
 - a local durable indexer that rebuilds execution graphs, handoff inheritance, and team reputation views from receipts
+- interop adapters for A2A, AGNTCY ACP, ERC-8004 metadata export, and MCP
 - Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
 - documentation for architecture, development, testing, security, and roadmap decisions
 
@@ -93,6 +94,7 @@ transaction signatures, receipt hashes, or Merkle roots.
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
 - [Deployment Readiness](docs/deployment-readiness.md)
+- [Agent Interop Surfaces](docs/interop.md)
 - [Agent Skill Contract](docs/agent-skill.md)
 - [Senior Reviewer Guide](docs/reviewer-guide.md)
 - [Security](docs/security.md)
@@ -111,7 +113,10 @@ packages/program-clients/     Codama-generated @solana/kit clients from Anchor I
 packages/indexer/             Local durable execution graph indexer
 packages/pi-extension/        Pi agent integration package
 packages/pi-local-runtime/    Local Pi runtime bridge
-packages/mcp-server/          MCP server for Trust Substrate snapshots
+packages/a2a-adapter/         A2A Agent Card and task metadata adapter
+packages/acp-adapter/         AGNTCY ACP descriptor adapter
+packages/eip8004-exporter/    ERC-8004-friendly metadata exporter
+packages/mcp-server/          MCP server for snapshot reads and opt-in chain writes
 skills/trust-substrate/        Agent-facing Trust Substrate skill contract
 tests/                        TypeScript package, Surfpool, and verification tests
 scripts/                      Local automation scripts
@@ -127,7 +132,8 @@ examples/multi_agent/         Society Board and local protocol walkthrough
 - Public SDK helpers: [packages/sdk](packages/sdk)
 - Generated Solana clients: [packages/program-clients](packages/program-clients)
 - Local indexer: [packages/indexer](packages/indexer)
-- MCP snapshot server: [packages/mcp-server](packages/mcp-server)
+- Interop adapters: [packages/a2a-adapter](packages/a2a-adapter), [packages/acp-adapter](packages/acp-adapter), [packages/eip8004-exporter](packages/eip8004-exporter)
+- MCP read/write server: [packages/mcp-server](packages/mcp-server)
 
 ## Toolchain
 

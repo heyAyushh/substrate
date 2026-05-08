@@ -23,8 +23,12 @@ import {
   createSnapshotSummary,
   createTaskTrace,
 } from "./snapshot-tools.js";
+import { registerMcpWriteTools } from "./write-tools.js";
 
 type ToolPayload = Record<string, unknown>;
+type ServerOptions = {
+  readonly env?: Readonly<Record<string, string | undefined>>;
+};
 
 const ResponseFormatSchema = z
   .enum([MARKDOWN_RESPONSE_FORMAT, JSON_RESPONSE_FORMAT])
@@ -125,7 +129,9 @@ type AgentProfileToolInput = z.infer<typeof AgentProfileInputSchema>;
 type TaskTraceToolInput = z.infer<typeof TaskTraceInputSchema>;
 type DomainSummaryToolInput = z.infer<typeof DomainSummaryInputSchema>;
 
-export function createTrustSubstrateMcpServer(): McpServer {
+export function createTrustSubstrateMcpServer(
+  options: ServerOptions = {},
+): McpServer {
   const server = new McpServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
@@ -227,6 +233,8 @@ export function createTrustSubstrateMcpServer(): McpServer {
         };
       }),
   );
+
+  registerMcpWriteTools(server, options.env ?? process.env);
 
   return server;
 }

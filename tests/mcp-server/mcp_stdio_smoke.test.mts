@@ -1,6 +1,6 @@
 import test from "node:test";
 import { deepStrictEqual, ok, strictEqual } from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -38,6 +38,18 @@ const EXPECTED_TOOLS = [
   "trust_substrate_domain_summary",
   "trust_substrate_snapshot_summary",
   "trust_substrate_task_trace",
+  "trust_substrate_write_status",
+];
+const EXPECTED_WRITE_TOOLS = [
+  "trust_substrate_attester_write",
+  "trust_substrate_checkpoint_write",
+  "trust_substrate_delegation_write",
+  "trust_substrate_dispute_write",
+  "trust_substrate_identity_write",
+  "trust_substrate_receipt_write",
+  "trust_substrate_reputation_write",
+  "trust_substrate_stake_write",
+  "trust_substrate_task_write",
 ];
 const EXPECTED_RECEIPT_COUNT = 3;
 const EXPECTED_TASK_COUNT = 1;
@@ -45,6 +57,13 @@ const EXPECTED_AGENT_COUNT = 2;
 const EXPECTED_ALPHA_RECEIPT_COUNT = 2;
 const EXPECTED_TASK_RECEIPT_COUNT = 3;
 const EXPECTED_HANDOFF_COUNT = 1;
+const TEST_KEYPAIR_BYTES = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
+  23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 121, 181, 86, 46, 143, 230, 84, 249,
+  64, 120, 177, 18, 232, 169, 139, 167, 144, 31, 133, 58, 230, 149, 190, 215,
+  224, 227, 145, 11, 173, 4, 150, 100,
+];
+const TEST_SIGNER_ADDRESS = "9C6hybhQ6Aycep9jaUnP6uL9ZYvDjUp1aSkFWPUFJtpj";
 
 type StructuredResult = {
   readonly receiptCount?: unknown;
@@ -64,6 +83,7 @@ type ToolMetadata = {
   readonly annotations?: {
     readonly readOnlyHint?: boolean;
     readonly destructiveHint?: boolean;
+    readonly openWorldHint?: boolean;
   };
 };
 
@@ -181,12 +201,20 @@ test("stdio MCP server exposes Trust Substrate tools and handles real calls", as
       EXPECTED_TOOLS,
     );
     ok(
-      tools.tools.every(
-        (tool) =>
-          tool.annotations?.readOnlyHint === true &&
-          tool.annotations?.destructiveHint === false,
-      ),
+      tools.tools
+        .filter((tool) => tool.name !== "trust_substrate_write_status")
+        .every(
+          (tool) =>
+            tool.annotations?.readOnlyHint === true &&
+            tool.annotations?.destructiveHint === false &&
+            tool.annotations?.openWorldHint === false,
+        ),
     );
+    const statusTool = tools.tools.find(
+      (tool) => tool.name === "trust_substrate_write_status",
+    );
+    strictEqual(statusTool?.annotations?.readOnlyHint, true);
+    strictEqual(statusTool?.annotations?.openWorldHint, false);
 
     const summary = await client.callTool({
       name: "trust_substrate_snapshot_summary",
@@ -222,6 +250,145 @@ test("stdio MCP server exposes Trust Substrate tools and handles real calls", as
       arguments: { snapshot_path: "../outside.json", response_format: "json" },
     });
     strictEqual(blocked.isError, true);
+  } finally {
+    await client.close();
+  }
+});
+
+test("stdio MCP server hides write tools until write mode is enabled", async () => {
+  const [{ Client }, { StdioClientTransport }] = await Promise.all([
+    import(CLIENT_MODULE_URL) as Promise<{
+      readonly Client: ClientConstructor;
+    }>,
+    import(STDIO_TRANSPORT_MODULE_URL) as Promise<{
+      readonly StdioClientTransport: StdioTransportConstructor;
+    }>,
+  ]);
+  const projectRoot = mkdtempSync(join(tmpdir(), "trust-mcp-no-write-"));
+  createSmokeSnapshot(projectRoot);
+  const client = new Client(
+    { name: "trust-substrate-mcp-no-write", version: "0.0.0" },
+    { capabilities: {} },
+  );
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER_ENTRYPOINT],
+    cwd: PACKAGE_ROOT,
+    env: {
+      PATH: process.env.PATH ?? "",
+      NODE_NO_WARNINGS: "1",
+      TRUST_SUBSTRATE_PROJECT_ROOT: projectRoot,
+      TRUST_SUBSTRATE_SNAPSHOT_PATH: SNAPSHOT_RELATIVE_PATH,
+    },
+    stderr: "pipe",
+  });
+
+  try {
+    await client.connect(transport);
+    const tools = await client.listTools();
+    for (const toolName of EXPECTED_WRITE_TOOLS) {
+      ok(
+        !tools.tools.some((tool) => tool.name === toolName),
+        `${toolName} must be hidden without write mode`,
+      );
+    }
+    const status = await client.callTool({
+      name: "trust_substrate_write_status",
+      arguments: { response_format: "json" },
+    });
+    strictEqual(status.structuredContent?.enabled, false);
+    strictEqual(status.structuredContent?.ready, false);
+  } finally {
+    await client.close();
+  }
+});
+
+test("stdio MCP write tools preview by default and require explicit submit confirmation", async () => {
+  const [{ Client }, { StdioClientTransport }] = await Promise.all([
+    import(CLIENT_MODULE_URL) as Promise<{
+      readonly Client: ClientConstructor;
+    }>,
+    import(STDIO_TRANSPORT_MODULE_URL) as Promise<{
+      readonly StdioClientTransport: StdioTransportConstructor;
+    }>,
+  ]);
+  const projectRoot = mkdtempSync(join(tmpdir(), "trust-mcp-write-"));
+  const keypairPath = join(projectRoot, "id.json");
+  writeFileSync(keypairPath, JSON.stringify(TEST_KEYPAIR_BYTES));
+  createSmokeSnapshot(projectRoot);
+  const client = new Client(
+    { name: "trust-substrate-mcp-write", version: "0.0.0" },
+    { capabilities: {} },
+  );
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [SERVER_ENTRYPOINT],
+    cwd: PACKAGE_ROOT,
+    env: {
+      PATH: process.env.PATH ?? "",
+      NODE_NO_WARNINGS: "1",
+      TRUST_SUBSTRATE_PROJECT_ROOT: projectRoot,
+      TRUST_SUBSTRATE_SNAPSHOT_PATH: SNAPSHOT_RELATIVE_PATH,
+      TRUST_SUBSTRATE_MCP_ENABLE_WRITES: "1",
+      SUBSTRATE_KEYPAIR: keypairPath,
+      SUBSTRATE_RPC_URL: "http://127.0.0.1:8899",
+      SUBSTRATE_RPC_SUBSCRIPTIONS_URL: "ws://127.0.0.1:8900",
+    },
+    stderr: "pipe",
+  });
+
+  try {
+    await client.connect(transport);
+    const tools = await client.listTools();
+    for (const toolName of EXPECTED_WRITE_TOOLS) {
+      ok(
+        tools.tools.some((tool) => tool.name === toolName),
+        `${toolName} must be registered in write mode`,
+      );
+    }
+    const identityTool = tools.tools.find(
+      (tool) => tool.name === "trust_substrate_identity_write",
+    );
+    strictEqual(identityTool?.annotations?.readOnlyHint, false);
+    strictEqual(identityTool?.annotations?.openWorldHint, true);
+
+    const status = await client.callTool({
+      name: "trust_substrate_write_status",
+      arguments: { response_format: "json" },
+    });
+    strictEqual(status.structuredContent?.enabled, true);
+    strictEqual(status.structuredContent?.ready, true);
+    strictEqual(status.structuredContent?.signerAddress, TEST_SIGNER_ADDRESS);
+    ok(
+      !JSON.stringify(status.structuredContent).includes(
+        TEST_KEYPAIR_BYTES.join(","),
+      ),
+    );
+
+    const preview = await client.callTool({
+      name: "trust_substrate_identity_write",
+      arguments: {
+        action: "ensure_identity",
+        identity_label: "smoke-agent",
+        response_format: "json",
+      },
+    });
+    strictEqual(preview.structuredContent?.mode, "preview");
+    strictEqual(preview.structuredContent?.submitted, false);
+    strictEqual(preview.structuredContent?.signer, TEST_SIGNER_ADDRESS);
+
+    const refusedSubmit = await client.callTool({
+      name: "trust_substrate_identity_write",
+      arguments: {
+        action: "ensure_identity",
+        mode: "submit",
+        identity_label: "smoke-agent",
+        response_format: "json",
+      },
+    });
+    strictEqual(refusedSubmit.structuredContent?.mode, "preview");
+    strictEqual(refusedSubmit.structuredContent?.submitted, false);
+    strictEqual(refusedSubmit.structuredContent?.submitRefused, true);
   } finally {
     await client.close();
   }

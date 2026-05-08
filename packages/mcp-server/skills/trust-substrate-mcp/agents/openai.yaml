@@ -1,4 +1,4 @@
 interface:
   display_name: "Trust Substrate MCP"
-  short_description: "Use Trust Substrate snapshot tools"
-  default_prompt: "Use $trust-substrate-mcp to inspect a Trust Substrate indexer snapshot."
+  short_description: "Use Trust Substrate read tools and opt-in chain writes"
+  default_prompt: "Use $trust-substrate-mcp to inspect Trust Substrate evidence. Check trust_substrate_write_status before any protocol write."

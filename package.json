@@ -7,7 +7,7 @@
   "scripts": {
     "generate:clients": "pnpm exec node scripts/generate-program-clients.mjs",
     "test": "pnpm test:packages && pnpm test:apps && pnpm test:rust && pnpm test:anchor && pnpm test:verification",
-    "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer && npm test --prefix packages/mcp-server",
+    "test:packages": "npm test --prefix packages/sdk && npm test --prefix packages/indexer && npm test --prefix packages/a2a-adapter && npm test --prefix packages/acp-adapter && npm test --prefix packages/eip8004-exporter && npm test --prefix packages/mcp-server",
     "test:apps": "pnpm pi-console:test",
     "test:rust": "cargo test --workspace --exclude trust_substrate_litesvm_tests",
     "test:verification": "pnpm --filter @trust-substrate/sdk build && node --test --experimental-strip-types tests/verification/*.test.ts tests/verification/*.test.js",
@@ -26,7 +26,7 @@
     "lint:fix": "prettier \"**/*.{js,ts}\" -w",
     "lint": "prettier \"**/*.{js,ts}\" --check && pnpm --dir examples/multi_agent/society-ui-app lint && pnpm pi-console:lint",
     "verify:review": "pnpm lint && pnpm test:verification && pnpm society:ui:build && pnpm pi-console:test && pnpm pi-console:build",
-    "verify:release": "pnpm lint && pnpm verify:qedgen && anchor build --ignore-keys && pnpm --filter @trust-substrate/program-clients build && pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && pnpm --filter @trust-substrate/pi-local-runtime build && pnpm --filter @trust-substrate/pi-extension test && pnpm pi-console:test && pnpm pi-console:build && pnpm test:rust && pnpm test:anchor && pnpm test:verification && pnpm test:surfpool"
+    "verify:release": "pnpm lint && pnpm verify:qedgen && anchor build --ignore-keys && pnpm --filter @trust-substrate/program-clients build && pnpm --filter @trust-substrate/sdk build && pnpm --filter @trust-substrate/indexer build && pnpm --filter @trust-substrate/a2a-adapter test && pnpm --filter @trust-substrate/acp-adapter test && pnpm --filter @trust-substrate/eip8004-exporter test && pnpm --filter @trust-substrate/mcp-server test && pnpm --filter @trust-substrate/pi-local-runtime build && pnpm --filter @trust-substrate/pi-extension test && pnpm pi-console:test && pnpm pi-console:build && pnpm test:rust && pnpm test:anchor && pnpm test:verification && pnpm test:surfpool"
   },
   "dependencies": {
     "@anchor-lang/core": "1.0.0"

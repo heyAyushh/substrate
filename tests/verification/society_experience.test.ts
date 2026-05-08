@@ -313,10 +313,7 @@ test("mission-first onboarding never blocks entry", () => {
   });
 
   strictEqual(waitingModel.stage, "board");
-  strictEqual(
-    waitingModel.primaryActionLabel,
-    "Prepare agents and start live world",
-  );
+  strictEqual(waitingModel.primaryActionLabel, "Start live world");
   strictEqual(waitingModel.primaryActionDisabled, false);
   strictEqual(waitingModel.observationPending, false);
 
@@ -352,10 +349,7 @@ test("mission-first onboarding never blocks entry", () => {
     ],
   });
 
-  strictEqual(
-    resolvedModel.primaryActionLabel,
-    "Prepare agents and start live world",
-  );
+  strictEqual(resolvedModel.primaryActionLabel, "Start live world");
   strictEqual(resolvedModel.primaryActionDisabled, false);
   strictEqual(resolvedModel.observationPending, false);
   strictEqual(
@@ -405,7 +399,7 @@ test("mission-first onboarding can explain events from any live agent", () => {
     ],
   });
 
-  strictEqual(model.primaryActionLabel, "Prepare agents and start live world");
+  strictEqual(model.primaryActionLabel, "Start live world");
   strictEqual(model.primaryActionDisabled, false);
   strictEqual(
     model.focusMoment?.title,
