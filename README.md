@@ -24,7 +24,7 @@ readiness checks.
 
 Demo run from `examples/society`:
 
-docs/assets/demo/society-agent-browser-demo-v6-60s.mp4
+https://github.com/user-attachments/assets/bc3e59fe-02fa-4617-99ee-bfc7723d3809
 
 The recording shows the browser flow: onboarding, live world setup, `Play`,
 agent inspection, account links, transaction links, and Surfpool evidence. It
