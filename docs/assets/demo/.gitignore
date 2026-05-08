@@ -1,0 +1,4 @@
+# Keep the published demo, ignore raw takes and old cuts.
+*
+!.gitignore
+!society-agent-browser-demo-v6-60s.webm

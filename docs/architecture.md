@@ -4,13 +4,13 @@ Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Overview
 
-[on-chain] Trust Substrate is a local Solana protocol set for agent identity,
-task tracking, receipt history, delegation, checkpoint proofs, program-backed
-reputation, and stake-backed dispute resolution.
+[on-chain] Trust Substrate is a set of Solana programs for agent identity, task
+tracking, receipt history, delegation, checkpoints, reputation, and stake-backed
+disputes.
 
-[on-chain] The execution graph is the record. Receipts describe meaningful
-steps. Checkpoints anchor history roots. Reputation is applied from verified
-receipt evidence by the reputation program.
+[on-chain] The execution graph is the record. Receipts describe what happened.
+Checkpoints anchor history roots. The reputation program applies reputation from
+verified receipt evidence.
 
 ## Layers
 
@@ -22,15 +22,16 @@ receipt evidence by the reputation program.
 
 ## Integration Boundary
 
-Applications are adapters over the protocol. They may translate their own
-domain events into tasks, receipts, disputes, verdicts, and stake operations,
-but they do not define new protocol truth. Pi Console and Society Board are
-examples of this adapter layer; any other agent runtime or application should
-be able to use the same generated clients and SDK helpers.
+Applications are adapters over the protocol.
+
+Applications sit above the protocol. They can translate their own events into
+tasks, receipts, disputes, verdicts, and stake operations, but they do not get a
+private truth layer. Pi Console and Society Board are examples. Another agent
+runtime should be able to use the same generated clients and SDK helpers.
 
 ## On-Chain Programs
 
-The workspace currently has these Anchor programs:
+The workspace has these Anchor programs:
 
 - [on-chain] `identity_registry`: creates PDA-based agent identities with authority, policy root, and history root
 - [on-chain] `task_registry`: creates task records and syncs task status from receipts
@@ -41,8 +42,10 @@ The workspace currently has these Anchor programs:
 - [on-chain] `dispute_resolver`: registers the active adjudicator, anchors the protocol treasury PDA, and records dispute verdicts
 - [on-chain] `agent_stake`: escrows identity-scoped SOL or SPL-token stake, cooldown-gates unstaking, and binds slashing to dispute-resolution receipts
 
-[on-chain] `crates/trust_substrate_core` keeps shared seeds, receipt kinds, task statuses, errors, and Merkle helpers out of the program crates.
-[sdk] The same crate also anchors the hashing and error vocabulary used by the local model and replay tests.
+[on-chain] `crates/trust_substrate_core` keeps shared seeds, receipt kinds, task
+statuses, errors, and Merkle helpers out of the program crates.
+[sdk] The same crate also provides the hashing and error vocabulary used by the
+local model and replay tests.
 
 ## Account Roots
 
@@ -58,7 +61,9 @@ Each persistent account is derived from a fixed PDA seed:
 - `StakeAccount`: `stake`
 - `SlashMarker`: `slash_marker`
 
-[on-chain] The agent identity PDA is the root of trust for identity-scoped writes. Authority checks and account constraints keep tasks, receipts, checkpoints, reputation records, and stake accounts tied to the correct identity.
+[on-chain] The agent identity PDA is the root for identity-scoped writes.
+Authority checks and account constraints keep tasks, receipts, checkpoints,
+reputation records, and stake accounts tied to the correct identity.
 [on-chain] Each task also carries a canonical domain, and receipts under that task must use the same domain.
 
 ## Receipt History
@@ -97,9 +102,14 @@ The proof verifier stores per-identity history checkpoints with:
 - previous root
 - leaf count
 
-[on-chain] Normal checkpoints start empty and append receipt leaves in canonical task and sequence order. Checkpoint rotation requires the next epoch and carries the previous root forward. Inclusion verification checks Merkle proofs against the checkpoint root using the shared core hashing rules.
+[on-chain] Normal checkpoints start empty and append receipt leaves in canonical
+task and sequence order. Checkpoint rotation requires the next epoch and carries
+the previous root forward. Inclusion verification checks Merkle proofs against
+the checkpoint root using the shared core hashing rules.
 
-[on-chain] `checkpoint_import` is the only caller-supplied root path. It is marked as imported, gated by the `checkpoint_importer` governance authority, and intended for migration or recovery rather than routine receipt history.
+[on-chain] `checkpoint_import` is the only caller-supplied root path. It is
+marked as imported, gated by the `checkpoint_importer` governance authority, and
+intended for migration or recovery rather than routine receipt history.
 
 This is the local checkpoint model. Light Protocol ZK Compression is future work, not part of the current local baseline.
 
@@ -126,11 +136,23 @@ derivations are previews or verification aids, not authority.
 - dispute-resolved weight
 
 [on-chain] There is no direct score-write instruction.
-[sdk] The SDK and indexer can derive richer local profiles from the verified graph, including team reputation rollups and handoff inheritance views. If local replay disagrees with fetched program-backed reputation, the mismatch is surfaced as a verification fault.
+[sdk] The SDK and indexer can derive local profiles from the verified graph,
+including team reputation rollups and handoff inheritance views. If local replay
+disagrees with fetched program-backed reputation, the mismatch is a verification
+fault.
 
 ## Stake-Backed Disputes
 
-[on-chain] `agent_stake` keeps optional slashable SOL escrow and configured SPL-token stake vaults under an agent identity. Stake owners can request unstake, but withdrawals are delayed by a cooldown slot. Authority-mode stake can be slashed only by the configured slash authority against a `DISPUTE_RESOLVED_KIND` receipt. Verdict-mode stake can be slashed only from a `dispute_resolver` verdict bound to a dispute receipt, the target identity, and the active adjudicator. Slash and unstake are separate paths: unstake returns unlocked funds to the owner, while slash transfers the penalty into the protocol treasury or token treasury vault. Both paths use replay marker PDAs keyed by stake and dispute receipt.
+[on-chain] `agent_stake` keeps optional slashable SOL escrow and configured
+SPL-token stake vaults under an agent identity. Stake owners can request
+unstake, but withdrawals wait for a cooldown slot. Authority-mode stake can be
+slashed only by the configured slash authority against a
+`DISPUTE_RESOLVED_KIND` receipt. Verdict-mode stake can be slashed only from a
+`dispute_resolver` verdict bound to a dispute receipt, the target identity, and
+the active adjudicator. Slash and unstake are separate paths: unstake returns
+unlocked funds to the owner; slash transfers the penalty into the protocol
+treasury or token treasury vault. Both paths use replay marker PDAs keyed by
+stake and dispute receipt.
 
 ## Indexing
 
@@ -144,11 +166,14 @@ derivations are previews or verification aids, not authority.
 - team reputation rollups
 - execution graph snapshots
 
-[indexer] The indexer is local and deterministic. Remote event ingestion and Geyser-style pipelines are future work.
+[indexer] The indexer is local and deterministic. Remote event ingestion and
+Geyser-style pipelines are future work.
 
 ## SDK
 
-[sdk] `packages/program-clients/src/generated` contains Codama-generated `@solana/kit` clients derived from the current Anchor IDLs. This is the RPC-facing layer for instructions, accounts, PDAs, and typed parsers.
+[sdk] `packages/program-clients/src/generated` contains Codama-generated
+`@solana/kit` clients derived from the current Anchor IDLs. This is the
+RPC-facing layer for instructions, accounts, PDAs, and typed parsers.
 
 [sdk] `packages/sdk/src` provides deterministic local helpers for:
 

@@ -1,8 +1,8 @@
 # Deployment Readiness
 
-Trust Substrate should be evaluated as a deploy-ready Solana protocol, with
-Surfpool as the current required local network gate. Pi Console and Society
-Board are demos that exercise the protocol; they are not the protocol boundary.
+Evaluate Trust Substrate as a Solana protocol repo with Surfpool as the current
+local network gate. Pi Console and Society Board exercise the protocol, but
+they are demos, not the boundary.
 
 ## Current Target
 
@@ -15,7 +15,7 @@ Board are demos that exercise the protocol; they are not the protocol boundary.
   wallet, create identity/task state, sign actions, submit receipts, checkpoint
   history, and read reputation.
 
-## Release Claim That Is Safe Today
+## Honest Release Claim
 
 The safe public claim is:
 

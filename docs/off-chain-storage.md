@@ -67,7 +67,7 @@ Any content-addressable store works. The reference set is:
 3. Rebuild execution records, handoff chains, and task status transitions from the verified payloads.
 4. Verify any checkpoint with an on-chain `LatestCheckpoint` pointer and a Merkle proof against the checkpoint root.
 5. Fetch the program-backed reputation accumulator and compare it with local
-   replay. The on-chain accumulator is the source of truth; local replay is a
+   replay. The on-chain accumulator is canonical; local replay is a
    verification aid and should flag mismatches loudly.
 
 [indexer] Blobs that are unreachable or mismatched are treated as missing receipts for replay purposes and flagged as availability faults.

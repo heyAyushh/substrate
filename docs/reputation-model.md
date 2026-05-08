@@ -1,13 +1,13 @@
 # Reputation Model
 
-Trust Substrate reputation is program-backed. The `reputation_accumulator`
-program is the canonical writer for domain reputation, and SDKs/indexers only
-preview, explain, and verify the program result.
+Trust Substrate reputation is written by the `reputation_accumulator` program.
+SDKs and indexers can preview, explain, and verify the result, but they do not
+write canonical reputation.
 
 ## Inputs
 
 Reputation is applied from verified receipt accounts. A receipt can affect a
-reputation account only once because every application creates a
+reputation account only once because each application creates a
 `reputation_receipt_application` marker.
 
 The evidence source is:
@@ -23,9 +23,9 @@ The program can weight that evidence source with:
 - runtime attestation
 - prior slashed stake
 
-Missing optional evidence gives no bonus. Reputation-affecting audit and
-attestation receipts require reviewer evidence: a valid identity bond and a
-matching attester record.
+Missing optional evidence gives no bonus. Audit and attestation receipts affect
+reputation only when the reviewer has a valid identity bond and matching
+attester record.
 
 ## Weight Formula
 
@@ -58,12 +58,12 @@ handling remain production-readiness items.
 - `attestation` increases attestation totals when the reviewer is bonded and
   registered as an attester.
 
-Legacy counters remain for compatibility. Weighted counters are the stronger
-execution-backed reputation surface.
+Legacy counters remain for compatibility. Weighted counters are the
+execution-backed reputation surface apps should prefer.
 
 ## SDK And Indexer Role
 
-The SDK may preview the same weight formula for UI planning, but that preview is
+The SDK may preview the same weight formula for UI planning. That preview is
 not authority. The indexer may ingest fetched program-backed reputation accounts
 and flag mismatches against local replay. If a UI has no fetched program-backed
 account, it must label any local score as an unverified preview.

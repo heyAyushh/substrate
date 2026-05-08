@@ -2,10 +2,9 @@
 
 Scope tags are defined in [Scope Tags](scope-tags.md).
 
-This is the live checklist for boundaries that must be closed, or explicitly
-accepted, before Trust Substrate is described as production-ready. Each item
-stays open until its implementation, tests, and documentation are updated
-together.
+This checklist tracks the boundaries that must be closed, or explicitly
+accepted, before anyone describes Trust Substrate as production-ready. An item
+stays open until the implementation, tests, and docs all match.
 
 ## Open Items
 

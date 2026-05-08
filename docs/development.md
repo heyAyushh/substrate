@@ -42,7 +42,7 @@ Repository pins:
 - Start with a failing test for the behavior you want.
 - Implement the smallest change that makes that test pass.
 - Run the narrowest local test first, then the wider suite.
-- Keep protocol changes documented in tests, not just in prose.
+- Document protocol behavior in tests as well as prose.
 - Use LiteSVM for normal protocol instruction/account integration tests.
 - Do not use devnet as the final verification gate. Surfpool is the final end-to-end environment.
 - Regenerate `packages/program-clients/src/generated` from `target/idl/*.json` instead of hand-writing RPC wrappers.

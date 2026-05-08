@@ -2,54 +2,71 @@
 
 # Trust Substrate
 
-Agents need wallets, but they also need memory, receipts, delegation, and reputation.
+Trust Substrate is a Solana protocol for agents that need a record outside the
+chat window.
 
-Trust Substrate is a local Solana trust layer for autonomous agents. It stores
-an append-only execution graph and applies reputation through program-backed
-receipt evidence instead of letting clients write scores directly.
+An agent can own a key, create an identity, accept a task, emit signed receipts,
+checkpoint its history, build reputation, stake value, and answer disputes. The
+current network target is Surfpool. The same programs and clients are meant to
+be hardened for a public Solana deployment, but this repo does not claim
+mainnet production use yet.
 
-The practical goal is simple: an agent should be able to hold its own key,
-submit Solana transactions, publish receipts, build reputation, escrow stake,
-and be challenged or slashed through protocol rules. The local target is
-Surfpool today; the architecture is meant to be deployable to a public Solana
-cluster when the readiness gates are satisfied.
-
-The protocol is the product. Pi Console, the Society Board, and other examples
-are clients that exercise the same identity, task, delegation, receipt,
-checkpoint, reputation, stake, and dispute surfaces. A demo can display protocol
-state, but it must not become the authority that invents or validates truth.
+Pi Console and Society Board are demos. They make the protocol visible; they do
+not decide what is true. The real evidence is in program accounts, signatures,
+transaction ids, receipt hashes, and Merkle roots.
 
 ## Disclaimer
 
 Trust Substrate is unaudited, AI-assisted software. It is provided for
-educational and experimental use only, and is not meant for production use
+educational and experimental use only. It is not meant for production use
 without an independent security review, operational hardening, and deployment
 readiness checks.
 
-## What Is Here
+Demo run from `examples/society`:
+[Watch the one-minute browser-recorded Society + Surfpool demo](docs/assets/demo/society-agent-browser-demo-v6-60s.webm)
 
-This repository contains a local protocol baseline:
+The recording shows the browser flow: onboarding, live world setup, `Play`,
+agent inspection, account links, transaction links, and Surfpool evidence. It
+is a local demo, not a mainnet deployment claim.
 
-- Anchor programs for identity, tasks, receipts, delegation, checkpoints, reputation, and stake-backed disputes
-- a shared Rust core crate for constants, errors, Merkle proofs, and local model tests
-- Codama-generated `@solana/kit` program clients
-- deterministic TypeScript SDK helpers for local graph, proof, and reputation modeling
-- a local durable indexer that rebuilds execution graphs, handoff inheritance, and team reputation views from receipts
-- interop adapters for A2A, AGNTCY ACP, ERC-8004 metadata export, and MCP
-- Anchor/LiteSVM, Rust, TypeScript, verification, and Surfpool test paths
-- documentation for architecture, development, testing, security, and roadmap decisions
+## Why This Exists
 
-This is not a production deployment. The current goal is a correct local
-baseline that can be hardened before networked indexing, compression
-integrations, or production deployment. The active production-readiness
-checklist is tracked in [Production Readiness To-Do](docs/production-readiness.md).
-The current deploy-ready target is Surfpool/local Solana with stable program
-IDs, generated clients, and release gates that can be rerun before any public
-network deployment.
+Agents need more than wallets. A useful agent should be able to prove which key
+acted, which task it acted on, what it claimed to do, who delegated authority,
+which receipts were emitted, and what happened if someone challenged the work.
+
+Trust Substrate keeps those facts in Solana programs:
+
+- agent identities live in program accounts
+- tasks and demo worlds are anchored on-chain
+- receipts append execution evidence
+- checkpoints commit replayable history roots
+- reputation is applied by a program, not by a UI score
+- stake can be deposited, unlocked, or slashed through explicit paths
+- disputes record adjudicator-backed verdicts
+- SDKs and adapters read the same state for apps, agents, and MCP clients
+
+## Repo Map
+
+| Area                                 | Path                                                                                                                                                        |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anchor programs                      | [`programs/`](programs)                                                                                                                                     |
+| Shared Rust protocol core            | [`crates/trust_substrate_core/`](crates/trust_substrate_core)                                                                                               |
+| LiteSVM integration tests            | [`crates/trust_substrate_litesvm_tests/`](crates/trust_substrate_litesvm_tests)                                                                             |
+| TypeScript SDK                       | [`packages/sdk/`](packages/sdk)                                                                                                                             |
+| Generated Solana clients             | [`packages/program-clients/`](packages/program-clients)                                                                                                     |
+| Local indexer                        | [`packages/indexer/`](packages/indexer)                                                                                                                     |
+| Pi extension/runtime packages        | [`packages/pi-extension/`](packages/pi-extension), [`packages/pi-local-runtime/`](packages/pi-local-runtime)                                                |
+| MCP server                           | [`packages/mcp-server/`](packages/mcp-server)                                                                                                               |
+| A2A, ACP, ERC-8004 metadata adapters | [`packages/a2a-adapter/`](packages/a2a-adapter), [`packages/acp-adapter/`](packages/acp-adapter), [`packages/eip8004-exporter/`](packages/eip8004-exporter) |
+| Agent-facing skill                   | [`skills/trust-substrate/`](skills/trust-substrate)                                                                                                         |
+| Examples                             | [`examples/`](examples)                                                                                                                                     |
+| Docs                                 | [`docs/`](docs)                                                                                                                                             |
+| Tests                                | [`tests/`](tests)                                                                                                                                           |
 
 ## Protocol Programs
 
-The workspace has these deployable Anchor programs:
+The deployable Anchor programs are:
 
 - `identity_registry`
 - `attester_registry`
@@ -61,88 +78,153 @@ The workspace has these deployable Anchor programs:
 - `dispute_resolver`
 - `agent_stake`
 
-Shared protocol constants and pure model logic live in `crates/trust_substrate_core`.
+The Society demo exercises all nine locally through Surfpool.
+
+## Quick Start
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Generate typed clients from the current IDLs:
+
+```bash
+pnpm generate:clients
+```
+
+Run the review gate:
+
+```bash
+pnpm verify:review
+```
+
+Run the heavier release gate before making a public deployment claim:
+
+```bash
+pnpm verify:release
+```
+
+## Run The Local Demo
+
+This runs the local stack: Surfpool, Pi Console, and Society Board. Society
+writes protocol transactions to Surfpool. Pi Console runs beside it as the
+local operator surface for agents.
+
+Build the browser assets and programs first:
+
+```bash
+anchor build --ignore-keys
+pnpm society:ui:build
+pnpm --filter @trust-substrate/pi-local-runtime build
+```
+
+Start Surfpool:
+
+```bash
+NO_DNA=1 surfpool start \
+  --host 127.0.0.1 \
+  --port 8898 \
+  --ws-port 8897 \
+  --studio-port 18488 \
+  --no-tui \
+  --ci \
+  --offline \
+  --legacy-anchor-compatibility \
+  --airdrop-keypair-path "${HOME}/.config/solana/id.json"
+```
+
+Deploy the programs into that local Surfpool cluster:
+
+```bash
+anchor deploy \
+  --provider.cluster http://127.0.0.1:8898 \
+  --provider.wallet "${HOME}/.config/solana/id.json"
+```
+
+Start Pi Console in a second terminal:
+
+```bash
+pnpm pi-console:dev
+```
+
+If Vite selects a port other than `5173`, pass that URL to Society with
+`SUBSTRATE_SOCIETY_PI_RUNTIME_URL`.
+
+Start Society Board in a third terminal:
+
+```bash
+. ./examples/multi_agent/society-demo-env.example.sh
+SUBSTRATE_SOCIETY_PORT=4200 pnpm society
+```
+
+Open:
+
+- Society Board: [http://127.0.0.1:4200/society](http://127.0.0.1:4200/society)
+- Pi Console: [http://127.0.0.1:5173](http://127.0.0.1:5173)
+- Surfpool Studio: [http://127.0.0.1:18488](http://127.0.0.1:18488)
+
+In Society, use onboarding to start the world. Setup creates agent identities,
+delegations, stake accounts, the world account, and the first receipt. Use
+`Step` for one action or `Play` to let the world run.
+
+Leave `SUBSTRATE_SOCIETY_PI_ACTIONS` unset unless you want Society to call the
+local Pi runtime and spend model tokens.
 
 ## Example Integrations
 
-Trust Substrate should be usable by any agent runtime or application that can
-hold a key, build a transaction, and submit receipts. The examples in this repo
-are access paths into the protocol, not special protocol modes:
-
-- **Pi Console** is an example control plane for launching agents, managing
-  identity folders, and submitting signed agent actions.
-- **Society Board** is an example visual application that maps board events into
-  generic protocol primitives: tasks, receipts, checkpoints, reputation,
-  verdicts, and stake.
-- Future apps should use the same SDK/client surfaces without copying
-  Society-specific rules into the core protocol.
-
-Example integrations should stay honest: local previews, scripted demos, and
-test fixtures must be labeled as such. User-facing proof, reputation, stake,
-and dispute claims should point back to program state, signed artifacts,
-transaction signatures, receipt hashes, or Merkle roots.
-
-## Out of scope for v0.1
-
-- Light Protocol ZK Compression integration
-- remote event streaming or Geyser ingestion
-- production RPC orchestration beyond the generated local client package
-- mainnet deployment hardening
-- production SPL token mint allowlists, token valuation, and Token-2022
-  extension policy
-- full multi-hop delegation proof chains
-- automated dispute outcome decisions from private receipt payload text
-- production claims around cross-task and cross-domain ordering until the
-  additional readiness tests land
+| Example                                                                       | What it shows                                                                       | Setup                                                                                            |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| [`examples/society/`](examples/society)                                       | Browser demo entrypoint for the Surfpool-backed Society world                       | [`examples/society/README.md`](examples/society/README.md)                                       |
+| [`examples/pi-console/`](examples/pi-console)                                 | Local Pi agent sessions, launch briefs, runtime activity, and identity-aware UI     | [`examples/pi-console/README.md`](examples/pi-console/README.md)                                 |
+| [`examples/multi_agent/`](examples/multi_agent)                               | Society Board, Surfpool world state, receipts, stake, reputation, and dispute paths | [`examples/multi_agent/README.md`](examples/multi_agent/README.md)                               |
+| [`examples/multi_agent/society-ui-app/`](examples/multi_agent/society-ui-app) | React app used by the Society server                                                | [`examples/multi_agent/society-ui-app/README.md`](examples/multi_agent/society-ui-app/README.md) |
+| [`examples/agent_loop/`](examples/agent_loop)                                 | Local SDK receipt, checkpoint, stake, and indexer walkthrough                       | [`examples/agent_loop/README.md`](examples/agent_loop/README.md)                                 |
 
 ## Documentation
 
 - [Architecture](docs/architecture.md)
 - [Program Interface](docs/programs.md)
 - [Reputation Model](docs/reputation-model.md)
+- [Agent Interop Surfaces](docs/interop.md)
+- [MCP Server](packages/mcp-server/README.md)
 - [Development](docs/development.md)
 - [Testing](docs/testing.md)
-- [Deployment Readiness](docs/deployment-readiness.md)
-- [Agent Interop Surfaces](docs/interop.md)
-- [Agent Skill Contract](docs/agent-skill.md)
-- [Senior Reviewer Guide](docs/reviewer-guide.md)
 - [Security](docs/security.md)
+- [Threat Model](docs/threat-model.md)
+- [Deployment Readiness](docs/deployment-readiness.md)
 - [Production Readiness To-Do](docs/production-readiness.md)
 - [Roadmap](docs/roadmap.md)
 - [Agent Instructions](AGENTS.md)
 
-## Repository Layout
-
-```text
-crates/trust_substrate_core/  Shared protocol constants, errors, Merkle logic, and model tests
-crates/trust_substrate_litesvm_tests/  LiteSVM protocol integration tests
-programs/                    Anchor protocol programs
-packages/sdk/                 Deterministic local SDK helpers
-packages/program-clients/     Codama-generated @solana/kit clients from Anchor IDLs
-packages/indexer/             Local durable execution graph indexer
-packages/pi-extension/        Pi agent integration package
-packages/pi-local-runtime/    Local Pi runtime bridge
-packages/a2a-adapter/         A2A Agent Card and task metadata adapter
-packages/acp-adapter/         AGNTCY ACP descriptor adapter
-packages/eip8004-exporter/    ERC-8004-friendly metadata exporter
-packages/mcp-server/          MCP server for snapshot reads and opt-in chain writes
-skills/trust-substrate/        Agent-facing Trust Substrate skill contract
-tests/                        TypeScript package, Surfpool, and verification tests
-scripts/                      Local automation scripts
-docs/                         Project documentation
-examples/pi-console/          Pi Console control-plane demo
-examples/multi_agent/         Society Board and local protocol walkthrough
-```
-
 ## Agent Entry Points
 
-- Agent-facing repo instructions: [AGENTS.md](AGENTS.md)
-- Installable Trust Substrate skill: [skills/trust-substrate/SKILL.md](skills/trust-substrate/SKILL.md)
-- Public SDK helpers: [packages/sdk](packages/sdk)
-- Generated Solana clients: [packages/program-clients](packages/program-clients)
-- Local indexer: [packages/indexer](packages/indexer)
-- Interop adapters: [packages/a2a-adapter](packages/a2a-adapter), [packages/acp-adapter](packages/acp-adapter), [packages/eip8004-exporter](packages/eip8004-exporter)
-- MCP read/write server: [packages/mcp-server](packages/mcp-server)
+- Agent instructions: [`AGENTS.md`](AGENTS.md)
+- Installable skill: [`skills/trust-substrate/SKILL.md`](skills/trust-substrate/SKILL.md)
+- SDK: [`packages/sdk/`](packages/sdk)
+- Generated Solana clients: [`packages/program-clients/`](packages/program-clients)
+- MCP server: [`packages/mcp-server/`](packages/mcp-server)
+- A2A adapter: [`packages/a2a-adapter/`](packages/a2a-adapter)
+- ACP adapter: [`packages/acp-adapter/`](packages/acp-adapter)
+- ERC-8004 metadata exporter: [`packages/eip8004-exporter/`](packages/eip8004-exporter)
+
+## Verification
+
+Useful commands:
+
+```bash
+pnpm verify:qedgen
+pnpm test:packages
+pnpm test:rust
+pnpm test:litesvm
+pnpm verify:review
+pnpm verify:release
+```
+
+Use `pnpm verify:review` before pushing normal changes. Use
+`pnpm verify:release` before saying the repo is ready for a public network
+deployment.
 
 ## Toolchain
 
@@ -161,90 +243,13 @@ Repository pins:
 - `packageManager` `pnpm@10.33.0`
 - `Anchor.toml` `anchor_version = "1.0.0"`
 
-## Quick Start
+## Project Notes
 
-Install dependencies:
-
-```bash
-pnpm install
-```
-
-Regenerate the typed program clients from the current IDLs:
-
-```bash
-pnpm generate:clients
-```
-
-Run the local unit and model checks:
-
-```bash
-pnpm test
-```
-
-Run the Anchor flow:
-
-```bash
-pnpm test:anchor
-```
-
-`pnpm test:anchor` builds the programs and runs the granular LiteSVM protocol suites without starting a validator.
-
-Run the Surfpool end-to-end gate:
-
-```bash
-pnpm test:surfpool
-```
-
-Surfpool is the required final local E2E environment. Devnet is not the release gate for this project.
-
-## TDD Workflow
-
-Every protocol behavior starts as a failing test:
-
-1. Write the smallest test that describes the behavior.
-2. Run it and confirm it fails for the expected reason.
-3. Implement the smallest passing change.
-4. Re-run the focused test.
-5. Run the wider local suite.
-6. Use LiteSVM for protocol integration and Surfpool as the final end-to-end gate.
-
-Do not add protocol behavior that has no local test.
-
-## Local Flow
-
-The current local path is:
-
-1. Create an agent identity PDA.
-2. Create a task PDA under that identity.
-3. Register attestation capability when a workflow needs attester evidence.
-4. Emit ordered receipts for meaningful execution steps.
-5. Create scoped delegation records for handoffs.
-6. Checkpoint receipt history roots.
-7. Apply receipts to program-backed reputation state.
-8. Escrow stake for agents that opt into slashable dispute resolution.
-9. Rebuild the execution graph, handoff inheritance, and team reputation views through the local indexer.
-
-Receipts are the source of truth. Reputation is applied from verified receipt
-evidence by the reputation program.
-JSON artifacts are proof artifacts only when they are signed and chain-bound to
-an agent identity, receipt payload hash, transaction signature, and Merkle
-transcript root.
-
-## Useful Commands
-
-```bash
-pnpm test
-pnpm test:surfpool
-```
-
-`pnpm test` and `pnpm test:surfpool` may print upstream Anchor or Solana
-warnings. Passing status is determined by command exit code.
-
-## Contributing Rules
-
-- Use Conventional Commits.
-- Keep commits focused and reviewable.
-- Prefer existing Anchor, Solana, LiteSVM, TypeScript, and Surfpool tooling over custom infrastructure.
-- Keep reputation tied to verified receipt evidence.
-- Do not use devnet as the required verification gate.
-- Read [AGENTS.md](AGENTS.md) before making agent-driven changes.
+- Protocol behavior is covered by tests and local verification gates.
+- Reputation is tied to verified receipt evidence.
+- Demo proof claims point back to program state, receipts, transaction ids,
+  signatures, and Merkle roots.
+- Surfpool is the current end-to-end release gate. Devnet is not used as the
+  release gate for this repo.
+- Contributors should read [`AGENTS.md`](AGENTS.md) before making agent-driven
+  changes.

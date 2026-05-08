@@ -4,8 +4,9 @@ Scope tags are defined in [Scope Tags](scope-tags.md).
 
 ## Security Model
 
-[on-chain] Trust Substrate treats the receipt graph as the source of truth.
-[indexer] The system should remain auditable even when scores, dashboards, or agent-facing summaries are ignored.
+[on-chain] Trust Substrate treats the receipt graph as the canonical record.
+[indexer] The system should remain auditable even when scores, dashboards, or
+agent-facing summaries are ignored.
 
 The main protected assets are:
 

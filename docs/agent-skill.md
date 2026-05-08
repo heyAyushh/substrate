@@ -34,8 +34,8 @@ The skill must not:
 
 Pi Console can use the skill to show an agent workflow that commits receipts.
 Society Board can use the same skill path to show a board action reflected in
-protocol state. Both demos must stay clients. The receipt graph remains the
-source of truth.
+protocol state. Both demos must stay clients. The receipt graph is the record
+other surfaces should check against.
 
 ## Current Network Mode
 

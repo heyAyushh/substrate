@@ -1,49 +1,77 @@
-# Agent Society UI
+# Society UI App
 
-React UI for the Surfpool-backed agent society demo.
+This is the React app used by Society Board. The server in
+`examples/multi_agent/society_server.ts` serves the built bundle and handles
+Surfpool writes.
 
-Build the browser bundle:
+## Prerequisites
 
-```bash
-pnpm --dir examples/multi_agent/society-ui-app build
-```
-
-Run it through the society server from the repository root:
+From the repository root:
 
 ```bash
-SUBSTRATE_SOCIETY_PORT=4177 \
-SUBSTRATE_RPC_URL="http://127.0.0.1:8898" \
-SUBSTRATE_WS_URL="ws://127.0.0.1:8897" \
-SUBSTRATE_SURFPOOL_STUDIO_URL="http://127.0.0.1:18488" \
-node --experimental-strip-types examples/multi_agent/society_server.ts
+pnpm install
+pnpm society:ui:build
 ```
 
-For a public demo, set `SUBSTRATE_PUBLIC_SOCIETY_URL`,
-`SUBSTRATE_PUBLIC_RPC_URL`, and `SUBSTRATE_PUBLIC_SURFPOOL_STUDIO_URL` to the
-named tunnel or domain URLs. The sample shell file is
-`examples/multi_agent/society-demo-env.example.sh`. Live write routes stay
-loopback-only unless `SUBSTRATE_ALLOW_PUBLIC_LIVE_MUTATION=1` is set for an
-intentional public demo.
+## Run Through The Society Server
 
-Open `/society`. The UI waits until `Go live`, then prepares a paused Surfpool
-session, shows the agent grid, and links accounts and transactions to Surfpool
-Studio and Solana Explorer. Press `Step` for one signed action or `Play` to keep
-committing actions. After a refresh, use `Resume last` to reopen the latest
-server-side session explicitly.
+Start Surfpool first:
 
-Each board agent has a local identity folder and Solana keypair managed by the
-server. When an action is committed, the acting agent key signs the action
-before submission and signs the after-action state commitment before the
-delegated receipt enters the shared society task. The browser board reads the
-committed Surfpool world state; it is not the validator. Model-backed Pi prompts
-are still explicit; the board does not auto-launch LLM calls.
+```bash
+NO_DNA=1 surfpool start \
+  --host 127.0.0.1 \
+  --port 8898 \
+  --ws-port 8897 \
+  --studio-port 18488 \
+  --no-tui \
+  --ci \
+  --offline \
+  --legacy-anchor-compatibility \
+  --airdrop-keypair-path "${HOME}/.config/solana/id.json"
+```
 
-Set `SUBSTRATE_SOCIETY_PI_ACTIONS=1` only when you want `Step` or `Play` to call
-the local Pi runtime. The system prompt includes the commit-ready allowed action
-set for that agent and tick, and the receipt evidence records the Pi prompt and
-response hashes as commitments. Tests use an in-test recording client only;
-production never fabricates a Pi response.
+Deploy the programs into Surfpool:
 
-The Surfpool tab also shows a program coverage card for all nine deployable
-programs. It lists the evidence each program contributes to the board and the
-honest boundary for capabilities that are not auto-run in the normal convoy demo.
+```bash
+anchor deploy \
+  --provider.cluster http://127.0.0.1:8898 \
+  --provider.wallet "${HOME}/.config/solana/id.json"
+```
+
+Start the server:
+
+```bash
+. ./examples/multi_agent/society-demo-env.example.sh
+SUBSTRATE_SOCIETY_PORT=4200 pnpm society
+```
+
+Open [http://127.0.0.1:4200/society](http://127.0.0.1:4200/society).
+
+## UI-Only Development
+
+For UI iteration without the Society server:
+
+```bash
+pnpm society:ui:dev
+```
+
+The UI-only server is useful for layout work. It cannot prove live protocol
+execution by itself. Use the Society server and Surfpool for real demo runs.
+
+## Runtime Behavior
+
+The UI starts at onboarding. Starting a world prepares agent identities,
+delegations, stake, task/world state, and protocol accounts before showing the
+first action. `Step` commits one action. `Play` runs until the world completes
+or you pause it.
+
+When `SUBSTRATE_SOCIETY_PI_ACTIONS=1`, the server asks the local Pi runtime for
+the acting agent's action. Otherwise the server uses the deterministic live
+policy and labels the run as local/non-Pi.
+
+## Verify
+
+```bash
+pnpm --dir examples/multi_agent/society-ui-app lint
+pnpm society:ui:build
+```

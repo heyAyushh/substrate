@@ -1,23 +1,41 @@
-# Agent loop example
+# Agent Loop Example
 
-An end-to-end walkthrough of how an agent framework uses Trust Substrate locally:
+This is the small deterministic SDK example. It shows how an agent framework can
+use Trust Substrate concepts without starting Solana RPC:
 
-1. Two agents (`planner`, `builder`) are declared as identities.
-2. The planner and builder publish stake facts through canonical receipt payloads.
-3. The planner receives an assignment, hands off to the builder, and the builder completes the task.
-4. The planner opens challenge round `0` against the completion, finalizes the unanswered challenge, and the builder stake is slashed.
-5. Receipts are appended to a replay-safe ledger and ingested by the durable indexer.
-6. A Merkle tree is built over the receipt hashes, matching the on-chain checkpoint format.
-7. Stake and local reputation preview profiles are reconstructed from the verified history.
-8. The indexer snapshot is persisted to disk so a restart can recover the full execution graph.
+1. declare planner and builder identities
+2. publish stake facts as canonical receipt payloads
+3. hand off a task from planner to builder
+4. emit a completion receipt
+5. open and finalize an unanswered challenge
+6. slash local stake in the reconstructed view
+7. build a Merkle tree over receipt hashes
+8. ingest the ledger into the durable indexer
 
-## Running
+This is not the live Society demo. It writes only local files under
+`examples/agent_loop/.snapshot/`.
+
+## Prerequisites
+
+From the repository root:
 
 ```bash
+pnpm install
 pnpm --filter @trust-substrate/sdk build
 pnpm --filter @trust-substrate/indexer build
+```
+
+## Run
+
+```bash
 node --experimental-strip-types examples/agent_loop/run.ts
 ```
 
-The example only uses local SDK primitives and writes its snapshot under
-`examples/agent_loop/.snapshot/`. No Solana RPC is required.
+## Verify
+
+The example is covered by the package and verification tests:
+
+```bash
+pnpm test:packages
+pnpm test:verification
+```
